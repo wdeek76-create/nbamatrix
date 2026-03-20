@@ -839,34 +839,70 @@ function renderTracker() {
   // Breakdown by stat
   const statBreak = {};
   settled.forEach(b => {
-    if (!statBreak[b.stat]) statBreak[b.stat] = {hits:0,total:0};
+    if (!statBreak[b.stat]) statBreak[b.stat] = {hits:0,total:0,pl:0};
     statBreak[b.stat].total++;
-    if (b.result==="hit") statBreak[b.stat].hits++;
+    if (b.result==="hit") { statBreak[b.stat].hits++; statBreak[b.stat].pl += b.toWin; }
+    else statBreak[b.stat].pl -= b.stake;
   });
 
   // Breakdown by book
   const bookBreak = {};
   settled.forEach(b => {
-    if (!bookBreak[b.book]) bookBreak[b.book] = {hits:0,total:0};
+    if (!bookBreak[b.book]) bookBreak[b.book] = {hits:0,total:0,pl:0};
     bookBreak[b.book].total++;
-    if (b.result==="hit") bookBreak[b.book].hits++;
+    if (b.result==="hit") { bookBreak[b.book].hits++; bookBreak[b.book].pl += b.toWin; }
+    else bookBreak[b.book].pl -= b.stake;
+  });
+
+  // EV bucket breakdown
+  const evBuckets = {"5-9%":{hits:0,total:0,pl:0}, "10-14%":{hits:0,total:0,pl:0}, "15-19%":{hits:0,total:0,pl:0}, "20%+":{hits:0,total:0,pl:0}};
+  settled.forEach(b => {
+    const ev = calcEdge(b.odds, b.fair);
+    if (ev == null || ev < 5) return;
+    const bucket = ev>=20?"20%+":ev>=15?"15-19%":ev>=10?"10-14%":"5-9%";
+    evBuckets[bucket].total++;
+    if (b.result==="hit") { evBuckets[bucket].hits++; evBuckets[bucket].pl += b.toWin; }
+    else evBuckets[bucket].pl -= b.stake;
   });
 
   // Over/Under breakdown
-  const ouBreak = {over:{hits:0,total:0}, under:{hits:0,total:0}};
+  const ouBreak = {over:{hits:0,total:0,pl:0}, under:{hits:0,total:0,pl:0}};
   settled.forEach(b => {
     ouBreak[b.ou].total++;
-    if (b.result==="hit") ouBreak[b.ou].hits++;
+    if (b.result==="hit") { ouBreak[b.ou].hits++; ouBreak[b.ou].pl += b.toWin; }
+    else ouBreak[b.ou].pl -= b.stake;
+  });
+
+  // Time frame breakdown (by hour of tracking timestamp)
+  const timeBreak = {};
+  bets.filter(b => b.result !== "pending" && b.timestamp).forEach(b => {
+    const t = b.timestamp || "";
+    const hrMatch = t.match(/^(\d+):(\d+)\s*(AM|PM)/i);
+    if (!hrMatch) return;
+    let hr = parseInt(hrMatch[1]);
+    const ampm = hrMatch[3].toUpperCase();
+    if (ampm === "PM" && hr !== 12) hr += 12;
+    if (ampm === "AM" && hr === 12) hr = 0;
+    const label = (hr % 12 || 12) + ":00 " + (hr < 12 ? "AM" : "PM") + " – " + ((hr+1) % 12 || 12) + ":00 " + ((hr+1) < 12 ? "AM" : "PM");
+    if (!timeBreak[label]) timeBreak[label] = {hits:0,total:0,pl:0,hr};
+    timeBreak[label].total++;
+    if (b.result==="hit") { timeBreak[label].hits++; timeBreak[label].pl += b.toWin; }
+    else timeBreak[label].pl -= b.stake;
   });
 
   const pct = (h,t) => t > 0 ? `${((h/t)*100).toFixed(0)}%` : "—";
 
-  const statCards = (obj) => Object.entries(obj).map(([k,v]) => `
-    <div class="stat-card">
+  const statCards = (obj) => Object.entries(obj).map(([k,v]) => {
+    const avgStake = v.total > 0 ? (v.pl + v.total) / v.total : 1;
+    const staked = settled.filter(b => obj[b.stat || b.book] === v || (b.stat===k||b.book===k)).reduce((a,b)=>a+b.stake, 0) || v.total;
+    const roi = v.total>0 ? ((v.pl/Math.max(0.01,staked))*100).toFixed(1) : '—';
+    return `<div class="stat-card">
       <div class="sc-label">${k}</div>
       <div class="sc-val">${pct(v.hits,v.total)}</div>
       <div class="sc-sub">${v.hits}/${v.total}</div>
-    </div>`).join("");
+      <div class="sc-sub" style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
+      <div class="sc-sub" style="color:${Number(roi)>=0?'#a78bfa':'#f87171'};">ROI ${roi !== '—' ? roi+'%' : '—'}</div>
+    </div>`;}).join("");
 
   const betSearch = (document.getElementById("bet-search")?.value || "").toLowerCase();
   const filteredBets = betSearch
@@ -887,7 +923,7 @@ function renderTracker() {
       <td style="padding:8px 8px;font-size:13px;color:#a78bfa;text-align:center;font-weight:600">${b.proj != null ? b.proj.toFixed(2) : '—'}</td>
       <td style="padding:8px 8px;font-size:13px;text-align:center;font-weight:700;color:${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'#6b6896':e>0?'#22c55e':'#f87171';})()}">${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'—':(e>0?'+':'')+e.toFixed(1)+'%';})()}</td>
       <td style="padding:8px 8px;font-size:13px;color:#fff;text-align:center">${b.odds > 0 ? '+'+b.odds : b.odds}</td>
-      <td style="padding:8px 8px;font-size:13px;color:${b.fair!=null?(b.odds<b.fair?'#22c55e':b.odds>b.fair?'#f87171':'#fff'):'#6b6896'};text-align:center;font-weight:600">${b.fair!=null?(b.fair>0?'+'+b.fair:b.fair):'—'}</td>
+      <td style="padding:8px 8px;font-size:13px;color:${b.fair!=null?(b.odds>b.fair?'#22c55e':b.odds<b.fair?'#f87171':'#fff'):'#6b6896'};text-align:center;font-weight:600">${b.fair!=null?(b.fair>0?'+'+b.fair:b.fair):'—'}</td>
       <td style="padding:8px 8px;font-size:13px;color:#8b87b8;text-align:center">${b.book}</td>
       <td style="padding:8px 8px;font-size:13px;color:#fff;text-align:center">${b.stake.toFixed(2)}u</td>
       <td style="padding:8px 8px;font-size:13px;font-weight:700;text-align:center;color:${plColor}">${plVal}</td>
@@ -908,7 +944,7 @@ function renderTracker() {
       <div id="tracker-controls">
         <span style="font-size:16px;font-weight:800;color:#fff;">${bets.length} Bets Tracked</span>
         <span style="font-size:11px;color:#22c55e;background:#22c55e15;border:1px solid #22c55e33;border-radius:4px;padding:2px 8px;">● Auto-saved</span>
-        <input type="text" id="bet-search" placeholder="Search bets..." oninput="renderTracker()"
+        <input type="text" id="bet-search" placeholder="Search bets..." oninput="filterBetRows(this.value)"
           autocomplete="off" autocorrect="off" spellcheck="false"
           style="background:#16152a;border:1px solid #2a2845;border-radius:6px;padding:7px 14px;
             font-size:13px;color:#e2e8f0;outline:none;width:180px;font-family:'Inter',sans-serif;"/>
@@ -944,11 +980,15 @@ function renderTracker() {
             <div class="sc-label">Over</div>
             <div class="sc-val">${pct(ouBreak.over.hits,ouBreak.over.total)}</div>
             <div class="sc-sub">${ouBreak.over.hits}/${ouBreak.over.total}</div>
+            <div class="sc-sub" style="color:${ouBreak.over.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${ouBreak.over.pl>=0?'+':''}${ouBreak.over.pl.toFixed(2)}u</div>
+            <div class="sc-sub" style="color:${ouBreak.over.total>0?(ouBreak.over.pl/bets.filter(b=>b.ou==='over'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)*100)>=0?'#a78bfa':'#f87171':'#6b6896'};">ROI ${ouBreak.over.total>0?((ouBreak.over.pl/Math.max(0.01,bets.filter(b=>b.ou==='over'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)))*100).toFixed(1)+'%':'—'}</div>
           </div>
           <div class="stat-card" style="display:inline-flex">
             <div class="sc-label">Under</div>
             <div class="sc-val">${pct(ouBreak.under.hits,ouBreak.under.total)}</div>
             <div class="sc-sub">${ouBreak.under.hits}/${ouBreak.under.total}</div>
+            <div class="sc-sub" style="color:${ouBreak.under.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${ouBreak.under.pl>=0?'+':''}${ouBreak.under.pl.toFixed(2)}u</div>
+            <div class="sc-sub" style="color:${ouBreak.under.total>0?(ouBreak.under.pl/bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)*100)>=0?'#a78bfa':'#f87171':'#6b6896'};">ROI ${ouBreak.under.total>0?((ouBreak.under.pl/Math.max(0.01,bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)))*100).toFixed(1)+'%':'—'}</div>
           </div>
         </div>
       </div>
@@ -964,6 +1004,32 @@ function renderTracker() {
       </div>
 
       <div class="tracker-section">
+        <h4>++EV Buckets</h4>
+        <div>${Object.entries(evBuckets).map(([k,v]) => v.total===0 ? '' : `
+    <div class="stat-card">
+      <div class="sc-label">${k}</div>
+      <div class="sc-val" style="color:${v.hits/v.total>=0.55?'#22c55e':v.hits/v.total<0.45?'#f87171':'#fff'}">${pct(v.hits,v.total)}</div>
+      <div class="sc-sub">${v.hits}W · ${v.total-v.hits}L</div>
+      <div class="sc-sub" style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
+      <div class="sc-sub" style="color:#a78bfa;">ROI ${v.total>0?((v.pl/Math.max(0.01,v.total))*100).toFixed(1)+'%':'—'}</div>
+    </div>`).join('')}
+        ${Object.values(evBuckets).every(v=>v.total===0)?'<span style="color:#3d3a6b;font-size:13px;">Track bets with fair value to see EV breakdown</span>':''}
+      </div>
+
+      <div class="tracker-section">
+        <h4>By Time Tracked</h4>
+        <div>${Object.entries(timeBreak).sort((a,b)=>a[1].hr-b[1].hr).map(([label,v]) => `
+    <div class="stat-card">
+      <div class="sc-label" style="font-size:10px;white-space:nowrap;">${label}</div>
+      <div class="sc-val" style="color:${v.hits/v.total>=0.55?'#22c55e':v.hits/v.total<0.45?'#f87171':'#fff'}">${pct(v.hits,v.total)}</div>
+      <div class="sc-sub">${v.hits}W · ${v.total-v.hits}L</div>
+      <div class="sc-sub" style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
+    </div>`).join('')}
+        ${Object.keys(timeBreak).length===0?'<span style="color:#3d3a6b;font-size:13px;">Bets need timestamps to show time breakdown</span>':''}
+        </div>
+      </div>
+
+      <div class="tracker-section">
         <h4>Bet History</h4>
         ${filteredBets.length === 0 ? '<p style="color:#3d3a6b;font-size:13px;">' + (betSearch ? 'No bets match your search.' : 'No bets tracked yet. Hit TRACK on any player.') + '</p>' : `
         <div style="overflow-x:auto;border-radius:8px;border:1px solid #1e1c35;">
@@ -973,7 +1039,7 @@ function renderTracker() {
                 ${["PLAYER","TRACKED","STAT","LINE","PROJ","EDGE (EV)","ODDS","FAIR","BOOK","STAKE","P&L","RESULT",""].map(h=>`<th style="padding:10px 8px;font-size:11px;color:#6b6896;font-weight:600;text-align:center;letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap;">${h}</th>`).join("")}
               </tr>
             </thead>
-            <tbody>${betRows}</tbody>
+            <tbody id="bet-table-body">${betRows}</tbody>
           </table>
         </div>`}
       </div>
@@ -1101,6 +1167,7 @@ function screenshotBets() {
     <span style="font-size:16px;font-weight:800;color:#fff;">NBA</span>
     <span style="font-size:16px;font-weight:800;color:#a78bfa;margin-left:4px;">MATRIX</span>
     <span style="font-size:12px;color:#6b6896;margin-left:12px;">Active Plays · ${new Date().toLocaleDateString()}</span>
+    <span style="font-size:12px;color:#22c55e;margin-left:12px;font-weight:700;">${pending.filter(b=>{const e=calcEdge(b.odds,b.fair);return e!=null&&e>=5;}).length} plays ≥5% EV</span>
   `;
   wrap.appendChild(header);
 
@@ -1109,7 +1176,7 @@ function screenshotBets() {
   table.innerHTML = `
     <thead>
       <tr style="border-bottom:1px solid #2a2845;">
-        ${["PLAYER","STAT","LINE","PROJ","EDGE","ODDS","FAIR","BOOK","STAKE"].map(h =>
+        ${["PLAYER","TEAM","STAT","LINE","PROJ","EDGE","ODDS","FAIR","BOOK","STAKE"].map(h =>
           `<th style="padding:8px 12px;font-size:11px;color:#6b6896;font-weight:600;text-align:left;letter-spacing:0.5px;">${h}</th>`
         ).join("")}
       </tr>
@@ -1119,12 +1186,13 @@ function screenshotBets() {
 
         return `<tr style="background:${i%2===0?"#0f0e1a":"#121120"};border-bottom:1px solid #1a1830;">
           <td style="padding:8px 12px;font-size:14px;font-weight:600;color:#fff;">${b.player}</td>
+          <td style="padding:8px 12px;font-size:12px;color:#8b87b8;font-weight:600;">${b.team||""}</td>
           <td style="padding:8px 12px;font-size:13px;color:#a78bfa;font-weight:700;">${b.stat}</td>
           <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.ou.toUpperCase()} ${b.line}</td>
           <td style="padding:8px 12px;font-size:13px;color:#a78bfa;font-weight:600;">${b.proj != null ? b.proj.toFixed(2) : "—"}</td>
           <td style="padding:8px 12px;font-size:13px;font-weight:700;color:${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'#6b6896':e>0?'#22c55e':'#f87171';})()}">${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'—':(e>0?'+':'')+e.toFixed(1)+'%';})()}</td>
           <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.odds > 0 ? "+" + b.odds : b.odds}</td>
-          <td style="padding:8px 12px;font-size:13px;color:${b.fair!=null?(b.odds<b.fair?"#22c55e":b.odds>b.fair?"#f87171":"#fff"):"#6b6896"};">${b.fair!=null?(b.fair>0?"+"+b.fair:b.fair):"—"}</td>
+          <td style="padding:8px 12px;font-size:13px;color:${b.fair!=null?(b.odds>b.fair?"#22c55e":b.odds<b.fair?"#f87171":"#fff"):"#6b6896"};">${b.fair!=null?(b.fair>0?"+"+b.fair:b.fair):"—"}</td>
           <td style="padding:8px 12px;font-size:13px;color:#6b6896;">${b.book}</td>
           <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.stake.toFixed(2)}u</td>
         </tr>`;
@@ -1155,12 +1223,19 @@ function oddsToImplied(odds) {
   return 100 / (odds + 100);
 }
 
+function oddsToDecimal(odds) {
+  if (!odds || isNaN(odds)) return null;
+  odds = Number(odds);
+  if (odds < 0) return 1 + (100 / Math.abs(odds));
+  return 1 + (odds / 100);
+}
+
 function calcEdge(bookOdds, fairOdds) {
-  const implied = oddsToImplied(bookOdds);
-  const fair = oddsToImplied(fairOdds);
-  if (implied == null || fair == null) return null;
-  // Edge = fair implied - book implied (positive = you have edge)
-  return ((fair - implied) * 100);
+  const fairProb = oddsToImplied(fairOdds);
+  const bookDecimal = oddsToDecimal(bookOdds);
+  if (fairProb == null || bookDecimal == null) return null;
+  // EV% = (fair_prob * book_decimal_odds) - 1
+  return ((fairProb * bookDecimal) - 1) * 100;
 }
 
 
@@ -1183,10 +1258,8 @@ function qgShow() {
   document.getElementById("qg-player").textContent = b.player;
   document.getElementById("qg-detail").textContent = b.ou.toUpperCase() + " " + b.line + " " + b.stat + "  ·  " + (b.odds > 0 ? "+" + b.odds : b.odds) + "  ·  " + b.book;
   const edge = (b.fair && b.odds) ? (() => {
-    const imp = b.odds < 0 ? Math.abs(b.odds)/(Math.abs(b.odds)+100) : 100/(b.odds+100);
-    const fair = b.fair < 0 ? Math.abs(b.fair)/(Math.abs(b.fair)+100) : 100/(b.fair+100);
-    const e = ((fair - imp)*100).toFixed(1);
-    return (e > 0 ? "+" : "") + e + "% EV";
+    const e = calcEdge(b.odds, b.fair);
+    return e != null ? (e > 0 ? "+" : "") + e.toFixed(1) + "% EV" : "";
   })() : "";
   document.getElementById("qg-proj").textContent = (b.proj ? "Proj: " + b.proj.toFixed(2) + "  " : "") + edge;
 }
@@ -1384,6 +1457,16 @@ async function runAutoGrade() {
 
   agRunning = false;
   renderAutoGrade();
+}
+
+
+function filterBetRows(val) {
+  const s = val.toLowerCase();
+  const rows = document.querySelectorAll('#bet-table-body tr');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = (!s || text.includes(s)) ? '' : 'none';
+  });
 }
 
 // Init
