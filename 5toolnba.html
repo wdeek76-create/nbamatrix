@@ -316,11 +316,11 @@
     </div>
     <div class="tracker-bar" id="trackerBar">
       <div class="tracker-cell">
-        <div class="tracker-cell-label">TODAY W-L</div>
+        <div class="tracker-cell-label">SELECTED W-L</div>
         <div class="tracker-cell-val val-neu" id="statDayWL">—</div>
       </div>
       <div class="tracker-cell">
-        <div class="tracker-cell-label">TODAY +/-</div>
+        <div class="tracker-cell-label">SELECTED +/-</div>
         <div class="tracker-cell-val val-neu" id="statDayPL">—</div>
       </div>
       <div class="tracker-cell">
@@ -367,8 +367,10 @@
   function initDate() {
     const el = document.getElementById('playsDate');
     const stored = localStorage.getItem('plays_date');
-    const today = new Date().toISOString().split('T')[0];
-    el.value = stored || today;
+    const todayD = new Date();
+    const yesterdayD = new Date(todayD); yesterdayD.setDate(todayD.getDate() - 1);
+    const yesterday = yesterdayD.toISOString().split('T')[0];
+    el.value = stored || yesterday;
     el.addEventListener('change', () => {
       localStorage.setItem('plays_date', el.value);
       renderNotes();
@@ -1814,7 +1816,7 @@
 
       // Search for player
       const playerRes = await fetch(
-        `https://api.balldontlie.io/v1/players?search=${encodeURIComponent(playerName)}&per_page=5`,
+        `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(playerName)}&per_page=5`,
         { headers: { 'Authorization': apiKey } }
       );
       const playerData = await playerRes.json();
@@ -1829,7 +1831,7 @@
       const dateStr = yesterday.toISOString().split('T')[0];
 
       const statsRes = await fetch(
-        `https://api.balldontlie.io/v1/stats?player_ids[]=${player.id}&start_date=${dateStr}&end_date=${dateStr}&per_page=5`,
+        `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${dateStr}&end_date=${dateStr}&per_page=5`,
         { headers: { 'Authorization': apiKey } }
       );
       const statsData = await statsRes.json();
@@ -1839,7 +1841,7 @@
         const twoDays = new Date(today); twoDays.setDate(today.getDate() - 2);
         const dateStr2 = twoDays.toISOString().split('T')[0];
         const statsRes2 = await fetch(
-          `https://api.balldontlie.io/v1/stats?player_ids[]=${player.id}&start_date=${dateStr2}&end_date=${dateStr2}&per_page=5`,
+          `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${dateStr2}&end_date=${dateStr2}&per_page=5`,
           { headers: { 'Authorization': apiKey } }
         );
         const statsData2 = await statsRes2.json();
@@ -1936,17 +1938,24 @@
 
     try {
       const { playerName, direction, line, stat } = parsed;
-      const playerRes = await fetch(
-        `https://api.balldontlie.io/v1/players?search=${encodeURIComponent(playerName)}&per_page=5`,
-        { headers: { 'Authorization': apiKey } }
-      );
-      const playerData = await playerRes.json();
-      if (!playerData.data || !playerData.data.length) return;
-      const player = playerData.data[0];
+      let player = null;
+      for (const searchTerm of [playerName, playerName.split(' ').slice(-1)[0]]) {
+        const searchUrl = `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(normalizeAccents(searchTerm))}&per_page=25`;
+        console.log('BDL search:', searchUrl);
+        const playerRes = await fetch(searchUrl, { headers: { 'Authorization': apiKey } });
+        const playerData = await playerRes.json();
+        console.log('BDL response:', JSON.stringify(playerData).substring(0, 300));
+        if (playerData.data && playerData.data.length > 0) {
+          const firstName = playerName.split(' ')[0].toLowerCase();
+          player = playerData.data.find(p => p.first_name.toLowerCase().startsWith(firstName)) || playerData.data[0];
+          break;
+        }
+      }
+      if (!player) return;
 
       const date = getPlaysDate();
       const statsRes = await fetch(
-        `https://api.balldontlie.io/v1/stats?player_ids[]=${player.id}&start_date=${date}&end_date=${date}&per_page=5`,
+        `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${date}&end_date=${date}&per_page=5`,
         { headers: { 'Authorization': apiKey } }
       );
       const statsData = await statsRes.json();
