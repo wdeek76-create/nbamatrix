@@ -165,6 +165,9 @@
   .icon-btn:hover { background: #2e3240; color: #aaa; opacity: 1; }
   .icon-btn.copied { background: rgba(200,245,90,0.15); color: #c8f55a; }
   .icon-btn.grading { color: #888; }
+  .badge-result { font-weight: 800; letter-spacing: 0.03em; }
+  .badge-units  { margin-left: 6px; font-weight: 800; }
+  .badge-actual { margin-left: 6px; font-size: 13px; font-weight: 800; opacity: 1; }
   .manual-grade-btns { display:inline-flex; gap:4px; }
   .manual-grade-btns button { padding:2px 8px; border-radius:4px; border:none; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit; }
   .mgb-win  { background:#22c55e; color:#000; }
@@ -650,9 +653,17 @@
       const item = document.createElement('div');
       item.className = 'note-item';
       const savedGrade = loadGrades()[getPlaysDate() + '::' + note];
-      const badgeHtml = savedGrade
-        ? `<div id="grade-badge-${i}" class="grade-badge grade-${savedGrade.result}" style="display:inline-block">${savedGrade.result === 'win' ? '✓ WIN' : savedGrade.result === 'loss' ? '✗ LOSS' : 'PUSH'} (${savedGrade.actual})</div>`
-        : `<div id="grade-badge-${i}" class="grade-badge" style="display:none"></div>`;
+      let badgeHtml;
+      if (savedGrade) {
+        const pl = calcPL(savedGrade.odds, savedGrade.result);
+        const plStr = (pl >= 0 ? '+' : '') + pl.toFixed(2) + 'u';
+        const icon = savedGrade.result === 'win' ? '✓' : savedGrade.result === 'loss' ? '✗' : '~';
+        const word = savedGrade.result === 'win' ? 'WIN' : savedGrade.result === 'loss' ? 'LOSS' : 'PUSH';
+        const actualStr = savedGrade.actual && savedGrade.actual !== 'manual' ? `<span class="badge-actual"> (${savedGrade.actual})</span>` : '';
+        badgeHtml = `<div id="grade-badge-${i}" class="grade-badge grade-${savedGrade.result}" style="display:inline-block"><span class="badge-result">${icon} ${word}</span><span class="badge-units">${plStr}</span>${actualStr}</div>`;
+      } else {
+        badgeHtml = `<div id="grade-badge-${i}" class="grade-badge" style="display:none"></div>`;
+      }
       item.innerHTML = `
         <div class="note-text">${escHtml(note)}</div>
         <div class="note-actions" style="align-items:center;">
@@ -1952,14 +1963,22 @@
     if (!badge) return;
     badge.style.display = 'inline-block';
     badge.className = `grade-badge grade-${type}`;
-    badge.textContent = label;
-    // Save grade if it's a real result
+
     if (type === 'win' || type === 'loss' || type === 'push') {
+      const pl = calcPL(odds, type);
+      const plStr = (pl >= 0 ? '+' : '') + pl.toFixed(2) + 'u';
+      const icon = type === 'win' ? '✓' : type === 'loss' ? '✗' : '~';
+      const word = type === 'win' ? 'WIN' : type === 'loss' ? 'LOSS' : 'PUSH';
+      const actualStr = actual && actual !== 'manual' ? ` (${actual})` : '';
+      badge.innerHTML = `<span class="badge-result">${icon} ${word}</span><span class="badge-units">${plStr}</span>${actualStr ? `<span class="badge-actual">${actualStr}</span>` : ''}`;
+
       const grades = loadGrades();
       grades[gradeKey(i)] = { result: type, actual, odds, date: getPlaysDate() };
       saveGrades(grades);
       updateTracker();
       renderSummary();
+    } else {
+      badge.textContent = label;
     }
   }
 
