@@ -165,6 +165,11 @@
   .icon-btn:hover { background: #2e3240; color: #aaa; opacity: 1; }
   .icon-btn.copied { background: rgba(200,245,90,0.15); color: #c8f55a; }
   .icon-btn.grading { color: #888; }
+  .manual-grade-btns { display:inline-flex; gap:4px; }
+  .manual-grade-btns button { padding:2px 8px; border-radius:4px; border:none; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit; }
+  .mgb-win  { background:#22c55e; color:#000; }
+  .mgb-loss { background:#ef4444; color:#fff; }
+  .mgb-push { background:#eab308; color:#000; }
   .grade-badge {
     display: inline-block; border-radius: 6px; font-size: 11px; font-weight: 700;
     padding: 3px 8px; margin-left: 8px; font-family: 'Inter', sans-serif; flex-shrink: 0;
@@ -1801,6 +1806,50 @@
     return { playerName, firstName, lastName, direction, line, stat };
   }
 
+  // Hardcoded BDL player IDs for players the search can't find
+  const BDL_ID_MAP = {
+    'nolan traore': null,  // will be set once confirmed
+    'egor demin': null,
+    'ben saraf': null,
+    'cooper flagg': null,
+    'ace bailey': null,
+    'dyson daniels': null,
+  };
+
+  async function getBdlPlayerId(parsed, apiKey) {
+    const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'');
+    const nameKey = norm(parsed.playerName);
+
+    // Check hardcoded map first (skip if null — not yet mapped)
+    if (BDL_ID_MAP[nameKey] !== undefined && BDL_ID_MAP[nameKey] !== null) {
+      return { id: BDL_ID_MAP[nameKey] };
+    }
+
+    // Search attempts
+    const lastName4 = parsed.lastName ? parsed.lastName.substring(0, 4) : '';
+    const searches = [parsed.firstName, parsed.lastName, lastName4, parsed.playerName].filter((v,i,a) => v && a.indexOf(v) === i);
+
+    for (const term of searches) {
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(norm(term))}&per_page=25`,
+        { headers: { 'Authorization': apiKey } }
+      );
+      const data = await res.json();
+      if (data.data && data.data.length > 0) {
+        const exact = data.data.find(p =>
+          norm(p.first_name) === norm(parsed.firstName) &&
+          norm(p.last_name) === norm(parsed.lastName)
+        );
+        const firstMatch = data.data.find(p =>
+          norm(p.first_name).startsWith(norm(parsed.firstName).substring(0,3))
+        );
+        const player = exact || firstMatch || data.data[0];
+        if (player) return player;
+      }
+    }
+    return null;
+  }
+
   async function gradePlay(i, btn) {
     const apiKey = '9cdb249f-9635-4cca-a998-37c7b98a9372';
     
@@ -1825,7 +1874,7 @@
       );
       const playerData = await playerRes.json();
       if (!playerData.data || playerData.data.length === 0) {
-        showGrade(i, 'err', 'NO PLAYER', null, null); btn.textContent = 'GRADE'; btn.classList.remove('grading'); return;
+        showManualGrade(i); btn.textContent = 'GRADE'; btn.classList.remove('grading'); return;
       }
       const player = playerData.data[0];
 
@@ -1912,6 +1961,28 @@
       updateTracker();
       renderSummary();
     }
+  }
+
+  function showManualGrade(i) {
+    const badge = document.getElementById(`grade-badge-${i}`);
+    if (!badge) return;
+    badge.style.display = 'inline-block';
+    badge.className = 'grade-badge';
+    badge.style.background = 'transparent';
+    badge.style.padding = '0';
+    // Parse odds from play for unit calc
+    const play = plays[i] || '';
+    const oddsMatch = play.match(/([+-]\d{3,4})/);
+    const odds = oddsMatch ? parseInt(oddsMatch[1]) : null;
+    badge.innerHTML = `<div class="manual-grade-btns">
+      <button class="mgb-win"  onclick="manualGrade(${i},'win',${odds})">W</button>
+      <button class="mgb-loss" onclick="manualGrade(${i},'loss',${odds})">L</button>
+      <button class="mgb-push" onclick="manualGrade(${i},'push',${odds})">P</button>
+    </div>`;
+  }
+
+  function manualGrade(i, result, odds) {
+    showGrade(i, result, result === 'win' ? '✓ WIN' : result === 'loss' ? '✗ LOSS' : 'PUSH', 'manual', odds);
   }
 
   // ── Grade All ────────────────────────────────────────────────────────
