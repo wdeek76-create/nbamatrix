@@ -1836,28 +1836,44 @@
       return { id: BDL_ID_MAP[nameKey] };
     }
 
-    // Search attempts
-    const lastName4 = parsed.lastName ? parsed.lastName.substring(0, 4) : '';
-    const searches = [parsed.firstName, parsed.lastName, lastName4, parsed.playerName].filter((v,i,a) => v && a.indexOf(v) === i);
-
-    for (const term of searches) {
-      const res = await fetch(
-        `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(norm(term))}&per_page=25`,
-        { headers: { 'Authorization': apiKey } }
-      );
-      const data = await res.json();
-      if (data.data && data.data.length > 0) {
-        const exact = data.data.find(p =>
-          norm(p.first_name) === norm(parsed.firstName) &&
-          norm(p.last_name) === norm(parsed.lastName)
-        );
-        const firstMatch = data.data.find(p =>
-          norm(p.first_name).startsWith(norm(parsed.firstName).substring(0,3))
-        );
-        const player = exact || firstMatch || data.data[0];
-        if (player) return player;
+    const headers = { 'Authorization': apiKey };
+    const tryEndpoints = async (params) => {
+      for (const base of [
+        'https://api.balldontlie.io/nba/v1/players/active',
+        'https://api.balldontlie.io/nba/v1/players'
+      ]) {
+        const res = await fetch(`${base}?${params}&per_page=25`, { headers });
+        const data = await res.json();
+        if (data.data && data.data.length > 0) {
+          const exact = data.data.find(p =>
+            norm(p.first_name) === norm(parsed.firstName) &&
+            norm(p.last_name) === norm(parsed.lastName)
+          );
+          const partial = data.data.find(p =>
+            norm(p.first_name).startsWith(norm(parsed.firstName).substring(0,3)) &&
+            norm(p.last_name).startsWith(norm(parsed.lastName).substring(0,3))
+          );
+          const any = exact || partial || data.data[0];
+          if (any) return any;
+        }
       }
-    }
+      return null;
+    };
+
+    // Try 1: first_name + last_name params (most precise)
+    let p = await tryEndpoints(
+      `first_name=${encodeURIComponent(norm(parsed.firstName))}&last_name=${encodeURIComponent(norm(parsed.lastName))}`
+    );
+    if (p) return p;
+
+    // Try 2: search= with last name
+    p = await tryEndpoints(`search=${encodeURIComponent(norm(parsed.lastName))}`);
+    if (p) return p;
+
+    // Try 3: search= with first name
+    p = await tryEndpoints(`search=${encodeURIComponent(norm(parsed.firstName))}`);
+    if (p) return p;
+
     return null;
   }
 
