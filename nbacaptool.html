@@ -22,7 +22,7 @@
   h1 { font-size: 30px; font-weight: 900; color: #fff; line-height: 1.1; margin-bottom: 6px; letter-spacing: -0.5px; }
   h1 span { color: #c8f55a; }
   .subtitle { color: #555; font-size: 12px; letter-spacing: 1px; margin-bottom: 24px; font-weight: 500; }
-
+ 
   .card {
     background: #1a1d24;
     border: 1px solid #252830;
@@ -30,7 +30,7 @@
     overflow: hidden;
     margin-bottom: 14px;
   }
-
+ 
   .grid-head, .grid-row {
     display: grid;
     grid-template-columns: 0.6fr 0.6fr 0.85fr;
@@ -46,7 +46,7 @@
     text-transform: uppercase;
   }
   .grid-head div:last-child { border-right: none; }
-
+ 
   .grid-row div {
     border-right: 1px solid #252830;
     display: flex;
@@ -54,7 +54,7 @@
     min-height: 60px;
   }
   .grid-row div:last-child { border-right: none; }
-
+ 
   input[type="text"] {
     width: 100%;
     background: transparent;
@@ -70,7 +70,7 @@
   }
   input[type="text"]::placeholder { color: #333; font-size: 14px; font-weight: 400; }
   input[type="text"]:focus { background: rgba(200,245,90,0.03); }
-
+ 
   .btn-row {
     display: flex;
     gap: 10px;
@@ -93,13 +93,13 @@
     border: none;
   }
   button.secondary:hover { background: #2e3240; color: #bbb; opacity: 1; }
-
+ 
   .error {
     color: #ff6b6b; font-size: 12px; letter-spacing: 1px;
     padding: 10px 16px; background: rgba(255,107,107,0.05);
     border-top: 1px solid rgba(255,107,107,0.1); display: none;
   }
-
+ 
   /* Table */
   .table-wrap {
     background: #1a1d24; border: 1px solid #252830;
@@ -119,11 +119,11 @@
   .table-row:hover { background: rgba(200,245,90,0.04) !important; }
   .ev-cell { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
   .odds-cell { font-weight: 800; font-size: 22px; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
-
+ 
   .badge { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: 700; letter-spacing: 0.5px; }
   .badge-max { background: #a855f7; color: #fff; }
   .badge-min { background: #7c3aed; color: #fff; }
-
+ 
   /* Plays */
   .plays-section { margin-top: 8px; }
   .plays-label { font-size: 10px; letter-spacing: 4px; color: #555; text-transform: uppercase; margin-bottom: 10px; font-weight: 700; }
@@ -149,7 +149,7 @@
     align-self: stretch; flex: 0 0 auto; white-space: nowrap;
   }
   .good-to-btn:hover { background: #2e3240; opacity: 1; }
-
+ 
   .plays-list { display: flex; flex-direction: column; gap: 8px; }
   .note-item {
     background: #1a1d24; border: 1px solid #252830; border-radius: 12px;
@@ -188,7 +188,7 @@
   }
   .bdl-key-row button:hover { background: #2e3240; color: #aaa; }
   .bdl-key-saved { color: #22c55e; font-size: 11px; font-weight: 700; }
-
+ 
   .plays-clear-row { margin-top: 10px; display: flex; justify-content: flex-end; }
   .plays-clear-btn {
     background: transparent; border: 1px solid #252830; border-radius: 8px;
@@ -270,7 +270,7 @@
 <body>
 <div class="container">
   <h1>5% CAP<br><span style="color:#a855f7;">TOOL</span></h1>
-
+ 
   <div class="card">
     <div class="grid-head">
       <div>MARKET</div>
@@ -288,12 +288,12 @@
     </div>
     <div class="error" id="error"></div>
   </div>
-
+ 
   <div class="table-wrap" id="tableWrap">
     <div class="table-head"><div>EV</div><div>WORST PRICE</div></div>
     <div id="tableBody"></div>
   </div>
-
+ 
   <!-- PLAYS -->
   <div class="search-section" style="margin-bottom:14px;">
   <div style="position:relative;">
@@ -302,7 +302,7 @@
     <div id="searchResults" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a1d24;border:1px solid #333;border-radius:10px;z-index:100;max-height:320px;overflow-y:auto;"></div>
   </div>
 </div>
-
+ 
 <div class="plays-section">
     <div class="plays-label">Plays</div>
     <div class="note-input-row">
@@ -340,9 +340,6 @@
         <span class="summary-label">SUMMARY</span>
         <button class="summary-copy-btn" onclick="copySummary(this)">COPY</button>
       </div>
-      <div class="summary-name-row">
-        <input class="summary-name-input" id="summaryName" type="text" value="Boardroom NBA" placeholder="Brand name..." autocorrect="off" spellcheck="false" oninput="saveSummaryName(); renderSummary();" />
-      </div>
       <div class="summary-text" id="summaryText"></div>
     </div>
     <div class="bdl-key-row" id="bdlKeyRow" style="display:none">
@@ -358,11 +355,11 @@
     </div>
   </div>
 </div>
-
+ 
 <script>
   let plays = JSON.parse(localStorage.getItem('ev_notes') || '[]');
   let lastWorstPrice = null;
-
+ 
   // Date picker — default to today
   function initDate() {
     const el = document.getElementById('playsDate');
@@ -378,11 +375,11 @@
       renderSummary();
     });
   }
-
+ 
   function getPlaysDate() {
     return document.getElementById('playsDate').value;
   }
-
+ 
   // ── Unit math ────────────────────────────────────────────────────────
   function extractFirstOdds(text) {
     // Find first standalone odds number (e.g. -130, +122)
@@ -392,7 +389,7 @@
     if (Math.abs(n) < 100) return null;
     return n;
   }
-
+ 
   function calcUnits(odds) {
     if (odds === null) return { risk: 1, toWin: 1 };
     if (odds > 0) {
@@ -402,14 +399,14 @@
       return { risk, toWin: 1 };
     }
   }
-
+ 
   function calcPL(odds, result) {
     const { risk, toWin } = calcUnits(odds);
     if (result === 'win')  return +toWin.toFixed(3);
     if (result === 'loss') return +(-risk).toFixed(3);
     return 0; // push
   }
-
+ 
   // ── Grades storage ───────────────────────────────────────────────────
   // grades: { [playText+date]: { result, actual, odds, date } }
   function loadGrades() {
@@ -421,18 +418,18 @@
   function gradeKey(i) {
     return getPlaysDate() + '::' + plays[i];
   }
-
+ 
   // ── Tracker bar ──────────────────────────────────────────────────────
   function updateTracker() {
     const grades = loadGrades();
     const date = getPlaysDate();
-
+ 
     let dayW = 0, dayL = 0, dayPL = 0;
     const baseW = parseInt(localStorage.getItem('baseline_wins') || '0');
     const baseL = parseInt(localStorage.getItem('baseline_losses') || '0');
     const basePL = parseFloat(localStorage.getItem('baseline_pl') || '0');
     let allW = baseW, allL = baseL, allPL = basePL;
-
+ 
     for (const [key, g] of Object.entries(grades)) {
       const pl = calcPL(g.odds, g.result);
       if (g.result === 'win') { allW++; } else if (g.result === 'loss') { allL++; }
@@ -443,15 +440,15 @@
         dayPL += pl;
       }
     }
-
+ 
     const fmt = v => (v >= 0 ? '+' : '') + v.toFixed(2) + 'u';
     const cls = v => v > 0 ? 'val-pos' : v < 0 ? 'val-neg' : 'val-neu';
-
+ 
     const dayWL = document.getElementById('statDayWL');
     const dayPLel = document.getElementById('statDayPL');
     const allWL = document.getElementById('statAllWL');
     const allPLel = document.getElementById('statAllPL');
-
+ 
     dayWL.textContent = (dayW + dayL) ? `${dayW}-${dayL}` : '—';
     dayWL.className = 'tracker-cell-val ' + (dayW || dayL ? (dayW >= dayL ? 'val-pos' : 'val-neg') : 'val-neu');
     dayPLel.textContent = (dayW + dayL) ? fmt(dayPL) : '—';
@@ -461,7 +458,7 @@
     allPLel.textContent = (allW + allL) ? fmt(allPL) : '—';
     allPLel.className = 'tracker-cell-val ' + cls(allPL);
   }
-
+ 
   // Baseline all-time record (pre-existing before auto-grader)
   if (!localStorage.getItem('baseline_set')) {
     localStorage.setItem('baseline_wins', '162');
@@ -469,13 +466,12 @@
     localStorage.setItem('baseline_pl', '16.33');
     localStorage.setItem('baseline_set', '1');
   }
-
+ 
   initDate();
-  loadSummaryName();
   renderNotes();
   updateTracker();
   renderSummary();
-
+ 
   function toAmerican(d) { return d >= 2 ? Math.round((d-1)*100) : Math.round(-100/(d-1)); }
   function toDecimal(a) { return a > 0 ? a/100+1 : 100/Math.abs(a)+1; }
   function impliedProb(a) { return a > 0 ? 100/(a+100) : Math.abs(a)/(Math.abs(a)+100); }
@@ -495,7 +491,7 @@
     if (ev > 0)  return '#ff9f43';
     return '#ff6b6b';
   }
-
+ 
   function showError(msg) {
     const e = document.getElementById('error');
     e.textContent = '⚠ ' + msg;
@@ -503,13 +499,13 @@
   }
   function hideError() { document.getElementById('error').style.display = 'none'; }
   function resetOutputs() {
-
+ 
     document.getElementById('tableWrap').style.display = 'none';
     lastWorstPrice = null;
     const btn = document.getElementById('goodToBtn'); if(btn) btn.style.display = 'none';
     
   }
-
+ 
   // Convert decimal odds to American, rounding so the bet stays AT LEAST the target EV.
   // For the 5% row: round toward BETTER odds for the bettor (never slip below 5%)
   //   negative odds → ceiling (e.g. -126.4 → -126, i.e. better price)
@@ -521,28 +517,28 @@
     if (d >= 2) return Math.ceil(parseFloat(((d-1)*100).toFixed(6)));
     return Math.ceil(parseFloat((-100/(d-1)).toFixed(6)));
   }
-
+ 
   function renderTable(prob) {
     const body = document.getElementById('tableBody');
     body.innerHTML = '';
-
+ 
     // Two rows: 5% min and 4.9% floor
     const rows = [
       { ev: 5.0, label: 'WORST', badgeClass: 'badge-max', useFloor: true },
       { ev: 4.9, label: 'FLOOR', badgeClass: 'badge-min', useFloor: false },
     ];
-
+ 
     // Calculate WORST row first to check its actual EV
     const worstD = (5.0/100+1)/prob;
     const worstAmerican = toAmericanFloor(worstD);
     const worstActualEV = (prob * (toDecimal(worstAmerican) - 1) - (1 - prob)) * 100;
-
+ 
     lastWorstPrice = fmtOdds(worstAmerican);
     document.getElementById('goodToBtn').style.display = 'block';
     rows.forEach(({ ev, label, badgeClass, useFloor }) => {
       // Only show FLOOR row if WORST actual EV is between 4.90 and 5.00
       if (ev === 4.9 && worstActualEV > 5.005) return;
-
+ 
       const d = (ev/100+1)/prob;
       const american = useFloor ? toAmericanFloor(d) : toAmerican(d);
       const actualD = toDecimal(american);
@@ -558,29 +554,29 @@
       `;
       body.appendChild(row);
     });
-
+ 
     document.getElementById('tableWrap').style.display = 'block';
     
   }
-
+ 
   let autoCalcTimer = null;
   function autoCalc() {
     clearTimeout(autoCalcTimer);
     autoCalcTimer = setTimeout(calculate, 400);
   }
-
+ 
   function calculate() {
     hideError();
     resetOutputs();
-
+ 
     const marketRaw = document.getElementById('marketInput').value.trim();
     const evRaw = document.getElementById('evInput').value.trim();
     const fairRaw = document.getElementById('fairInput').value.trim();
-
+ 
     const market = parseOdds(marketRaw);
     const fair = parseOdds(fairRaw);
     const ev = evRaw !== '' ? parseFloat(evRaw) : null;
-
+ 
     // MODE 1: MARKET + EV% → derive fair, then show table
     if (market !== null && ev !== null && fairRaw === '') {
       if (isNaN(ev) || ev < 0) return showError('EV% must be a positive number');
@@ -590,53 +586,53 @@
       const fairOdds = toAmerican(1/fairProb);
       document.getElementById('fairInput').value = fmtOdds(fairOdds);
       const worstPrice = toAmerican((5/100 + 1) / fairProb);
-
+ 
       renderTable(fairProb);
       return;
     }
-
+ 
     // MODE 2: FAIR + EV% → show worst in header + table
     if (fair !== null && ev !== null) {
       if (isNaN(ev) || ev < 0) return showError('EV% must be a positive number');
       const prob = impliedProb(fair);
       const d = (ev/100 + 1) / prob;
       const worst = toAmerican(d);
-
+ 
       renderTable(prob);
       return;
     }
-
+ 
     // MODE 3: FAIR only → table
     if (fair !== null && ev === null) {
       renderTable(impliedProb(fair));
       return;
     }
-
+ 
     if (fairRaw === '' && marketRaw === '') return showError('Enter a fair price or market odds');
     if (fair === null && fairRaw !== '') return showError('Fair odds must be valid American odds (e.g. -114)');
     if (market === null && marketRaw !== '') return showError('Market odds must be valid American odds (e.g. -102)');
     showError('Enter fair odds, or market + EV%');
   }
-
+ 
   function clearAll() {
     ['marketInput','evInput','fairInput'].forEach(id => document.getElementById(id).value = '');
     resetOutputs();
     hideError();
   }
-
+ 
   // ── PLAYS ──
   function saveNotes() {
     localStorage.setItem('ev_notes', JSON.stringify(plays));
   }
-
+ 
   function renderNotes() {
     const list = document.getElementById('notesList');
     const empty = document.getElementById('emptyNotes');
     const clearRow = document.getElementById('notesClearRow');
-
+ 
     // Remove all note items (keep emptyNotes)
     Array.from(list.querySelectorAll('.note-item')).forEach(el => el.remove());
-
+ 
     if (plays.length === 0) {
       empty.style.display = 'block';
       clearRow.style.display = 'none';
@@ -644,7 +640,7 @@
     }
     empty.style.display = 'none';
     clearRow.style.display = 'flex';
-
+ 
     plays.forEach((note, i) => {
       const item = document.createElement('div');
       item.className = 'note-item';
@@ -664,11 +660,11 @@
       list.appendChild(item);
     });
   }
-
+ 
   function escHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
-
+ 
   function appendWorst() {
     if (!lastWorstPrice) return;
     const ta = document.getElementById('noteInput');
@@ -682,7 +678,7 @@
     }
     ta.focus();
   }
-
+ 
   function addNote() {
     const ta = document.getElementById('noteInput');
     const text = ta.value.trim();
@@ -692,13 +688,13 @@
     renderNotes();
     ta.value = '';
   }
-
+ 
   function deleteNote(i) {
     plays.splice(i, 1);
     saveNotes();
     renderNotes();
   }
-
+ 
   function copyNote(i, btn) {
     navigator.clipboard.writeText(plays[i]).then(() => {
       btn.textContent = '✓';
@@ -706,23 +702,23 @@
       setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 1500);
     });
   }
-
+ 
   function clearAllNotes() {
     if (plays.length === 0) return;
     plays = [];
     saveNotes();
     renderNotes();
   }
-
+ 
   // Allow Shift+Enter in textarea, Enter to add note
   document.getElementById('noteInput').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addNote(); }
   });
-
+ 
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.activeElement.id !== 'noteInput') calculate();
   });
-
+ 
   const NBA_PLAYERS = [
   {name:"Adem Bona",team:"76ers",pos:"F"},
   {name:"Alex Reese",team:"76ers",pos:"F-C"},
@@ -1647,16 +1643,16 @@
   {name:"Elijah Harkless",team:"Jazz",pos:"G"},
   {name:"Frank Jackson",team:"Jazz",pos:"G"}
 ];
-
+ 
   
-
-
+ 
+ 
   // Player search bar
   function searchPlayers() {
     const input = document.getElementById('playerSearch');
     const results = document.getElementById('searchResults');
     const q = input.value.trim().toLowerCase();
-
+ 
     const normalize = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, '');
     const qn = normalize(q);
     const matches = q.length === 0
@@ -1669,9 +1665,9 @@
                  tn.startsWith(qn) ||
                  tn.replace(/\s+/g,'').startsWith(qn.replace(/\s+/g,''));
         });
-
+ 
     if (!matches.length) { results.style.display = 'none'; return; }
-
+ 
     results.innerHTML = '';
     matches.forEach(p => {
       const item = document.createElement('div');
@@ -1692,15 +1688,15 @@
     });
     results.style.display = 'block';
   }
-
+ 
   document.addEventListener('click', e => {
     const results = document.getElementById('searchResults');
     if (results && !results.contains(e.target) && e.target.id !== 'playerSearch') {
       results.style.display = 'none';
     }
   });
-
-
+ 
+ 
   // Shorthands — expand on spacebar
   const EXPANSIONS = {
     'pts': 'points', 'reb': 'rebounds', 'ast': 'assists',
@@ -1714,7 +1710,7 @@
     'pin': 'Pinnacle', 'pinnacle': 'Pinnacle', 'circa': 'Circa',
     'bov': 'Bovada', 'bovada': 'Bovada',
   };
-
+ 
   function expandShorthands(text) {
     text = text.replace(/\bo([0-9]+(?:\.[0-9]+)?)/gi, 'over $1');
     text = text.replace(/\bu([0-9]+(?:\.[0-9]+)?)/gi, 'under $1');
@@ -1722,12 +1718,12 @@
     const expKeys = Object.keys(EXPANSIONS).sort((a,b) => b.length - a.length).join('|');
     const expRegex = new RegExp('\\b(' + expKeys + ')\\b', 'gi');
     text = text.replace(expRegex, w => EXPANSIONS[w.toLowerCase()] || w);
-
-
-
+ 
+ 
+ 
     return text;
   }
-
+ 
   document.getElementById('noteInput').addEventListener('input', function(e) {
     if (e.data === ' ') {
       const ta = this;
@@ -1741,9 +1737,9 @@
       }
     }
   });
-
+ 
   // ── Ball Don't Lie Grader ──────────────────────────────────────────
-
+ 
   function saveBdlKey() {
     const key = document.getElementById('bdlApiKey').value.trim();
     if (!key) return;
@@ -1754,66 +1750,74 @@
     saved.style.display = 'inline';
     setTimeout(() => { saved.style.display = 'none'; }, 2000);
   }
-
+ 
   // Load saved key on startup
   window.addEventListener('DOMContentLoaded', () => {
     const k = localStorage.getItem('bdl_api_key');
     if (k) document.getElementById('bdlApiKey').placeholder = 'API key saved ✓';
   });
-
+ 
   function parsePlay(text) {
-    // Extract: player, over/under, line, stat
-    // Format: "Player Name Team over/under X.X stat ..."
     const statMap = {
       'points': 'pts', 'rebounds': 'reb', 'assists': 'ast',
       'points rebounds assists': 'pra', '3-pointers made': '3pm',
       'steals': 'stl', 'blocks': 'blk', 'minutes': 'min', 'turnovers': 'tov'
     };
-
+ 
     const ou = text.match(/\b(over|under)\s+([\d.]+)\s+(points(?:\s+rebounds\s+assists)?|rebounds|assists|3-pointers made|steals|blocks|minutes|turnovers)/i);
     if (!ou) return null;
-
+ 
     const direction = ou[1].toLowerCase();
     const line = parseFloat(ou[2]);
     const statRaw = ou[3].toLowerCase();
     const stat = statMap[statRaw] || statRaw;
-
-    // Player is everything before the team name (which is before over/under)
+ 
+    // Everything before over/under
     const beforeOU = text.substring(0, text.toLowerCase().indexOf(ou[0].toLowerCase())).trim();
-    // Last 1-2 words before over/under are likely the team — player is before that
     const words = beforeOU.split(/\s+/);
-    // Find player: check NBA_PLAYERS list
+ 
+    // Try matching against our NBA_PLAYERS list (longest match first)
     let playerName = null;
+    let firstName = null, lastName = null;
     for (let len = Math.min(5, words.length); len >= 1; len--) {
       const candidate = words.slice(0, len).join(' ');
-      if (NBA_PLAYERS.some(p => p.name.toLowerCase() === candidate.toLowerCase())) {
-        playerName = candidate;
+      const normalize = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'');
+      const match = NBA_PLAYERS.find(p => normalize(p.name) === normalize(candidate));
+      if (match) {
+        playerName = match.name; // use exact name from our list
+        const parts = match.name.split(' ');
+        firstName = parts[0];
+        lastName = parts.slice(1).join(' ');
         break;
       }
     }
     // Fallback: first 2 words
-    if (!playerName) playerName = words.slice(0, 2).join(' ');
-
-    return { playerName, direction, line, stat };
+    if (!playerName) {
+      playerName = words.slice(0, 2).join(' ');
+      firstName = words[0];
+      lastName = words[1] || '';
+    }
+ 
+    return { playerName, firstName, lastName, direction, line, stat };
   }
-
+ 
   async function gradePlay(i, btn) {
     const apiKey = '9cdb249f-9635-4cca-a998-37c7b98a9372';
     
-
+ 
     const text = plays[i];
     const parsed = parsePlay(text);
     if (!parsed) {
       showGrade(i, 'err', 'PARSE ERR', null, null);
       return;
     }
-
+ 
     btn.textContent = '...';
     btn.classList.add('grading');
-
+ 
     try {
       const { playerName, direction, line, stat } = parsed;
-
+ 
       // Search for player
       const playerRes = await fetch(
         `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(playerName)}&per_page=5`,
@@ -1824,18 +1828,18 @@
         showGrade(i, 'err', 'NO PLAYER', null, null); btn.textContent = 'GRADE'; btn.classList.remove('grading'); return;
       }
       const player = playerData.data[0];
-
+ 
       // Get yesterday's stats (or most recent game)
       const today = new Date();
       const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
       const dateStr = yesterday.toISOString().split('T')[0];
-
+ 
       const statsRes = await fetch(
         `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${dateStr}&end_date=${dateStr}&per_page=5`,
         { headers: { 'Authorization': apiKey } }
       );
       const statsData = await statsRes.json();
-
+ 
       if (!statsData.data || statsData.data.length === 0) {
         // Try 2 days ago
         const twoDays = new Date(today); twoDays.setDate(today.getDate() - 2);
@@ -1852,22 +1856,22 @@
       } else {
         gradeFromStats(i, statsData.data[0], stat, line, direction);
       }
-
+ 
     } catch(e) {
       showGrade(i, 'err', 'API ERR', null, null);
     }
-
+ 
     btn.textContent = 'GRADE';
     btn.classList.remove('grading');
   }
-
+ 
   function gradeFromStats(i, gameStats, stat, line, direction) {
     const statKeys = {
       'pts': 'pts', 'reb': 'reb', 'ast': 'ast',
       'pra': null, '3pm': 'fg3m', 'stl': 'stl',
       'blk': 'blk', 'min': 'min', 'tov': 'turnover'
     };
-
+ 
     let actual;
     if (stat === 'pra') {
       actual = (gameStats.pts || 0) + (gameStats.reb || 0) + (gameStats.ast || 0);
@@ -1878,22 +1882,22 @@
         actual = parseFloat(actual.split(':')[0]);
       }
     }
-
+ 
     if (actual === undefined || actual === null) {
       showGrade(i, 'err', 'NO STAT', null, null); return;
     }
-
+ 
     actual = parseFloat(actual);
     let result;
     if (actual === line) result = 'push';
     else if (direction === 'over') result = actual > line ? 'win' : 'loss';
     else result = actual < line ? 'win' : 'loss';
-
+ 
     const odds = extractFirstOdds(plays[i]);
     const label = result === 'win' ? `✓ WIN (${actual})` : result === 'loss' ? `✗ LOSS (${actual})` : `PUSH (${actual})`;
     showGrade(i, result, label, actual, odds);
   }
-
+ 
   function showGrade(i, type, label, actual, odds) {
     const badge = document.getElementById(`grade-badge-${i}`);
     if (!badge) return;
@@ -1909,13 +1913,13 @@
       renderSummary();
     }
   }
-
+ 
   // ── Grade All ────────────────────────────────────────────────────────
   async function gradeAll(btn) {
     if (!plays.length) return;
     btn.textContent = '⏳ Grading...';
     btn.disabled = true;
-
+ 
     for (let i = 0; i < plays.length; i++) {
       const grades = loadGrades();
       const key = getPlaysDate() + '::' + plays[i];
@@ -1924,27 +1928,27 @@
       await gradePlayAsync(i);
       await new Promise(r => setTimeout(r, 300)); // small delay between calls
     }
-
+ 
     btn.textContent = '⚡ GRADE ALL';
     btn.disabled = false;
     renderSummary();
   }
-
+ 
   async function gradePlayAsync(i) {
     const apiKey = '9cdb249f-9635-4cca-a998-37c7b98a9372';
     const text = plays[i];
     const parsed = parsePlay(text);
     if (!parsed) return;
-
+ 
     try {
       const { playerName, direction, line, stat } = parsed;
       let player = null;
       for (const searchTerm of [playerName, playerName.split(' ').slice(-1)[0]]) {
-        const playerRes = await fetch(
-          `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(searchTerm)}&per_page=10`,
-          { headers: { 'Authorization': apiKey } }
-        );
+        const searchUrl = `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(normalizeAccents(searchTerm))}&per_page=25`;
+        console.log('BDL search:', searchUrl);
+        const playerRes = await fetch(searchUrl, { headers: { 'Authorization': apiKey } });
         const playerData = await playerRes.json();
+        console.log('BDL response:', JSON.stringify(playerData).substring(0, 300));
         if (playerData.data && playerData.data.length > 0) {
           const firstName = playerName.split(' ')[0].toLowerCase();
           player = playerData.data.find(p => p.first_name.toLowerCase().startsWith(firstName)) || playerData.data[0];
@@ -1952,7 +1956,7 @@
         }
       }
       if (!player) return;
-
+ 
       const date = getPlaysDate();
       const statsRes = await fetch(
         `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${date}&end_date=${date}&per_page=5`,
@@ -1963,17 +1967,17 @@
       gradeFromStats(i, statsData.data[0], stat, line, direction);
     } catch(e) {}
   }
-
+ 
   // ── Summary ──────────────────────────────────────────────────────────
   function saveSummaryName() {
-    localStorage.setItem('summary_name', document.getElementById('summaryName').value);
+    // brand name hardcoded
   }
-
+ 
   function loadSummaryName() {
     const saved = localStorage.getItem('summary_name');
-    if (saved !== null) document.getElementById('summaryName').value = saved;
+    // brand name hardcoded
   }
-
+ 
   function getDateLabel(dateStr) {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
@@ -1984,18 +1988,18 @@
     const d = new Date(dateStr + 'T12:00:00');
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   }
-
+ 
   function renderSummary() {
     const grades = loadGrades();
     const date = getPlaysDate();
-    const name = document.getElementById('summaryName').value || 'Boardroom NBA';
-
+    const name = 'Boardroom NBA';
+ 
     let dayW = 0, dayL = 0, dayPL = 0;
     const baseW = parseInt(localStorage.getItem('baseline_wins') || '0');
     const baseL = parseInt(localStorage.getItem('baseline_losses') || '0');
     const basePL = parseFloat(localStorage.getItem('baseline_pl') || '0');
     let allW = baseW, allL = baseL, allPL = basePL;
-
+ 
     for (const [key, g] of Object.entries(grades)) {
       if (g.result === 'push') continue;
       const pl = calcPL(g.odds, g.result);
@@ -2006,33 +2010,33 @@
         dayPL += pl;
       }
     }
-
+ 
     if (dayW + dayL === 0 && allW + allL === 0) {
       document.getElementById('summarySection').style.display = 'none';
       return;
     }
-
+ 
     const fmtPL = v => (v >= 0 ? '+' : '') + v.toFixed(2) + 'u';
     const label = getDateLabel(date);
     const dayLine = `${label} ${dayW}-${dayL} ${fmtPL(dayPL)}`;
     const allLine = `${name} ${allW}-${allL} ${fmtPL(allPL)}`;
-
+ 
     document.getElementById('summaryText').innerHTML =
       `<span class="summary-day-line">${dayLine}</span>\n<span class="summary-alltime-line">${allLine}</span>`;
     document.getElementById('summarySection').style.display = 'block';
   }
-
+ 
   function copySummary(btn) {
     const grades = loadGrades();
     const date = getPlaysDate();
-    const name = document.getElementById('summaryName').value || 'Boardroom NBA';
-
+    const name = 'Boardroom NBA';
+ 
     let dayW = 0, dayL = 0, dayPL = 0;
     const baseW2 = parseInt(localStorage.getItem('baseline_wins') || '0');
     const baseL2 = parseInt(localStorage.getItem('baseline_losses') || '0');
     const basePL2 = parseFloat(localStorage.getItem('baseline_pl') || '0');
     let allW = baseW2, allL = baseL2, allPL = basePL2;
-
+ 
     for (const [key, g] of Object.entries(grades)) {
       if (g.result === 'push') continue;
       const pl = calcPL(g.odds, g.result);
@@ -2043,18 +2047,18 @@
         dayPL += pl;
       }
     }
-
+ 
     const fmtPL = v => (v >= 0 ? '+' : '') + v.toFixed(2) + 'u';
     const label = getDateLabel(date);
     const text = `${label} ${dayW}-${dayL} ${fmtPL(dayPL)}\n${name} ${allW}-${allL} ${fmtPL(allPL)}`;
-
+ 
     navigator.clipboard.writeText(text).then(() => {
       btn.textContent = '✓ COPIED';
       btn.classList.add('copied');
       setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 1500);
     });
   }
-
+ 
 </script>
 </body>
 </html>
