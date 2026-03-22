@@ -95,7 +95,7 @@
       box-shadow: 0 0 0 1px rgba(0,245,196,0.15), 0 0 28px rgba(0,245,196,0.12), 0 8px 28px rgba(0,0,0,0.4);
       transform: translateY(-2px);
     }
-    .card-hint { font-size: 0.75rem; color: var(--dim); letter-spacing: 0.1em; border-top: 1px solid var(--border); transition: color 0.2s; }
+    .card-hint { font-size: 0.75rem; color: var(--dim); letter-spacing: 0.1em; transition: color 0.2s; }
     .game-card:hover .card-hint { color: var(--teal); }
     .card-footer { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 1.1rem; border-top: 1px solid var(--border); }
     .game-countdown {
@@ -103,6 +103,17 @@
       color: #fff;
       text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.2);
     }
+
+    /* ODDS */
+    .odds-row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); }
+    .odds-cell { padding: 0.45rem 0.5rem; display: flex; flex-direction: column; align-items: center; border-right: 1px solid var(--border); }
+    .odds-cell:last-child { border-right: none; }
+    .odds-label { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 0.2rem; }
+    .odds-pair { display: flex; align-items: center; gap: 0.3rem; }
+    .odds-val { font-size: 0.85rem; letter-spacing: 0.04em; color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.5), 0 0 16px rgba(255,255,255,0.2); }
+    .odds-pos { color: #fff; }
+    .odds-neg { color: #fff; }
+    .odds-sep { font-size: 0.6rem; color: var(--dim); }
 
     /* SEARCH BAR */
     .inj-search-wrap { position: relative; margin-bottom: 0.85rem; }
@@ -121,7 +132,7 @@
     .team-row + .team-row { border-top: 1px solid var(--border); }
     .tl { display: flex; align-items: center; gap: 0.75rem; }
     .team-logo { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
-    .team-abbr { font-size: 1.3rem; color: var(--text); min-width: 3rem; letter-spacing: 0.06em; }
+    .team-abbr { font-size: 1.3rem; color: #fff; min-width: 3rem; letter-spacing: 0.06em; text-shadow: 0 0 12px rgba(255,255,255,0.6), 0 0 28px rgba(255,255,255,0.2); }
     .team-city { font-size: 0.9rem; color: var(--muted); letter-spacing: 0.06em; }
     .away-tag, .home-tag { font-size: 0.75rem; letter-spacing: 0.1em; padding: 0.18rem 0.55rem; border-radius: 4px; flex-shrink: 0; }
     .away-tag { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
@@ -435,6 +446,15 @@
     return out.trim();
   }
 
+  function fmtOdds(val) {
+    if (val == null) return "—";
+    const n = parseInt(val);
+    if (isNaN(n)) return "—";
+    const cls = n > 0 ? "odds-pos" : "odds-neg";
+    const str = n > 0 ? `+${n}` : `${n}`;
+    return `<span class="odds-val ${cls}">${str}</span>`;
+  }
+
   function gameCard(g) {
     const away=g.visitor_team.abbreviation, home=g.home_team.abbreviation;
     const awayCity=(TEAM_INFO[away]||{city:away}).city;
@@ -442,6 +462,32 @@
     const time=getTime(g.datetime);
     const gameData = encodeURIComponent(JSON.stringify({away,home,time,awayId:g.visitor_team.id,homeId:g.home_team.id}));
     const isoTime = g.datetime || "";
+
+    // Odds
+    const o = oddsMap[g.id];
+    let oddsHtml = "";
+    if (o) {
+      const mlAway = fmtOdds(o.moneyline_away_odds);
+      const mlHome = fmtOdds(o.moneyline_home_odds);
+      const spAway = o.spread_away_value != null ? `<span class="odds-val odds-neg">${parseFloat(o.spread_away_value)>0?"+":""}${o.spread_away_value}</span>` : "<span class='odds-val odds-neg'>—</span>";
+      const spHome = o.spread_home_value != null ? `<span class="odds-val odds-neg">${parseFloat(o.spread_home_value)>0?"+":""}${o.spread_home_value}</span>` : "<span class='odds-val odds-neg'>—</span>";
+      const total = o.total_value != null ? `<span class="odds-val odds-neg">O/U ${o.total_value}</span>` : "<span class='odds-val odds-neg'>—</span>";
+      oddsHtml = `<div class="odds-row">
+        <div class="odds-cell">
+          <div class="odds-label">Moneyline</div>
+          <div class="odds-pair">${mlAway}<span class="odds-sep">/</span>${mlHome}</div>
+        </div>
+        <div class="odds-cell">
+          <div class="odds-label">Spread</div>
+          <div class="odds-pair">${spAway}<span class="odds-sep">/</span>${spHome}</div>
+        </div>
+        <div class="odds-cell">
+          <div class="odds-label">Total</div>
+          <div class="odds-pair">${total}</div>
+        </div>
+      </div>`;
+    }
+
     return `<div class="game-card" onclick="openRoster('${gameData}')">
       <div class="team-row">
         <div class="tl">
@@ -459,6 +505,7 @@
         </div>
         <span class="home-tag">Home</span>
       </div>
+      ${oddsHtml}
       <div class="card-footer">
         <span class="card-hint">Click to view rosters</span>
         ${isoTime ? `<span class="game-countdown" data-tip="${isoTime}">—</span>` : ""}
@@ -509,9 +556,69 @@
     }
   }
 
+  // ── ODDS ──
+  let oddsMap = {}; // gameId -> best odds object
+
+  async function fetchOdds(dates) {
+    try {
+      const params = dates.map(d => `dates[]=${d}`).join("&");
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v2/odds?${params}&per_page=100`,
+        { headers: { Authorization: API_KEY } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      // Group by game_id, pick DraftKings if available else first vendor
+      const byGame = {};
+      for (const o of (data.data || [])) {
+        if (!byGame[o.game_id]) byGame[o.game_id] = [];
+        byGame[o.game_id].push(o);
+      }
+      oddsMap = {};
+      for (const [gid, odds] of Object.entries(byGame)) {
+        const dk = odds.find(o => o.vendor === "draftkings") || odds[0];
+        oddsMap[gid] = dk;
+      }
+    } catch(e) { console.log("odds err", e); }
+  }
+
   // ── INJURIES ──
   let injuryMap = {}; // playerId -> injury object
   let injuriesLoaded = false;
+  let BDL_PLAYER_TEAM = {}; // playerId -> team abbreviation, built from BDL rosters
+
+  async function buildPlayerTeamMap() {
+    // Fetch all 30 team rosters from BDL and map player.id -> team abbr
+    const allAbbrs = Object.keys(TEAM_IDS);
+    const allIds = Object.values(TEAM_IDS);
+    try {
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/players/active?per_page=100`,
+        { headers: { Authorization: API_KEY } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      for (const p of (data.data || [])) {
+        const abbr = ID_TO_ABBR[p.team?.id] || p.team?.abbreviation;
+        if (abbr) BDL_PLAYER_TEAM[p.id] = abbr;
+      }
+      // Handle pagination
+      let cursor = data.meta?.next_cursor;
+      while (cursor) {
+        const r2 = await fetch(
+          `https://api.balldontlie.io/nba/v1/players/active?per_page=100&cursor=${cursor}`,
+          { headers: { Authorization: API_KEY } }
+        );
+        if (!r2.ok) break;
+        const d2 = await r2.json();
+        for (const p of (d2.data || [])) {
+          const abbr = ID_TO_ABBR[p.team?.id] || p.team?.abbreviation;
+          if (abbr) BDL_PLAYER_TEAM[p.id] = abbr;
+        }
+        cursor = d2.meta?.next_cursor || null;
+      }
+    } catch(e) { console.log("player map err", e); }
+  }
 
   async function fetchInjuries() {
     try {
@@ -542,7 +649,7 @@
       );
       if (!res.ok) throw new Error("API error " + res.status);
       const data = await res.json();
-      const STATUS_ORDER = ["gtd","game time decision","doubtful","questionable","probable","day-to-day","d2d","out"];
+      const STATUS_ORDER = ["gtd","game time decision","questionable","doubtful","probable","day-to-day","d2d","out"];
       const injuries = (data.data || []).filter(inj => {
         const s = (inj.status || "").toLowerCase();
         return STATUS_ORDER.some(r => s.includes(r));
@@ -563,8 +670,8 @@
         return;
       }
 
-      const classMap = {GTD:"s-gtd",Doubtful:"s-doubtful",Questionable:"s-questionable",Probable:"s-probable",Out:"s-out"};
-      const statusOrder = ["GTD","Doubtful","Questionable","Probable","Out"];
+      const classMap = {GTD:"s-gtd",Questionable:"s-questionable",Doubtful:"s-doubtful",Probable:"s-probable",Out:"s-out"};
+      const statusOrder = ["GTD","Questionable","Doubtful","Probable","Out"];
 
       // Build filter options from what's actually present
       const present = [...new Set(injuries.map(inj => {
@@ -590,17 +697,13 @@
 
       for (const inj of injuries) {
         const p = inj.player || {};
-        // Use CSV-based map as primary source — most reliable
-        const teamAbbr = PLAYER_TEAM_MAP[p.id]
-          || p.team?.abbreviation
-          || ID_TO_ABBR[p.team_id || p.team?.id]
-          || "—";
+        const teamAbbr = BDL_PLAYER_TEAM[p.id] || p.team?.abbreviation || "";
         const pos = p.position || "—";
         const status = inj.status || "Out";
         const sl = status.toLowerCase();
         const statusLabel = sl.includes("gtd")||sl.includes("game time") ? "GTD"
-          : sl.includes("doubtful") ? "Doubtful"
           : sl.includes("questionable") ? "Questionable"
+          : sl.includes("doubtful") ? "Doubtful"
           : sl.includes("probable") ? "Probable"
           : "Out";
         const statusClass = classMap[statusLabel];
@@ -614,7 +717,7 @@
             <div style="display:flex;align-items:center;gap:0.55rem;flex-wrap:wrap">
               <span class="inj-player-name">${p.first_name||""} ${p.last_name||""}</span>
               <span class="inj-pos">${pos}</span>
-              ${teamAbbr !== "—" ? `<span class="inj-team-pill">${teamAbbr}</span>` : ""}
+              ${teamAbbr ? `<span class="inj-team-pill">${teamAbbr}</span>` : ""}
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
@@ -794,6 +897,15 @@
       } while (cursor);
 
       currentSlate=buildSlateText(games);
+
+      // Fetch odds for daily view only (odds endpoint uses dates[])
+      if (currentView === "daily") {
+        const today = new Date();
+        await fetchOdds([fmtDate(today)]);
+      } else {
+        oddsMap = {};
+      }
+
       renderGames(games);
       startCountdowns();
       document.getElementById("chip-games").innerHTML=`<span class="hi">${games.length}</span> Games`;
@@ -841,7 +953,8 @@
 
   document.getElementById("date-badge").textContent=getDateLabel();
   document.getElementById("fetch-btn").onclick = fetchSlate;
-  // Auto-load daily slate on open
+  // Build player->team map from BDL and auto-load slate
+  buildPlayerTeamMap();
   fetchSlate();
 </script>
 </body>
