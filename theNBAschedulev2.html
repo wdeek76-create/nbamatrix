@@ -144,7 +144,7 @@
     .tl { display: flex; align-items: center; gap: 0.75rem; }
     .team-logo { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
     .team-abbr { font-size: 1.3rem; color: #fff; min-width: 3rem; letter-spacing: 0.06em; text-shadow: 0 0 12px rgba(255,255,255,0.6), 0 0 28px rgba(255,255,255,0.2); }
-    .team-city { font-size: 0.9rem; color: var(--muted); letter-spacing: 0.06em; }
+    .team-city { font-size: 0.95rem; color: #fff; letter-spacing: 0.08em; text-shadow: 0 0 8px rgba(255,255,255,0.3); }
     .away-tag, .home-tag { font-size: 0.75rem; letter-spacing: 0.1em; padding: 0.18rem 0.55rem; border-radius: 4px; flex-shrink: 0; }
     .away-tag { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
     .home-tag { background: rgba(0,245,196,0.08); color: var(--teal); border: 1px solid rgba(0,245,196,0.25); }
@@ -217,8 +217,28 @@
     }
     .player-name-pos { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
-    .roster-loading { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-    .roster-empty { padding: 1.5rem; text-align: center; color: var(--dim); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    /* LIVE STATS */
+    .live-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.3); border-radius: 20px; padding: 0.15rem 0.6rem; font-size: 0.7rem; color: var(--teal); letter-spacing: 0.08em; margin-left: 0.5rem; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .live-refresh { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.05em; margin-left: auto; padding-right: 1rem; }
+
+    .stat-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.55rem 1.1rem; border-bottom: 1px solid #0d1520;
+      transition: background 0.1s;
+    }
+    .stat-row:hover { background: var(--surface2); }
+    .stat-left { display: flex; align-items: center; gap: 0.6rem; flex: 1; }
+    .stat-num { font-size: 0.78rem; color: var(--muted); min-width: 1.5rem; text-align: center; }
+    .stat-name { font-size: 0.95rem; color: var(--text); letter-spacing: 0.03em; }
+    .stat-pos-badge { font-size: 0.6rem; color: var(--teal); background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.25); border-radius: 3px; padding: 0.08rem 0.35rem; }
+    .stat-nums { display: flex; gap: 0.6rem; align-items: center; flex-shrink: 0; }
+    .stat-item { display: flex; flex-direction: column; align-items: center; min-width: 2rem; }
+    .stat-val { font-size: 0.95rem; color: #fff; letter-spacing: 0.03em; }
+    .stat-val.big { color: var(--teal); text-shadow: 0 0 8px rgba(0,245,196,0.5); }
+    .stat-lbl { font-size: 0.52rem; color: var(--muted); letter-spacing: 0.06em; margin-top: 0.05rem; }
+    .stat-min { font-size: 0.68rem; color: var(--muted); min-width: 2.5rem; text-align: right; }
 
     /* ── INJURY STYLES ── */
     .inj-tag {
@@ -279,7 +299,11 @@
     .inj-filter-btn.active.s-probable { background: #a3e635; border-color: #a3e635; color: #000; }
     .inj-filter-btn.active.s-out { background: #f87171; border-color: #f87171; color: #000; }
 
+    .roster-loading { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.9rem; letter-spacing: 0.06em; }
+    .roster-empty { padding: 1.5rem; text-align: center; color: var(--dim); font-size: 0.75rem; letter-spacing: 0.05em; }
+
     .mobile-tabs { display: none; }
+
     @media (max-width: 640px) {
       .nav-tabs { display: none; }
       .main { padding: 1rem 0.85rem 5.5rem; }
@@ -351,11 +375,17 @@
       <div class="modal-title">
         <div class="modal-logos" id="modal-logos"></div>
         <div>
-          <div class="modal-matchup" id="modal-matchup">—</div>
+          <div style="display:flex;align-items:center">
+            <div class="modal-matchup" id="modal-matchup">—</div>
+            <div id="modal-live-badge" style="display:none" class="live-badge"><div class="live-dot"></div>LIVE</div>
+          </div>
           <div class="modal-time" id="modal-time">—</div>
         </div>
       </div>
-      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+      <div style="display:flex;align-items:center;gap:0.5rem">
+        <div class="live-refresh" id="modal-refresh-info"></div>
+        <button class="modal-close" onclick="closeModalDirect()">✕</button>
+      </div>
     </div>
     <div class="modal-body">
       <div class="roster-col" id="roster-away"></div>
@@ -370,14 +400,14 @@
   let currentSlate = "";
 
   const TEAM_INFO = {
-    ATL:{city:"Atlanta"},BOS:{city:"Boston"},BKN:{city:"Brooklyn"},CHA:{city:"Charlotte"},
-    CHI:{city:"Chicago"},CLE:{city:"Cleveland"},DAL:{city:"Dallas"},DEN:{city:"Denver"},
-    DET:{city:"Detroit"},GSW:{city:"Golden State"},HOU:{city:"Houston"},IND:{city:"Indiana"},
-    LAC:{city:"LA"},LAL:{city:"LA"},MEM:{city:"Memphis"},MIA:{city:"Miami"},
-    MIL:{city:"Milwaukee"},MIN:{city:"Minnesota"},NOP:{city:"New Orleans"},NYK:{city:"New York"},
-    OKC:{city:"Oklahoma City"},ORL:{city:"Orlando"},PHI:{city:"Philadelphia"},PHX:{city:"Phoenix"},
-    POR:{city:"Portland"},SAC:{city:"Sacramento"},SAS:{city:"San Antonio"},TOR:{city:"Toronto"},
-    UTA:{city:"Utah"},WAS:{city:"Washington"}
+    ATL:{city:"Atlanta",name:"Hawks"},BOS:{city:"Boston",name:"Celtics"},BKN:{city:"Brooklyn",name:"Nets"},CHA:{city:"Charlotte",name:"Hornets"},
+    CHI:{city:"Chicago",name:"Bulls"},CLE:{city:"Cleveland",name:"Cavaliers"},DAL:{city:"Dallas",name:"Mavericks"},DEN:{city:"Denver",name:"Nuggets"},
+    DET:{city:"Detroit",name:"Pistons"},GSW:{city:"Golden State",name:"Warriors"},HOU:{city:"Houston",name:"Rockets"},IND:{city:"Indiana",name:"Pacers"},
+    LAC:{city:"LA",name:"Clippers"},LAL:{city:"LA",name:"Lakers"},MEM:{city:"Memphis",name:"Grizzlies"},MIA:{city:"Miami",name:"Heat"},
+    MIL:{city:"Milwaukee",name:"Bucks"},MIN:{city:"Minnesota",name:"Timberwolves"},NOP:{city:"New Orleans",name:"Pelicans"},NYK:{city:"New York",name:"Knicks"},
+    OKC:{city:"Oklahoma City",name:"Thunder"},ORL:{city:"Orlando",name:"Magic"},PHI:{city:"Philadelphia",name:"76ers"},PHX:{city:"Phoenix",name:"Suns"},
+    POR:{city:"Portland",name:"Trail Blazers"},SAC:{city:"Sacramento",name:"Kings"},SAS:{city:"San Antonio",name:"Spurs"},TOR:{city:"Toronto",name:"Raptors"},
+    UTA:{city:"Utah",name:"Jazz"},WAS:{city:"Washington",name:"Wizards"}
   };
 
   // BDL team IDs
@@ -469,10 +499,17 @@
 
   function gameCard(g) {
     const away=g.visitor_team.abbreviation, home=g.home_team.abbreviation;
-    const awayCity=(TEAM_INFO[away]||{city:away}).city;
-    const homeCity=(TEAM_INFO[home]||{city:home}).city;
+    const awayCity=(TEAM_INFO[away]||{name:away}).name;
+    const homeCity=(TEAM_INFO[home]||{name:home}).name;
     const time=getTime(g.datetime);
-    const gameData = encodeURIComponent(JSON.stringify({away,home,time,awayId:g.visitor_team.id,homeId:g.home_team.id}));
+    const gameData = encodeURIComponent(JSON.stringify({
+      away, home, time,
+      awayId: g.visitor_team.id,
+      homeId: g.home_team.id,
+      gameId: g.id,
+      status: g.status || "",
+      isLive: g.status && g.status !== "Final" && g.status !== "scheduled" && g.period > 0
+    }));
     const isoTime = g.datetime || "";
 
     // Odds
@@ -624,35 +661,19 @@
   let BDL_PLAYER_TEAM = {}; // playerId -> team abbreviation, built from BDL rosters
 
   async function buildPlayerTeamMap() {
-    // Fetch all 30 team rosters from BDL and map player.id -> team abbr
-    const allAbbrs = Object.keys(TEAM_IDS);
-    const allIds = Object.values(TEAM_IDS);
     try {
-      const res = await fetch(
-        `https://api.balldontlie.io/nba/v1/players/active?per_page=100`,
-        { headers: { Authorization: API_KEY } }
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      for (const p of (data.data || [])) {
-        const abbr = ID_TO_ABBR[p.team?.id] || p.team?.abbreviation;
-        if (abbr) BDL_PLAYER_TEAM[p.id] = abbr;
-      }
-      // Handle pagination
-      let cursor = data.meta?.next_cursor;
-      while (cursor) {
-        const r2 = await fetch(
-          `https://api.balldontlie.io/nba/v1/players/active?per_page=100&cursor=${cursor}`,
-          { headers: { Authorization: API_KEY } }
-        );
-        if (!r2.ok) break;
-        const d2 = await r2.json();
-        for (const p of (d2.data || [])) {
-          const abbr = ID_TO_ABBR[p.team?.id] || p.team?.abbreviation;
-          if (abbr) BDL_PLAYER_TEAM[p.id] = abbr;
+      let cursor = null;
+      do {
+        const url = `https://api.balldontlie.io/nba/v1/players/active?per_page=100` + (cursor ? `&cursor=${cursor}` : "");
+        const res = await fetch(url, { headers: { Authorization: API_KEY } });
+        if (!res.ok) break;
+        const data = await res.json();
+        for (const p of (data.data || [])) {
+          const abbr = p.team?.abbreviation || ID_TO_ABBR[p.team?.id];
+          if (abbr && p.id) BDL_PLAYER_TEAM[p.id] = abbr;
         }
-        cursor = d2.meta?.next_cursor || null;
-      }
+        cursor = data.meta?.next_cursor || null;
+      } while (cursor);
     } catch(e) { console.log("player map err", e); }
   }
 
@@ -680,7 +701,7 @@
 
     // Make sure player->team map is populated before we render
     if (Object.keys(BDL_PLAYER_TEAM).length === 0) {
-      await buildPlayerTeamMap();
+      try { await buildPlayerTeamMap(); } catch(e) {}
     }
 
     try {
@@ -795,6 +816,8 @@
   }
 
   // ── ROSTER MODAL ──
+  let liveStatsInterval = null;
+
   async function openRoster(encoded) {
     const g = JSON.parse(decodeURIComponent(encoded));
     const overlay = document.getElementById("modal-overlay");
@@ -806,22 +829,75 @@
       <span style="color:var(--muted);font-size:0.9rem;margin:0 0.25rem">@</span>
       <img class="modal-logo" src="${logoUrl(g.home)}" onerror="this.style.display='none'" alt="${g.home}">
     `;
+    document.getElementById("modal-live-badge").style.display = "none";
+    document.getElementById("modal-refresh-info").textContent = "";
+    if (liveStatsInterval) { clearInterval(liveStatsInterval); liveStatsInterval = null; }
 
     document.getElementById("roster-away").innerHTML = rosterColHeader(g.away, "away") + `<div class="roster-loading">Loading...</div>`;
     document.getElementById("roster-home").innerHTML = rosterColHeader(g.home, "home") + `<div class="roster-loading">Loading...</div>`;
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
 
-    // Fetch rosters + injuries in parallel
-    const [awayPlayers, homePlayers, injuries] = await Promise.all([
-      fetchRoster(g.awayId),
-      fetchRoster(g.homeId),
-      fetchInjuries()
-    ]);
-    injuryMap = injuries;
+    // Detect if game is live based on countdown showing "Live"
+    const isLive = g.isLive || false;
 
-    document.getElementById("roster-away").innerHTML = rosterColHeader(g.away, "away") + renderRoster(awayPlayers);
-    document.getElementById("roster-home").innerHTML = rosterColHeader(g.home, "home") + renderRoster(homePlayers);
+    if (isLive && g.gameId) {
+      document.getElementById("modal-live-badge").style.display = "inline-flex";
+      await loadLiveStats(g.gameId, g.away, g.home);
+      liveStatsInterval = setInterval(() => loadLiveStats(g.gameId, g.away, g.home), 60000);
+    } else {
+      const [awayPlayers, homePlayers, injuries] = await Promise.all([
+        fetchRoster(g.awayId),
+        fetchRoster(g.homeId),
+        fetchInjuries()
+      ]);
+      injuryMap = injuries;
+      document.getElementById("roster-away").innerHTML = rosterColHeader(g.away, "away") + renderRoster(awayPlayers);
+      document.getElementById("roster-home").innerHTML = rosterColHeader(g.home, "home") + renderRoster(homePlayers);
+    }
+  }
+
+  async function loadLiveStats(gameId, awayAbbr, homeAbbr) {
+    try {
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/stats?game_ids[]=${gameId}&per_page=100`,
+        { headers: { Authorization: API_KEY } }
+      );
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      const stats = data.data || [];
+      const awayStats = stats.filter(s => s.team?.abbreviation === awayAbbr).sort((a,b)=>(b.pts||0)-(a.pts||0));
+      const homeStats = stats.filter(s => s.team?.abbreviation === homeAbbr).sort((a,b)=>(b.pts||0)-(a.pts||0));
+      document.getElementById("roster-away").innerHTML = rosterColHeader(awayAbbr,"away") + renderStats(awayStats);
+      document.getElementById("roster-home").innerHTML = rosterColHeader(homeAbbr,"home") + renderStats(homeStats);
+      const now = new Date();
+      document.getElementById("modal-refresh-info").textContent = `Updated ${now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})} · Auto-refresh 60s`;
+    } catch(e) {
+      document.getElementById("modal-refresh-info").textContent = "Stats unavailable";
+    }
+  }
+
+  function renderStats(stats) {
+    if (!stats.length) return `<div class="roster-empty">No stats yet</div>`;
+    return stats.map(s => {
+      const p = s.player || {};
+      const pts = s.pts||0, reb = s.reb||0, ast = s.ast||0, stl = s.stl||0, blk = s.blk||0;
+      const min = s.min||"0";
+      return `<div class="stat-row">
+        <div class="stat-left">
+          <span class="stat-name">${p.first_name||""} ${p.last_name||""}</span>
+          <span class="stat-pos-badge">${p.position||"—"}</span>
+        </div>
+        <div class="stat-nums">
+          <div class="stat-item"><div class="stat-val${pts>=20?" big":""}">${pts}</div><div class="stat-lbl">PTS</div></div>
+          <div class="stat-item"><div class="stat-val${reb>=10?" big":""}">${reb}</div><div class="stat-lbl">REB</div></div>
+          <div class="stat-item"><div class="stat-val${ast>=8?" big":""}">${ast}</div><div class="stat-lbl">AST</div></div>
+          ${stl>0?`<div class="stat-item"><div class="stat-val">${stl}</div><div class="stat-lbl">STL</div></div>`:""}
+          ${blk>0?`<div class="stat-item"><div class="stat-val">${blk}</div><div class="stat-lbl">BLK</div></div>`:""}
+          <div class="stat-min">${min}m</div>
+        </div>
+      </div>`;
+    }).join("");
   }
 
   function rosterColHeader(abbr, type) {
@@ -847,7 +923,24 @@
 
   function renderRoster(players) {
     if (!players.length) return `<div class="roster-empty">No roster data</div>`;
-    return players.map(p => {
+
+    // Sort: healthy first, injured middle, out for season last
+    const sorted = [...players].sort((a, b) => {
+      const injA = injuryMap[a.id];
+      const injB = injuryMap[b.id];
+      const rankInj = inj => {
+        if (!inj) return 0;
+        const s = (inj.status||"").toLowerCase();
+        if (s.includes("season")) return 3;
+        if (s.includes("out")) return 2;
+        return 1;
+      };
+      const diff = rankInj(injA) - rankInj(injB);
+      if (diff !== 0) return diff;
+      return (a.last_name||"").localeCompare(b.last_name||"");
+    });
+
+    return sorted.map(p => {
       const inj = injuryMap[p.id];
       const injHtml = inj ? `<span class="inj-tag">${inj.status||"Out"}</span>` : "";
       const injClass = inj ? " injured" : "";
@@ -870,6 +963,7 @@
   function closeModalDirect() {
     document.getElementById("modal-overlay").classList.remove("open");
     document.body.style.overflow = "";
+    if (liveStatsInterval) { clearInterval(liveStatsInterval); liveStatsInterval = null; }
   }
   document.addEventListener("keydown", e => { if(e.key==="Escape") closeModalDirect(); });
 
@@ -887,7 +981,8 @@
     document.querySelectorAll(".game-countdown").forEach(el => {
       const iso = el.dataset.tip;
       if (!iso) return;
-      const tip = new Date(iso);
+      // NBA games typically tip off ~10 mins after listed start time
+      const tip = new Date(new Date(iso).getTime() + 10 * 60000);
       const diff = tip - now;
       if (diff <= 0) {
         el.textContent = "🔴 Live";
@@ -901,11 +996,9 @@
       const timeStr = h > 0 ? `${h}h ${pad(m)}m` : `${m}m ${pad(s)}s`;
       el.textContent = `Starts In: ${timeStr}`;
       if (diff < 1800000) {
-        // Under 30 min — yellow urgent glow
         el.style.color = "#fbbf24";
         el.style.textShadow = "0 0 10px rgba(251,191,36,0.9), 0 0 24px rgba(251,191,36,0.5), 0 0 40px rgba(251,191,36,0.2)";
       } else {
-        // Default white glow
         el.style.color = "#fff";
         el.style.textShadow = "0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.2)";
       }
@@ -1016,8 +1109,6 @@
 
   document.getElementById("date-badge").textContent=getDateLabel();
   document.getElementById("fetch-btn").onclick = fetchSlate;
-  // Build player->team map from BDL and auto-load slate
-  buildPlayerTeamMap();
   fetchSlate();
 </script>
 </body>
