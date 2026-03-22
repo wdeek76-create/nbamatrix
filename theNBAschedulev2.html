@@ -173,7 +173,7 @@
     .modal-overlay.open { display: flex; }
     .modal {
       background: var(--surface); border: 1px solid var(--border2);
-      border-radius: 14px; width: 100%; max-width: 860px;
+      border-radius: 14px; width: 100%; max-width: 1000px;
       max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
       box-shadow: 0 20px 60px rgba(0,0,0,0.6);
     }
@@ -192,6 +192,7 @@
 
     .modal-body { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; flex: 1; }
     .roster-col { overflow-y: auto; overflow-x: hidden; min-width: 0; }
+    .roster-col:first-child { padding-left: 0; }
     .roster-col + .roster-col { border-left: 1px solid var(--border); }
     .roster-col-header {
       display: flex; align-items: center; gap: 0.6rem;
@@ -233,16 +234,16 @@
 
     .stat-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0.85rem 0.85rem; border-bottom: 1px solid #0d1520;
+      padding: 0.85rem 0.75rem 0.85rem 1rem; border-bottom: 1px solid #0d1520;
       transition: background 0.1s; min-width: 0; overflow: hidden;
     }
     .stat-row:hover { background: var(--surface2); }
-    .stat-left { display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1; overflow: hidden; }
+    .stat-left { display: flex; align-items: center; gap: 0.5rem; width: 155px; flex-shrink: 0; overflow: hidden; }
     .stat-num { font-size: 0.78rem; color: var(--muted); min-width: 1.5rem; text-align: center; }
-    .stat-name { font-size: 0.95rem; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 8px rgba(255,255,255,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+    .stat-name { font-size: 0.95rem; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 8px rgba(255,255,255,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
     .stat-name.expanded { max-width: 220px; color: var(--teal); text-shadow: 0 0 8px rgba(0,245,196,0.4); }
     .stat-pos-badge { font-size: 0.62rem; color: var(--teal); background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.25); border-radius: 3px; padding: 0.1rem 0.4rem; flex-shrink: 0; }
-    .stat-nums { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
+    .stat-nums { display: flex; align-items: center; flex: 1; justify-content: space-between; }
     .stat-item { display: flex; flex-direction: column; align-items: center; min-width: 1.8rem; }
     .stat-val { font-size: 1rem; color: #fff; letter-spacing: 0.03em; }
     .stat-val.big { color: var(--teal); text-shadow: 0 0 10px rgba(0,245,196,0.6); }
@@ -918,13 +919,14 @@
   function renderStats(stats) {
     if (!stats.length) return `<div class="roster-empty">No stats yet</div>`;
     const header = `<div class="stat-col-header">
-      <div class="stat-col-name"></div>
-      <div class="stat-col-nums">
+      <div class="stat-col-name" style="width:155px;flex-shrink:0"></div>
+      <div class="stat-col-nums" style="flex:1;justify-content:space-between">
         <div class="stat-col-lbl">PTS</div>
         <div class="stat-col-lbl">REB</div>
         <div class="stat-col-lbl">AST</div>
         <div class="stat-col-lbl">3PM</div>
         <div class="stat-col-lbl">PRA</div>
+        <div class="stat-col-lbl" style="min-width:1.2rem"></div>
         <div class="stat-col-lbl" style="min-width:2.8rem;text-align:right">MIN</div>
       </div>
     </div>`;
@@ -957,13 +959,12 @@
         </div>
         <div class="stat-nums">
           ${hnp ? `<span class="stat-hnp">HNP</span>` : `
-          <div class="stat-item"><div class="stat-val${pts>=20?" big":""}">${pts}</div><div class="stat-lbl">PTS</div></div>
-          <div class="stat-item"><div class="stat-val${reb>=10?" big":""}">${reb}</div><div class="stat-lbl">REB</div></div>
-          <div class="stat-item"><div class="stat-val${ast>=8?" big":""}">${ast}</div><div class="stat-lbl">AST</div></div>
-          <div class="stat-item"><div class="stat-val${fg3m>=3?" big":""}">${fg3m}</div><div class="stat-lbl">3PM</div></div>
-          <div class="stat-item"><div class="stat-val${pra>=30?" big":""}">${pra}</div><div class="stat-lbl">PRA</div></div>
-          ${stl>0?`<div class="stat-item"><div class="stat-val">${stl}</div><div class="stat-lbl">STL</div></div>`:""}
-          ${blk>0?`<div class="stat-item"><div class="stat-val">${blk}</div><div class="stat-lbl">BLK</div></div>`:""}
+          <div class="stat-item"><div class="stat-val${pts>=20?" big":""}">${pts}</div></div>
+          <div class="stat-item"><div class="stat-val${reb>=10?" big":""}">${reb}</div></div>
+          <div class="stat-item"><div class="stat-val${ast>=8?" big":""}">${ast}</div></div>
+          <div class="stat-item"><div class="stat-val${fg3m>=3?" big":""}">${fg3m}</div></div>
+          <div class="stat-item"><div class="stat-val${pra>=30?" big":""}">${pra}</div></div>
+          ${stl>0||blk>0?`<div class="stat-item" style="min-width:1.2rem"><div class="stat-val" style="font-size:0.75rem;color:var(--muted)">${stl>0?stl:blk>0?blk:""}<span style="font-size:0.5rem;margin-left:1px">${stl>0?"stl":blk>0?"blk":""}</span></div></div>`:"<div class='stat-item' style='min-width:1.2rem'></div>"}
           <div class="stat-min">${minDisplay}</div>
           `}
         </div>
