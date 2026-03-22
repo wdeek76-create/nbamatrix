@@ -1457,7 +1457,10 @@ async function runAutoGrade() {
         agResults[b.id] = { result, actual, found: true };
         const realBet = bets.find(x => x.id === b.id);
         if (realBet) { realBet.result = result; saveBets(); }
-        agLog.push((hit ? "✓ " : "✗ ") + b.player + " " + b.stat + ": " + actual + " vs " + b.ou + " " + line + " → " + result.toUpperCase());
+        const unitStr = hit
+          ? `+${realBet ? realBet.toWin.toFixed(2) : "?"}u`
+          : `-${realBet ? realBet.stake.toFixed(2) : "?"}u`;
+        agLog.push((hit ? "✓ " : "✗ ") + b.player + " " + b.stat + ": " + actual + " vs " + b.ou + " " + line + " → " + result.toUpperCase() + "  " + unitStr);
       });
 
     } catch(e) {
@@ -1468,7 +1471,18 @@ async function runAutoGrade() {
     await new Promise(r => setTimeout(r, 300));
   }
 
-  agLog.push("✅ Done!");
+  // Final W-L + P&L summary
+  const gradedBets = pending.filter(b => agResults[b.id] && agResults[b.id].found);
+  const hitBets  = gradedBets.filter(b => agResults[b.id].result === "hit");
+  const missBets = gradedBets.filter(b => agResults[b.id].result === "miss");
+  const voidBets = pending.filter(b => agResults[b.id] && agResults[b.id].result === "void");
+  const totalWon  = hitBets.reduce((a, b) => a + (bets.find(x => x.id === b.id)?.toWin || 0), 0);
+  const totalLost = missBets.reduce((a, b) => a + (bets.find(x => x.id === b.id)?.stake || 0), 0);
+  const netPL = totalWon - totalLost;
+  const plStr = (netPL >= 0 ? "+" : "") + netPL.toFixed(2) + "u";
+  agLog.push("─────────────────────────────");
+  agLog.push(hitBets.length + "-" + missBets.length + (voidBets.length ? " (" + voidBets.length + " void)" : "") + "  " + plStr);
+
   agRunning = false;
   renderAutoGrade();
 }
