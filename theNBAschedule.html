@@ -4,44 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NBA Slate</title>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:       #0d1117;
-      --nav:      #0a0e16;
-      --surface:  #111827;
-      --surface2: #161f2e;
-      --border:   #1e2d42;
-      --border2:  #243349;
-      --teal:     #00c2a8;
-      --teal-dim: #00a08a;
-      --text:     #e8edf5;
+      --bg:       #0b0f17;
+      --nav:      #080c13;
+      --surface:  #101620;
+      --surface2: #141c28;
+      --border:   #1c2a3e;
+      --border2:  #223044;
+      --teal:     #00f5c4;
+      --teal-dim: #00c9a0;
+      --teal-glow:rgba(0,245,196,0.18);
+      --text:     #edf2f7;
       --muted:    #4a5c78;
-      --dim:      #1e2d42;
+      --dim:      #1a2538;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); min-height: 100vh; font-family: 'Barlow', sans-serif; color: var(--text); }
+    body { background: var(--bg); min-height: 100vh; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
 
     /* ── NAV ── */
     .topnav {
       background: var(--nav); border-bottom: 1px solid var(--border);
       padding: 0 2rem; display: flex; align-items: center; justify-content: space-between;
       height: 62px; position: sticky; top: 0; z-index: 100;
-      box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+      box-shadow: 0 2px 24px rgba(0,0,0,0.6);
     }
     .nav-left { display: flex; align-items: center; }
     .brand-logo { width: 30px; height: 30px; object-fit: contain; margin-right: 0.55rem; }
-    .brand-name { font-size: 1.3rem; font-weight: 900; letter-spacing: -0.02em; color: #fff; margin-right: 2.5rem; font-style: italic; text-transform: uppercase; }
+    .brand-name { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.03em; color: #fff; margin-right: 2.5rem; text-transform: uppercase; }
     .brand-name span { color: var(--teal); }
     .nav-divider { width: 1px; height: 20px; background: var(--border); margin-right: 0.25rem; }
     .nav-tabs { display: flex; }
-    .nav-tab { padding: 0 1.1rem; height: 62px; display: flex; align-items: center; font-size: 0.82rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.04em; }
+    .nav-tab { padding: 0 1.1rem; height: 62px; display: flex; align-items: center; font-size: 0.78rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; letter-spacing: 0.02em; }
     .nav-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
-    .nav-tab:hover:not(.active) { color: #8899bb; }
+    .nav-tab:hover:not(.active) { color: #7a9cc0; }
     .nav-right { display: flex; align-items: center; gap: 0.75rem; }
-    .date-pill { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 0.38rem 0.9rem; font-size: 0.72rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
-    .load-btn { background: var(--teal); color: #000; border: none; border-radius: 6px; padding: 0.52rem 1.4rem; font-size: 0.8rem; font-weight: 800; cursor: pointer; font-family: 'Barlow', sans-serif; transition: all 0.15s; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: 0 2px 14px rgba(0,194,168,0.3); }
-    .load-btn:hover { background: #00dbbf; }
+    .date-pill { background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 0.38rem 0.9rem; font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+    .load-btn { background: var(--teal); color: #000; border: none; border-radius: 8px; padding: 0.52rem 1.4rem; font-size: 0.78rem; font-weight: 800; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.2s; letter-spacing: 0.03em; text-transform: uppercase; box-shadow: 0 2px 16px rgba(0,245,196,0.35); }
+    .load-btn:hover { background: #1fffd0; box-shadow: 0 4px 24px rgba(0,245,196,0.5); }
     .load-btn:disabled { background: var(--dim); color: var(--muted); cursor: not-allowed; box-shadow: none; }
 
     /* ── MAIN ── */
@@ -64,11 +65,11 @@
     /* GAME CARD */
     .game-card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; overflow: hidden;
-      cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+      border-radius: 12px; overflow: hidden;
+      cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
     }
-    .game-card:hover { border-color: var(--teal-dim); box-shadow: 0 0 0 1px rgba(0,194,168,0.1), 0 4px 20px rgba(0,0,0,0.3); transform: translateY(-1px); }
-    .card-hint { font-size: 0.6rem; font-weight: 700; color: var(--dim); text-align: center; padding: 0.35rem; letter-spacing: 0.06em; text-transform: uppercase; border-top: 1px solid var(--border); transition: color 0.15s; }
+    .game-card:hover { border-color: var(--teal-dim); box-shadow: 0 0 0 1px rgba(0,245,196,0.08), 0 6px 24px rgba(0,0,0,0.35); transform: translateY(-2px); }
+    .card-hint { font-size: 0.6rem; font-weight: 700; color: var(--dim); text-align: center; padding: 0.4rem; letter-spacing: 0.08em; text-transform: uppercase; border-top: 1px solid var(--border); transition: color 0.2s; }
     .game-card:hover .card-hint { color: var(--teal); }
 
     .team-row { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.1rem; }
@@ -79,7 +80,7 @@
     .team-city { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
     .away-tag, .home-tag { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; padding: 0.2rem 0.55rem; border-radius: 4px; text-transform: uppercase; flex-shrink: 0; }
     .away-tag { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
-    .home-tag { background: rgba(0,194,168,0.1); color: var(--teal); border: 1px solid rgba(0,194,168,0.25); }
+    .home-tag { background: rgba(0,245,196,0.08); color: var(--teal); border: 1px solid rgba(0,245,196,0.25); }
 
     .empty { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 4rem 1rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
     .error-msg { color: #f87171; font-size: 0.78rem; text-align: center; padding: 1rem; display: none; }
@@ -87,8 +88,8 @@
     .copy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav); border-top: 1px solid var(--border); padding: 0.75rem 2rem; display: none; align-items: center; justify-content: space-between; gap: 1rem; box-shadow: 0 -4px 20px rgba(0,0,0,0.4); }
     .copy-info { font-size: 0.72rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
     .copy-info span { color: var(--teal); }
-    .copy-btn { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); border-radius: 6px; padding: 0.45rem 1.35rem; font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: 'Barlow', sans-serif; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
-    .copy-btn.copied { background: rgba(0,194,168,0.1); color: var(--teal); border-color: rgba(0,194,168,0.35); }
+    .copy-btn { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); border-radius: 8px; padding: 0.45rem 1.35rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.04em; }
+    .copy-btn.copied { background: rgba(0,245,196,0.1); color: var(--teal); border-color: rgba(0,245,196,0.4); }
 
     /* ── ROSTER MODAL ── */
     .modal-overlay {
@@ -128,7 +129,7 @@
     .roster-team-name { font-size: 0.88rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.04em; }
     .roster-tag { font-size: 0.55rem; font-weight: 800; padding: 0.12rem 0.4rem; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
     .roster-tag.away { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
-    .roster-tag.home { background: rgba(0,194,168,0.12); color: var(--teal); border: 1px solid rgba(0,194,168,0.3); }
+    .roster-tag.home { background: rgba(0,245,196,0.1); color: var(--teal); border: 1px solid rgba(0,245,196,0.3); }
 
     .player-row {
       display: flex; align-items: center; justify-content: space-between;
@@ -141,9 +142,9 @@
     .player-name { font-size: 0.95rem; font-weight: 700; color: var(--text); margin-right: 0.5rem; }
     .player-pos {
       font-size: 0.62rem; font-weight: 800;
-      color: #00ffdd;
-      background: rgba(0,255,221,0.1);
-      border: 1px solid rgba(0,255,221,0.35);
+      color: #00f5c4;
+      background: rgba(0,245,196,0.1);
+      border: 1px solid rgba(0,245,196,0.35);
       border-radius: 4px; padding: 0.15rem 0.45rem;
       text-transform: uppercase; letter-spacing: 0.06em;
     }
@@ -162,7 +163,7 @@
       .modal-body { grid-template-columns: 1fr; }
       .roster-col + .roster-col { border-left: none; border-top: 1px solid var(--border); }
       .mobile-tabs { display: flex; background: var(--nav); border-bottom: 1px solid var(--border); padding: 0 1rem; }
-      .mobile-tab { flex: 1; padding: 0.75rem 0; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.15s; }
+      .mobile-tab { flex: 1; padding: 0.75rem 0; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; letter-spacing: 0.04em; transition: all 0.2s; }
       .mobile-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
     }
   </style>
