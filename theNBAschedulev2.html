@@ -247,7 +247,10 @@
     .stat-val.big { color: var(--teal); text-shadow: 0 0 8px rgba(0,245,196,0.5); }
     .stat-lbl { font-size: 0.52rem; color: var(--muted); letter-spacing: 0.06em; margin-top: 0.05rem; }
     .stat-min { font-size: 0.68rem; color: var(--muted); min-width: 2.5rem; text-align: right; }
-    .stat-hnp { font-size: 0.72rem; color: var(--dim); letter-spacing: 0.1em; }
+    .stat-col-header { display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.85rem; border-bottom: 1px solid var(--border); background: var(--surface2); }
+    .stat-col-name { flex: 1; }
+    .stat-col-nums { display: flex; align-items: center; gap: 0.75rem; }
+    .stat-col-lbl { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.1em; min-width: 1.5rem; text-align: center; }
     .stat-row.hnp { opacity: 0.45; }
 
     /* ── INJURY STYLES ── */
@@ -882,22 +885,15 @@
       if (!res.ok) throw new Error(res.status);
       const data = await res.json();
       const stats = data.data || [];
-      const awayStats = stats.filter(s => s.team?.abbreviation === awayAbbr)
-        .sort((a,b) => {
-          const aPlayed = a.min && a.min !== "0" && a.min !== "00:00";
-          const bPlayed = b.min && b.min !== "0" && b.min !== "00:00";
-          if (aPlayed && !bPlayed) return -1;
-          if (!aPlayed && bPlayed) return 1;
-          return (b.pts||0) - (a.pts||0);
-        });
-      const homeStats = stats.filter(s => s.team?.abbreviation === homeAbbr)
-        .sort((a,b) => {
-          const aPlayed = a.min && a.min !== "0" && a.min !== "00:00";
-          const bPlayed = b.min && b.min !== "0" && b.min !== "00:00";
-          if (aPlayed && !bPlayed) return -1;
-          if (!aPlayed && bPlayed) return 1;
-          return (b.pts||0) - (a.pts||0);
-        });
+      const sortStats = (arr) => arr.sort((a, b) => {
+        const aMin = parseFloat((a.min||"0").replace(":","."))||0;
+        const bMin = parseFloat((b.min||"0").replace(":","."))||0;
+        if (aMin > 0 && bMin === 0) return -1;
+        if (aMin === 0 && bMin > 0) return 1;
+        return (b.pts||0) - (a.pts||0);
+      });
+      const awayStats = sortStats(stats.filter(s => s.team?.abbreviation === awayAbbr));
+      const homeStats = sortStats(stats.filter(s => s.team?.abbreviation === homeAbbr));
       document.getElementById("roster-away").innerHTML = rosterColHeader(awayAbbr,"away") + renderStats(awayStats);
       document.getElementById("roster-home").innerHTML = rosterColHeader(homeAbbr,"home") + renderStats(homeStats);
 
@@ -920,7 +916,18 @@
 
   function renderStats(stats) {
     if (!stats.length) return `<div class="roster-empty">No stats yet</div>`;
-    return stats.map(s => {
+    const header = `<div class="stat-col-header">
+      <div class="stat-col-name"></div>
+      <div class="stat-col-nums">
+        <div class="stat-col-lbl">PTS</div>
+        <div class="stat-col-lbl">REB</div>
+        <div class="stat-col-lbl">AST</div>
+        <div class="stat-col-lbl">3PM</div>
+        <div class="stat-col-lbl">PRA</div>
+        <div class="stat-col-lbl" style="min-width:2.5rem;text-align:right">MIN</div>
+      </div>
+    </div>`;
+    return header + stats.map(s => {
       const p = s.player || {};
       const pts = s.pts||0, reb = s.reb||0, ast = s.ast||0;
       const stl = s.stl||0, blk = s.blk||0, fg3m = s.fg3m||0;
