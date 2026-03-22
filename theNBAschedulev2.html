@@ -88,10 +88,28 @@
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 12px; overflow: hidden;
       cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+      box-shadow: 0 0 0 1px rgba(0,245,196,0.04), 0 0 16px rgba(0,245,196,0.06), 0 4px 16px rgba(0,0,0,0.3);
     }
-    .game-card:hover { border-color: var(--teal-dim); box-shadow: 0 0 0 1px rgba(0,245,196,0.08), 0 6px 24px rgba(0,0,0,0.35); transform: translateY(-2px); }
+    .game-card:hover {
+      border-color: var(--teal-dim);
+      box-shadow: 0 0 0 1px rgba(0,245,196,0.15), 0 0 28px rgba(0,245,196,0.12), 0 8px 28px rgba(0,0,0,0.4);
+      transform: translateY(-2px);
+    }
     .card-hint { font-size: 0.75rem; color: var(--dim); text-align: center; padding: 0.4rem; letter-spacing: 0.1em; border-top: 1px solid var(--border); transition: color 0.2s; }
     .game-card:hover .card-hint { color: var(--teal); }
+
+    /* SEARCH BAR */
+    .inj-search-wrap { position: relative; margin-bottom: 0.85rem; }
+    .inj-search {
+      width: 100%; padding: 0.65rem 1rem 0.65rem 2.5rem;
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 10px; color: var(--text);
+      font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; letter-spacing: 0.06em;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .inj-search::placeholder { color: var(--muted); }
+    .inj-search:focus { border-color: var(--teal); box-shadow: 0 0 0 1px rgba(0,245,196,0.2); }
+    .inj-search-icon { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.85rem; pointer-events: none; }
 
     .team-row { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.1rem; }
     .team-row + .team-row { border-top: 1px solid var(--border); }
@@ -199,17 +217,39 @@
     .inj-count { font-size: 0.75rem; color: #f87171; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); border-radius: 8px; padding: 0.08rem 0.5rem; margin-left: auto; }
     .inj-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0.6rem 0.85rem; background: var(--surface);
-      border: 1px solid var(--border); border-radius: 8px;
-      margin-bottom: 0.3rem;
+      padding: 0.75rem 1.1rem; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 12px;
+      margin-bottom: 0.45rem; transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.02);
     }
-    .inj-row-left { display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 0; }
-    .inj-player-name { font-size: 0.95rem; color: var(--text); letter-spacing: 0.04em; }
-    .inj-pos { font-size: 0.68rem; color: #00f5c4; background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.3); border-radius: 3px; padding: 0.08rem 0.4rem; }
-    .inj-status { font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; text-align: right; white-space: nowrap; }
-    .inj-team-pill { font-size: 0.7rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; padding: 0.08rem 0.45rem; letter-spacing: 0.06em; }
-    .inj-return { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.04em; margin-top: 0.1rem; text-align: right; }
-    .inj-loading { text-align: center; color: var(--muted); font-size: 0.9rem; padding: 3rem 1rem; letter-spacing: 0.08em; }
+    .inj-row:hover { border-color: var(--border2); box-shadow: 0 0 20px rgba(0,0,0,0.35), 0 0 8px rgba(0,245,196,0.06); }
+    .inj-row-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
+    .inj-logo { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+    .inj-player-name { font-size: 1.1rem; color: var(--text); letter-spacing: 0.04em; }
+    .inj-pos { font-size: 0.72rem; color: #00f5c4; background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.3); border-radius: 3px; padding: 0.08rem 0.4rem; }
+    .inj-status { font-size: 1rem; letter-spacing: 0.1em; text-align: right; white-space: nowrap; color: #fff; }
+    .inj-status.s-gtd { color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.5); }
+    .inj-status.s-doubtful { color: #f87171; text-shadow: 0 0 10px rgba(248,113,113,0.5); }
+    .inj-status.s-questionable { color: #fb923c; text-shadow: 0 0 10px rgba(251,146,60,0.5); }
+    .inj-status.s-probable { color: #a3e635; text-shadow: 0 0 10px rgba(163,230,53,0.5); }
+    .inj-status.s-out { color: #f87171; text-shadow: 0 0 10px rgba(248,113,113,0.5); }
+    .inj-team-pill { font-size: 0.72rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; padding: 0.08rem 0.5rem; letter-spacing: 0.06em; }
+    .inj-return { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.04em; margin-top: 0.15rem; text-align: right; }
+    .inj-filter-bar { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .inj-filter-btn {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.85rem; letter-spacing: 0.08em;
+      padding: 0.3rem 0.9rem; border-radius: 20px; cursor: pointer;
+      border: 1px solid var(--border2); background: var(--surface2); color: var(--muted);
+      transition: all 0.15s;
+    }
+    .inj-filter-btn:hover { color: #fff; border-color: #fff; }
+    .inj-filter-btn.active { background: #fff; color: #000; border-color: #fff; }
+    .inj-filter-btn.active.s-gtd { background: #fbbf24; border-color: #fbbf24; color: #000; }
+    .inj-filter-btn.active.s-doubtful { background: #f87171; border-color: #f87171; color: #000; }
+    .inj-filter-btn.active.s-questionable { background: #fb923c; border-color: #fb923c; color: #000; }
+    .inj-filter-btn.active.s-probable { background: #a3e635; border-color: #a3e635; color: #000; }
+    .inj-filter-btn.active.s-out { background: #f87171; border-color: #f87171; color: #000; }
 
     .mobile-tabs { display: none; }
     @media (max-width: 640px) {
@@ -507,26 +547,62 @@
         return;
       }
 
-      let html = `<div class="inj-container">`;
+      const classMap = {GTD:"s-gtd",Doubtful:"s-doubtful",Questionable:"s-questionable",Probable:"s-probable",Out:"s-out"};
+      const statusOrder = ["GTD","Doubtful","Questionable","Probable","Out"];
+
+      // Build filter options from what's actually present
+      const present = [...new Set(injuries.map(inj => {
+        const sl = (inj.status||"").toLowerCase();
+        return sl.includes("gtd")||sl.includes("game time") ? "GTD"
+          : sl.includes("doubtful") ? "Doubtful"
+          : sl.includes("questionable") ? "Questionable"
+          : sl.includes("probable") ? "Probable"
+          : "Out";
+      }))];
+      const filterStatuses = statusOrder.filter(s => present.includes(s));
+
+      let html = `<div class="inj-container">
+        <div class="inj-search-wrap">
+          <span class="inj-search-icon">⌕</span>
+          <input class="inj-search" id="inj-search" type="text" placeholder="Search player or team..." oninput="searchInjuries(this.value)">
+        </div>
+        <div class="inj-filter-bar">
+          <button class="inj-filter-btn active" onclick="filterInjuries('all',this)">All</button>
+          ${filterStatuses.map(s=>`<button class="inj-filter-btn ${classMap[s]}" onclick="filterInjuries('${s}',this)">${s}</button>`).join("")}
+        </div>
+        <div id="inj-list">`;
+
       for (const inj of injuries) {
         const p = inj.player || {};
-        const abbr = p.team?.abbreviation || "—";
+        const teamAbbr = p.team?.abbreviation || inj.team?.abbreviation || "—";
         const pos = p.position || "—";
         const status = inj.status || "Out";
+        const sl = status.toLowerCase();
+        const statusLabel = sl.includes("gtd")||sl.includes("game time") ? "GTD"
+          : sl.includes("doubtful") ? "Doubtful"
+          : sl.includes("questionable") ? "Questionable"
+          : sl.includes("probable") ? "Probable"
+          : "Out";
+        const statusClass = classMap[statusLabel];
         const ret = inj.return_date ? `Est. return: ${inj.return_date}` : (inj.description || "");
-        html += `<div class="inj-row">
+        html += `<div class="inj-row" data-status="${statusLabel}">
           <div class="inj-row-left">
-            <span class="inj-player-name">${p.first_name||""} ${p.last_name||""}</span>
-            <span class="inj-pos">${pos}</span>
-            <span class="inj-team-pill">${abbr}</span>
+            ${teamAbbr !== "—" ? `<img class="inj-logo" src="${logoUrl(teamAbbr)}" onerror="this.style.display='none'" alt="${teamAbbr}">` : ""}
+            <div>
+              <div style="display:flex;align-items:center;gap:0.5rem">
+                <span class="inj-player-name">${p.first_name||""} ${p.last_name||""}</span>
+                <span class="inj-pos">${pos}</span>
+                ${teamAbbr !== "—" ? `<span class="inj-team-pill">${teamAbbr}</span>` : ""}
+              </div>
+            </div>
           </div>
-          <div>
-            <div class="inj-status">${status}</div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="inj-status ${statusClass}">${status}</div>
             ${ret ? `<div class="inj-return">${ret}</div>` : ""}
           </div>
         </div>`;
       }
-      html += `</div>`;
+      html += `</div></div>`;
       c.innerHTML = html;
     } catch(e) {
       c.innerHTML = `<div class="empty">Failed to load injuries</div>`;
@@ -669,6 +745,27 @@
     const btn=document.getElementById("copy-btn");
     btn.textContent="✓ Copied!"; btn.classList.add("copied");
     setTimeout(()=>{btn.textContent="Copy as Text";btn.classList.remove("copied");},2000);
+  }
+
+  function filterInjuries(status, btn) {
+    document.querySelectorAll(".inj-filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const search = (document.getElementById("inj-search")?.value || "").toLowerCase();
+    document.querySelectorAll("#inj-list .inj-row").forEach(row => {
+      const matchStatus = status === "all" || row.dataset.status === status;
+      const matchSearch = !search || row.textContent.toLowerCase().includes(search);
+      row.style.display = (matchStatus && matchSearch) ? "" : "none";
+    });
+  }
+
+  function searchInjuries(val) {
+    const search = val.toLowerCase();
+    const activeFilter = document.querySelector(".inj-filter-btn.active")?.textContent?.trim() || "all";
+    document.querySelectorAll("#inj-list .inj-row").forEach(row => {
+      const matchStatus = activeFilter === "All" || row.dataset.status === activeFilter;
+      const matchSearch = !search || row.textContent.toLowerCase().includes(search);
+      row.style.display = (matchStatus && matchSearch) ? "" : "none";
+    });
   }
 
   document.getElementById("date-badge").textContent=getDateLabel();
