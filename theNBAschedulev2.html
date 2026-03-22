@@ -227,7 +227,9 @@
     .live-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.3); border-radius: 20px; padding: 0.15rem 0.6rem; font-size: 0.7rem; color: var(--teal); letter-spacing: 0.08em; margin-left: 0.5rem; }
     .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 1.2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-    .live-refresh { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.05em; margin-left: auto; padding-right: 1rem; }
+    .live-score-bar { display: flex; align-items: center; gap: 0.5rem; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 0.3rem 0.85rem; }
+    .score-side { font-size: 1.4rem; color: #fff; letter-spacing: 0.05em; text-shadow: 0 0 12px rgba(255,255,255,0.4); min-width: 1.5rem; text-align: center; }
+    .score-divider { font-size: 1rem; color: var(--muted); }
 
     .stat-row {
       display: flex; align-items: center; justify-content: space-between;
@@ -390,7 +392,12 @@
           <div class="modal-time" id="modal-time">—</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:0.5rem">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <div id="modal-score" style="display:none" class="live-score-bar">
+          <span id="score-away" class="score-side">0</span>
+          <span class="score-divider">–</span>
+          <span id="score-home" class="score-side">0</span>
+        </div>
         <div class="live-refresh" id="modal-refresh-info"></div>
         <button class="modal-close" onclick="closeModalDirect()">✕</button>
       </div>
@@ -838,6 +845,7 @@
       <img class="modal-logo" src="${logoUrl(g.home)}" onerror="this.style.display='none'" alt="${g.home}">
     `;
     document.getElementById("modal-live-badge").style.display = "none";
+    document.getElementById("modal-score").style.display = "none";
     document.getElementById("modal-refresh-info").textContent = "";
     if (liveStatsInterval) { clearInterval(liveStatsInterval); liveStatsInterval = null; }
 
@@ -874,10 +882,35 @@
       if (!res.ok) throw new Error(res.status);
       const data = await res.json();
       const stats = data.data || [];
-      const awayStats = stats.filter(s => s.team?.abbreviation === awayAbbr).sort((a,b)=>(b.pts||0)-(a.pts||0));
-      const homeStats = stats.filter(s => s.team?.abbreviation === homeAbbr).sort((a,b)=>(b.pts||0)-(a.pts||0));
+      const awayStats = stats.filter(s => s.team?.abbreviation === awayAbbr)
+        .sort((a,b) => {
+          const aPlayed = a.min && a.min !== "0" && a.min !== "00:00";
+          const bPlayed = b.min && b.min !== "0" && b.min !== "00:00";
+          if (aPlayed && !bPlayed) return -1;
+          if (!aPlayed && bPlayed) return 1;
+          return (b.pts||0) - (a.pts||0);
+        });
+      const homeStats = stats.filter(s => s.team?.abbreviation === homeAbbr)
+        .sort((a,b) => {
+          const aPlayed = a.min && a.min !== "0" && a.min !== "00:00";
+          const bPlayed = b.min && b.min !== "0" && b.min !== "00:00";
+          if (aPlayed && !bPlayed) return -1;
+          if (!aPlayed && bPlayed) return 1;
+          return (b.pts||0) - (a.pts||0);
+        });
       document.getElementById("roster-away").innerHTML = rosterColHeader(awayAbbr,"away") + renderStats(awayStats);
       document.getElementById("roster-home").innerHTML = rosterColHeader(homeAbbr,"home") + renderStats(homeStats);
+
+      // Calculate running score from player pts
+      const awayScore = awayStats.reduce((sum, s) => sum + (s.pts||0), 0);
+      const homeScore = homeStats.reduce((sum, s) => sum + (s.pts||0), 0);
+      const scoreEl = document.getElementById("modal-score");
+      const leading = awayScore > homeScore ? "away" : awayScore < homeScore ? "home" : null;
+      document.getElementById("score-away").textContent = awayScore;
+      document.getElementById("score-away").style.color = leading === "away" ? "var(--teal)" : "#fff";
+      document.getElementById("score-home").textContent = homeScore;
+      document.getElementById("score-home").style.color = leading === "home" ? "var(--teal)" : "#fff";
+      scoreEl.style.display = "flex";
       const now = new Date();
       document.getElementById("modal-refresh-info").textContent = `Updated ${now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})} · Auto-refresh 60s`;
     } catch(e) {
@@ -928,10 +961,10 @@
   }
 
   function rosterColHeader(abbr, type) {
-    const city = (TEAM_INFO[abbr]||{city:abbr}).city;
+    const info = TEAM_INFO[abbr] || {city:abbr, name:""};
     return `<div class="roster-col-header">
       <img class="roster-logo" src="${logoUrl(abbr)}" onerror="this.style.display='none'" alt="${abbr}">
-      <span class="roster-team-name">${city} ${abbr}</span>
+      <span class="roster-team-name">${info.city} ${info.name}</span>
       <span class="roster-tag ${type}">${type}</span>
     </div>`;
   }
