@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -243,16 +243,16 @@
     .stat-name { font-size: 0.95rem; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 8px rgba(255,255,255,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
     .stat-name.expanded { max-width: 220px; color: var(--teal); text-shadow: 0 0 8px rgba(0,245,196,0.4); }
     .stat-pos-badge { font-size: 0.62rem; color: var(--teal); background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.25); border-radius: 3px; padding: 0.1rem 0.4rem; flex-shrink: 0; }
-    .stat-nums { display: flex; align-items: center; flex: 1; justify-content: space-between; }
-    .stat-item { display: flex; flex-direction: column; align-items: center; min-width: 1.8rem; }
+    .stat-nums { display: grid; grid-template-columns: 2.8rem 2.8rem 2.8rem 2.8rem 2.8rem 3.5rem; }
+    .stat-item { display: flex; flex-direction: column; align-items: center; }
     .stat-val { font-size: 1rem; color: #fff; letter-spacing: 0.03em; }
     .stat-val.big { color: var(--teal); text-shadow: 0 0 10px rgba(0,245,196,0.6); }
     .stat-lbl { font-size: 0.52rem; color: var(--muted); letter-spacing: 0.06em; margin-top: 0.05rem; display: none; }
-    .stat-min { font-size: 0.75rem; color: var(--muted); min-width: 2.8rem; text-align: right; letter-spacing: 0.03em; }
+    .stat-min { font-size: 0.75rem; color: var(--muted); text-align: right; letter-spacing: 0.03em; }
     .stat-col-header { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 0.85rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
     .stat-col-name { flex: 1; }
     .stat-col-nums { display: flex; align-items: center; gap: 0.5rem; }
-    .stat-col-lbl { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.08em; min-width: 1.8rem; text-align: center; }
+    .stat-col-lbl { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.08em; text-align: center; }
     .stat-row.hnp { opacity: 0.35; }
 
     /* ── INJURY STYLES ── */
@@ -920,13 +920,12 @@
     if (!stats.length) return `<div class="roster-empty">No stats yet</div>`;
     const header = `<div class="stat-col-header">
       <div class="stat-col-name" style="width:155px;flex-shrink:0"></div>
-      <div class="stat-col-nums" style="flex:1;justify-content:space-between">
+      <div class="stat-col-nums" style="display:grid;grid-template-columns:2.8rem 2.8rem 2.8rem 2.8rem 2.8rem 3.5rem;">
         <div class="stat-col-lbl">PTS</div>
         <div class="stat-col-lbl">REB</div>
         <div class="stat-col-lbl">AST</div>
         <div class="stat-col-lbl">3PM</div>
         <div class="stat-col-lbl">PRA</div>
-        <div class="stat-col-lbl" style="min-width:1.2rem"></div>
         <div class="stat-col-lbl" style="min-width:2.8rem;text-align:right">MIN</div>
       </div>
     </div>`;
