@@ -363,6 +363,7 @@
   // Reverse map: BDL team id -> abbreviation
   const ID_TO_ABBR = {};
   for (const [abbr, id] of Object.entries(TEAM_IDS)) ID_TO_ABBR[id] = abbr;
+  const logoUrl = a => `https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/${a.toLowerCase()}.png`;
   const pad = n => String(n).padStart(2,"0");
   const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
