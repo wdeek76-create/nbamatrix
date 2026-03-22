@@ -57,9 +57,20 @@
     /* ── MAIN ── */
     .main { padding: 1.5rem 2rem 5.5rem; max-width: 1100px; margin: 0 auto; }
 
-    .chip-row { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .chip-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
     .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 0.32rem 0.9rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.08em; }
     .chip .hi { color: var(--teal); }
+
+    /* TIME SLOT TABS */
+    .slot-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .slot-tab {
+      font-family: 'Bebas Neue', sans-serif; font-size: 0.82rem; letter-spacing: 0.08em;
+      padding: 0.3rem 0.85rem; border-radius: 20px; cursor: pointer;
+      background: var(--surface2); color: var(--muted);
+      border: 1px solid var(--border2); transition: all 0.15s;
+    }
+    .slot-tab:hover { color: #fff; border-color: var(--border2); }
+    .slot-tab.active { background: var(--teal); color: #000; border-color: var(--teal); box-shadow: 0 0 10px rgba(0,245,196,0.35); }
 
     .time-section { margin-bottom: 0.25rem; }
     .section-head { display: flex; align-items: center; gap: 0.6rem; margin: 1.75rem 0 0.75rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
@@ -324,6 +335,7 @@
     <div class="chip" id="chip-date">—</div>
   </div>
   <div class="error-msg" id="error"></div>
+  <div class="slot-tabs" id="slot-tabs" style="display:none"></div>
   <div id="games-container"><div class="empty">Load Slate to pull today's schedule</div></div>
 </div>
 
@@ -514,7 +526,7 @@
   }
 
   function renderTimeGroup(time, games) {
-    return `<div class="time-section">
+    return `<div class="time-section" data-slot="${time}">
       <div class="section-head">
         <div class="section-time">${time} ET</div>
         <div class="section-badge">${games.length} game${games.length!==1?"s":""}</div>
@@ -525,22 +537,32 @@
 
   function renderGames(games) {
     const c = document.getElementById("games-container");
+    const slotTabsEl = document.getElementById("slot-tabs");
     c.innerHTML = "";
-    if (!games.length) { c.innerHTML=`<div class="empty">No games scheduled</div>`; return; }
+    if (!games.length) {
+      c.innerHTML=`<div class="empty">No games scheduled</div>`;
+      slotTabsEl.style.display = "none";
+      return;
+    }
 
     if (currentView==="daily") {
       const bt={};
       for(const g of games){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g);}
-      for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))) c.innerHTML+=renderTimeGroup(t,bt[t]);
+      const times = Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b));
+
+      // Build slot tabs
+      slotTabsEl.innerHTML = `<button class="slot-tab active" onclick="filterSlot('all',this)">All</button>`
+        + times.map(t => `<button class="slot-tab" onclick="filterSlot('${t}',this)">${t} ET</button>`).join("");
+      slotTabsEl.style.display = "flex";
+
+      for(const t of times) c.innerHTML+=renderTimeGroup(t,bt[t]);
     } else {
-      // Weekly/monthly: compact one-line-per-day summary
+      slotTabsEl.style.display = "none";
       const bd={};
       for(const g of games){if(!bd[g.date])bd[g.date]=[];bd[g.date].push(g);}
       for(const day of Object.keys(bd).sort()){
         const gs=bd[day].sort((a,b)=>toMin(getTime(a.datetime))-toMin(getTime(b.datetime)));
         c.innerHTML+=`<div class="day-head">${parseDayLabel(day)}<span>${gs.length} game${gs.length!==1?"s":""}</span></div>`;
-
-        // Group by time slot
         const bt={};
         for(const g of gs){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g);}
         for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))){
@@ -556,6 +578,14 @@
     }
   }
 
+  function filterSlot(slot, btn) {
+    document.querySelectorAll(".slot-tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".time-section").forEach(sec => {
+      sec.style.display = (slot === "all" || sec.dataset.slot === slot) ? "" : "none";
+    });
+  }
+
   // ── ODDS ──
   let oddsMap = {}; // gameId -> best odds object
 
@@ -566,6 +596,10 @@
         `https://api.balldontlie.io/nba/v2/odds?${params}&per_page=100`,
         { headers: { Authorization: API_KEY } }
       );
+      if (res.status === 401 || res.status === 403 || res.status === 402) {
+        console.log("Odds not available on current BDL tier:", res.status);
+        return;
+      }
       if (!res.ok) return;
       const data = await res.json();
       const byGame = {};
@@ -575,12 +609,12 @@
       }
       oddsMap = {};
       for (const [gid, odds] of Object.entries(byGame)) {
-        // Prefer DraftKings, fallback to first available
         const dk = odds.find(o => o.vendor === "draftkings")
           || odds.find(o => o.vendor === "fanduel")
           || odds[0];
         oddsMap[parseInt(gid)] = dk;
       }
+      console.log("Odds loaded:", Object.keys(oddsMap).length, "games");
     } catch(e) { console.log("odds err", e); }
   }
 
@@ -672,6 +706,26 @@
         return da - db;
       });
 
+      // Batch fetch current team for each injured player directly from BDL
+      const playerIds = [...new Set(injuries.map(i => i.player?.id).filter(Boolean))];
+      const teamLookup = {};
+      for (let i = 0; i < playerIds.length; i += 25) {
+        const chunk = playerIds.slice(i, i + 25);
+        try {
+          const params = chunk.map(id => `player_ids[]=${id}`).join("&");
+          const r = await fetch(
+            `https://api.balldontlie.io/nba/v1/players/active?${params}&per_page=25`,
+            { headers: { Authorization: API_KEY } }
+          );
+          if (r.ok) {
+            const d = await r.json();
+            for (const p of (d.data || [])) {
+              if (p.team?.abbreviation) teamLookup[p.id] = p.team.abbreviation;
+            }
+          }
+        } catch {}
+      }
+
       if (!injuries.length) {
         c.innerHTML = `<div class="empty">No active injuries reported</div>`;
         return;
@@ -704,7 +758,7 @@
 
       for (const inj of injuries) {
         const p = inj.player || {};
-        const teamAbbr = BDL_PLAYER_TEAM[p.id] || p.team?.abbreviation || "";
+        const teamAbbr = teamLookup[p.id] || BDL_PLAYER_TEAM[p.id] || p.team?.abbreviation || "";
         const pos = p.position || "—";
         const status = inj.status || "Out";
         const sl = status.toLowerCase();
@@ -866,6 +920,7 @@
     document.getElementById("copy-bar").style.display = "none";
     document.getElementById("error").style.display = "none";
     document.getElementById("chip-row").style.display = "none";
+    document.getElementById("slot-tabs").style.display = "none";
     document.getElementById("date-badge").textContent = v === "injuries" ? "Live" : getDateLabel();
     if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 
