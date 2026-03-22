@@ -99,10 +99,12 @@ td{border-bottom:1px solid #1a1830;}
 /* TRACKER */
 .tracker-section{margin-bottom:28px;}
 .tracker-section h4{font-size:13px;font-weight:700;color:#6b6896;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1e1c35;}
-.stat-card{display:inline-flex;flex-direction:column;background:#16152a;border:1px solid #1e1c35;border-radius:8px;padding:12px 18px;margin:0 8px 8px 0;min-width:110px;}
-.stat-card .sc-label{font-size:11px;color:#6b6896;font-weight:600;margin-bottom:4px;}
-.stat-card .sc-val{font-size:18px;font-weight:800;color:#fff;}
-.stat-card .sc-sub{font-size:11px;color:#6b6896;margin-top:2px;}
+.stat-card{display:inline-flex;flex-direction:column;background:#16152a;border:1px solid #1e1c35;border-radius:8px;padding:14px 20px;margin:0 8px 8px 0;min-width:130px;}
+.stat-card .sc-label{font-size:11px;color:#6b6896;font-weight:600;margin-bottom:5px;letter-spacing:0.5px;}
+.stat-card .sc-val{font-size:22px;font-weight:800;color:#fff;}
+.stat-card .sc-sub{font-size:12px;color:#6b6896;margin-top:3px;}
+.stat-card .sc-units{font-size:14px;font-weight:800;margin-top:3px;}
+.stat-card .sc-roi{font-size:11px;color:#a78bfa;margin-top:2px;font-weight:600;}
 .bet-row-hit{color:#22c55e;}
 .bet-row-miss{color:#f87171;}
 .bet-row-pending{color:#a78bfa;}
@@ -925,8 +927,8 @@ function renderTracker() {
     const roi = v.total>0 ? ((v.pl/Math.max(0.01,staked))*100).toFixed(1) : '—';
     return `<div class="stat-card">
       <div class="sc-label">${k}</div>
-      <div class="sc-val" style="color:${roi==='—'?'#fff':Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'}</div>
-      <div class="sc-sub" style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
+      <div class="sc-val" style="color:${roi==='—'?'#fff':Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'} <span style="font-size:11px;font-weight:600;color:#6b6896;">ROI</span></div>
+      <div class="sc-units" style="color:${v.pl>=0?'#22c55e':'#f87171'}">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
       <div class="sc-sub">${pct(v.hits,v.total)} · ${v.hits}W ${v.total-v.hits}L</div>
     </div>`;}).join("");
 
@@ -1025,10 +1027,9 @@ function renderTracker() {
           ${[['Yesterday', yesterdayStats], ['Last 7 Days', weeklyStats], ['Last 30 Days', monthlyStats]].map(([label, s]) => s.total === 0 ? '' : `
           <div class="stat-card" style="display:inline-flex">
             <div class="sc-label">${label}</div>
-            <div class="sc-val" style="color:${Number(s.wr)>=55?'#22c55e':Number(s.wr)<45?'#f87171':'#fff'}">${s.wr}%</div>
-            <div class="sc-sub">${s.h}W · ${s.m}L</div>
-            <div class="sc-sub" style="color:${s.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${s.pl>=0?'+':''}${s.pl.toFixed(2)}u</div>
-            <div class="sc-sub" style="color:#a78bfa;">ROI ${s.roi}%</div>
+            <div class="sc-val" style="color:${s.roi==='—'?'#fff':Number(s.roi)>=0?'#22c55e':'#f87171'}">${s.roi !== '—' ? s.roi+'%' : '—'} <span style="font-size:11px;font-weight:600;color:#6b6896;">ROI</span></div>
+            <div class="sc-units" style="color:${s.pl>=0?'#22c55e':'#f87171'}">${s.pl>=0?'+':''}${s.pl.toFixed(2)}u</div>
+            <div class="sc-sub">${s.wr}% · ${s.h}W ${s.m}L</div>
           </div>`).join('')}
           ${yesterdayStats.total === 0 && weeklyStats.total === 0 && monthlyStats.total === 0 ? '<span style="color:#3d3a6b;font-size:13px;">No settled bets yet</span>' : ''}
         </div>
