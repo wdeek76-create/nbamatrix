@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BET TRACKER</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #050505;
+    --surface:  #0e0e0e;
+    --border:   #1a1a1a;
+    --border2:  #222;
+    --green:    #00e676;
+    --green2:   #00c853;
+    --green-dim:#003d1a;
+    --red:      #ff3d3d;
+    --red-dim:  #3d0000;
+    --yellow:   #ffd600;
+    --text:     #f0f0f0;
+    --muted:    #555;
+    --muted2:   #333;
+    --mono:     'DM Mono', monospace;
+    --display:  'Barlow Condensed', sans-serif;
+  }
+
+  html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--mono); }
+
+  /* ── Layout ── */
+  .app { max-width: 780px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  /* ── Header ── */
+  .header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; border-bottom: 1px solid var(--border2); padding-bottom: 16px; }
+  .header-title { font-family: var(--display); font-size: 42px; font-weight: 900; letter-spacing: 0.04em; line-height: 1; color: var(--green); text-transform: uppercase; }
+  .header-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ── Buttons ── */
+  .btn { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; border: 1px solid var(--border2); background: var(--surface); color: var(--muted); padding: 8px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+  .btn:hover { border-color: var(--green); color: var(--green); }
+  .btn-green { background: var(--green); color: #000; border-color: var(--green); font-weight: 700; }
+  .btn-green:hover { background: var(--green2); border-color: var(--green2); color: #000; }
+  .btn-danger { border-color: var(--red-dim); color: var(--red); }
+  .btn-danger:hover { background: var(--red-dim); }
+
+  /* ── Dashboard ── */
+  .dashboard { margin-bottom: 24px; }
+  .period-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .period-tab { font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+  .period-tab.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
+  .stats-grid-2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-label { font-size: 9px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .stat-val { font-family: var(--display); font-size: 22px; font-weight: 800; letter-spacing: 0.02em; }
+  .stat-val.pos { color: var(--green); }
+  .stat-val.neg { color: var(--red); }
+  .stat-val.neu { color: var(--muted); }
+
+  /* ── Tag breakdown ── */
+  .tag-breakdown { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 8px; }
+  .tag-breakdown-title { font-size: 9px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+  .tag-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .tag-row:last-child { border-bottom: none; }
+  .tag-name { flex: 1; color: var(--green); font-weight: 500; }
+  .tag-wl { color: var(--text); min-width: 50px; }
+  .tag-pl { min-width: 70px; text-align: right; }
+  .tag-pl.pos { color: var(--green); }
+  .tag-pl.neg { color: var(--red); }
+  .tag-empty { color: var(--muted); font-size: 11px; text-align: center; padding: 8px; }
+
+  /* ── Input section ── */
+  .input-section { background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .bet-input { flex: 1; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 10px 12px; color: var(--text); font-family: var(--mono); font-size: 13px; font-weight: 500; resize: none; outline: none; transition: border-color 0.15s; }
+  .bet-input:focus { border-color: var(--green); }
+  .bet-input::placeholder { color: var(--muted); }
+  .tag-input-row { display: flex; gap: 8px; align-items: center; }
+  .tag-input { flex: 1; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 12px; color: var(--green); font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.15s; }
+  .tag-input:focus { border-color: var(--green); }
+  .tag-input::placeholder { color: var(--muted); }
+  .tag-suggestions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .tag-suggestion { font-size: 10px; padding: 3px 8px; border-radius: 3px; background: var(--green-dim); color: var(--green); border: 1px solid #005c1f; cursor: pointer; letter-spacing: 0.06em; }
+  .tag-suggestion:hover { background: #005c1f; }
+
+  /* ── Date row ── */
+  .date-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .date-label { font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+  .date-input { background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 7px 10px; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; cursor: pointer; }
+  .date-input:focus { border-color: var(--green); }
+
+  /* ── Bets list ── */
+  .bets-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .bets-title { font-family: var(--display); font-size: 16px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); }
+  .bets-count { font-size: 11px; color: var(--green); margin-left: 8px; font-weight: 500; }
+  .bets-actions { display: flex; gap: 6px; }
+
+  .bet-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; transition: border-color 0.15s; }
+  .bet-item:hover { border-color: var(--border2); }
+  .bet-item.graded-win  { border-left: 3px solid var(--green); }
+  .bet-item.graded-loss { border-left: 3px solid var(--red); }
+  .bet-item.graded-push { border-left: 3px solid var(--yellow); }
+
+  .bet-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+  .bet-text { flex: 1; font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--text); }
+  .bet-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .bet-tag { font-size: 9px; padding: 2px 7px; border-radius: 3px; background: var(--green-dim); color: var(--green); border: 1px solid #004d17; letter-spacing: 0.07em; text-transform: uppercase; }
+  .bet-date-str { font-size: 10px; color: var(--muted); margin-bottom: 8px; }
+
+  .bet-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .bet-btn { font-family: var(--mono); font-size: 10px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.06em; }
+  .bet-btn:hover { border-color: var(--green); color: var(--green); }
+  .bet-btn.delete:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── Grade badge ── */
+  .grade-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; }
+  .grade-win  { background: #002910; border: 1px solid var(--green); color: var(--green); }
+  .grade-loss { background: var(--red-dim); border: 1px solid var(--red); color: var(--red); }
+  .grade-push { background: #2a2000; border: 1px solid var(--yellow); color: var(--yellow); }
+  .grade-err  { background: var(--border); border: 1px solid var(--muted2); color: var(--muted); }
+
+  .manual-grade-btns { display: inline-flex; gap: 4px; }
+  .mgb { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 4px; border: none; cursor: pointer; letter-spacing: 0.06em; }
+  .mgb-w { background: var(--green); color: #000; }
+  .mgb-l { background: var(--red); color: #fff; }
+  .mgb-p { background: var(--yellow); color: #000; }
+
+  /* ── Grade All btn ── */
+  .grade-all-btn { width: 100%; padding: 11px; border-radius: 8px; border: 1px solid #1a3a1a; background: #0a1a0a; color: var(--green); font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.1em; cursor: pointer; text-transform: uppercase; transition: all 0.15s; margin-bottom: 16px; }
+  .grade-all-btn:hover { background: var(--green-dim); border-color: var(--green); }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; border: 1px dashed var(--border2); border-radius: 8px; }
+
+  /* ── Filter bar ── */
+  .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .filter-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-right: 2px; }
+  .filter-tag { font-size: 10px; padding: 3px 10px; border-radius: 3px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; transition: all 0.12s; }
+  .filter-tag.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+  /* ── Summary copy box ── */
+  .summary-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; padding: 14px; margin-bottom: 20px; }
+  .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .summary-label { font-size: 10px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
+  .summary-text { font-size: 14px; font-weight: 500; line-height: 1.8; }
+  .summary-text .line1 { color: var(--text); }
+  .summary-text .line2 { color: var(--green); font-weight: 700; }
+
+  /* ── Bet type selector ── */
+  .type-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+  .type-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-right: 2px; }
+  .type-btn { font-family: var(--mono); font-size: 10px; padding: 4px 11px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; transition: all 0.12s; }
+  .type-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .stat-pill { font-size: 10px; padding: 2px 8px; border-radius: 3px; background: #0a1f0a; border: 1px solid #1a3a1a; color: #00c853; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; }
+
+  /* ── File IO ── */
+  #fileInput { display: none; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">BET TRACKER</div>
+      <div class="header-sub">Personal · NBA · 2025-26</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn" onclick="loadFromFile()">↑ LOAD</button>
+      <button class="btn" onclick="saveToFile()">↓ SAVE</button>
+      <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)">
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard">
+    <div class="period-tabs">
+      <button class="period-tab active" onclick="setPeriod('all',this)">All Time</button>
+      <button class="period-tab" onclick="setPeriod('month',this)">Month</button>
+      <button class="period-tab" onclick="setPeriod('week',this)">Week</button>
+      <button class="period-tab" onclick="setPeriod('day',this)">Today</button>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">W-L</div><div class="stat-val neu" id="dWL">—</div></div>
+      <div class="stat-card"><div class="stat-label">Units +/-</div><div class="stat-val neu" id="dPL">—</div></div>
+      <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-val neu" id="dWR">—</div></div>
+      <div class="stat-card"><div class="stat-label">ROI</div><div class="stat-val neu" id="dROI">—</div></div>
+    </div>
+    <div class="stats-grid-2">
+      <div class="stat-card"><div class="stat-label">Bets</div><div class="stat-val neu" id="dBets">—</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Odds</div><div class="stat-val neu" id="dOdds">—</div></div>
+      <div class="stat-card"><div class="stat-label">Longest Win Streak</div><div class="stat-val neu" id="dStreak">—</div></div>
+    </div>
+    <div class="tag-breakdown" id="tagBreakdown">
+      <div class="tag-breakdown-title">By Tag</div>
+      <div class="tag-empty" id="tagEmpty">No tagged bets yet</div>
+    </div>
+  </div>
+
+  <!-- Summary copy -->
+  <div class="summary-box" id="summaryBox" style="display:none">
+    <div class="summary-header">
+      <div class="summary-label">Summary</div>
+      <button class="btn" id="copyBtn" onclick="copySummary()">COPY</button>
+    </div>
+    <div class="summary-text" id="summaryText"></div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-section">
+    <div class="date-row">
+      <span class="date-label">Date</span>
+      <input type="date" class="date-input" id="betDate">
+    </div>
+    <div class="type-row">
+      <span class="type-label">Type:</span>
+      <button class="type-btn active" onclick="setBetType('prop',this)">Prop</button>
+      <button class="type-btn" onclick="setBetType('total',this)">Total</button>
+      <button class="type-btn" onclick="setBetType('ml',this)">ML</button>
+      <button class="type-btn" onclick="setBetType('spread',this)">Spread</button>
+      <button class="type-btn" onclick="setBetType('parlay',this)">Parlay</button>
+      <button class="type-btn" onclick="setBetType('sgp',this)">SGP</button>
+    </div>
+    <div class="input-row">
+      <textarea class="bet-input" id="betInput" rows="2" placeholder="Type your bet... e.g. LeBron James Lakers over 25.5 pts -110 FanDuel good to -115" autocorrect="off" autocapitalize="off" spellcheck="false" onkeydown="handleBetKey(event)"></textarea>
+    </div>
+    <div class="tag-input-row">
+      <input type="text" class="tag-input" id="tagInput" placeholder="tags (comma separated)... e.g. player prop, value" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button class="btn btn-green" onclick="addBet()">+ ADD</button>
+    </div>
+    <div class="tag-suggestions" id="tagSuggestions"></div>
+  </div>
+
+  <!-- Bets list -->
+  <div class="bets-header">
+    <div>
+      <span class="bets-title">Bets</span>
+      <span class="bets-count" id="betsCount"></span>
+    </div>
+    <div class="bets-actions">
+      <button class="btn btn-danger" onclick="clearAllBets()">CLEAR ALL</button>
+    </div>
+  </div>
+
+  <button class="grade-all-btn" onclick="gradeAll(this)">⚡ GRADE ALL</button>
+
+  <!-- Filter -->
+  <div class="filter-bar" id="filterBar"></div>
+
+  <div id="betsList"></div>
+
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────
+let bets = [];         // { id, text, tags, date, grade, odds, actual, betType, statType }
+let currentBetType = 'prop';
+let activePeriod = 'all';
+let activeFilter  = null;
+const API_KEY = '9cdb249f-9635-4cca-a998-37c7b98a9372';
+
+// ── Init ─────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadFromStorage();
+  initDate();
+  render();
+});
+
+function initDate() {
+  const el = document.getElementById('betDate');
+  const today = new Date().toISOString().split('T')[0];
+  el.value = today;
+}
+
+// ── Storage ──────────────────────────────────────────────────────────
+function loadFromStorage() {
+  try { bets = JSON.parse(localStorage.getItem('bt_bets') || '[]'); } catch(e) { bets = []; }
+}
+function saveToStorage() {
+  localStorage.setItem('bt_bets', JSON.stringify(bets));
+}
+
+// ── File IO ──────────────────────────────────────────────────────────
+function saveToFile() {
+  const data = { version: 1, exported: new Date().toISOString(), bets };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bet-tracker-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+}
+function loadFromFile() { document.getElementById('fileInput').click(); }
+function handleFileLoad(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const data = JSON.parse(evt.target.result);
+      if (data.bets) {
+        bets = data.bets;
+        saveToStorage();
+        render();
+      }
+    } catch(err) { alert('Invalid file'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ── Input ────────────────────────────────────────────────────────────
+// ── Bet type ─────────────────────────────────────────────────────────
+function setBetType(type, btn) {
+  currentBetType = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function detectStatType(text) {
+  const t = text.toLowerCase();
+  if (/points rebounds assists|\bpra\b/.test(t)) return 'pra';
+  if (/3-pointers made|\b3pm\b/.test(t)) return '3pm';
+  if (/\bpoints\b/.test(t)) return 'pts';
+  if (/\brebounds\b/.test(t)) return 'reb';
+  if (/\bassists\b/.test(t)) return 'ast';
+  if (/\bsteals\b/.test(t)) return 'stl';
+  if (/\bblocks\b/.test(t)) return 'blk';
+  if (/\bminutes\b/.test(t)) return 'min';
+  if (/\bturnovers\b/.test(t)) return 'tov';
+  return null;
+}
+
+// ── Shorthands ───────────────────────────────────────────────────────
+const EXPANSIONS = {
+  'pts': 'points', 'reb': 'rebounds', 'ast': 'assists',
+  'pra': 'points rebounds assists', 'stl': 'steals', 'blk': 'blocks',
+  '3pm': '3-pointers made', 'min': 'minutes', 'fg': 'field goals',
+  'fd': 'FanDuel', 'pb': 'Builder', 'bm': 'Bookmaker',
+  'onyx': 'Onyx', 'px': 'ProphetX', 'novig': 'Novig', 'nv': 'Novig',
+  'fliff': 'Fliff', 'dk': 'DraftKings', 'mgm': 'BetMGM',
+  'czr': 'Caesars', 'hard': 'HardRock', 'bet365': 'bet365',
+  'pin': 'Pinnacle', 'pinnacle': 'Pinnacle', 'circa': 'Circa',
+  'bov': 'Bovada', 'bovada': 'Bovada',
+};
+
+function expandShorthands(text) {
+  // u2.5 → under 2.5, o22.5 → over 22.5
+  text = text.replace(/\bo([0-9]+(?:\.[0-9]+)?)/gi, 'over $1');
+  text = text.replace(/\bu([0-9]+(?:\.[0-9]+)?)/gi, 'under $1');
+  // bare positive odds: 110 → +110
+  text = text.replace(/(^|\s)(1[0-9]{2,}|[2-9][0-9]{2,})(?=\s|$)/g, '$1+$2');
+  // stat/book expansions
+  const expKeys = Object.keys(EXPANSIONS).sort((a,b) => b.length - a.length).join('|');
+  const expRegex = new RegExp('\\b(' + expKeys + ')\\b', 'gi');
+  text = text.replace(expRegex, w => EXPANSIONS[w.toLowerCase()] || w);
+  return text;
+}
+
+function handleBetKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addBet(); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('betInput').addEventListener('input', function(e) {
+    if (e.data === ' ') {
+      const ta = this;
+      const pos = ta.selectionStart;
+      const before = ta.value;
+      const expanded = expandShorthands(before);
+      if (expanded !== before) {
+        const diff = expanded.length - before.length;
+        ta.value = expanded;
+        ta.selectionStart = ta.selectionEnd = pos + diff;
+      }
+    }
+  });
+});
+
+function addBet() {
+  const text = document.getElementById('betInput').value.trim();
+  if (!text) return;
+  const tagRaw = document.getElementById('tagInput').value.trim();
+  const tags = tagRaw ? tagRaw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : [];
+  const date = document.getElementById('betDate').value;
+  const odds = extractFirstOdds(text);
+
+  const statType = currentBetType === 'prop' ? detectStatType(text) : null;
+  bets.unshift({ id: Date.now(), text, tags, date, grade: null, odds, actual: null, betType: currentBetType, statType });
+  saveToStorage();
+  document.getElementById('betInput').value = '';
+  document.getElementById('tagInput').value = '';
+  render();
+}
+
+// ── Tags ─────────────────────────────────────────────────────────────
+function getAllTags() {
+  const set = new Set();
+  bets.forEach(b => b.tags.forEach(t => set.add(t)));
+  return [...set].sort();
+}
+
+function updateTagSuggestions() {
+  const tags = getAllTags();
+  const el = document.getElementById('tagSuggestions');
+  if (!tags.length) { el.innerHTML = ''; return; }
+  el.innerHTML = tags.map(t =>
+    `<span class="tag-suggestion" onclick="useTag('${t}')">${t}</span>`
+  ).join('');
+}
+
+function useTag(tag) {
+  const el = document.getElementById('tagInput');
+  const cur = el.value.trim();
+  const parts = cur ? cur.split(',').map(x => x.trim()) : [];
+  if (!parts.includes(tag)) parts.push(tag);
+  el.value = parts.join(', ');
+}
+
+// ── Period filter ────────────────────────────────────────────────────
+function setPeriod(p, btn) {
+  activePeriod = p;
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function inPeriod(bet) {
+  if (activePeriod === 'all') return true;
+  const d = new Date(bet.date + 'T12:00:00');
+  const now = new Date();
+  if (activePeriod === 'day') return bet.date === now.toISOString().split('T')[0];
+  if (activePeriod === 'week') {
+    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
+    return d >= weekAgo;
+  }
+  if (activePeriod === 'month') {
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }
+  return true;
+}
+
+// ── Units math ───────────────────────────────────────────────────────
+function extractFirstOdds(text) {
+  const m = text.match(/(?<!\d)([+-](?:1[0-9]{2,3}|[2-9][0-9]{2,3}))(?!\d)/);
+  return m ? parseInt(m[1]) : null;
+}
+
+function calcPL(odds, result) {
+  if (result === 'push') return 0;
+  if (!odds) return result === 'win' ? 1 : -1;
+  if (odds > 0) return result === 'win' ? +(odds / 100).toFixed(3) : -1;
+  const risk = +(Math.abs(odds) / 100).toFixed(3);
+  return result === 'win' ? 1 : -risk;
+}
+
+function fmtPL(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + 'u'; }
+function fmtOdds(o) { return o > 0 ? '+' + o : '' + o; }
+
+// ── Dashboard ────────────────────────────────────────────────────────
+function updateDashboard() {
+  const filtered = bets.filter(b => inPeriod(b) && (!activeFilter || b.tags.includes(activeFilter)));
+  const graded   = filtered.filter(b => b.grade === 'win' || b.grade === 'loss' || b.grade === 'push');
+  const wins     = graded.filter(b => b.grade === 'win').length;
+  const losses   = graded.filter(b => b.grade === 'loss').length;
+  const total    = wins + losses;
+  const pl       = graded.reduce((s, b) => s + calcPL(b.odds, b.grade), 0);
+  const wr       = total ? (wins / total * 100).toFixed(1) + '%' : '—';
+  const risk     = graded.reduce((s, b) => {
+    if (!b.odds) return s + 1;
+    return s + (b.odds < 0 ? Math.abs(b.odds) / 100 : 1);
+  }, 0);
+  const roi      = risk ? (pl / risk * 100).toFixed(1) + '%' : '—';
+
+  // Avg odds
+  const oddsArr = graded.filter(b => b.odds).map(b => b.odds);
+  const avgOdds = oddsArr.length ? Math.round(oddsArr.reduce((a,b) => a+b,0)/oddsArr.length) : null;
+
+  // Win streak
+  const sorted = [...graded].sort((a,b) => new Date(a.date) - new Date(b.date));
+  let streak = 0, maxStreak = 0, cur = 0;
+  sorted.forEach(b => { if (b.grade === 'win') { cur++; maxStreak = Math.max(maxStreak, cur); } else { cur = 0; } });
+
+  const set = (id, val, cls) => {
+    const el = document.getElementById(id);
+    el.textContent = val;
+    el.className = 'stat-val ' + (cls || 'neu');
+  };
+
+  set('dWL', total ? `${wins}-${losses}` : '—', total ? (wins >= losses ? 'pos' : 'neg') : 'neu');
+  const plCls = pl > 0 ? 'pos' : pl < 0 ? 'neg' : 'neu';
+  set('dPL', graded.length ? fmtPL(pl) : '—', plCls);
+  set('dWR', wr, total ? (wins/total >= 0.5 ? 'pos' : 'neg') : 'neu');
+  set('dROI', roi, roi !== '—' ? (parseFloat(roi) >= 0 ? 'pos' : 'neg') : 'neu');
+  set('dBets', filtered.length || '—', 'neu');
+  set('dOdds', avgOdds ? fmtOdds(avgOdds) : '—', avgOdds ? (avgOdds >= 0 ? 'pos' : 'neu') : 'neu');
+  set('dStreak', maxStreak || '—', maxStreak ? 'pos' : 'neu');
+
+  // Tag breakdown
+  updateTagBreakdown(filtered);
+  updateStatBreakdown(filtered);
+  updateSummary(wins, losses, pl);
+}
+
+function updateTagBreakdown(filtered) {
+  const tags = getAllTags();
+  const el = document.getElementById('tagBreakdown');
+  const empty = document.getElementById('tagEmpty');
+
+  if (!tags.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  // Remove old rows
+  el.querySelectorAll('.tag-row').forEach(r => r.remove());
+
+  tags.forEach(tag => {
+    const tagBets = filtered.filter(b => b.tags.includes(tag) && (b.grade === 'win' || b.grade === 'loss' || b.grade === 'push'));
+    if (!tagBets.length) return;
+    const w = tagBets.filter(b => b.grade === 'win').length;
+    const l = tagBets.filter(b => b.grade === 'loss').length;
+    const pl = tagBets.reduce((s, b) => s + calcPL(b.odds, b.grade), 0);
+    const row = document.createElement('div');
+    row.className = 'tag-row';
+    row.innerHTML = `<span class="tag-name">#${tag}</span><span class="tag-wl">${w}-${l}</span><span class="tag-pl ${pl >= 0 ? 'pos' : 'neg'}">${fmtPL(pl)}</span>`;
+    el.appendChild(row);
+  });
+}
+
+function updateStatBreakdown(filtered) {
+  const statLabels = { pts:'Points', reb:'Rebounds', ast:'Assists', pra:'PRA', '3pm':'3PM', stl:'Steals', blk:'Blocks', min:'Minutes', tov:'Turnovers' };
+  const el = document.getElementById('tagBreakdown');
+
+  // Remove old stat rows
+  el.querySelectorAll('.stat-type-row').forEach(r => r.remove());
+
+  const statTotals = {};
+  filtered.forEach(b => {
+    if (!b.statType) return;
+    if (!statTotals[b.statType]) statTotals[b.statType] = { w:0, l:0, pl:0 };
+    if (b.grade === 'win') { statTotals[b.statType].w++; statTotals[b.statType].pl += calcPL(b.odds, 'win'); }
+    else if (b.grade === 'loss') { statTotals[b.statType].l++; statTotals[b.statType].pl += calcPL(b.odds, 'loss'); }
+    else if (b.grade === 'push') {}
+  });
+
+  if (!Object.keys(statTotals).length) return;
+
+  // Add divider
+  const divider = document.createElement('div');
+  divider.className = 'stat-type-row';
+  divider.style.cssText = 'font-size:9px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;padding:8px 0 4px;border-bottom:1px solid var(--border);';
+  divider.textContent = 'By Stat';
+  el.appendChild(divider);
+
+  Object.entries(statTotals).forEach(([stat, d]) => {
+    const row = document.createElement('div');
+    row.className = 'tag-row stat-type-row';
+    row.innerHTML = `<span class="tag-name">${statLabels[stat] || stat}</span><span class="tag-wl">${d.w}-${d.l}</span><span class="tag-pl ${d.pl >= 0 ? 'pos' : 'neg'}">${fmtPL(d.pl)}</span>`;
+    el.appendChild(row);
+  });
+}
+
+function updateSummary(wins, losses, pl) {
+  const box = document.getElementById('summaryBox');
+  const txt = document.getElementById('summaryText');
+  if (!(wins + losses)) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const periodLabel = { all: 'All Time', month: 'This Month', week: 'This Week', day: 'Today' }[activePeriod];
+  txt.innerHTML = `<div class="line1">${periodLabel} ${wins}-${losses} ${fmtPL(pl)}</div><div class="line2">Personal Record</div>`;
+}
+
+function copySummary() {
+  const txt = document.getElementById('summaryText');
+  const lines = [...txt.querySelectorAll('div')].map(d => d.textContent).join('\n');
+  navigator.clipboard.writeText(lines).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ COPIED';
+    setTimeout(() => btn.textContent = 'COPY', 1800);
+  });
+}
+
+// ── Filter bar ───────────────────────────────────────────────────────
+function updateFilterBar() {
+  const tags = getAllTags();
+  const bar = document.getElementById('filterBar');
+  if (!tags.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = `<span class="filter-label">Filter:</span>` +
+    `<span class="filter-tag ${!activeFilter ? 'active' : ''}" onclick="setFilter(null)">All</span>` +
+    tags.map(t => `<span class="filter-tag ${activeFilter === t ? 'active' : ''}" onclick="setFilter('${t}')">#${t}</span>`).join('');
+}
+
+function setFilter(tag) {
+  activeFilter = tag;
+  render();
+}
+
+// ── Render ───────────────────────────────────────────────────────────
+function render() {
+  updateTagSuggestions();
+  updateDashboard();
+  updateFilterBar();
+  renderBets();
+}
+
+function renderBets() {
+  const list = document.getElementById('betsList');
+  const count = document.getElementById('betsCount');
+  const filtered = bets.filter(b => !activeFilter || b.tags.includes(activeFilter));
+
+  count.textContent = filtered.length ? `(${filtered.length})` : '';
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty">No bets yet — add one above</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((bet, idx) => {
+    const realIdx = bets.indexOf(bet);
+    const gradeClass = bet.grade ? `graded-${bet.grade}` : '';
+    const badgeHtml = buildBadge(bet, realIdx);
+    const tagsHtml = bet.tags.length ? `<div class="bet-tags">${bet.tags.map(t => `<span class="bet-tag">#${t}</span>`).join('')}</div>` : '';
+    const dateStr = formatDate(bet.date);
+    const betTypeLabel = { prop:'PROP', total:'TOTAL', ml:'ML', spread:'SPREAD', parlay:'PARLAY', sgp:'SGP' }[bet.betType] || '';
+    const statLabel = { pts:'PTS', reb:'REB', ast:'AST', pra:'PRA', '3pm':'3PM', stl:'STL', blk:'BLK', min:'MIN', tov:'TOV' }[bet.statType] || '';
+    const metaHtml = (betTypeLabel || statLabel) ? `<div style="display:flex;gap:5px;margin-bottom:7px;">
+      ${betTypeLabel ? `<span class="stat-pill">${betTypeLabel}</span>` : ''}
+      ${statLabel ? `<span class="stat-pill">${statLabel}</span>` : ''}
+    </div>` : '';
+
+    return `<div class="bet-item ${gradeClass}" id="bet-${realIdx}">
+      <div class="bet-top">
+        <div class="bet-text">${escHtml(bet.text)}</div>
+      </div>
+      ${metaHtml}
+      ${tagsHtml}
+      <div class="bet-date-str">${dateStr}</div>
+      <div class="bet-actions">
+        <div id="badge-${realIdx}">${badgeHtml}</div>
+        <button class="bet-btn" onclick="gradeBet(${realIdx}, this)">GRADE</button>
+        <button class="bet-btn" onclick="copyBet(${realIdx}, this)">COPY</button>
+        <button class="bet-btn delete" onclick="deleteBet(${realIdx})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildBadge(bet, i) {
+  if (!bet.grade) return '';
+  const pl = calcPL(bet.odds, bet.grade);
+  const plStr = fmtPL(pl);
+  const icon = bet.grade === 'win' ? '✓' : bet.grade === 'loss' ? '✗' : '~';
+  const word = bet.grade === 'win' ? 'WIN' : bet.grade === 'loss' ? 'LOSS' : 'PUSH';
+  const actualStr = bet.actual && bet.actual !== 'manual' ? ` (${bet.actual})` : '';
+  return `<span class="grade-badge grade-${bet.grade}">${icon} ${word} ${plStr}${actualStr}</span>`;
+}
+
+function showManualBtns(i) {
+  const el = document.getElementById(`badge-${i}`);
+  if (!el) return;
+  const bet = bets[i];
+  const odds = bet ? bet.odds : null;
+  el.innerHTML = `<div class="manual-grade-btns">
+    <button class="mgb mgb-w" onclick="manualGrade(${i},'win')">W</button>
+    <button class="mgb mgb-l" onclick="manualGrade(${i},'loss')">L</button>
+    <button class="mgb mgb-p" onclick="manualGrade(${i},'push')">P</button>
+  </div>`;
+}
+
+function manualGrade(i, result) {
+  setGrade(i, result, 'manual');
+}
+
+function setGrade(i, result, actual) {
+  const bet = bets[i];
+  if (!bet) return;
+  bet.grade = result;
+  bet.actual = actual;
+  saveToStorage();
+  render();
+}
+
+// ── Grading ──────────────────────────────────────────────────────────
+const NBA_PLAYERS = [
+  {name:"Adem Bona",team:"76ers",pos:"F"},
+  {name:"Alex Reese",team:"76ers",pos:"F-C"},
+  {name:"Andre Drummond",team:"76ers",pos:"C"},
+  {name:"Azuolas Tubelis",team:"76ers",pos:"F"},
+  {name:"Cameron Payne",team:"76ers",pos:"G"},
+  {name:"D.J. Wilson",team:"76ers",pos:"F"},
+  {name:"Dalen Terry",team:"76ers",pos:"F"},
+  {name:"Danuel House",team:"76ers",pos:"F-G"},
+  {name:"Dewayne Dedmon",team:"76ers",pos:"C"},
+  {name:"Dominick Barlow",team:"76ers",pos:"F"},
+  {name:"Emoni Bates",team:"76ers",pos:"F"},
+  {name:"Furkan Korkmaz",team:"76ers",pos:"G-F"},
+  {name:"Hunter Sallis",team:"76ers",pos:"G"},
+  {name:"Isaiah Mobley",team:"76ers",pos:"F"},
+  {name:"Jabari Walker",team:"76ers",pos:"F"},
+  {name:"Jalen Hood-Schifino",team:"76ers",pos:"G"},
+  {name:"Jeff Dowtin",team:"76ers",pos:"G"},
+  {name:"Joel Embiid",team:"76ers",pos:"C-F"},
+  {name:"Johni Broome",team:"76ers",pos:"F"},
+  {name:"Jordan Tucker",team:"76ers",pos:"F"},
+  {name:"Judah Mintz",team:"76ers",pos:"G"},
+  {name:"Justin Edwards",team:"76ers",pos:"F"},
+  {name:"Kelly Oubre",team:"76ers",pos:"F-G"},
+  {name:"Kennedy Chandler",team:"76ers",pos:"G"},
+  {name:"Kyle Lowry",team:"76ers",pos:"G"},
+  {name:"Lonnie Walker",team:"76ers",pos:"G-F"},
+  {name:"Louis King",team:"76ers",pos:"F"},
+  {name:"Malcolm Hill",team:"76ers",pos:"F"},
+  {name:"MarJon Beauchamp",team:"76ers",pos:"F"},
+  {name:"Marcus Bagley",team:"76ers",pos:"F"},
+  {name:"Max Fiedler",team:"76ers",pos:"F"},
+  {name:"Oshae Brissett",team:"76ers",pos:"F-G"},
+  {name:"Paul George",team:"76ers",pos:"F"},
+  {name:"Quentin Grimes",team:"76ers",pos:"G"},
+  {name:"Reggie Jackson",team:"76ers",pos:"G"},
+  {name:"Robert Covington",team:"76ers",pos:"F"},
+  {name:"Terquavion Smith",team:"76ers",pos:"G"},
+  {name:"Trendon Watford",team:"76ers",pos:"G-F"},
+  {name:"Tyrese Martin",team:"76ers",pos:"F"},
+  {name:"Tyrese Maxey",team:"76ers",pos:"G"},
+  {name:"VJ Edgecombe",team:"76ers",pos:"G"},
+  {name:"AJ Green",team:"Bucks",pos:"G"},
+  {name:"Alex Antetokounmpo",team:"Bucks",pos:"F"},
+  {name:"Amir Coffey",team:"Bucks",pos:"F-G"},
+  {name:"Andre Jackson",team:"Bucks",pos:"G"},
+  {name:"Bobby Portis",team:"Bucks",pos:"F"},
+  {name:"Cam Thomas",team:"Bucks",pos:"G"},
+  {name:"Cormac Ryan",team:"Bucks",pos:"G"},
+  {name:"Gary Harris",team:"Bucks",pos:"G"},
+  {name:"Gary Trent",team:"Bucks",pos:"G"},
+  {name:"Giannis Antetokounmpo",team:"Bucks",pos:"F"},
+  {name:"Hugo Besson",team:"Bucks",pos:"G"},
+  {name:"Iverson Molinar",team:"Bucks",pos:"G"},
+  {name:"James Akinjo",team:"Bucks",pos:"G"},
+  {name:"Jaylin Galloway",team:"Bucks",pos:"F"},
+  {name:"Jericho Sims",team:"Bucks",pos:"C"},
+  {name:"Kevin Porter",team:"Bucks",pos:"G-F"},
+  {name:"Kyle Kuzma",team:"Bucks",pos:"F"},
+  {name:"Liam Robbins",team:"Bucks",pos:"C"},
+  {name:"Lindell Wigginton",team:"Bucks",pos:"G"},
+  {name:"Mark Sears",team:"Bucks",pos:"G"},
+  {name:"Myles Turner",team:"Bucks",pos:"C-F"},
+  {name:"Omari Moore",team:"Bucks",pos:"G"},
+  {name:"Ousmane Dieng",team:"Bucks",pos:"F"},
+  {name:"Pete Nance",team:"Bucks",pos:"F"},
+  {name:"Ryan Rollins",team:"Bucks",pos:"G"},
+  {name:"Taurean Prince",team:"Bucks",pos:"F"},
+  {name:"Thanasis Antetokounmpo",team:"Bucks",pos:"F"},
+  {name:"Adama Sanogo",team:"Bulls",pos:"F"},
+  {name:"Andrew Funk",team:"Bulls",pos:"G"},
+  {name:"Anfernee Simons",team:"Bulls",pos:"G"},
+  {name:"Awudu Abass",team:"Bulls",pos:"F"},
+  {name:"Carlik Jones",team:"Bulls",pos:"G"},
+  {name:"Chris Duarte",team:"Bulls",pos:"G"},
+  {name:"Collin Sexton",team:"Bulls",pos:"G"},
+  {name:"DJ Steward",team:"Bulls",pos:"G"},
+  {name:"Guerschon Yabusele",team:"Bulls",pos:"F"},
+  {name:"Henri Drell",team:"Bulls",pos:"F"},
+  {name:"Isaac Okoro",team:"Bulls",pos:"F-G"},
+  {name:"Jaden Ivey",team:"Bulls",pos:"G"},
+  {name:"Jalen Smith",team:"Bulls",pos:"F-C"},
+  {name:"Josh Giddey",team:"Bulls",pos:"G"},
+  {name:"Justin Lewis",team:"Bulls",pos:"F"},
+  {name:"Kenneth Lofton",team:"Bulls",pos:"F"},
+  {name:"Kevin Knox",team:"Bulls",pos:"F"},
+  {name:"Kostas Antetokounmpo",team:"Bulls",pos:"F"},
+  {name:"Lachlan Olbrich",team:"Bulls",pos:"C"},
+  {name:"Leonard Miller",team:"Bulls",pos:"F"},
+  {name:"Mac McClung",team:"Bulls",pos:"G"},
+  {name:"Marko Simonovic",team:"Bulls",pos:"C"},
+  {name:"Matas Buzelis",team:"Bulls",pos:"F"},
+  {name:"Matt Thomas",team:"Bulls",pos:"G"},
+  {name:"Mouhamadou Gueye",team:"Bulls",pos:"F"},
+  {name:"Nick Richards",team:"Bulls",pos:"C"},
+  {name:"Noa Essengue",team:"Bulls",pos:"F"},
+  {name:"Onuralp Bitim",team:"Bulls",pos:"G-F"},
+  {name:"Patrick Williams",team:"Bulls",pos:"F"},
+  {name:"Rob Dillingham",team:"Bulls",pos:"G"},
+  {name:"Tre Jones",team:"Bulls",pos:"G"},
+  {name:"Trentyn Flowers",team:"Bulls",pos:"F"},
+  {name:"Yuki Kawamura",team:"Bulls",pos:"G"},
+  {name:"Zach Collins",team:"Bulls",pos:"F-C"},
+  {name:"Brandon Goodwin",team:"Cavaliers",pos:"G"},
+  {name:"Chandler Vaudrin",team:"Cavaliers",pos:"G"},
+  {name:"Chris Livingston",team:"Cavaliers",pos:"F"},
+  {name:"Chuma Okeke",team:"Cavaliers",pos:"F"},
+  {name:"Craig Porter",team:"Cavaliers",pos:"G"},
+  {name:"DJ Burns",team:"Cavaliers",pos:"F"},
+  {name:"Damian Jones",team:"Cavaliers",pos:"C"},
+  {name:"Darius Brown",team:"Cavaliers",pos:"G"},
+  {name:"Dean Wade",team:"Cavaliers",pos:"F-C"},
+  {name:"Dennis Schröder",team:"Cavaliers",pos:"G"},
+  {name:"Donovan Mitchell",team:"Cavaliers",pos:"G"},
+  {name:"Evan Mobley",team:"Cavaliers",pos:"C"},
+  {name:"Jacob Gilyard",team:"Cavaliers",pos:"G"},
+  {name:"James Harden",team:"Cavaliers",pos:"G"},
+  {name:"Jarrett Allen",team:"Cavaliers",pos:"C"},
+  {name:"Jaylon Tyson",team:"Cavaliers",pos:"G-F"},
+  {name:"Keon Ellis",team:"Cavaliers",pos:"G"},
+  {name:"Khalifa Diop",team:"Cavaliers",pos:"C"},
+  {name:"Larry Nance",team:"Cavaliers",pos:"F-C"},
+  {name:"Lonzo Ball",team:"Cavaliers",pos:"G"},
+  {name:"Luke Travers",team:"Cavaliers",pos:"F"},
+  {name:"Max Strus",team:"Cavaliers",pos:"G-F"},
+  {name:"Nae\'Qwan Tomlin",team:"Cavaliers",pos:"F"},
+  {name:"Olivier Sarr",team:"Cavaliers",pos:"C"},
+  {name:"Riley Minix",team:"Cavaliers",pos:"F"},
+  {name:"Sam Merrill",team:"Cavaliers",pos:"G"},
+  {name:"Thomas Bryant",team:"Cavaliers",pos:"C-F"},
+  {name:"Tristan Enaruna",team:"Cavaliers",pos:"F"},
+  {name:"Tristan Thompson",team:"Cavaliers",pos:"C-F"},
+  {name:"Tyrese Proctor",team:"Cavaliers",pos:"G"},
+  {name:"Zhaire Smith",team:"Cavaliers",pos:"G"},
+  {name:"Amari Williams",team:"Celtics",pos:"F-C"},
+  {name:"Baylor Scheierman",team:"Celtics",pos:"G"},
+  {name:"Charles Bassey",team:"Celtics",pos:"C-F"},
+  {name:"Chris Boucher",team:"Celtics",pos:"F"},
+  {name:"Dalano Banton",team:"Celtics",pos:"F"},
+  {name:"Derrick White",team:"Celtics",pos:"G"},
+  {name:"Dmytro Skapintsev",team:"Celtics",pos:"C"},
+  {name:"Hugo González",team:"Celtics",pos:"G"},
+  {name:"Jalen Bridges",team:"Celtics",pos:"F"},
+  {name:"Jay Scrubb",team:"Celtics",pos:"G"},
+  {name:"Jaylen Brown",team:"Celtics",pos:"G-F"},
+  {name:"Jayson Tatum",team:"Celtics",pos:"F-G"},
+  {name:"John Tonje",team:"Celtics",pos:"G"},
+  {name:"Jordan Walsh",team:"Celtics",pos:"G"},
+  {name:"Kendall Brown",team:"Celtics",pos:"G"},
+  {name:"Luka Garza",team:"Celtics",pos:"C"},
+  {name:"Max Shulga",team:"Celtics",pos:"G"},
+  {name:"Mfiondu Kabengele",team:"Celtics",pos:"C"},
+  {name:"Miles Norris",team:"Celtics",pos:"F"},
+  {name:"Nathan Knight",team:"Celtics",pos:"F-C"},
+  {name:"Neemias Queta",team:"Celtics",pos:"C"},
+  {name:"Nikola Vučević",team:"Celtics",pos:"C"},
+  {name:"Noah Vonleh",team:"Celtics",pos:"F"},
+  {name:"Payton Pritchard",team:"Celtics",pos:"G"},
+  {name:"Ron Harper",team:"Celtics",pos:"G-F"},
+  {name:"Sam Hauser",team:"Celtics",pos:"F"},
+  {name:"Torrey Craig",team:"Celtics",pos:"F"},
+  {name:"Ben Simmons",team:"Clippers",pos:"G-F"},
+  {name:"Bennedict Mathurin",team:"Clippers",pos:"G-F"},
+  {name:"Bogdan Bogdanović",team:"Clippers",pos:"G"},
+  {name:"Bradley Beal",team:"Clippers",pos:"G"},
+  {name:"Brook Lopez",team:"Clippers",pos:"C"},
+  {name:"Cam Christie",team:"Clippers",pos:"G"},
+  {name:"Darius Garland",team:"Clippers",pos:"G"},
+  {name:"Derrick Jones",team:"Clippers",pos:"F"},
+  {name:"Isaiah Jackson",team:"Clippers",pos:"F"},
+  {name:"Jahmyl Telfort",team:"Clippers",pos:"F"},
+  {name:"Jason Preston",team:"Clippers",pos:"G"},
+  {name:"John Collins",team:"Clippers",pos:"F-C"},
+  {name:"Jordan Miller",team:"Clippers",pos:"G"},
+  {name:"Joshua Primo",team:"Clippers",pos:"G"},
+  {name:"Kawhi Leonard",team:"Clippers",pos:"F"},
+  {name:"Kobe Sanders",team:"Clippers",pos:"G"},
+  {name:"Kris Dunn",team:"Clippers",pos:"G"},
+  {name:"Michael Devoe",team:"Clippers",pos:"G"},
+  {name:"Moussa Diabate",team:"Clippers",pos:"F-C"},
+  {name:"Nicolas Batum",team:"Clippers",pos:"G-F"},
+  {name:"Norchad Omier",team:"Clippers",pos:"F"},
+  {name:"Patty Mills",team:"Clippers",pos:"G"},
+  {name:"Sean Pedulla",team:"Clippers",pos:"G"},
+  {name:"Seth Lundy",team:"Clippers",pos:"G-F"},
+  {name:"TyTy Washington",team:"Clippers",pos:"G"},
+  {name:"Xavier Moon",team:"Clippers",pos:"G"},
+  {name:"Yanic Konan Niederhäuser",team:"Clippers",pos:"C"},
+  {name:"Brandon Clarke",team:"Grizzlies",pos:"F"},
+  {name:"Braxton Key",team:"Grizzlies",pos:"F"},
+  {name:"Cam Spencer",team:"Grizzlies",pos:"G"},
+  {name:"Cedric Coward",team:"Grizzlies",pos:"G"},
+  {name:"Charlie Brown",team:"Grizzlies",pos:"G"},
+  {name:"Dakota Mathias",team:"Grizzlies",pos:"G"},
+  {name:"DeJon Jarreau",team:"Grizzlies",pos:"G"},
+  {name:"Eric Gordon",team:"Grizzlies",pos:"G"},
+  {name:"GG Jackson",team:"Grizzlies",pos:"F"},
+  {name:"Georges Niang",team:"Grizzlies",pos:"F"},
+  {name:"Ja Morant",team:"Grizzlies",pos:"G"},
+  {name:"Jack White",team:"Grizzlies",pos:"F"},
+  {name:"Jahmai Mashack",team:"Grizzlies",pos:"G"},
+  {name:"Javon Small",team:"Grizzlies",pos:"G"},
+  {name:"Jaylen Wells",team:"Grizzlies",pos:"F"},
+  {name:"Johnny Davis",team:"Grizzlies",pos:"G"},
+  {name:"Kentavious Caldwell-Pope",team:"Grizzlies",pos:"G"},
+  {name:"Lamar Stevens",team:"Grizzlies",pos:"F"},
+  {name:"Lawson Lovering",team:"Grizzlies",pos:"C"},
+  {name:"Maozinha Pereira",team:"Grizzlies",pos:"F"},
+  {name:"Matt Hurt",team:"Grizzlies",pos:"F"},
+  {name:"Miye Oni",team:"Grizzlies",pos:"G"},
+  {name:"Olivier-Maxence Prosper",team:"Grizzlies",pos:"F"},
+  {name:"Rayan Rupert",team:"Grizzlies",pos:"G-F"},
+  {name:"Santi Aldama",team:"Grizzlies",pos:"F-C"},
+  {name:"Scotty Pippen",team:"Grizzlies",pos:"G"},
+  {name:"Shaquille Harrison",team:"Grizzlies",pos:"G"},
+  {name:"Taj Gibson",team:"Grizzlies",pos:"F"},
+  {name:"Tarik Biberovic",team:"Grizzlies",pos:"F"},
+  {name:"Taylor Hendricks",team:"Grizzlies",pos:"F"},
+  {name:"Timmy Allen",team:"Grizzlies",pos:"F"},
+  {name:"Ty Jerome",team:"Grizzlies",pos:"G-F"},
+  {name:"Tyler Burton",team:"Grizzlies",pos:"F"},
+  {name:"Walter Clayton",team:"Grizzlies",pos:"G"},
+  {name:"Wenyen Gabriel",team:"Grizzlies",pos:"F"},
+  {name:"Yuta Watanabe",team:"Grizzlies",pos:"G-F"},
+  {name:"Zach Edey",team:"Grizzlies",pos:"C"},
+  {name:"Asa Newell",team:"Hawks",pos:"F"},
+  {name:"Buddy Hield",team:"Hawks",pos:"G"},
+  {name:"CJ McCollum",team:"Hawks",pos:"G"},
+  {name:"Caleb Houstan",team:"Hawks",pos:"G"},
+  {name:"Chris Silva",team:"Hawks",pos:"F"},
+  {name:"Christian Koloko",team:"Hawks",pos:"C"},
+  {name:"Corey Kispert",team:"Hawks",pos:"F"},
+  {name:"Donovan Williams",team:"Hawks",pos:"G"},
+  {name:"Duop Reath",team:"Hawks",pos:"C"},
+  {name:"Dylan Windler",team:"Hawks",pos:"G-F"},
+  {name:"Dyson Daniels",team:"Hawks",pos:"G"},
+  {name:"Eli John Ndiaye",team:"Hawks",pos:"F"},
+  {name:"Gabe Vincent",team:"Hawks",pos:"G"},
+  {name:"Jacob Toppin",team:"Hawks",pos:"F"},
+  {name:"Jalen Johnson",team:"Hawks",pos:"F"},
+  {name:"Jock Landale",team:"Hawks",pos:"C"},
+  {name:"Jonathan Kuminga",team:"Hawks",pos:"F"},
+  {name:"Keaton Wallace",team:"Hawks",pos:"G"},
+  {name:"Keshon Gilbert",team:"Hawks",pos:"G"},
+  {name:"Malik Williams",team:"Hawks",pos:"C"},
+  {name:"Mouhamed Gueye",team:"Hawks",pos:"F"},
+  {name:"N\'Faly Dante",team:"Hawks",pos:"C"},
+  {name:"Nickeil Alexander-Walker",team:"Hawks",pos:"G"},
+  {name:"Nikola Đurišić",team:"Hawks",pos:"G"},
+  {name:"Onyeka Okongwu",team:"Hawks",pos:"F-C"},
+  {name:"RayJ Dennis",team:"Hawks",pos:"G"},
+  {name:"Trent Forrest",team:"Hawks",pos:"G"},
+  {name:"Zaccharie Risacher",team:"Hawks",pos:"F"},
+  {name:"Alec Burks",team:"Heat",pos:"G"},
+  {name:"Andrew Wiggins",team:"Heat",pos:"F"},
+  {name:"Bam Adebayo",team:"Heat",pos:"C-F"},
+  {name:"Caleb Daniels",team:"Heat",pos:"G"},
+  {name:"Davion Mitchell",team:"Heat",pos:"G"},
+  {name:"Dru Smith",team:"Heat",pos:"G"},
+  {name:"Jahmir Young",team:"Heat",pos:"G"},
+  {name:"Jaime Jaquez",team:"Heat",pos:"G"},
+  {name:"Josh Christopher",team:"Heat",pos:"G"},
+  {name:"Josh Richardson",team:"Heat",pos:"G"},
+  {name:"Kasparas Jakučionis",team:"Heat",pos:"G"},
+  {name:"Kel\'el Ware",team:"Heat",pos:"C"},
+  {name:"Keshad Johnson",team:"Heat",pos:"F"},
+  {name:"Myron Gardner",team:"Heat",pos:"F"},
+  {name:"Nassir Little",team:"Heat",pos:"F-G"},
+  {name:"Nikola Jović",team:"Heat",pos:"F"},
+  {name:"Norman Powell",team:"Heat",pos:"G"},
+  {name:"Pelle Larsson",team:"Heat",pos:"G"},
+  {name:"Simone Fontecchio",team:"Heat",pos:"F"},
+  {name:"Terry Rozier",team:"Heat",pos:"G"},
+  {name:"Trevor Keels",team:"Heat",pos:"G"},
+  {name:"Tyler Herro",team:"Heat",pos:"G"},
+  {name:"Vladislav Goldin",team:"Heat",pos:"C"},
+  {name:"Aleksej Pokusevski",team:"Hornets",pos:"F"},
+  {name:"Antonio Reeves",team:"Hornets",pos:"G"},
+  {name:"Arnoldas Kulboka",team:"Hornets",pos:"F"},
+  {name:"Brandon Miller",team:"Hornets",pos:"F"},
+  {name:"Coby White",team:"Hornets",pos:"G"},
+  {name:"DaQuan Jeffries",team:"Hornets",pos:"G-F"},
+  {name:"Davis Bertans",team:"Hornets",pos:"F"},
+  {name:"Drew Peterson",team:"Hornets",pos:"F"},
+  {name:"Duane Washington",team:"Hornets",pos:"G"},
+  {name:"Edmond Sumner",team:"Hornets",pos:"G"},
+  {name:"Frank Ntilikina",team:"Hornets",pos:"G"},
+  {name:"Grant Williams",team:"Hornets",pos:"F"},
+  {name:"Ibou Badji",team:"Hornets",pos:"C"},
+  {name:"Isaiah Whaley",team:"Hornets",pos:"F"},
+  {name:"Isaiah Wong",team:"Hornets",pos:"G"},
+  {name:"Ish Smith",team:"Hornets",pos:"G"},
+  {name:"Jake Stephens",team:"Hornets",pos:"C"},
+  {name:"James Bouknight",team:"Hornets",pos:"G"},
+  {name:"James Nnaji",team:"Hornets",pos:"C"},
+  {name:"Jaylen Sims",team:"Hornets",pos:"G"},
+  {name:"Josh Green",team:"Hornets",pos:"G"},
+  {name:"Keyontae Johnson",team:"Hornets",pos:"F"},
+  {name:"Kon Knueppel",team:"Hornets",pos:"G-F"},
+  {name:"LaMelo Ball",team:"Hornets",pos:"G"},
+  {name:"Liam McNeeley",team:"Hornets",pos:"F"},
+  {name:"Malachi Flynn",team:"Hornets",pos:"G"},
+  {name:"Malaki Branham",team:"Hornets",pos:"F"},
+  {name:"Marcus Garrett",team:"Hornets",pos:"G"},
+  {name:"Miles Bridges",team:"Hornets",pos:"F"},
+  {name:"Moussa Diabaté",team:"Hornets",pos:"F"},
+  {name:"PJ Hall",team:"Hornets",pos:"C"},
+  {name:"Pat Connaughton",team:"Hornets",pos:"G"},
+  {name:"Ryan Kalkbrenner",team:"Hornets",pos:"C"},
+  {name:"Scottie Lewis",team:"Hornets",pos:"G"},
+  {name:"Sion James",team:"Hornets",pos:"G"},
+  {name:"Spencer Dinwiddie",team:"Hornets",pos:"G"},
+  {name:"Tidjane Salaün",team:"Hornets",pos:"F"},
+  {name:"Tosan Evbuomwan",team:"Hornets",pos:"F"},
+  {name:"Tre Mann",team:"Hornets",pos:"G"},
+  {name:"Vasilije Micić",team:"Hornets",pos:"G"},
+  {name:"Xavier Sneed",team:"Hornets",pos:"F"},
+  {name:"Xavier Tillman",team:"Hornets",pos:"F"},
+  {name:"Zavier Simpson",team:"Hornets",pos:"G"},
+  {name:"Ace Bailey",team:"Jazz",pos:"F"},
+  {name:"Andersson Garcia",team:"Jazz",pos:"F"},
+  {name:"Balsa Koprivica",team:"Jazz",pos:"C"},
+  {name:"Bez Mbeng",team:"Jazz",pos:"G"},
+  {name:"Blake Hinson",team:"Jazz",pos:"F"},
+  {name:"Brice Sensabaugh",team:"Jazz",pos:"F"},
+  {name:"Cody Williams",team:"Jazz",pos:"F"},
+  {name:"Darius Bazley",team:"Jazz",pos:"F"},
+  {name:"Isaiah Collier",team:"Jazz",pos:"G"},
+  {name:"Jaren Jackson",team:"Jazz",pos:"F-C"},
+  {name:"Jaren Jackson Jr.",team:"Jazz",pos:""},
+  {name:"Joey Hauser",team:"Jazz",pos:"F"},
+  {name:"John Konchar",team:"Jazz",pos:"G"},
+  {name:"Jusuf Nurkić",team:"Jazz",pos:"C"},
+  {name:"KJ Martin",team:"Jazz",pos:"F"},
+  {name:"Keyonte George",team:"Jazz",pos:"G"},
+  {name:"Kyle Filipowski",team:"Jazz",pos:"C"},
+  {name:"Lauri Markkanen",team:"Jazz",pos:"F-C"},
+  {name:"Vince Williams",team:"Jazz",pos:"G"},
+  {name:"Walker Kessler",team:"Jazz",pos:"C"},
+  {name:"Chima Moneke",team:"Kings",pos:"F"},
+  {name:"Daeqwon Plowden",team:"Kings",pos:"G-F"},
+  {name:"Daishen Nix",team:"Kings",pos:"G"},
+  {name:"DeMar DeRozan",team:"Kings",pos:"G-F"},
+  {name:"De\'Andre Hunter",team:"Kings",pos:"F-G"},
+  {name:"Devin Carter",team:"Kings",pos:"G"},
+  {name:"Dexter Dennis",team:"Kings",pos:"G"},
+  {name:"Domantas Sabonis",team:"Kings",pos:"F-C"},
+  {name:"Doug McDermott",team:"Kings",pos:"F"},
+  {name:"Drew Eubanks",team:"Kings",pos:"F-C"},
+  {name:"Dylan Cardwell",team:"Kings",pos:"C"},
+  {name:"Filip Petrusev",team:"Kings",pos:"C"},
+  {name:"Isaiah Stevens",team:"Kings",pos:"G"},
+  {name:"JaVale McGee",team:"Kings",pos:"C"},
+  {name:"Jae Crowder",team:"Kings",pos:"F"},
+  {name:"Jordan Ford",team:"Kings",pos:"G"},
+  {name:"Juan Toscano-Anderson",team:"Kings",pos:"F"},
+  {name:"Keegan Murray",team:"Kings",pos:"F"},
+  {name:"Killian Hayes",team:"Kings",pos:"G"},
+  {name:"Malik Monk",team:"Kings",pos:"G"},
+  {name:"Markelle Fultz",team:"Kings",pos:"G"},
+  {name:"Mason Jones",team:"Kings",pos:"G"},
+  {name:"Maxime Raynaud",team:"Kings",pos:"C"},
+  {name:"Nique Clifford",team:"Kings",pos:"G"},
+  {name:"Patrick Baldwin",team:"Kings",pos:"F"},
+  {name:"Precious Achiuwa",team:"Kings",pos:"F"},
+  {name:"Russell Westbrook",team:"Kings",pos:"G"},
+  {name:"Terence Davis",team:"Kings",pos:"G"},
+  {name:"Terry Taylor",team:"Kings",pos:"F"},
+  {name:"Trey Lyles",team:"Kings",pos:"F"},
+  {name:"Zach LaVine",team:"Kings",pos:"G"},
+  {name:"Alex Len",team:"Knicks",pos:"C"},
+  {name:"Ariel Hukporti",team:"Knicks",pos:"C"},
+  {name:"Dillon Jones",team:"Knicks",pos:"F"},
+  {name:"Isaiah Roby",team:"Knicks",pos:"F"},
+  {name:"Jalen Brunson",team:"Knicks",pos:"G"},
+  {name:"Jeremy Sochan",team:"Knicks",pos:"F"},
+  {name:"Jordan Clarkson",team:"Knicks",pos:"G"},
+  {name:"Jose Alvarado",team:"Knicks",pos:"G"},
+  {name:"Josh Hart",team:"Knicks",pos:"G"},
+  {name:"Karl-Anthony Towns",team:"Knicks",pos:"C-F"},
+  {name:"Kevin McCullar",team:"Knicks",pos:"G"},
+  {name:"Landry Shamet",team:"Knicks",pos:"G"},
+  {name:"Malcolm Brogdon",team:"Knicks",pos:"G"},
+  {name:"Matt Ryan",team:"Knicks",pos:"F"},
+  {name:"Mikal Bridges",team:"Knicks",pos:"G-F"},
+  {name:"Miles McBride",team:"Knicks",pos:"G"},
+  {name:"Mitchell Robinson",team:"Knicks",pos:"C-F"},
+  {name:"Mohamed Diawara",team:"Knicks",pos:"F"},
+  {name:"OG Anunoby",team:"Knicks",pos:"F-G"},
+  {name:"P.J. Tucker",team:"Knicks",pos:"F"},
+  {name:"Pacôme Dadiet",team:"Knicks",pos:"F"},
+  {name:"T.J. Warren",team:"Knicks",pos:"F"},
+  {name:"Trey Jemison",team:"Knicks",pos:"C"},
+  {name:"Tyler Kolek",team:"Knicks",pos:"G"},
+  {name:"Adou Thiero",team:"Lakers",pos:"G"},
+  {name:"Anton Watson",team:"Lakers",pos:"F"},
+  {name:"Armel Traore",team:"Lakers",pos:"F"},
+  {name:"Augustas Marčiulionis",team:"Lakers",pos:"G"},
+  {name:"Austin Reaves",team:"Lakers",pos:"G"},
+  {name:"Bronny James",team:"Lakers",pos:"G"},
+  {name:"Cam Reddish",team:"Lakers",pos:"F-G"},
+  {name:"Chris Mañon",team:"Lakers",pos:"G"},
+  {name:"Christian Wood",team:"Lakers",pos:"F-C"},
+  {name:"D\'Moi Hodge",team:"Lakers",pos:"G"},
+  {name:"Dalton Knecht",team:"Lakers",pos:"F"},
+  {name:"Davon Reed",team:"Lakers",pos:"G"},
+  {name:"Deandre Ayton",team:"Lakers",pos:"C"},
+  {name:"Drew Timme",team:"Lakers",pos:"F"},
+  {name:"Fabian White",team:"Lakers",pos:"F"},
+  {name:"Jake LaRavia",team:"Lakers",pos:"F"},
+  {name:"Jarred Vanderbilt",team:"Lakers",pos:"F"},
+  {name:"Jaxson Hayes",team:"Lakers",pos:"C-F"},
+  {name:"Kobe Bufkin",team:"Lakers",pos:"G"},
+  {name:"LeBron James",team:"Lakers",pos:"F"},
+  {name:"Luka Dončić",team:"Lakers",pos:"F-G"},
+  {name:"Luke Kennard",team:"Lakers",pos:"G"},
+  {name:"Marcus Smart",team:"Lakers",pos:"G"},
+  {name:"Maxi Kleber",team:"Lakers",pos:"F-C"},
+  {name:"Nick Smith",team:"Lakers",pos:"G"},
+  {name:"Quincy Olivari",team:"Lakers",pos:"G"},
+  {name:"R.J. Davis",team:"Lakers",pos:"G"},
+  {name:"Rui Hachimura",team:"Lakers",pos:"F"},
+  {name:"Shake Milton",team:"Lakers",pos:"G"},
+  {name:"Admiral Schofield",team:"Magic",pos:"F"},
+  {name:"Alex Morales",team:"Magic",pos:"G"},
+  {name:"Anthony Black",team:"Magic",pos:"G"},
+  {name:"Colin Castleton",team:"Magic",pos:"C"},
+  {name:"Cory Joseph",team:"Magic",pos:"G"},
+  {name:"Desmond Bane",team:"Magic",pos:"G"},
+  {name:"Franz Wagner",team:"Magic",pos:"F"},
+  {name:"Goga Bitadze",team:"Magic",pos:"C-F"},
+  {name:"Jalen Crutcher",team:"Magic",pos:"G"},
+  {name:"Jalen Suggs",team:"Magic",pos:"G"},
+  {name:"Jamal Cain",team:"Magic",pos:"F"},
+  {name:"Jarrett Culver",team:"Magic",pos:"G-F"},
+  {name:"Jase Richardson",team:"Magic",pos:"G"},
+  {name:"Javonte Smart",team:"Magic",pos:"G"},
+  {name:"Jett Howard",team:"Magic",pos:"G"},
+  {name:"Jevon Carter",team:"Magic",pos:"G"},
+  {name:"Joel Ayayi",team:"Magic",pos:"G"},
+  {name:"Jonathan Isaac",team:"Magic",pos:"F"},
+  {name:"Justin Minaya",team:"Magic",pos:"F"},
+  {name:"Lester Quinones",team:"Magic",pos:"G"},
+  {name:"Michael Carter-Williams",team:"Magic",pos:"G"},
+  {name:"Moritz Wagner",team:"Magic",pos:"F-C"},
+  {name:"Noah Penda",team:"Magic",pos:"G-F"},
+  {name:"Orlando Robinson",team:"Magic",pos:"C"},
+  {name:"Paolo Banchero",team:"Magic",pos:"F"},
+  {name:"Phillip Wheeler",team:"Magic",pos:"F"},
+  {name:"Reece Beekman",team:"Magic",pos:"G"},
+  {name:"Trevelin Queen",team:"Magic",pos:"G"},
+  {name:"Tristan da Silva",team:"Magic",pos:"F"},
+  {name:"Wendell Carter",team:"Magic",pos:"C-F"},
+  {name:"AJ Johnson",team:"Mavericks",pos:"G"},
+  {name:"Alex Fudge",team:"Mavericks",pos:"F"},
+  {name:"Brandon Williams",team:"Mavericks",pos:"G"},
+  {name:"Caleb Martin",team:"Mavericks",pos:"F"},
+  {name:"Cooper Flagg",team:"Mavericks",pos:"F"},
+  {name:"Daniel Gafford",team:"Mavericks",pos:"F-C"},
+  {name:"Dennis Smith",team:"Mavericks",pos:"G"},
+  {name:"Dereck Lively",team:"Mavericks",pos:"C"},
+  {name:"Dwight Powell",team:"Mavericks",pos:"F-C"},
+  {name:"Greg Brown",team:"Mavericks",pos:"F"},
+  {name:"Jeremiah Robinson-Earl",team:"Mavericks",pos:"F"},
+  {name:"John Poulakidas",team:"Mavericks",pos:"G"},
+  {name:"Kai Jones",team:"Mavericks",pos:"C-F"},
+  {name:"Khris Middleton",team:"Mavericks",pos:"F"},
+  {name:"Klay Thompson",team:"Mavericks",pos:"G"},
+  {name:"Kyrie Irving",team:"Mavericks",pos:"G"},
+  {name:"Marvin Bagley",team:"Mavericks",pos:"F"},
+  {name:"Max Christie",team:"Mavericks",pos:"G"},
+  {name:"Melvin Ajinca",team:"Mavericks",pos:"F"},
+  {name:"Mike Miles",team:"Mavericks",pos:"G"},
+  {name:"Miles Kelly",team:"Mavericks",pos:"G"},
+  {name:"Moses Wright",team:"Mavericks",pos:"F"},
+  {name:"Moussa Cisse",team:"Mavericks",pos:"C"},
+  {name:"Naji Marshall",team:"Mavericks",pos:"F"},
+  {name:"P.J. Washington",team:"Mavericks",pos:"F"},
+  {name:"Ryan Nembhard",team:"Mavericks",pos:"G"},
+  {name:"Theo Pinson",team:"Mavericks",pos:"G-F"},
+  {name:"Tyler Smith",team:"Mavericks",pos:"F"},
+  {name:"Amari Bailey",team:"Nets",pos:"G"},
+  {name:"Armoni Brooks",team:"Nets",pos:"G"},
+  {name:"Ben Saraf",team:"Nets",pos:"G"},
+  {name:"Chaney Johnson",team:"Nets",pos:"G-F"},
+  {name:"Danny Wolf",team:"Nets",pos:"F"},
+  {name:"Day\'Ron Sharpe",team:"Nets",pos:"C"},
+  {name:"Drake Powell",team:"Nets",pos:"G-F"},
+  {name:"E.J. Liddell",team:"Nets",pos:"F"},
+  {name:"Egor Dëmin",team:"Nets",pos:"G"},
+  {name:"Grant Nelson",team:"Nets",pos:"F"},
+  {name:"Jalen Wilson",team:"Nets",pos:"F"},
+  {name:"Josh Minott",team:"Nets",pos:"F"},
+  {name:"Keon Johnson",team:"Nets",pos:"G"},
+  {name:"Maxwell Lewis",team:"Nets",pos:"F"},
+  {name:"Michael Porter",team:"Nets",pos:"F"},
+  {name:"Nic Claxton",team:"Nets",pos:"C"},
+  {name:"Noah Clowney",team:"Nets",pos:"F-C"},
+  {name:"Nolan Traore",team:"Nets",pos:"G"},
+  {name:"Ochai Agbaji",team:"Nets",pos:"G"},
+  {name:"Ricky Council",team:"Nets",pos:"G"},
+  {name:"Terance Mann",team:"Nets",pos:"G-F"},
+  {name:"Tyson Etienne",team:"Nets",pos:"G"},
+  {name:"Yongxi Cui",team:"Nets",pos:"F"},
+  {name:"Ziaire Williams",team:"Nets",pos:"F"},
+  {name:"Aaron Gordon",team:"Nuggets",pos:"F"},
+  {name:"Bruce Brown",team:"Nuggets",pos:"G-F"},
+  {name:"Cameron Johnson",team:"Nuggets",pos:"F"},
+  {name:"Christian Braun",team:"Nuggets",pos:"G"},
+  {name:"Curtis Jones",team:"Nuggets",pos:"G"},
+  {name:"DaRon Holmes",team:"Nuggets",pos:"F"},
+  {name:"David Roddy",team:"Nuggets",pos:"F"},
+  {name:"Hunter Tyson",team:"Nuggets",pos:"F"},
+  {name:"Ismael Kamagate",team:"Nuggets",pos:"C"},
+  {name:"Jalen Pickett",team:"Nuggets",pos:"G"},
+  {name:"Jamal Murray",team:"Nuggets",pos:"G"},
+  {name:"Jonas Valančiūnas",team:"Nuggets",pos:"C"},
+  {name:"Julian Strawther",team:"Nuggets",pos:"G"},
+  {name:"Justin Holiday",team:"Nuggets",pos:"F-G"},
+  {name:"Justin Tillman",team:"Nuggets",pos:"F"},
+  {name:"KJ Simpson",team:"Nuggets",pos:"G"},
+  {name:"Kessler Edwards",team:"Nuggets",pos:"F"},
+  {name:"Markus Howard",team:"Nuggets",pos:"G"},
+  {name:"Moses Brown",team:"Nuggets",pos:"C"},
+  {name:"Nikola Jokić",team:"Nuggets",pos:"C"},
+  {name:"Peyton Watson",team:"Nuggets",pos:"G"},
+  {name:"Spencer Jones",team:"Nuggets",pos:"F"},
+  {name:"Tamar Bates",team:"Nuggets",pos:"G"},
+  {name:"Tim Hardaway",team:"Nuggets",pos:"G-F"},
+  {name:"Tyus Jones",team:"Nuggets",pos:"G"},
+  {name:"Vlatko Čančar",team:"Nuggets",pos:"F"},
+  {name:"Zeke Nnaji",team:"Nuggets",pos:"F"},
+  {name:"Aaron Nesmith",team:"Pacers",pos:"G-F"},
+  {name:"Andrew Nembhard",team:"Pacers",pos:"G-F"},
+  {name:"Ben Sheppard",team:"Pacers",pos:"G"},
+  {name:"Cody Martin",team:"Pacers",pos:"F"},
+  {name:"Delon Wright",team:"Pacers",pos:"G"},
+  {name:"Ethan Thompson",team:"Pacers",pos:"G"},
+  {name:"Gabe York",team:"Pacers",pos:"G"},
+  {name:"Garrison Mathews",team:"Pacers",pos:"G"},
+  {name:"Ivica Zubac",team:"Pacers",pos:"C"},
+  {name:"Jalen Slawson",team:"Pacers",pos:"F"},
+  {name:"James Johnson",team:"Pacers",pos:"F"},
+  {name:"James Wiseman",team:"Pacers",pos:"C"},
+  {name:"Jarace Walker",team:"Pacers",pos:"F"},
+  {name:"Jay Huff",team:"Pacers",pos:"C"},
+  {name:"Johnny Furphy",team:"Pacers",pos:"G"},
+  {name:"Kam Jones",team:"Pacers",pos:"G"},
+  {name:"Kobe Brown",team:"Pacers",pos:"F"},
+  {name:"Micah Potter",team:"Pacers",pos:"C"},
+  {name:"Mojave King",team:"Pacers",pos:"G"},
+  {name:"Monté Morris",team:"Pacers",pos:"G"},
+  {name:"Obi Toppin",team:"Pacers",pos:"F"},
+  {name:"Pascal Siakam",team:"Pacers",pos:"F"},
+  {name:"Quenton Jackson",team:"Pacers",pos:"G"},
+  {name:"T.J. McConnell",team:"Pacers",pos:"G"},
+  {name:"Taelon Peter",team:"Pacers",pos:"G"},
+  {name:"Tony Bradley",team:"Pacers",pos:"C-F"},
+  {name:"Tyrese Haliburton",team:"Pacers",pos:"G"},
+  {name:"Brandon Boston",team:"Pelicans",pos:"G"},
+  {name:"Bryce McGowens",team:"Pelicans",pos:"G"},
+  {name:"Dejounte Murray",team:"Pelicans",pos:"G"},
+  {name:"Derik Queen",team:"Pelicans",pos:"C"},
+  {name:"Elfrid Payton",team:"Pelicans",pos:"G"},
+  {name:"Gary Clark",team:"Pelicans",pos:"F"},
+  {name:"Herbert Jones",team:"Pelicans",pos:"F"},
+  {name:"Hunter Dickinson",team:"Pelicans",pos:"C"},
+  {name:"Izaiah Brockington",team:"Pelicans",pos:"G"},
+  {name:"Jaden Springer",team:"Pelicans",pos:"G"},
+  {name:"Jalen McDaniels",team:"Pelicans",pos:"F"},
+  {name:"Jared Harper",team:"Pelicans",pos:"G"},
+  {name:"Jeremiah Fears",team:"Pelicans",pos:"G"},
+  {name:"Jordan Hawkins",team:"Pelicans",pos:"G"},
+  {name:"Jordan Poole",team:"Pelicans",pos:"G"},
+  {name:"Josh Oduro",team:"Pelicans",pos:"C"},
+  {name:"Kaiser Gates",team:"Pelicans",pos:"F"},
+  {name:"Karlo Matković",team:"Pelicans",pos:"F-C"},
+  {name:"Keion Brooks",team:"Pelicans",pos:"F"},
+  {name:"Kelan Martin",team:"Pelicans",pos:"F"},
+  {name:"Kevon Looney",team:"Pelicans",pos:"F"},
+  {name:"Kylor Kelley",team:"Pelicans",pos:"C"},
+  {name:"Micah Peavy",team:"Pelicans",pos:"G-F"},
+  {name:"Saddiq Bey",team:"Pelicans",pos:"G-F"},
+  {name:"Trey Alexander",team:"Pelicans",pos:"G"},
+  {name:"Trey Murphy",team:"Pelicans",pos:"F"},
+  {name:"Willy Hernangomez",team:"Pelicans",pos:"C-F"},
+  {name:"Yves Missi",team:"Pelicans",pos:"C"},
+  {name:"Zion Williamson",team:"Pelicans",pos:"F"},
+  {name:"Aaron Estrada",team:"Pistons",pos:"G"},
+  {name:"Ausar Thompson",team:"Pistons",pos:"G-F"},
+  {name:"Bobi Klintman",team:"Pistons",pos:"F"},
+  {name:"Cade Cunningham",team:"Pistons",pos:"G"},
+  {name:"Caris LeVert",team:"Pistons",pos:"G"},
+  {name:"Charles Bediako",team:"Pistons",pos:"C"},
+  {name:"Chaz Lanier",team:"Pistons",pos:"G"},
+  {name:"Chimezie Metu",team:"Pistons",pos:"F-C"},
+  {name:"Colby Jones",team:"Pistons",pos:"G"},
+  {name:"Daniss Jenkins",team:"Pistons",pos:"G"},
+  {name:"Dario Šarić",team:"Pistons",pos:"F-C"},
+  {name:"Dereon Seabron",team:"Pistons",pos:"G"},
+  {name:"Duncan Robinson",team:"Pistons",pos:"F"},
+  {name:"Evan Fournier",team:"Pistons",pos:"G-F"},
+  {name:"Gabriele Procida",team:"Pistons",pos:"G"},
+  {name:"Isaac Jones",team:"Pistons",pos:"F"},
+  {name:"Isaiah Stewart",team:"Pistons",pos:"F-C"},
+  {name:"Jalen Duren",team:"Pistons",pos:"C"},
+  {name:"Javante McCoy",team:"Pistons",pos:"G"},
+  {name:"Javonte Green",team:"Pistons",pos:"G"},
+  {name:"Joe Harris",team:"Pistons",pos:"G"},
+  {name:"Kevin Huerter",team:"Pistons",pos:"G-F"},
+  {name:"Malcolm Cazalon",team:"Pistons",pos:"G"},
+  {name:"Malik Beasley",team:"Pistons",pos:"G"},
+  {name:"Marcus Sasser",team:"Pistons",pos:"G"},
+  {name:"Paul Reed",team:"Pistons",pos:"F"},
+  {name:"Rodney McGruder",team:"Pistons",pos:"G"},
+  {name:"Ronald Holland",team:"Pistons",pos:"F"},
+  {name:"Ryan Arcidiacono",team:"Pistons",pos:"G"},
+  {name:"Tobias Harris",team:"Pistons",pos:"F"},
+  {name:"Tolu Smith",team:"Pistons",pos:"F"},
+  {name:"Troy Brown",team:"Pistons",pos:"F"},
+  {name:"Wendell Moore",team:"Pistons",pos:"G"},
+  {name:"A.J. Lawson",team:"Raptors",pos:"G"},
+  {name:"Alijah Martin",team:"Raptors",pos:"G"},
+  {name:"Brandon Ingram",team:"Raptors",pos:"F"},
+  {name:"Bruce Brown Jr.",team:"Raptors",pos:""},
+  {name:"Bruno Fernando",team:"Raptors",pos:"F-C"},
+  {name:"Chucky Hepburn",team:"Raptors",pos:"G"},
+  {name:"Cole Swider",team:"Raptors",pos:"F"},
+  {name:"Collin Murray-Boyles",team:"Raptors",pos:"F"},
+  {name:"D.J. Carton",team:"Raptors",pos:"G"},
+  {name:"Eugene Omoruyi",team:"Raptors",pos:"F"},
+  {name:"Garrett Temple",team:"Raptors",pos:"G-F"},
+  {name:"Gradey Dick",team:"Raptors",pos:"G-F"},
+  {name:"Immanuel Quickley",team:"Raptors",pos:"G"},
+  {name:"Ja\'Kobe Walter",team:"Raptors",pos:"G"},
+  {name:"Jahmi\'us Ramsey",team:"Raptors",pos:"G"},
+  {name:"Jakob Poeltl",team:"Raptors",pos:"C"},
+  {name:"Jamal Shead",team:"Raptors",pos:"G"},
+  {name:"Jamison Battle",team:"Raptors",pos:"F"},
+  {name:"Jared Rhoden",team:"Raptors",pos:"G"},
+  {name:"Javon Freeman-Liberty",team:"Raptors",pos:"G"},
+  {name:"Joe Wieskamp",team:"Raptors",pos:"G-F"},
+  {name:"Jonathan Mogbo",team:"Raptors",pos:"F"},
+  {name:"Jontay Porter",team:"Raptors",pos:"C-F"},
+  {name:"Jordan Nwora",team:"Raptors",pos:"F"},
+  {name:"Juancho Hernangomez",team:"Raptors",pos:"F"},
+  {name:"Justise Winslow",team:"Raptors",pos:"F-G"},
+  {name:"Kobi Simmons",team:"Raptors",pos:"G"},
+  {name:"RJ Barrett",team:"Raptors",pos:"F-G"},
+  {name:"Sandro Mamukelashvili",team:"Raptors",pos:"F-C"},
+  {name:"Sasha Vezenkov",team:"Raptors",pos:"F"},
+  {name:"Scottie Barnes",team:"Raptors",pos:"F-G"},
+  {name:"Trayce Jackson-Davis",team:"Raptors",pos:"F"},
+  {name:"Ulrich Chomche",team:"Raptors",pos:"C"},
+  {name:"AJ Griffin",team:"Rockets",pos:"F"},
+  {name:"Aaron Holiday",team:"Rockets",pos:"G"},
+  {name:"Alperen Sengun",team:"Rockets",pos:"C"},
+  {name:"Amen Thompson",team:"Rockets",pos:"G-F"},
+  {name:"Boban Marjanovic",team:"Rockets",pos:"C"},
+  {name:"Cameron Matthews",team:"Rockets",pos:"F"},
+  {name:"Clint Capela",team:"Rockets",pos:"C"},
+  {name:"Darius Days",team:"Rockets",pos:"F"},
+  {name:"Dorian Finney-Smith",team:"Rockets",pos:"F"},
+  {name:"Fred VanVleet",team:"Rockets",pos:"G"},
+  {name:"Isaiah Crawford",team:"Rockets",pos:"F"},
+  {name:"JD Davison",team:"Rockets",pos:"G"},
+  {name:"Jabari Smith",team:"Rockets",pos:"F"},
+  {name:"Jack McVeigh",team:"Rockets",pos:"G-F"},
+  {name:"Jae\'Sean Tate",team:"Rockets",pos:"F"},
+  {name:"Jeff Green",team:"Rockets",pos:"F"},
+  {name:"Jermaine Samuels",team:"Rockets",pos:"F"},
+  {name:"Josh Okogie",team:"Rockets",pos:"G"},
+  {name:"Kevin Durant",team:"Rockets",pos:"F"},
+  {name:"Kevon Harris",team:"Rockets",pos:"G"},
+  {name:"Markquis Nowell",team:"Rockets",pos:"G"},
+  {name:"Nate Hinton",team:"Rockets",pos:"G-F"},
+  {name:"Reed Sheppard",team:"Rockets",pos:"G"},
+  {name:"Reggie Bullock",team:"Rockets",pos:"G-F"},
+  {name:"Steven Adams",team:"Rockets",pos:"C"},
+  {name:"Tari Eason",team:"Rockets",pos:"F"},
+  {name:"Trevor Hudgins",team:"Rockets",pos:"G"},
+  {name:"Tristen Newton",team:"Rockets",pos:"G"},
+  {name:"Adam Flagler",team:"Spurs",pos:"G"},
+  {name:"Bismack Biyombo",team:"Spurs",pos:"C"},
+  {name:"Carter Bryant",team:"Spurs",pos:"F"},
+  {name:"Cedi Osman",team:"Spurs",pos:"F"},
+  {name:"David Jones Garcia",team:"Spurs",pos:"G"},
+  {name:"De\'Aaron Fox",team:"Spurs",pos:"G"},
+  {name:"Devin Vassell",team:"Spurs",pos:"G-F"},
+  {name:"Dylan Harper",team:"Spurs",pos:"G"},
+  {name:"Emanuel Miller",team:"Spurs",pos:"F"},
+  {name:"Gorgui Dieng",team:"Spurs",pos:"C"},
+  {name:"Harrison Barnes",team:"Spurs",pos:"F"},
+  {name:"Harrison Ingram",team:"Spurs",pos:"F"},
+  {name:"Jordan McLaughlin",team:"Spurs",pos:"G"},
+  {name:"Julian Champagnie",team:"Spurs",pos:"F"},
+  {name:"Keldon Johnson",team:"Spurs",pos:"F-G"},
+  {name:"Kelly Olynyk",team:"Spurs",pos:"F-C"},
+  {name:"Khem Birch",team:"Spurs",pos:"C"},
+  {name:"Kyle Mangas",team:"Spurs",pos:"G"},
+  {name:"Lindy Waters",team:"Spurs",pos:"F"},
+  {name:"Luke Kornet",team:"Spurs",pos:"C-F"},
+  {name:"Mason Plumlee",team:"Spurs",pos:"F-C"},
+  {name:"Nathan Mensah",team:"Spurs",pos:"C"},
+  {name:"RaiQuan Gray",team:"Spurs",pos:"F"},
+  {name:"Romeo Langford",team:"Spurs",pos:"G-F"},
+  {name:"Sir\'Jabari Rice",team:"Spurs",pos:"G"},
+  {name:"Stanley Umude",team:"Spurs",pos:"G"},
+  {name:"Stephon Castle",team:"Spurs",pos:"G"},
+  {name:"Victor Wembanyama",team:"Spurs",pos:"F-C"},
+  {name:"Bol Bol",team:"Suns",pos:"C-F"},
+  {name:"CJ Huntley",team:"Suns",pos:"F"},
+  {name:"Cole Anthony",team:"Suns",pos:"G"},
+  {name:"Collin Gillespie",team:"Suns",pos:"G"},
+  {name:"Damion Baugh",team:"Suns",pos:"G"},
+  {name:"Damion Lee",team:"Suns",pos:"G-F"},
+  {name:"David Duke",team:"Suns",pos:"G"},
+  {name:"Devin Booker",team:"Suns",pos:"G"},
+  {name:"Dillon Brooks",team:"Suns",pos:"G-F"},
+  {name:"Grayson Allen",team:"Suns",pos:"G"},
+  {name:"Haywood Highsmith",team:"Suns",pos:"F"},
+  {name:"Isaiah Livers",team:"Suns",pos:"F"},
+  {name:"Isaiah Todd",team:"Suns",pos:"F"},
+  {name:"Ish Wainright",team:"Suns",pos:"F"},
+  {name:"Jalen Green",team:"Suns",pos:"G"},
+  {name:"Jamaree Bouyea",team:"Suns",pos:"G"},
+  {name:"Jared Butler",team:"Suns",pos:"G"},
+  {name:"Jordan Goodwin",team:"Suns",pos:"G"},
+  {name:"Khaman Maluach",team:"Suns",pos:"C"},
+  {name:"Koby Brea",team:"Suns",pos:"G"},
+  {name:"Mamadi Diakite",team:"Suns",pos:"F"},
+  {name:"Mark Williams",team:"Suns",pos:"C"},
+  {name:"Moses Wood",team:"Suns",pos:"F"},
+  {name:"Nigel Hayes-Davis",team:"Suns",pos:"F"},
+  {name:"Oso Ighodaro",team:"Suns",pos:"F"},
+  {name:"Rasheer Fleming",team:"Suns",pos:"F"},
+  {name:"Royce O\'Neale",team:"Suns",pos:"F"},
+  {name:"Ryan Dunn",team:"Suns",pos:"F"},
+  {name:"Saben Lee",team:"Suns",pos:"G"},
+  {name:"Terrence Ross",team:"Suns",pos:"G-F"},
+  {name:"Theo Maledon",team:"Suns",pos:"G"},
+  {name:"Udoka Azubuike",team:"Suns",pos:"C-F"},
+  {name:"Aaron Wiggins",team:"Thunder",pos:"G"},
+  {name:"Ajay Mitchell",team:"Thunder",pos:"G"},
+  {name:"Alex Caruso",team:"Thunder",pos:"G"},
+  {name:"Alex Ducas",team:"Thunder",pos:"G"},
+  {name:"Branden Carlson",team:"Thunder",pos:"C"},
+  {name:"Brooks Barnhizer",team:"Thunder",pos:"G"},
+  {name:"Buddy Boeheim",team:"Thunder",pos:"F"},
+  {name:"Cason Wallace",team:"Thunder",pos:"G"},
+  {name:"Chet Holmgren",team:"Thunder",pos:"C-F"},
+  {name:"Daniel Theis",team:"Thunder",pos:"F-C"},
+  {name:"Dariq Whitehead",team:"Thunder",pos:"G-F"},
+  {name:"Gordon Hayward",team:"Thunder",pos:"F"},
+  {name:"Isaiah Hartenstein",team:"Thunder",pos:"C-F"},
+  {name:"Isaiah Joe",team:"Thunder",pos:"G"},
+  {name:"Jalen Williams",team:"Thunder",pos:"G-F"},
+  {name:"Jared McCain",team:"Thunder",pos:"G"},
+  {name:"Jaylin Williams",team:"Thunder",pos:"F"},
+  {name:"Jazian Gortman",team:"Thunder",pos:"G"},
+  {name:"Kenrich Williams",team:"Thunder",pos:"G-F"},
+  {name:"Luguentz Dort",team:"Thunder",pos:"G"},
+  {name:"Mike Muscala",team:"Thunder",pos:"F-C"},
+  {name:"Nikola Topić",team:"Thunder",pos:"G"},
+  {name:"Payton Sandfort",team:"Thunder",pos:"F"},
+  {name:"Sacha Killeya-Jones",team:"Thunder",pos:"F"},
+  {name:"Shai Gilgeous-Alexander",team:"Thunder",pos:"G"},
+  {name:"Thomas Sorber",team:"Thunder",pos:"C"},
+  {name:"Zack Austin",team:"Thunder",pos:"G"},
+  {name:"Anthony Edwards",team:"Timberwolves",pos:"G"},
+  {name:"Austin Rivers",team:"Timberwolves",pos:"G"},
+  {name:"Ayo Dosunmu",team:"Timberwolves",pos:"G"},
+  {name:"Bones Hyland",team:"Timberwolves",pos:"G"},
+  {name:"Bryn Forbes",team:"Timberwolves",pos:"G"},
+  {name:"Donte DiVincenzo",team:"Timberwolves",pos:"G"},
+  {name:"Enrique Freeman",team:"Timberwolves",pos:"F"},
+  {name:"Jaden McDaniels",team:"Timberwolves",pos:"F"},
+  {name:"Jaylen Clark",team:"Timberwolves",pos:"G"},
+  {name:"Jesse Edwards",team:"Timberwolves",pos:"C"},
+  {name:"Joan Beringer",team:"Timberwolves",pos:"F"},
+  {name:"Joe Ingles",team:"Timberwolves",pos:"F-G"},
+  {name:"Johnny Juzang",team:"Timberwolves",pos:"G"},
+  {name:"Jules Bernard",team:"Timberwolves",pos:"G"},
+  {name:"Julian Phillips",team:"Timberwolves",pos:"F"},
+  {name:"Julius Randle",team:"Timberwolves",pos:"F-C"},
+  {name:"Justin Jackson",team:"Timberwolves",pos:"F"},
+  {name:"Keita Bates-Diop",team:"Timberwolves",pos:"F"},
+  {name:"Kyle Anderson",team:"Timberwolves",pos:"F-G"},
+  {name:"Matteo Spagnolo",team:"Timberwolves",pos:"G"},
+  {name:"Mike Conley",team:"Timberwolves",pos:"G"},
+  {name:"Naz Reid",team:"Timberwolves",pos:"C-F"},
+  {name:"PJ Dozier",team:"Timberwolves",pos:"G"},
+  {name:"Rocco Zikarsky",team:"Timberwolves",pos:"C"},
+  {name:"Rudy Gobert",team:"Timberwolves",pos:"C"},
+  {name:"Skylar Mays",team:"Timberwolves",pos:"G"},
+  {name:"Terrence Shannon",team:"Timberwolves",pos:"G-F"},
+  {name:"Theo John",team:"Timberwolves",pos:"F"},
+  {name:"Zyon Pullin",team:"Timberwolves",pos:"G"},
+  {name:"Ashton Hagans",team:"Trail Blazers",pos:"G"},
+  {name:"Blake Wesley",team:"Trail Blazers",pos:"G"},
+  {name:"Caleb Love",team:"Trail Blazers",pos:"G"},
+  {name:"Chance Comanche",team:"Trail Blazers",pos:"C"},
+  {name:"Chris Youngblood",team:"Trail Blazers",pos:"G"},
+  {name:"Damian Lillard",team:"Trail Blazers",pos:"G"},
+  {name:"Deni Avdija",team:"Trail Blazers",pos:"F"},
+  {name:"Devonte\' Graham",team:"Trail Blazers",pos:"G"},
+  {name:"Donovan Clingan",team:"Trail Blazers",pos:"C"},
+  {name:"Javonte Cooke",team:"Trail Blazers",pos:"G"},
+  {name:"Jayson Kent",team:"Trail Blazers",pos:"F"},
+  {name:"Jerami Grant",team:"Trail Blazers",pos:"F"},
+  {name:"Jrue Holiday",team:"Trail Blazers",pos:"G"},
+  {name:"Kris Murray",team:"Trail Blazers",pos:"F"},
+  {name:"Matisse Thybulle",team:"Trail Blazers",pos:"G-F"},
+  {name:"Robert Williams",team:"Trail Blazers",pos:"C-F"},
+  {name:"Scoot Henderson",team:"Trail Blazers",pos:"G"},
+  {name:"Shaedon Sharpe",team:"Trail Blazers",pos:"G"},
+  {name:"Sidy Cissoko",team:"Trail Blazers",pos:"G"},
+  {name:"Taze Moore",team:"Trail Blazers",pos:"G"},
+  {name:"Toumani Camara",team:"Trail Blazers",pos:"F"},
+  {name:"Vít Krejčí",team:"Trail Blazers",pos:"G"},
+  {name:"Yang Hansen",team:"Trail Blazers",pos:"C"},
+  {name:"Al Horford",team:"Warriors",pos:"C-F"},
+  {name:"Alex Toohey",team:"Warriors",pos:"F"},
+  {name:"Allen Flanigan",team:"Warriors",pos:"G"},
+  {name:"Brandin Podziemski",team:"Warriors",pos:"G"},
+  {name:"De\'Anthony Melton",team:"Warriors",pos:"G"},
+  {name:"Draymond Green",team:"Warriors",pos:"F"},
+  {name:"Gary Payton",team:"Warriors",pos:"G"},
+  {name:"Gui Santos",team:"Warriors",pos:"F"},
+  {name:"JaMychal Green",team:"Warriors",pos:"F-C"},
+  {name:"Jackson Rowe",team:"Warriors",pos:"F"},
+  {name:"Jerome Robinson",team:"Warriors",pos:"G"},
+  {name:"Jimmy Butler",team:"Warriors",pos:"F"},
+  {name:"Jimmy Whitt",team:"Warriors",pos:"G"},
+  {name:"Kristaps Porziņģis",team:"Warriors",pos:"F-C"},
+  {name:"LJ Cryer",team:"Warriors",pos:"G"},
+  {name:"Malevy Leons",team:"Warriors",pos:"F"},
+  {name:"Mantas Rubstavicius",team:"Warriors",pos:"G"},
+  {name:"Marques Bolden",team:"Warriors",pos:"C"},
+  {name:"Moses Moody",team:"Warriors",pos:"G"},
+  {name:"Nate Williams",team:"Warriors",pos:"G"},
+  {name:"Pat Spencer",team:"Warriors",pos:"G"},
+  {name:"Quinten Post",team:"Warriors",pos:"C"},
+  {name:"Seth Curry",team:"Warriors",pos:"G"},
+  {name:"Stephen Curry",team:"Warriors",pos:"G"},
+  {name:"Taevion Kinsey",team:"Warriors",pos:"G"},
+  {name:"Taran Armstrong",team:"Warriors",pos:"G"},
+  {name:"Usman Garuba",team:"Warriors",pos:"F"},
+  {name:"Will Richard",team:"Warriors",pos:"G"},
+  {name:"Yuri Collins",team:"Warriors",pos:"G"},
+  {name:"Ömer Yurtseven",team:"Warriors",pos:"C"},
+  {name:"Alex Sarr",team:"Wizards",pos:"C"},
+  {name:"Alondes Williams",team:"Wizards",pos:"G"},
+  {name:"Anthony Davis",team:"Wizards",pos:"F-C"},
+  {name:"Anthony Gill",team:"Wizards",pos:"F"},
+  {name:"Bilal Coulibaly",team:"Wizards",pos:"G"},
+  {name:"Bub Carrington",team:"Wizards",pos:"G"},
+  {name:"Cam Whitmore",team:"Wizards",pos:"F"},
+  {name:"D\'Angelo Russell",team:"Wizards",pos:"G"},
+  {name:"Danté Exum",team:"Wizards",pos:"G"},
+  {name:"Davion Mintz",team:"Wizards",pos:"G"},
+  {name:"Devon Dotson",team:"Wizards",pos:"G"},
+  {name:"Erik Stevenson",team:"Wizards",pos:"G"},
+  {name:"Hamidou Diallo",team:"Wizards",pos:"G"},
+  {name:"JT Thor",team:"Wizards",pos:"F"},
+  {name:"Jaden Hardy",team:"Wizards",pos:"G"},
+  {name:"Jamir Watkins",team:"Wizards",pos:"F"},
+  {name:"Jaylen Martin",team:"Wizards",pos:"G"},
+  {name:"Jaylen Nowell",team:"Wizards",pos:"G"},
+  {name:"John Butler",team:"Wizards",pos:"C"},
+  {name:"Julian Reese",team:"Wizards",pos:"F"},
+  {name:"Justin Champagnie",team:"Wizards",pos:"G-F"},
+  {name:"Kadary Richmond",team:"Wizards",pos:"G"},
+  {name:"Kendrick Nunn",team:"Wizards",pos:"G"},
+  {name:"Kira Lewis",team:"Wizards",pos:"G"},
+  {name:"Kyshawn George",team:"Wizards",pos:"F"},
+  {name:"Leaky Black",team:"Wizards",pos:"F"},
+  {name:"RJ Hampton",team:"Wizards",pos:"G"},
+  {name:"Richaun Holmes",team:"Wizards",pos:"F"},
+  {name:"Sharife Cooper",team:"Wizards",pos:"G"},
+  {name:"Trae Young",team:"Wizards",pos:"G"},
+  {name:"Tre Johnson",team:"Wizards",pos:"G"},
+  {name:"Tristan Vukcevic",team:"Wizards",pos:"F"},
+  {name:"Will Riley",team:"Wizards",pos:"F"},
+  {name:"Xavier Cooks",team:"Wizards",pos:"F"},
+  {name:"Yannick Nzosa",team:"Wizards",pos:"C"},
+  {name:"Danilo Gallinari",team:"Bucks",pos:"F"},
+  {name:"Isaiah Thomas",team:"Suns",pos:"G"},
+  {name:"Kevin Love",team:"Jazz",pos:"F-C"},
+  {name:"DeAndre Jordan",team:"Pelicans",pos:"C"},
+  {name:"Otto Porter",team:"Jazz",pos:"F"},
+  {name:"Serge Ibaka",team:"Bucks",pos:"F"},
+  {name:"Thon Maker",team:"Rockets",pos:"F-C"},
+  {name:"Robin Lopez",team:"Bucks",pos:"C"},
+  {name:"Nerlens Noel",team:"Nets",pos:"C-F"},
+  {name:"Willie Cauley-Stein",team:"Rockets",pos:"C"},
+  {name:"Patrick Beverley",team:"Bucks",pos:"G"},
+  {name:"Montrezl Harrell",team:"76ers",pos:"F-C"},
+  {name:"D.J. Augustin",team:"Rockets",pos:"G"},
+  {name:"Wesley Matthews",team:"Hawks",pos:"G"},
+  {name:"Will Barton",team:"Raptors",pos:"G"},
+  {name:"Jahlil Okafor",team:"Pacers",pos:"C-F"},
+  {name:"Danny Green",team:"76ers",pos:"G"},
+  {name:"Denzel Valentine",team:"Celtics",pos:"G"},
+  {name:"Frank Kaminsky",team:"Suns",pos:"F-C"},
+  {name:"Cody Zeller",team:"Rockets",pos:"F-C"},
+  {name:"Talen Horton-Tucker",team:"Bulls",pos:"G"},
+  {name:"Luka Samanic",team:"Jazz",pos:"F"},
+  {name:"Victor Oladipo",team:"Grizzlies",pos:"G"},
+  {name:"Bruno Caboclo",team:"Celtics",pos:"F"},
+  {name:"Harry Giles",team:"Hornets",pos:"F-C"},
+  {name:"Mo Bamba",team:"Jazz",pos:"C"},
+  {name:"Svi Mykhailiuk",team:"Jazz",pos:"G-F"},
+  {name:"Oscar Tshiebwe",team:"Jazz",pos:"F-C"},
+  {name:"George Hill",team:"Pacers",pos:"G"},
+  {name:"Thaddeus Young",team:"Suns",pos:"F"},
+  {name:"Raul Neto",team:"Cavaliers",pos:"G"},
+  {name:"Markieff Morris",team:"Lakers",pos:"F"},
+  {name:"Marcus Morris",team:"Cavaliers",pos:"F"},
+  {name:"Facundo Campazzo",team:"Mavericks",pos:"G"},
+  {name:"Skal Labissière",team:"Wizards",pos:"F-C"},
+  {name:"Elijah Harkless",team:"Jazz",pos:"G"},
+  {name:"Frank Jackson",team:"Jazz",pos:"G"}
+];
+
+function parsePlay(text) {
+  const statMap = {
+    'points': 'pts', 'rebounds': 'reb', 'assists': 'ast',
+    'points rebounds assists': 'pra', '3-pointers made': '3pm',
+    'steals': 'stl', 'blocks': 'blk', 'minutes': 'min', 'turnovers': 'tov'
+  };
+  const ou = text.match(/\b(over|under)\s+([\d.]+)\s+(points(?:\s+rebounds\s+assists)?|rebounds|assists|3-pointers made|steals|blocks|minutes|turnovers)/i);
+  if (!ou) return null;
+  const direction = ou[1].toLowerCase();
+  const line = parseFloat(ou[2]);
+  const stat = statMap[ou[3].toLowerCase()] || ou[3].toLowerCase();
+  const beforeOU = text.substring(0, text.toLowerCase().indexOf(ou[0].toLowerCase())).trim();
+  const words = beforeOU.split(/\s+/);
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'');
+
+  // Try matching against NBA_PLAYERS list (longest match first)
+  let playerName = null, firstName = null, lastName = null;
+  for (let len = Math.min(5, words.length); len >= 1; len--) {
+    const candidate = words.slice(0, len).join(' ');
+    const match = NBA_PLAYERS.find(p => norm(p.name) === norm(candidate));
+    if (match) {
+      playerName = match.name;
+      const parts = match.name.split(' ');
+      firstName = parts[0];
+      lastName = parts.slice(1).join(' ');
+      break;
+    }
+  }
+  // Fallback: first 2 words
+  if (!playerName) {
+    playerName = words.slice(0, 2).join(' ');
+    firstName = words[0] || '';
+    lastName = words[1] || '';
+  }
+
+  return { playerName, firstName, lastName, direction, line, stat };
+}
+
+async function getBdlPlayer(parsed) {
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'');
+  const headers = { 'Authorization': API_KEY };
+
+  const trySearch = async (params) => {
+    for (const base of [
+      'https://api.balldontlie.io/nba/v1/players/active',
+      'https://api.balldontlie.io/nba/v1/players'
+    ]) {
+      const res = await fetch(`${base}?${params}&per_page=25`, { headers });
+      const data = await res.json();
+      if (data.data && data.data.length > 0) {
+        const exact = data.data.find(p =>
+          norm(p.first_name) === norm(parsed.firstName) &&
+          norm(p.last_name) === norm(parsed.lastName)
+        );
+        const partial = data.data.find(p =>
+          norm(p.first_name).startsWith(norm(parsed.firstName).substring(0,3)) &&
+          norm(p.last_name).startsWith(norm(parsed.lastName).substring(0,3))
+        );
+        const found = exact || partial || data.data[0];
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  let p = await trySearch(`first_name=${encodeURIComponent(norm(parsed.firstName))}&last_name=${encodeURIComponent(norm(parsed.lastName))}`);
+  if (p) return p;
+  p = await trySearch(`search=${encodeURIComponent(norm(parsed.lastName))}`);
+  if (p) return p;
+  p = await trySearch(`search=${encodeURIComponent(norm(parsed.firstName))}`);
+  return p;
+}
+
+async function gradeBet(i, btn) {
+  const bet = bets[i];
+  if (!bet) return;
+  const parsed = parsePlay(bet.text);
+  if (!parsed) { showManualBtns(i); return; }
+
+  btn.textContent = '...';
+  try {
+    const player = await getBdlPlayer(parsed);
+    if (!player) { showManualBtns(i); btn.textContent = 'GRADE'; return; }
+
+    const res = await fetch(
+      `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${bet.date}&end_date=${bet.date}&per_page=5`,
+      { headers: { 'Authorization': API_KEY } }
+    );
+    const data = await res.json();
+    if (!data.data || !data.data.length) { showManualBtns(i); btn.textContent = 'GRADE'; return; }
+
+    gradeFromStats(i, data.data[0], parsed);
+  } catch(e) { showManualBtns(i); }
+  btn.textContent = 'GRADE';
+}
+
+function gradeFromStats(i, gameStats, parsed) {
+  const statKeys = { pts:'pts', reb:'reb', ast:'ast', pra:null, '3pm':'fg3m', stl:'stl', blk:'blk', tov:'turnover' };
+  let actual;
+  if (parsed.stat === 'pra') {
+    actual = (gameStats.pts||0) + (gameStats.reb||0) + (gameStats.ast||0);
+  } else if (parsed.stat === 'min') {
+    const m = gameStats.min;
+    actual = m ? parseFloat(m.split(':')[0]) : null;
+  } else {
+    actual = gameStats[statKeys[parsed.stat] || parsed.stat];
+  }
+  if (actual === null || actual === undefined) { showManualBtns(i); return; }
+  const result = actual === parsed.line ? 'push' : (parsed.direction === 'over' ? actual > parsed.line : actual < parsed.line) ? 'win' : 'loss';
+  setGrade(i, result, actual);
+}
+
+async function gradeAll(btn) {
+  if (!bets.length) return;
+  btn.textContent = '⏳ Grading...';
+  btn.disabled = true;
+  for (let i = 0; i < bets.length; i++) {
+    if (bets[i].grade) continue;
+    const parsed = parsePlay(bets[i].text);
+    if (!parsed) { showManualBtns(i); continue; }
+    try {
+      const player = await getBdlPlayer(parsed);
+      if (!player) { showManualBtns(i); continue; }
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${bets[i].date}&end_date=${bets[i].date}&per_page=5`,
+        { headers: { 'Authorization': API_KEY } }
+      );
+      const data = await res.json();
+      if (!data.data || !data.data.length) { showManualBtns(i); continue; }
+      gradeFromStats(i, data.data[0], parsed);
+    } catch(e) { showManualBtns(i); }
+    await new Promise(r => setTimeout(r, 300));
+  }
+  btn.textContent = '⚡ GRADE ALL';
+  btn.disabled = false;
+  render();
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function deleteBet(i) {
+  bets.splice(i, 1);
+  saveToStorage();
+  render();
+}
+
+function copyBet(i, btn) {
+  navigator.clipboard.writeText(bets[i].text).then(() => {
+    btn.textContent = '✓';
+    setTimeout(() => btn.textContent = 'COPY', 1500);
+  });
+}
+
+function clearAllBets() {
+  if (!confirm('Clear all bets?')) return;
+  bets = [];
+  saveToStorage();
+  render();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const today = new Date().toISOString().split('T')[0];
+  const yest  = new Date(); yest.setDate(yest.getDate()-1);
+  const yStr  = yest.toISOString().split('T')[0];
+  if (d === today) return 'Today';
+  if (d === yStr)  return 'Yesterday';
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+}
+</script>
+</body>
+</html>
