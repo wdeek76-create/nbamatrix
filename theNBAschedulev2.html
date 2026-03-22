@@ -207,6 +207,7 @@
     .inj-player-name { font-size: 0.95rem; color: var(--text); letter-spacing: 0.04em; }
     .inj-pos { font-size: 0.68rem; color: #00f5c4; background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.3); border-radius: 3px; padding: 0.08rem 0.4rem; }
     .inj-status { font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; text-align: right; white-space: nowrap; }
+    .inj-team-pill { font-size: 0.7rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; padding: 0.08rem 0.45rem; letter-spacing: 0.06em; }
     .inj-return { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.04em; margin-top: 0.1rem; text-align: right; }
     .inj-loading { text-align: center; color: var(--muted); font-size: 0.9rem; padding: 3rem 1rem; letter-spacing: 0.08em; }
 
@@ -485,48 +486,45 @@
       );
       if (!res.ok) throw new Error("API error " + res.status);
       const data = await res.json();
-      const injuries = data.data || [];
+      const STATUS_ORDER = ["gtd","game time decision","doubtful","questionable","probable","day-to-day","d2d","out"];
+      const injuries = (data.data || []).filter(inj => {
+        const s = (inj.status || "").toLowerCase();
+        return STATUS_ORDER.some(r => s.includes(r));
+      }).sort((a, b) => {
+        const sa = (a.status || "").toLowerCase();
+        const sb = (b.status || "").toLowerCase();
+        const ra = STATUS_ORDER.findIndex(r => sa.includes(r));
+        const rb = STATUS_ORDER.findIndex(r => sb.includes(r));
+        if (ra !== rb) return ra - rb;
+        // Within same status, sort by soonest return date
+        const da = a.return_date ? new Date(a.return_date) : new Date("9999-01-01");
+        const db = b.return_date ? new Date(b.return_date) : new Date("9999-01-01");
+        return da - db;
+      });
 
       if (!injuries.length) {
-        c.innerHTML = `<div class="empty">No injuries reported</div>`;
+        c.innerHTML = `<div class="empty">No active injuries reported</div>`;
         return;
       }
 
-      // Group by team
-      const byTeam = {};
-      for (const inj of injuries) {
-        const abbr = inj.player?.team?.abbreviation || "UNK";
-        if (!byTeam[abbr]) byTeam[abbr] = [];
-        byTeam[abbr].push(inj);
-      }
-
-      const sorted = Object.keys(byTeam).sort();
       let html = `<div class="inj-container">`;
-      for (const abbr of sorted) {
-        const players = byTeam[abbr];
-        html += `<div class="inj-team-block">
-          <div class="inj-team-header">
-            <img class="inj-team-logo" src="${logoUrl(abbr)}" onerror="this.style.display='none'" alt="${abbr}">
-            <span class="inj-team-name">${(TEAM_INFO[abbr]||{city:abbr}).city} ${abbr}</span>
-            <span class="inj-count">${players.length} out</span>
-          </div>`;
-        for (const inj of players) {
-          const p = inj.player || {};
-          const pos = p.position || "—";
-          const status = inj.status || "Out";
-          const ret = inj.return_date ? `Est. return: ${inj.return_date}` : (inj.description || "");
-          html += `<div class="inj-row">
-            <div class="inj-row-left">
-              <span class="inj-player-name">${p.first_name||""} ${p.last_name||""}</span>
-              <span class="inj-pos">${pos}</span>
-            </div>
-            <div>
-              <div class="inj-status">${status}</div>
-              ${ret ? `<div class="inj-return">${ret}</div>` : ""}
-            </div>
-          </div>`;
-        }
-        html += `</div>`;
+      for (const inj of injuries) {
+        const p = inj.player || {};
+        const abbr = p.team?.abbreviation || "—";
+        const pos = p.position || "—";
+        const status = inj.status || "Out";
+        const ret = inj.return_date ? `Est. return: ${inj.return_date}` : (inj.description || "");
+        html += `<div class="inj-row">
+          <div class="inj-row-left">
+            <span class="inj-player-name">${p.first_name||""} ${p.last_name||""}</span>
+            <span class="inj-pos">${pos}</span>
+            <span class="inj-team-pill">${abbr}</span>
+          </div>
+          <div>
+            <div class="inj-status">${status}</div>
+            ${ret ? `<div class="inj-return">${ret}</div>` : ""}
+          </div>
+        </div>`;
       }
       html += `</div>`;
       c.innerHTML = html;
