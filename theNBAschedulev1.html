@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NBA Slate</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg:       #0b0f17;
@@ -21,7 +21,7 @@
       --dim:      #1a2538;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); min-height: 100vh; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+    body { background: var(--bg); min-height: 100vh; font-family: 'Bebas Neue', sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; text-transform: uppercase; letter-spacing: 0.05em; }
 
     /* ── NAV ── */
     .topnav {
@@ -32,16 +32,25 @@
     }
     .nav-left { display: flex; align-items: center; }
     .brand-logo { width: 30px; height: 30px; object-fit: contain; margin-right: 0.55rem; }
-    .brand-name { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.03em; color: #fff; margin-right: 2.5rem; text-transform: uppercase; }
-    .brand-name span { color: var(--teal); }
+    .brand-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.65rem; font-weight: 400; letter-spacing: 0.08em;
+      color: #fff; margin-right: 2.5rem; text-transform: uppercase;
+      text-shadow: 0 0 18px rgba(255,255,255,0.25), 0 0 40px rgba(255,255,255,0.1);
+      line-height: 1;
+    }
+    .brand-name span {
+      color: var(--teal);
+      text-shadow: 0 0 16px rgba(0,245,196,0.7), 0 0 40px rgba(0,245,196,0.35);
+    }
     .nav-divider { width: 1px; height: 20px; background: var(--border); margin-right: 0.25rem; }
     .nav-tabs { display: flex; }
-    .nav-tab { padding: 0 1.1rem; height: 62px; display: flex; align-items: center; font-size: 0.78rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; letter-spacing: 0.02em; }
+    .nav-tab { padding: 0 1.1rem; height: 62px; display: flex; align-items: center; font-size: 1rem; font-weight: 400; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; letter-spacing: 0.08em; }
     .nav-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
     .nav-tab:hover:not(.active) { color: #7a9cc0; }
     .nav-right { display: flex; align-items: center; gap: 0.75rem; }
-    .date-pill { background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 0.38rem 0.9rem; font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
-    .load-btn { background: var(--teal); color: #000; border: none; border-radius: 8px; padding: 0.52rem 1.4rem; font-size: 0.78rem; font-weight: 800; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.2s; letter-spacing: 0.03em; text-transform: uppercase; box-shadow: 0 2px 16px rgba(0,245,196,0.35); }
+    .date-pill { background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 0.38rem 0.9rem; font-size: 0.85rem; font-weight: 400; color: var(--muted); letter-spacing: 0.08em; }
+    .load-btn { background: var(--teal); color: #000; border: none; border-radius: 8px; padding: 0.52rem 1.4rem; font-size: 0.9rem; font-weight: 400; cursor: pointer; font-family: 'Bebas Neue', sans-serif; transition: all 0.2s; letter-spacing: 0.1em; text-transform: uppercase; box-shadow: 0 2px 16px rgba(0,245,196,0.35); }
     .load-btn:hover { background: #1fffd0; box-shadow: 0 4px 24px rgba(0,245,196,0.5); }
     .load-btn:disabled { background: var(--dim); color: var(--muted); cursor: not-allowed; box-shadow: none; }
 
@@ -49,16 +58,28 @@
     .main { padding: 1.5rem 2rem 5.5rem; max-width: 1100px; margin: 0 auto; }
 
     .chip-row { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-    .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 0.32rem 0.9rem; font-size: 0.72rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+    .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 0.32rem 0.9rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.08em; }
     .chip .hi { color: var(--teal); }
 
     .time-section { margin-bottom: 0.25rem; }
     .section-head { display: flex; align-items: center; gap: 0.6rem; margin: 1.75rem 0 0.75rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
-    .section-time { font-size: 0.8rem; font-weight: 800; color: var(--teal); letter-spacing: 0.06em; text-transform: uppercase; }
-    .section-badge { font-size: 0.65rem; font-weight: 700; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.12rem 0.55rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .section-time { font-size: 1.05rem; color: var(--teal); letter-spacing: 0.1em; }
+    .section-badge {
+      font-size: 0.85rem; color: #fff;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px; padding: 0.1rem 0.65rem;
+      letter-spacing: 0.08em;
+      box-shadow: 0 0 8px rgba(255,255,255,0.12);
+    }
 
-    .day-head { font-size: 0.75rem; font-weight: 800; color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase; margin: 2rem 0 0.75rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-    .day-head span { color: var(--muted); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 0.7rem; }
+    /* Weekly/monthly compact day rows */
+    .day-head { font-size: 1.05rem; color: #fff; letter-spacing: 0.08em; margin: 2rem 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .day-head span { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.06em; }
+    .day-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 1rem; margin-bottom: 0.35rem; display: flex; align-items: center; justify-content: space-between; }
+    .day-summary-left { font-size: 0.95rem; color: var(--teal); letter-spacing: 0.08em; min-width: 6rem; }
+    .day-summary-games { font-size: 0.85rem; color: var(--muted); flex: 1; padding-left: 1rem; line-height: 1.6; }
+    .day-summary-count { font-size: 0.8rem; color: #fff; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.1rem 0.5rem; white-space: nowrap; margin-left: 0.75rem; }
 
     .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.6rem; }
 
@@ -69,16 +90,16 @@
       cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
     }
     .game-card:hover { border-color: var(--teal-dim); box-shadow: 0 0 0 1px rgba(0,245,196,0.08), 0 6px 24px rgba(0,0,0,0.35); transform: translateY(-2px); }
-    .card-hint { font-size: 0.6rem; font-weight: 700; color: var(--dim); text-align: center; padding: 0.4rem; letter-spacing: 0.08em; text-transform: uppercase; border-top: 1px solid var(--border); transition: color 0.2s; }
+    .card-hint { font-size: 0.75rem; color: var(--dim); text-align: center; padding: 0.4rem; letter-spacing: 0.1em; border-top: 1px solid var(--border); transition: color 0.2s; }
     .game-card:hover .card-hint { color: var(--teal); }
 
     .team-row { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.1rem; }
     .team-row + .team-row { border-top: 1px solid var(--border); }
     .tl { display: flex; align-items: center; gap: 0.75rem; }
     .team-logo { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
-    .team-abbr { font-size: 1.05rem; font-weight: 800; color: var(--text); min-width: 2.8rem; text-transform: uppercase; }
-    .team-city { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
-    .away-tag, .home-tag { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; padding: 0.2rem 0.55rem; border-radius: 4px; text-transform: uppercase; flex-shrink: 0; }
+    .team-abbr { font-size: 1.3rem; color: var(--text); min-width: 3rem; letter-spacing: 0.06em; }
+    .team-city { font-size: 0.9rem; color: var(--muted); letter-spacing: 0.06em; }
+    .away-tag, .home-tag { font-size: 0.75rem; letter-spacing: 0.1em; padding: 0.18rem 0.55rem; border-radius: 4px; flex-shrink: 0; }
     .away-tag { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
     .home-tag { background: rgba(0,245,196,0.08); color: var(--teal); border: 1px solid rgba(0,245,196,0.25); }
 
@@ -86,9 +107,9 @@
     .error-msg { color: #f87171; font-size: 0.78rem; text-align: center; padding: 1rem; display: none; }
 
     .copy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav); border-top: 1px solid var(--border); padding: 0.75rem 2rem; display: none; align-items: center; justify-content: space-between; gap: 1rem; box-shadow: 0 -4px 20px rgba(0,0,0,0.4); }
-    .copy-info { font-size: 0.72rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .copy-info { font-size: 0.85rem; color: var(--muted); letter-spacing: 0.06em; }
     .copy-info span { color: var(--teal); }
-    .copy-btn { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); border-radius: 8px; padding: 0.45rem 1.35rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.04em; }
+    .copy-btn { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); border-radius: 8px; padding: 0.45rem 1.35rem; font-size: 0.9rem; font-weight: 400; cursor: pointer; font-family: 'Bebas Neue', sans-serif; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.08em; }
     .copy-btn.copied { background: rgba(0,245,196,0.1); color: var(--teal); border-color: rgba(0,245,196,0.4); }
 
     /* ── ROSTER MODAL ── */
@@ -112,9 +133,9 @@
     .modal-title { display: flex; align-items: center; gap: 0.75rem; }
     .modal-logos { display: flex; align-items: center; gap: 0.3rem; }
     .modal-logo { width: 28px; height: 28px; object-fit: contain; }
-    .modal-matchup { font-size: 1rem; font-weight: 800; color: #fff; letter-spacing: 0.02em; text-transform: uppercase; }
-    .modal-time { font-size: 0.7rem; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
-    .modal-close { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-family: 'Barlow', sans-serif; }
+    .modal-matchup { font-size: 1.4rem; color: #fff; letter-spacing: 0.06em; }
+    .modal-time { font-size: 0.9rem; color: var(--muted); letter-spacing: 0.08em; margin-top: 0.1rem; }
+    .modal-close { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-family: 'Bebas Neue', sans-serif; }
     .modal-close:hover { color: #fff; border-color: var(--muted); }
 
     .modal-body { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; flex: 1; }
@@ -126,8 +147,8 @@
       position: sticky; top: 0; background: var(--surface2); z-index: 1;
     }
     .roster-logo { width: 24px; height: 24px; object-fit: contain; }
-    .roster-team-name { font-size: 0.88rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.04em; }
-    .roster-tag { font-size: 0.55rem; font-weight: 800; padding: 0.12rem 0.4rem; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .roster-team-name { font-size: 1rem; color: #fff; letter-spacing: 0.06em; }
+    .roster-tag { font-size: 0.7rem; padding: 0.1rem 0.45rem; border-radius: 3px; letter-spacing: 0.08em; }
     .roster-tag.away { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
     .roster-tag.home { background: rgba(0,245,196,0.1); color: var(--teal); border: 1px solid rgba(0,245,196,0.3); }
 
@@ -138,33 +159,77 @@
     }
     .player-row:hover { background: var(--surface2); }
     .player-left { display: flex; align-items: center; gap: 0.75rem; }
-    .player-num { font-size: 0.78rem; font-weight: 800; color: var(--muted); min-width: 1.75rem; text-align: center; }
-    .player-name { font-size: 0.95rem; font-weight: 700; color: var(--text); margin-right: 0.5rem; }
+    .player-num { font-size: 0.95rem; color: var(--muted); min-width: 1.75rem; text-align: center; }
+    .player-name { font-size: 1.1rem; color: var(--text); margin-right: 0.5rem; letter-spacing: 0.04em; }
     .player-pos {
-      font-size: 0.62rem; font-weight: 800;
+      font-size: 0.75rem;
       color: #00f5c4;
       background: rgba(0,245,196,0.1);
       border: 1px solid rgba(0,245,196,0.35);
-      border-radius: 4px; padding: 0.15rem 0.45rem;
-      text-transform: uppercase; letter-spacing: 0.06em;
+      border-radius: 4px; padding: 0.12rem 0.45rem;
+      letter-spacing: 0.08em;
     }
     .player-name-pos { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
     .roster-loading { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
     .roster-empty { padding: 1.5rem; text-align: center; color: var(--dim); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 
+    /* ── INJURY STYLES ── */
+    .inj-tag {
+      font-size: 0.68rem; letter-spacing: 0.06em;
+      padding: 0.1rem 0.4rem; border-radius: 3px;
+      background: rgba(248,113,113,0.12);
+      color: #f87171;
+      border: 1px solid rgba(248,113,113,0.3);
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .player-row.injured { opacity: 0.6; }
+    .player-row.injured .player-name { text-decoration: line-through; text-decoration-color: rgba(248,113,113,0.5); }
+
+    /* Injury tab */
+    .inj-container { padding: 0; }
+    .inj-team-block { margin-bottom: 1.25rem; }
+    .inj-team-header {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.65rem 0; margin-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .inj-team-logo { width: 24px; height: 24px; object-fit: contain; }
+    .inj-team-name { font-size: 1rem; color: #fff; letter-spacing: 0.06em; }
+    .inj-count { font-size: 0.75rem; color: #f87171; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); border-radius: 8px; padding: 0.08rem 0.5rem; margin-left: auto; }
+    .inj-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.6rem 0.85rem; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 8px;
+      margin-bottom: 0.3rem;
+    }
+    .inj-row-left { display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 0; }
+    .inj-player-name { font-size: 0.95rem; color: var(--text); letter-spacing: 0.04em; }
+    .inj-pos { font-size: 0.68rem; color: #00f5c4; background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.3); border-radius: 3px; padding: 0.08rem 0.4rem; }
+    .inj-status { font-size: 0.7rem; color: #f87171; letter-spacing: 0.05em; text-align: right; white-space: nowrap; }
+    .inj-return { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.04em; margin-top: 0.1rem; text-align: right; }
+    .inj-loading { text-align: center; color: var(--muted); font-size: 0.9rem; padding: 3rem 1rem; letter-spacing: 0.08em; }
+
     .mobile-tabs { display: none; }
     @media (max-width: 640px) {
       .nav-tabs { display: none; }
-      .main { padding: 1rem 1rem 5.5rem; }
+      .main { padding: 1rem 0.85rem 5.5rem; }
       .topnav { padding: 0 1rem; }
       .games-grid { grid-template-columns: 1fr; }
       .copy-bar { padding: 0.75rem 1rem; }
       .modal-body { grid-template-columns: 1fr; }
       .roster-col + .roster-col { border-left: none; border-top: 1px solid var(--border); }
-      .mobile-tabs { display: flex; background: var(--nav); border-bottom: 1px solid var(--border); padding: 0 1rem; }
+      .mobile-tabs { display: flex; background: var(--nav); border-bottom: 1px solid var(--border); padding: 0 0.5rem; }
       .mobile-tab { flex: 1; padding: 0.75rem 0; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; letter-spacing: 0.04em; transition: all 0.2s; }
       .mobile-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+      /* Bigger touch targets on mobile */
+      .game-card .team-row { padding: 0.85rem 1rem; }
+      .team-logo { width: 34px; height: 34px; }
+      .team-abbr { font-size: 1.1rem; }
+      .day-summary { padding: 0.7rem 0.85rem; }
+      .day-summary-left { font-size: 0.75rem; min-width: 5.5rem; }
+      .day-summary-games { font-size: 0.72rem; }
+      .section-head { margin: 1.25rem 0 0.65rem; }
     }
   </style>
 </head>
@@ -179,6 +244,7 @@
       <div class="nav-tab active" onclick="switchView('daily')">The Board</div>
       <div class="nav-tab" onclick="switchView('weekly')">This Week</div>
       <div class="nav-tab" onclick="switchView('monthly')">This Month</div>
+      <div class="nav-tab" onclick="switchView('injuries')">Injuries</div>
     </div>
   </div>
   <div class="nav-right">
@@ -188,9 +254,10 @@
 </div>
 
 <div class="mobile-tabs" id="mobile-tabs">
-  <div class="mobile-tab active" onclick="switchView('daily')">The Board</div>
-  <div class="mobile-tab" onclick="switchView('weekly')">This Week</div>
-  <div class="mobile-tab" onclick="switchView('monthly')">This Month</div>
+  <div class="mobile-tab active" onclick="switchView('daily')">Board</div>
+  <div class="mobile-tab" onclick="switchView('weekly')">Week</div>
+  <div class="mobile-tab" onclick="switchView('monthly')">Month</div>
+  <div class="mobile-tab" onclick="switchView('injuries')">Injuries</div>
 </div>
 
 <div class="main">
@@ -356,20 +423,115 @@
     const c = document.getElementById("games-container");
     c.innerHTML = "";
     if (!games.length) { c.innerHTML=`<div class="empty">No games scheduled</div>`; return; }
+
     if (currentView==="daily") {
       const bt={};
       for(const g of games){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g);}
       for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))) c.innerHTML+=renderTimeGroup(t,bt[t]);
     } else {
+      // Weekly/monthly: compact one-line-per-day summary
       const bd={};
       for(const g of games){if(!bd[g.date])bd[g.date]=[];bd[g.date].push(g);}
       for(const day of Object.keys(bd).sort()){
         const gs=bd[day].sort((a,b)=>toMin(getTime(a.datetime))-toMin(getTime(b.datetime)));
-        c.innerHTML+=`<div class="day-head">${parseDayLabel(day)}<span>${gs.length} games</span></div>`;
+        c.innerHTML+=`<div class="day-head">${parseDayLabel(day)}<span>${gs.length} game${gs.length!==1?"s":""}</span></div>`;
+
+        // Group by time slot
         const bt={};
         for(const g of gs){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g);}
-        for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))) c.innerHTML+=renderTimeGroup(t,bt[t]);
+        for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))){
+          const slotGames = bt[t];
+          const matchups = slotGames.map(g=>`${g.visitor_team.abbreviation} @ ${g.home_team.abbreviation}`).join("  ·  ");
+          c.innerHTML+=`<div class="day-summary">
+            <div class="day-summary-left">${t} ET</div>
+            <div class="day-summary-games">${matchups}</div>
+            <div class="day-summary-count">${slotGames.length} game${slotGames.length!==1?"s":""}</div>
+          </div>`;
+        }
       }
+    }
+  }
+
+  // ── INJURIES ──
+  let injuryMap = {}; // playerId -> injury object
+  let injuriesLoaded = false;
+
+  async function fetchInjuries() {
+    try {
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/player_injuries?per_page=100`,
+        { headers: { Authorization: API_KEY } }
+      );
+      if (!res.ok) return {};
+      const data = await res.json();
+      const map = {};
+      for (const inj of (data.data||[])) {
+        if (inj.player?.id) map[inj.player.id] = inj;
+      }
+      return map;
+    } catch { return {}; }
+  }
+
+  async function loadInjuryTab() {
+    const c = document.getElementById("games-container");
+    c.innerHTML = `<div class="inj-loading">Loading injuries...</div>`;
+    document.getElementById("copy-bar").style.display = "none";
+    document.getElementById("chip-row").style.display = "none";
+
+    try {
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/player_injuries?per_page=100`,
+        { headers: { Authorization: API_KEY } }
+      );
+      if (!res.ok) throw new Error("API error " + res.status);
+      const data = await res.json();
+      const injuries = data.data || [];
+
+      if (!injuries.length) {
+        c.innerHTML = `<div class="empty">No injuries reported</div>`;
+        return;
+      }
+
+      // Group by team
+      const byTeam = {};
+      for (const inj of injuries) {
+        const abbr = inj.player?.team?.abbreviation || "UNK";
+        if (!byTeam[abbr]) byTeam[abbr] = [];
+        byTeam[abbr].push(inj);
+      }
+
+      const sorted = Object.keys(byTeam).sort();
+      let html = `<div class="inj-container">`;
+      for (const abbr of sorted) {
+        const players = byTeam[abbr];
+        html += `<div class="inj-team-block">
+          <div class="inj-team-header">
+            <img class="inj-team-logo" src="${logoUrl(abbr)}" onerror="this.style.display='none'" alt="${abbr}">
+            <span class="inj-team-name">${(TEAM_INFO[abbr]||{city:abbr}).city} ${abbr}</span>
+            <span class="inj-count">${players.length} out</span>
+          </div>`;
+        for (const inj of players) {
+          const p = inj.player || {};
+          const pos = p.position || "—";
+          const status = inj.status || "Out";
+          const ret = inj.return_date ? `Est. return: ${inj.return_date}` : (inj.description || "");
+          html += `<div class="inj-row">
+            <div class="inj-row-left">
+              <span class="inj-player-name">${p.first_name||""} ${p.last_name||""}</span>
+              <span class="inj-pos">${pos}</span>
+            </div>
+            <div>
+              <div class="inj-status">${status}</div>
+              ${ret ? `<div class="inj-return">${ret}</div>` : ""}
+            </div>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+      c.innerHTML = html;
+    } catch(e) {
+      c.innerHTML = `<div class="empty">Failed to load injuries</div>`;
     }
   }
 
@@ -378,26 +540,26 @@
     const g = JSON.parse(decodeURIComponent(encoded));
     const overlay = document.getElementById("modal-overlay");
 
-    // Set header
     document.getElementById("modal-matchup").textContent = `${g.away} vs ${g.home}`;
     document.getElementById("modal-time").textContent = `${g.time} ET`;
     document.getElementById("modal-logos").innerHTML = `
       <img class="modal-logo" src="${logoUrl(g.away)}" onerror="this.style.display='none'" alt="${g.away}">
-      <span style="color:var(--muted);font-size:0.75rem;font-weight:700;margin:0 0.2rem">@</span>
+      <span style="color:var(--muted);font-size:0.9rem;margin:0 0.25rem">@</span>
       <img class="modal-logo" src="${logoUrl(g.home)}" onerror="this.style.display='none'" alt="${g.home}">
     `;
 
-    // Show loading
     document.getElementById("roster-away").innerHTML = rosterColHeader(g.away, "away") + `<div class="roster-loading">Loading...</div>`;
     document.getElementById("roster-home").innerHTML = rosterColHeader(g.home, "home") + `<div class="roster-loading">Loading...</div>`;
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
 
-    // Fetch both rosters in parallel
-    const [awayPlayers, homePlayers] = await Promise.all([
+    // Fetch rosters + injuries in parallel
+    const [awayPlayers, homePlayers, injuries] = await Promise.all([
       fetchRoster(g.awayId),
-      fetchRoster(g.homeId)
+      fetchRoster(g.homeId),
+      fetchInjuries()
     ]);
+    injuryMap = injuries;
 
     document.getElementById("roster-away").innerHTML = rosterColHeader(g.away, "away") + renderRoster(awayPlayers);
     document.getElementById("roster-home").innerHTML = rosterColHeader(g.home, "home") + renderRoster(homePlayers);
@@ -426,17 +588,21 @@
 
   function renderRoster(players) {
     if (!players.length) return `<div class="roster-empty">No roster data</div>`;
-    return players.map(p => `
-      <div class="player-row">
+    return players.map(p => {
+      const inj = injuryMap[p.id];
+      const injHtml = inj ? `<span class="inj-tag">${inj.status||"Out"}</span>` : "";
+      const injClass = inj ? " injured" : "";
+      return `<div class="player-row${injClass}">
         <div class="player-left">
           <span class="player-num">${p.jersey_number||"—"}</span>
           <div class="player-name-pos">
             <span class="player-name">${p.first_name} ${p.last_name}</span>
             <span class="player-pos">${p.position||"—"}</span>
+            ${injHtml}
           </div>
         </div>
-      </div>
-    `).join("");
+      </div>`;
+    }).join("");
   }
 
   function closeModal(e) {
@@ -450,16 +616,25 @@
 
   // ── SLATE ──
   function switchView(v) {
-    currentView=v;
-    document.querySelectorAll(".nav-tab").forEach((b,i)=>b.classList.toggle("active",["daily","weekly","monthly"][i]===v));
-    document.querySelectorAll(".mobile-tab").forEach((b,i)=>b.classList.toggle("active",["daily","weekly","monthly"][i]===v));
-    document.getElementById("fetch-btn").textContent="Load Slate";
-    document.getElementById("games-container").innerHTML=`<div class="empty">Load Slate to pull the schedule</div>`;
-    document.getElementById("copy-bar").style.display="none";
-    document.getElementById("error").style.display="none";
-    document.getElementById("chip-row").style.display="none";
-    document.getElementById("date-badge").textContent=getDateLabel();
-    currentSlate="";
+    currentView = v;
+    const views = ["daily","weekly","monthly","injuries"];
+    document.querySelectorAll(".nav-tab").forEach((b,i)=>b.classList.toggle("active", views[i]===v));
+    document.querySelectorAll(".mobile-tab").forEach((b,i)=>b.classList.toggle("active", views[i]===v));
+    document.getElementById("copy-bar").style.display = "none";
+    document.getElementById("error").style.display = "none";
+    document.getElementById("chip-row").style.display = "none";
+    document.getElementById("date-badge").textContent = v === "injuries" ? "Live" : getDateLabel();
+
+    if (v === "injuries") {
+      document.getElementById("fetch-btn").textContent = "Refresh";
+      document.getElementById("fetch-btn").onclick = loadInjuryTab;
+      loadInjuryTab();
+    } else {
+      document.getElementById("fetch-btn").textContent = "Load Slate";
+      document.getElementById("fetch-btn").onclick = fetchSlate;
+      document.getElementById("games-container").innerHTML = `<div class="empty">Load Slate to pull the schedule</div>`;
+      currentSlate = "";
+    }
   }
 
   async function fetchSlate() {
@@ -499,6 +674,7 @@
   }
 
   document.getElementById("date-badge").textContent=getDateLabel();
+  document.getElementById("fetch-btn").onclick = fetchSlate;
 </script>
 </body>
 </html>
