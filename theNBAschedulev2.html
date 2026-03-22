@@ -583,10 +583,9 @@
 
       for (const inj of injuries) {
         const p = inj.player || {};
-        const teamAbbr = p.team?.abbreviation
-          || ID_TO_ABBR[p.team_id]
-          || inj.team?.abbreviation
-          || "—";
+        // Most reliable: match team_id from our known map
+        const teamId = p.team_id || p.team?.id;
+        const teamAbbr = ID_TO_ABBR[teamId] || p.team?.abbreviation || "—";
         const pos = p.position || "—";
         const status = inj.status || "Out";
         const sl = status.toLowerCase();
@@ -599,13 +598,10 @@
         const ret = inj.return_date ? `Est. return: ${inj.return_date}` : (inj.description || "");
         html += `<div class="inj-row" data-status="${statusLabel}">
           <div class="inj-row-left">
-            ${teamAbbr !== "—" ? `<img class="inj-logo" src="${logoUrl(teamAbbr)}" onerror="this.style.display='none'" alt="${teamAbbr}">` : ""}
-            <div>
-              <div style="display:flex;align-items:center;gap:0.5rem">
-                <span class="inj-player-name">${p.first_name||""} ${p.last_name||""}</span>
-                <span class="inj-pos">${pos}</span>
-                ${teamAbbr !== "—" ? `<span class="inj-team-pill">${teamAbbr}</span>` : ""}
-              </div>
+            <div style="display:flex;align-items:center;gap:0.55rem;flex-wrap:wrap">
+              <span class="inj-player-name">${p.first_name||""} ${p.last_name||""}</span>
+              <span class="inj-pos">${pos}</span>
+              ${teamAbbr !== "—" ? `<span class="inj-team-pill">${teamAbbr}</span>` : ""}
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
