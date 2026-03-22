@@ -1384,7 +1384,18 @@ function renderAutoGrade() {
 
       <div id="ag-log-box" style="background:#0f0e1a;border:1px solid #1e1c35;border-radius:8px;padding:16px;min-height:60px;font-family:monospace;font-size:12px;line-height:1.8;">
         ${agLog.length === 0 ? '<span style="color:#3d3a6b;">Grade log will appear here...</span>' :
-          agLog.map(l => `<div style="color:${l.startsWith("✓")?"#22c55e":l.startsWith("✗")?"#f87171":l.startsWith("🚫")?"#f59e0b":"#6b6896"}">${l}</div>`).join("")}
+          agLog.map(l => {
+          const isSummary = /^\d+-\d+/.test(l);
+          const isDiv = l.startsWith("─");
+          const color = isSummary ? (l.includes('+') ? '#22c55e' : '#f87171') :
+            isDiv ? '#2a2845' :
+            l.startsWith("✓") ? '#22c55e' :
+            l.startsWith("✗") ? '#f87171' :
+            l.startsWith("🚫") ? '#f59e0b' : '#6b6896';
+          const weight = isSummary ? '800' : '400';
+          const size = isSummary ? '15px' : '12px';
+          return `<div style="color:${color};font-weight:${weight};font-size:${size};margin-top:${isSummary?'6px':'0'}">${l}</div>`;
+        }).join("")}
       </div>
     </div>`;
 }
@@ -1549,7 +1560,17 @@ async function runAutoGrade() {
     await new Promise(r => setTimeout(r, 300));
   }
 
-  agLog.push("✅ Done!");
+  // Summary
+  const gradedBets = pending.filter(b => agResults[b.id] && agResults[b.id].found);
+  const hitBets = gradedBets.filter(b => agResults[b.id].result === "hit");
+  const missBets = gradedBets.filter(b => agResults[b.id].result === "miss");
+  const totalWon = hitBets.reduce((a,b) => a + b.toWin, 0);
+  const totalLost = missBets.reduce((a,b) => a + b.stake, 0);
+  const netPL = totalWon - totalLost;
+  const plStr = (netPL >= 0 ? "+" : "") + netPL.toFixed(2) + "u";
+  agLog.push("─────────────────────────────");
+  agLog.push(hitBets.length + "-" + missBets.length + "  " + plStr);
+
   agRunning = false;
   renderAutoGrade();
 }
