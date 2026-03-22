@@ -2029,13 +2029,13 @@
     const apiKey = '9cdb249f-9635-4cca-a998-37c7b98a9372';
     const text = plays[i];
     const parsed = parsePlay(text);
-    if (!parsed) return;
+    if (!parsed) { showManualGrade(i); return; }
 
     try {
       const { direction, line, stat } = parsed;
 
       const player = await getBdlPlayerId(parsed, apiKey);
-      if (!player) return;
+      if (!player) { showManualGrade(i); return; }
 
       const date = getPlaysDate();
       const statsRes = await fetch(
@@ -2043,9 +2043,9 @@
         { headers: { 'Authorization': apiKey } }
       );
       const statsData = await statsRes.json();
-      if (!statsData.data || !statsData.data.length) return;
+      if (!statsData.data || !statsData.data.length) { showManualGrade(i); return; }
       gradeFromStats(i, statsData.data[0], stat, line, direction);
-    } catch(e) {}
+    } catch(e) { showManualGrade(i); }
   }
 
   // ── Summary ──────────────────────────────────────────────────────────
