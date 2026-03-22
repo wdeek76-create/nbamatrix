@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -496,7 +496,7 @@ function renderTable() {
   // Header
   const head = document.getElementById("table-head");
   head.innerHTML = `<tr style="border-bottom:1px solid #252525">${
-    ["PLAYER","POS","TEAM","INJ","TRACK",...SOURCES.map(s=>s.label),STAT_LABEL[sortBy]+" (AVG)"]
+    ["PLAYER","POS","TEAM","INJ","TRACK",...SOURCES.map(s=>s.label),STAT_LABEL[sortBy]+" (AVG)","GAP"]
     .map((h,i)=>{
       const tight = i===1||i===2;
       const style = tight ? 'style="padding:10px 6px;width:50px"' : '';
@@ -535,6 +535,9 @@ function renderTable() {
       return `<td style="padding:8px 12px;text-align:center"><span style="color:#2a2845">—</span></td>`;
     }).join("");
 
+    const gap = presentVals.length >= 2 ? Math.max(...presentVals) - Math.min(...presentVals) : null;
+    const gapColor = gap === null ? '#2a2845' : gap <= 1 ? '#22c55e' : gap <= 2.5 ? '#f59e0b' : '#f87171';
+
     return `<tr class="${i%2===0?'even':'odd'}">
       <td style="padding:8px 12px;font-size:15px;font-weight:600;color:${tc};white-space:nowrap;width:200px">${r.rawName}</td>
       <td style="padding:8px 6px;font-size:14px;font-weight:500;color:#ffffff;text-align:center;width:50px">${r.pos}</td>
@@ -543,6 +546,7 @@ function renderTable() {
       <td style="padding:4px 8px;text-align:center"><button onclick="trackRow(${i})" style="background:#7c3aed22;border:1px solid #7c3aed55;color:#a78bfa;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">TRACK</button></td>
       ${srcCells}
       <td style="padding:8px 12px;font-size:15px;color:${avg!=null?'#ffffff':'#2a2845'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer':''}" ${avg!=null?`onclick="copyVal('${avg.toFixed(2)}')" title="Click to copy"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'—'}</td>
+      <td style="padding:8px 12px;text-align:center;font-size:13px;font-weight:700;color:${gapColor}">${gap!=null?gap.toFixed(2):'—'}</td>
     </tr>`;
   }).join("");
 }
