@@ -1596,8 +1596,13 @@ function updateModalProjDisplay() {
 
     if (lineMatchC && proj) {
       const line = parseFloat(lineMatchC[2]);
+      const dir = lineMatchC[1] === 'o' ? 'over' : 'under';
       const projEdge = Math.abs(proj - line);
-      const projOk = projEdge >= 0.4;
+      // Directional: proj must be on correct side of line
+      // Over bet: proj should be above line (with us)
+      // Under bet: proj should be below line (with us)
+      const projWithUs = dir === 'over' ? proj > line : proj < line;
+      const projOk = projEdge >= 0.4 && projWithUs;
 
       let priceOk = false;
       let evOk = false;
@@ -1620,7 +1625,7 @@ function updateModalProjDisplay() {
       const verdict = passCount === 3 ? '🔒 LOCK' : passCount === 2 ? '✅ OK' : passCount === 1 ? '⚠️ WEAK' : '❌ PASS';
       const vColor = passCount === 3 ? '#00cc66' : passCount === 2 ? '#00aaff' : passCount === 1 ? '#f59e0b' : '#f87171';
       criteriaEl.innerHTML =
-        chip(projOk, 'PROJ EDGE', projEdge.toFixed(2)+' SOG') +
+        chip(projOk, 'PROJ EDGE', projEdge.toFixed(2)+' SOG '+(projWithUs?'✓':'vs you')) +
         chip(priceOk, 'PRICE EDGE', !isNaN(bookOdds)&&!isNaN(fairOdds)?Math.abs(fairOdds-bookOdds)+'¢':'?') +
         chip(evOk, 'EV', !isNaN(bookOdds)&&!isNaN(fairOdds)?((((fairOdds<0?Math.abs(fairOdds)/(Math.abs(fairOdds)+100):100/(fairOdds+100))*(bookOdds<0?1+(100/Math.abs(bookOdds)):1+(bookOdds/100)))-1)*100*0.7).toFixed(1)+'%':'?') +
         `<div style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800;background:${vColor}22;border:1px solid ${vColor}55;color:${vColor};margin-left:auto;">${verdict}</div>`;
