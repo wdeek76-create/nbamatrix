@@ -836,6 +836,34 @@ function renderTracker() {
   const roi          = totalStaked > 0 ? ((netPL / totalStaked) * 100).toFixed(1) : "—";
   const winRate      = settled.length > 0 ? ((hits.length / settled.length) * 100).toFixed(1) : "—";
 
+  // Time period breakdowns
+  const now = new Date();
+  const todayStr = now.toLocaleDateString("en-US");
+  const yesterday = new Date(now - 24*60*60*1000);
+  const yesterdayStr = yesterday.toLocaleDateString("en-US");
+  const weekAgo = new Date(now - 7*24*60*60*1000);
+  const monthAgo = new Date(now - 30*24*60*60*1000);
+
+  function parseBetDate(b) { try { return new Date(b.date); } catch(e) { return null; } }
+
+  function periodStats(filterFn) {
+    const s = settled.filter(filterFn);
+    const h = s.filter(b => b.result === "hit");
+    const m = s.filter(b => b.result === "miss");
+    const won = h.reduce((a,b) => a+b.toWin, 0);
+    const lost = m.reduce((a,b) => a+b.stake, 0);
+    const pl = won - lost;
+    const staked = s.reduce((a,b) => a+b.stake, 0);
+    const wr = s.length > 0 ? ((h.length/s.length)*100).toFixed(1) : "—";
+    const roi = staked > 0 ? ((pl/staked)*100).toFixed(1) : "—";
+    return { h: h.length, m: m.length, total: s.length, pl, wr, roi };
+  }
+
+  const dailyStats     = periodStats(b => b.date === todayStr);
+  const yesterdayStats = periodStats(b => b.date === yesterdayStr);
+  const weeklyStats    = periodStats(b => { const d = parseBetDate(b); return d && d >= weekAgo; });
+  const monthlyStats   = periodStats(b => { const d = parseBetDate(b); return d && d >= monthAgo; });
+
   // Breakdown by stat
   const statBreak = {};
   settled.forEach(b => {
@@ -990,6 +1018,21 @@ function renderTracker() {
             <div class="sc-sub" style="color:${ouBreak.under.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${ouBreak.under.pl>=0?'+':''}${ouBreak.under.pl.toFixed(2)}u</div>
             <div class="sc-sub" style="color:${ouBreak.under.total>0?(ouBreak.under.pl/bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)*100)>=0?'#a78bfa':'#f87171':'#6b6896'};">ROI ${ouBreak.under.total>0?((ouBreak.under.pl/Math.max(0.01,bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)))*100).toFixed(1)+'%':'—'}</div>
           </div>
+        </div>
+      </div>
+
+      <div class="tracker-section">
+        <h4>By Period</h4>
+        <div>
+          ${[['Yesterday', yesterdayStats], ['Last 7 Days', weeklyStats], ['Last 30 Days', monthlyStats]].map(([label, s]) => s.total === 0 ? '' : `
+          <div class="stat-card" style="display:inline-flex">
+            <div class="sc-label">${label}</div>
+            <div class="sc-val" style="color:${Number(s.wr)>=55?'#22c55e':Number(s.wr)<45?'#f87171':'#fff'}">${s.wr}%</div>
+            <div class="sc-sub">${s.h}W · ${s.m}L</div>
+            <div class="sc-sub" style="color:${s.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${s.pl>=0?'+':''}${s.pl.toFixed(2)}u</div>
+            <div class="sc-sub" style="color:#a78bfa;">ROI ${s.roi}%</div>
+          </div>`).join('')}
+          ${yesterdayStats.total === 0 && weeklyStats.total === 0 && monthlyStats.total === 0 ? '<span style="color:#3d3a6b;font-size:13px;">No settled bets yet</span>' : ''}
         </div>
       </div>
 
