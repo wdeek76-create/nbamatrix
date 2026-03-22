@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NBA Slate</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #0d1117;
+      --nav:      #0a0e16;
+      --surface:  #111827;
+      --surface2: #161f2e;
+      --border:   #1e2d42;
+      --border2:  #243349;
+      --teal:     #00c2a8;
+      --teal-dim: #00a08a;
+      --text:     #e8edf5;
+      --muted:    #4a5c78;
+      --dim:      #1e2d42;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); min-height: 100vh; font-family: 'Barlow', sans-serif; color: var(--text); }
+
+    /* ── NAV ── */
+    .topnav {
+      background: var(--nav); border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; align-items: center; justify-content: space-between;
+      height: 62px; position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+    }
+    .nav-left { display: flex; align-items: center; }
+    .brand-logo { width: 30px; height: 30px; object-fit: contain; margin-right: 0.55rem; }
+    .brand-name { font-size: 1.3rem; font-weight: 900; letter-spacing: -0.02em; color: #fff; margin-right: 2.5rem; font-style: italic; text-transform: uppercase; }
+    .brand-name span { color: var(--teal); }
+    .nav-divider { width: 1px; height: 20px; background: var(--border); margin-right: 0.25rem; }
+    .nav-tabs { display: flex; }
+    .nav-tab { padding: 0 1.1rem; height: 62px; display: flex; align-items: center; font-size: 0.82rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.04em; }
+    .nav-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+    .nav-tab:hover:not(.active) { color: #8899bb; }
+    .nav-right { display: flex; align-items: center; gap: 0.75rem; }
+    .date-pill { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 0.38rem 0.9rem; font-size: 0.72rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+    .load-btn { background: var(--teal); color: #000; border: none; border-radius: 6px; padding: 0.52rem 1.4rem; font-size: 0.8rem; font-weight: 800; cursor: pointer; font-family: 'Barlow', sans-serif; transition: all 0.15s; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: 0 2px 14px rgba(0,194,168,0.3); }
+    .load-btn:hover { background: #00dbbf; }
+    .load-btn:disabled { background: var(--dim); color: var(--muted); cursor: not-allowed; box-shadow: none; }
+
+    /* ── MAIN ── */
+    .main { padding: 1.5rem 2rem 5.5rem; max-width: 1100px; margin: 0 auto; }
+
+    .chip-row { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 0.32rem 0.9rem; font-size: 0.72rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+    .chip .hi { color: var(--teal); }
+
+    .time-section { margin-bottom: 0.25rem; }
+    .section-head { display: flex; align-items: center; gap: 0.6rem; margin: 1.75rem 0 0.75rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
+    .section-time { font-size: 0.8rem; font-weight: 800; color: var(--teal); letter-spacing: 0.06em; text-transform: uppercase; }
+    .section-badge { font-size: 0.65rem; font-weight: 700; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.12rem 0.55rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    .day-head { font-size: 0.75rem; font-weight: 800; color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase; margin: 2rem 0 0.75rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .day-head span { color: var(--muted); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 0.7rem; }
+
+    .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.6rem; }
+
+    /* GAME CARD */
+    .game-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+      cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+    .game-card:hover { border-color: var(--teal-dim); box-shadow: 0 0 0 1px rgba(0,194,168,0.1), 0 4px 20px rgba(0,0,0,0.3); transform: translateY(-1px); }
+    .card-hint { font-size: 0.6rem; font-weight: 700; color: var(--dim); text-align: center; padding: 0.35rem; letter-spacing: 0.06em; text-transform: uppercase; border-top: 1px solid var(--border); transition: color 0.15s; }
+    .game-card:hover .card-hint { color: var(--teal); }
+
+    .team-row { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.1rem; }
+    .team-row + .team-row { border-top: 1px solid var(--border); }
+    .tl { display: flex; align-items: center; gap: 0.75rem; }
+    .team-logo { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
+    .team-abbr { font-size: 1.05rem; font-weight: 800; color: var(--text); min-width: 2.8rem; text-transform: uppercase; }
+    .team-city { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+    .away-tag, .home-tag { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; padding: 0.2rem 0.55rem; border-radius: 4px; text-transform: uppercase; flex-shrink: 0; }
+    .away-tag { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
+    .home-tag { background: rgba(0,194,168,0.1); color: var(--teal); border: 1px solid rgba(0,194,168,0.25); }
+
+    .empty { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 4rem 1rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .error-msg { color: #f87171; font-size: 0.78rem; text-align: center; padding: 1rem; display: none; }
+
+    .copy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav); border-top: 1px solid var(--border); padding: 0.75rem 2rem; display: none; align-items: center; justify-content: space-between; gap: 1rem; box-shadow: 0 -4px 20px rgba(0,0,0,0.4); }
+    .copy-info { font-size: 0.72rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .copy-info span { color: var(--teal); }
+    .copy-btn { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); border-radius: 6px; padding: 0.45rem 1.35rem; font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: 'Barlow', sans-serif; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
+    .copy-btn.copied { background: rgba(0,194,168,0.1); color: var(--teal); border-color: rgba(0,194,168,0.35); }
+
+    /* ── ROSTER MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 200; display: none; align-items: center; justify-content: center;
+      padding: 1rem; backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 14px; width: 100%; max-width: 760px;
+      max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--border);
+      background: var(--nav); flex-shrink: 0;
+    }
+    .modal-title { display: flex; align-items: center; gap: 0.75rem; }
+    .modal-logos { display: flex; align-items: center; gap: 0.3rem; }
+    .modal-logo { width: 28px; height: 28px; object-fit: contain; }
+    .modal-matchup { font-size: 1rem; font-weight: 800; color: #fff; letter-spacing: 0.02em; text-transform: uppercase; }
+    .modal-time { font-size: 0.7rem; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+    .modal-close { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-family: 'Barlow', sans-serif; }
+    .modal-close:hover { color: #fff; border-color: var(--muted); }
+
+    .modal-body { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; flex: 1; }
+    .roster-col { overflow-y: auto; }
+    .roster-col + .roster-col { border-left: 1px solid var(--border); }
+    .roster-col-header {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--surface2); z-index: 1;
+    }
+    .roster-logo { width: 24px; height: 24px; object-fit: contain; }
+    .roster-team-name { font-size: 0.78rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.04em; }
+    .roster-tag { font-size: 0.55rem; font-weight: 800; padding: 0.12rem 0.4rem; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .roster-tag.away { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .roster-tag.home { background: rgba(0,194,168,0.12); color: var(--teal); border: 1px solid rgba(0,194,168,0.3); }
+
+    .player-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.6rem 1.1rem; border-bottom: 1px solid #0f1825;
+      transition: background 0.1s;
+    }
+    .player-row:hover { background: var(--surface2); }
+    .player-left { display: flex; align-items: center; gap: 0.6rem; }
+    .player-num { font-size: 0.7rem; font-weight: 700; color: var(--muted); min-width: 1.5rem; text-align: center; }
+    .player-name { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+    .player-pos { font-size: 0.62rem; font-weight: 700; color: var(--teal); background: rgba(0,194,168,0.08); border: 1px solid rgba(0,194,168,0.2); border-radius: 3px; padding: 0.1rem 0.35rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    .roster-loading { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+    .roster-empty { padding: 1.5rem; text-align: center; color: var(--dim); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .mobile-tabs { display: none; }
+    @media (max-width: 640px) {
+      .nav-tabs { display: none; }
+      .main { padding: 1rem 1rem 5.5rem; }
+      .topnav { padding: 0 1rem; }
+      .games-grid { grid-template-columns: 1fr; }
+      .copy-bar { padding: 0.75rem 1rem; }
+      .modal-body { grid-template-columns: 1fr; }
+      .roster-col + .roster-col { border-left: none; border-top: 1px solid var(--border); }
+      .mobile-tabs { display: flex; background: var(--nav); border-bottom: 1px solid var(--border); padding: 0 1rem; }
+      .mobile-tab { flex: 1; padding: 0.75rem 0; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.15s; }
+      .mobile-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topnav">
+  <div class="nav-left">
+    <img class="brand-logo" src="nba-logo.png" alt="NBA" onerror="this.style.display='none'">
+    <div class="brand-name">NBA&nbsp;<span>Slate</span></div>
+    <div class="nav-divider"></div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="switchView('daily')">The Board</div>
+      <div class="nav-tab" onclick="switchView('weekly')">This Week</div>
+      <div class="nav-tab" onclick="switchView('monthly')">This Month</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="date-pill" id="date-badge">—</div>
+    <button class="load-btn" id="fetch-btn" onclick="fetchSlate()">Load Slate</button>
+  </div>
+</div>
+
+<div class="mobile-tabs" id="mobile-tabs">
+  <div class="mobile-tab active" onclick="switchView('daily')">The Board</div>
+  <div class="mobile-tab" onclick="switchView('weekly')">This Week</div>
+  <div class="mobile-tab" onclick="switchView('monthly')">This Month</div>
+</div>
+
+<div class="main">
+  <div class="chip-row" id="chip-row" style="display:none">
+    <div class="chip" id="chip-games">—</div>
+    <div class="chip" id="chip-date">—</div>
+  </div>
+  <div class="error-msg" id="error"></div>
+  <div id="games-container"><div class="empty">Load Slate to pull today's schedule</div></div>
+</div>
+
+<div class="copy-bar" id="copy-bar">
+  <div class="copy-info" id="copy-info">—</div>
+  <button class="copy-btn" id="copy-btn" onclick="copySlate()">Copy as Text</button>
+</div>
+
+<!-- ROSTER MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <div class="modal-logos" id="modal-logos"></div>
+        <div>
+          <div class="modal-matchup" id="modal-matchup">—</div>
+          <div class="modal-time" id="modal-time">—</div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="roster-col" id="roster-away"></div>
+      <div class="roster-col" id="roster-home"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_KEY = "9cdb249f-9635-4cca-a998-37c7b98a9372";
+  let currentView = "daily";
+  let currentSlate = "";
+
+  const TEAM_INFO = {
+    ATL:{city:"Atlanta"},BOS:{city:"Boston"},BKN:{city:"Brooklyn"},CHA:{city:"Charlotte"},
+    CHI:{city:"Chicago"},CLE:{city:"Cleveland"},DAL:{city:"Dallas"},DEN:{city:"Denver"},
+    DET:{city:"Detroit"},GSW:{city:"Golden State"},HOU:{city:"Houston"},IND:{city:"Indiana"},
+    LAC:{city:"LA"},LAL:{city:"LA"},MEM:{city:"Memphis"},MIA:{city:"Miami"},
+    MIL:{city:"Milwaukee"},MIN:{city:"Minnesota"},NOP:{city:"New Orleans"},NYK:{city:"New York"},
+    OKC:{city:"Oklahoma City"},ORL:{city:"Orlando"},PHI:{city:"Philadelphia"},PHX:{city:"Phoenix"},
+    POR:{city:"Portland"},SAC:{city:"Sacramento"},SAS:{city:"San Antonio"},TOR:{city:"Toronto"},
+    UTA:{city:"Utah"},WAS:{city:"Washington"}
+  };
+
+  // BDL team IDs
+  const TEAM_IDS = {
+    ATL:1,BOS:2,BKN:17,CHA:30,CHI:4,CLE:5,DAL:6,DEN:7,DET:8,GSW:9,
+    HOU:10,IND:11,LAC:12,LAL:13,MEM:29,MIA:14,MIL:15,MIN:16,NOP:3,NYK:18,
+    OKC:25,ORL:19,PHI:20,PHX:21,POR:22,SAC:23,SAS:24,TOR:28,UTA:26,WAS:27
+  };
+
+  const logoUrl = a => `https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/${a.toLowerCase()}.png`;
+  const pad = n => String(n).padStart(2,"0");
+  const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  function getParams() {
+    const t = new Date();
+    if (currentView==="daily") return "dates[]="+fmtDate(t)+"&per_page=100";
+    if (currentView==="weekly") {
+      const s=new Date(t); s.setDate(t.getDate()-t.getDay());
+      const e=new Date(s); e.setDate(s.getDate()+6);
+      return "start_date="+fmtDate(s)+"&end_date="+fmtDate(e)+"&per_page=100";
+    }
+    const y=t.getFullYear(),m=t.getMonth();
+    return "start_date="+fmtDate(new Date(y,m,1))+"&end_date="+fmtDate(new Date(y,m+1,0))+"&per_page=100";
+  }
+
+  function getDateLabel() {
+    const t = new Date();
+    if (currentView==="daily") return t.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+    if (currentView==="weekly") {
+      const s=new Date(t); s.setDate(t.getDate()-t.getDay());
+      const e=new Date(s); e.setDate(s.getDate()+6);
+      return s.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" – "+e.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    }
+    return t.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+  }
+
+  function getTime(dt) {
+    if (!dt) return "TBD";
+    return new Date(dt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York",hour12:true});
+  }
+  function toMin(t) {
+    if (!t||t==="TBD") return 9999;
+    const p=t.split(" "); let [h,m]=p[0].split(":").map(Number);
+    if(p[1]==="PM"&&h!==12)h+=12; if(p[1]==="AM"&&h===12)h=0; return h*60+m;
+  }
+  function parseDayLabel(ds) {
+    const [y,mo,d]=ds.split("-").map(Number);
+    return new Date(y,mo-1,d).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  }
+
+  function buildSlateText(games) {
+    const label = getDateLabel();
+    if (!games.length) return "NBA Slate - "+label+"\n0 Games";
+    if (currentView==="daily") {
+      const bt={};
+      for(const g of games){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g.visitor_team.abbreviation+" @ "+g.home_team.abbreviation);}
+      const times=Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b));
+      let out="NBA Slate - "+label+"\n"+games.length+" Games\n";
+      for(const t of times){out+="\n"+t+" ET  ("+bt[t].length+" game"+(bt[t].length!==1?"s":"")+")\n"+bt[t].join("\n")+"\n";}
+      return out.trim();
+    }
+    const bd={};
+    for(const g of games){if(!bd[g.date])bd[g.date]=[];bd[g.date].push(g);}
+    let out="NBA Slate - "+label+"\n"+games.length+" Games\n";
+    for(const day of Object.keys(bd).sort()){
+      const gs=bd[day].sort((a,b)=>toMin(getTime(a.datetime))-toMin(getTime(b.datetime)));
+      out+="\n── "+parseDayLabel(day)+" ("+gs.length+" games) ──\n";
+      const bt={};
+      for(const g of gs){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g.visitor_team.abbreviation+" @ "+g.home_team.abbreviation);}
+      for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))){out+=t+" ET\n"+bt[t].join("\n")+"\n";}
+    }
+    return out.trim();
+  }
+
+  function gameCard(g) {
+    const away=g.visitor_team.abbreviation, home=g.home_team.abbreviation;
+    const awayCity=(TEAM_INFO[away]||{city:away}).city;
+    const homeCity=(TEAM_INFO[home]||{city:home}).city;
+    const time=getTime(g.datetime);
+    const gameData = encodeURIComponent(JSON.stringify({away,home,time,awayId:g.visitor_team.id,homeId:g.home_team.id}));
+    return `<div class="game-card" onclick="openRoster('${gameData}')">
+      <div class="team-row">
+        <div class="tl">
+          <img class="team-logo" src="${logoUrl(away)}" onerror="this.style.display='none'" alt="${away}">
+          <span class="team-abbr">${away}</span>
+          <span class="team-city">${awayCity}</span>
+        </div>
+        <span class="away-tag">Away</span>
+      </div>
+      <div class="team-row">
+        <div class="tl">
+          <img class="team-logo" src="${logoUrl(home)}" onerror="this.style.display='none'" alt="${home}">
+          <span class="team-abbr">${home}</span>
+          <span class="team-city">${homeCity}</span>
+        </div>
+        <span class="home-tag">Home</span>
+      </div>
+      <div class="card-hint">Click to view rosters</div>
+    </div>`;
+  }
+
+  function renderTimeGroup(time, games) {
+    return `<div class="time-section">
+      <div class="section-head">
+        <div class="section-time">${time} ET</div>
+        <div class="section-badge">${games.length} game${games.length!==1?"s":""}</div>
+      </div>
+      <div class="games-grid">${games.map(gameCard).join("")}</div>
+    </div>`;
+  }
+
+  function renderGames(games) {
+    const c = document.getElementById("games-container");
+    c.innerHTML = "";
+    if (!games.length) { c.innerHTML=`<div class="empty">No games scheduled</div>`; return; }
+    if (currentView==="daily") {
+      const bt={};
+      for(const g of games){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g);}
+      for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))) c.innerHTML+=renderTimeGroup(t,bt[t]);
+    } else {
+      const bd={};
+      for(const g of games){if(!bd[g.date])bd[g.date]=[];bd[g.date].push(g);}
+      for(const day of Object.keys(bd).sort()){
+        const gs=bd[day].sort((a,b)=>toMin(getTime(a.datetime))-toMin(getTime(b.datetime)));
+        c.innerHTML+=`<div class="day-head">${parseDayLabel(day)}<span>${gs.length} games</span></div>`;
+        const bt={};
+        for(const g of gs){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g);}
+        for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))) c.innerHTML+=renderTimeGroup(t,bt[t]);
+      }
+    }
+  }
+
+  // ── ROSTER MODAL ──
+  async function openRoster(encoded) {
+    const g = JSON.parse(decodeURIComponent(encoded));
+    const overlay = document.getElementById("modal-overlay");
+
+    // Set header
+    document.getElementById("modal-matchup").textContent = `${g.away} vs ${g.home}`;
+    document.getElementById("modal-time").textContent = `${g.time} ET`;
+    document.getElementById("modal-logos").innerHTML = `
+      <img class="modal-logo" src="${logoUrl(g.away)}" onerror="this.style.display='none'" alt="${g.away}">
+      <span style="color:var(--muted);font-size:0.75rem;font-weight:700;margin:0 0.2rem">@</span>
+      <img class="modal-logo" src="${logoUrl(g.home)}" onerror="this.style.display='none'" alt="${g.home}">
+    `;
+
+    // Show loading
+    document.getElementById("roster-away").innerHTML = rosterColHeader(g.away, "away") + `<div class="roster-loading">Loading...</div>`;
+    document.getElementById("roster-home").innerHTML = rosterColHeader(g.home, "home") + `<div class="roster-loading">Loading...</div>`;
+    overlay.classList.add("open");
+    document.body.style.overflow = "hidden";
+
+    // Fetch both rosters in parallel
+    const [awayPlayers, homePlayers] = await Promise.all([
+      fetchRoster(g.awayId),
+      fetchRoster(g.homeId)
+    ]);
+
+    document.getElementById("roster-away").innerHTML = rosterColHeader(g.away, "away") + renderRoster(awayPlayers);
+    document.getElementById("roster-home").innerHTML = rosterColHeader(g.home, "home") + renderRoster(homePlayers);
+  }
+
+  function rosterColHeader(abbr, type) {
+    const city = (TEAM_INFO[abbr]||{city:abbr}).city;
+    return `<div class="roster-col-header">
+      <img class="roster-logo" src="${logoUrl(abbr)}" onerror="this.style.display='none'" alt="${abbr}">
+      <span class="roster-team-name">${city} ${abbr}</span>
+      <span class="roster-tag ${type}">${type}</span>
+    </div>`;
+  }
+
+  async function fetchRoster(teamId) {
+    try {
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/players/active?team_ids[]=${teamId}&per_page=100`,
+        { headers: { Authorization: API_KEY } }
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.data||[]).sort((a,b)=> (a.last_name||"").localeCompare(b.last_name||""));
+    } catch { return []; }
+  }
+
+  function renderRoster(players) {
+    if (!players.length) return `<div class="roster-empty">No roster data</div>`;
+    return players.map(p => `
+      <div class="player-row">
+        <div class="player-left">
+          <span class="player-num">${p.jersey_number||"—"}</span>
+          <span class="player-name">${p.first_name} ${p.last_name}</span>
+        </div>
+        <span class="player-pos">${p.position||"—"}</span>
+      </div>
+    `).join("");
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById("modal-overlay")) closeModalDirect();
+  }
+  function closeModalDirect() {
+    document.getElementById("modal-overlay").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+  document.addEventListener("keydown", e => { if(e.key==="Escape") closeModalDirect(); });
+
+  // ── SLATE ──
+  function switchView(v) {
+    currentView=v;
+    document.querySelectorAll(".nav-tab").forEach((b,i)=>b.classList.toggle("active",["daily","weekly","monthly"][i]===v));
+    document.querySelectorAll(".mobile-tab").forEach((b,i)=>b.classList.toggle("active",["daily","weekly","monthly"][i]===v));
+    document.getElementById("fetch-btn").textContent="Load Slate";
+    document.getElementById("games-container").innerHTML=`<div class="empty">Load Slate to pull the schedule</div>`;
+    document.getElementById("copy-bar").style.display="none";
+    document.getElementById("error").style.display="none";
+    document.getElementById("chip-row").style.display="none";
+    document.getElementById("date-badge").textContent=getDateLabel();
+    currentSlate="";
+  }
+
+  async function fetchSlate() {
+    const btn=document.getElementById("fetch-btn");
+    const errEl=document.getElementById("error");
+    const copyBar=document.getElementById("copy-bar");
+    btn.disabled=true; btn.textContent="Loading...";
+    errEl.style.display="none"; copyBar.style.display="none";
+    document.getElementById("games-container").innerHTML=`<div class="empty" style="color:#1e2d42">Fetching games...</div>`;
+    try {
+      const res=await fetch("https://api.balldontlie.io/nba/v1/games?"+getParams(),{headers:{Authorization:API_KEY}});
+      if(!res.ok) throw new Error("API error "+res.status);
+      const data=await res.json();
+      const games=data.data||[];
+      currentSlate=buildSlateText(games);
+      renderGames(games);
+      document.getElementById("chip-games").innerHTML=`<span class="hi">${games.length}</span> Games`;
+      document.getElementById("chip-date").textContent=getDateLabel();
+      document.getElementById("chip-row").style.display="flex";
+      document.getElementById("copy-info").innerHTML=`<span>${games.length} games</span> · ${getDateLabel()}`;
+      copyBar.style.display="flex";
+      btn.textContent="Refresh";
+      document.getElementById("date-badge").textContent=getDateLabel();
+    } catch(e) {
+      errEl.textContent="Failed: "+e.message; errEl.style.display="block";
+      btn.textContent="Load Slate";
+      document.getElementById("games-container").innerHTML=`<div class="empty">Could not load games</div>`;
+    }
+    btn.disabled=false;
+  }
+
+  function copySlate() {
+    navigator.clipboard.writeText(currentSlate);
+    const btn=document.getElementById("copy-btn");
+    btn.textContent="✓ Copied!"; btn.classList.add("copied");
+    setTimeout(()=>{btn.textContent="Copy as Text";btn.classList.remove("copied");},2000);
+  }
+
+  document.getElementById("date-badge").textContent=getDateLabel();
+</script>
+</body>
+</html>
