@@ -239,18 +239,18 @@
     .stat-row:hover { background: var(--surface2); }
     .stat-left { display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1; overflow: hidden; }
     .stat-num { font-size: 0.78rem; color: var(--muted); min-width: 1.5rem; text-align: center; }
-    .stat-name { font-size: 1.05rem; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 8px rgba(255,255,255,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+    .stat-name { font-size: 0.95rem; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 8px rgba(255,255,255,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
     .stat-pos-badge { font-size: 0.62rem; color: var(--teal); background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.25); border-radius: 3px; padding: 0.1rem 0.4rem; flex-shrink: 0; }
-    .stat-nums { display: flex; gap: 0.85rem; align-items: center; flex-shrink: 0; }
-    .stat-item { display: flex; flex-direction: column; align-items: center; min-width: 2.2rem; }
-    .stat-val { font-size: 1.1rem; color: #fff; letter-spacing: 0.03em; }
+    .stat-nums { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
+    .stat-item { display: flex; flex-direction: column; align-items: center; min-width: 1.8rem; }
+    .stat-val { font-size: 1rem; color: #fff; letter-spacing: 0.03em; }
     .stat-val.big { color: var(--teal); text-shadow: 0 0 10px rgba(0,245,196,0.6); }
     .stat-lbl { font-size: 0.52rem; color: var(--muted); letter-spacing: 0.06em; margin-top: 0.05rem; display: none; }
-    .stat-min { font-size: 0.78rem; color: var(--muted); min-width: 3rem; text-align: right; letter-spacing: 0.03em; }
-    .stat-col-header { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 1.1rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+    .stat-min { font-size: 0.75rem; color: var(--muted); min-width: 2.8rem; text-align: right; letter-spacing: 0.03em; }
+    .stat-col-header { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 0.85rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
     .stat-col-name { flex: 1; }
-    .stat-col-nums { display: flex; align-items: center; gap: 0.85rem; }
-    .stat-col-lbl { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.1em; min-width: 2.2rem; text-align: center; }
+    .stat-col-nums { display: flex; align-items: center; gap: 0.5rem; }
+    .stat-col-lbl { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.08em; min-width: 1.8rem; text-align: center; }
     .stat-row.hnp { opacity: 0.35; }
 
     /* ── INJURY STYLES ── */
@@ -924,7 +924,7 @@
         <div class="stat-col-lbl">AST</div>
         <div class="stat-col-lbl">3PM</div>
         <div class="stat-col-lbl">PRA</div>
-        <div class="stat-col-lbl" style="min-width:2.5rem;text-align:right">MIN</div>
+        <div class="stat-col-lbl" style="min-width:2.8rem;text-align:right">MIN</div>
       </div>
     </div>`;
     return header + stats.map(s => {
