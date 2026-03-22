@@ -99,7 +99,7 @@
     .modal-overlay.open { display: flex; }
     .modal {
       background: var(--surface); border: 1px solid var(--border2);
-      border-radius: 14px; width: 100%; max-width: 760px;
+      border-radius: 14px; width: 100%; max-width: 860px;
       max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
       box-shadow: 0 20px 60px rgba(0,0,0,0.6);
     }
@@ -125,21 +125,29 @@
       position: sticky; top: 0; background: var(--surface2); z-index: 1;
     }
     .roster-logo { width: 24px; height: 24px; object-fit: contain; }
-    .roster-team-name { font-size: 0.78rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.04em; }
+    .roster-team-name { font-size: 0.88rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.04em; }
     .roster-tag { font-size: 0.55rem; font-weight: 800; padding: 0.12rem 0.4rem; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
     .roster-tag.away { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
     .roster-tag.home { background: rgba(0,194,168,0.12); color: var(--teal); border: 1px solid rgba(0,194,168,0.3); }
 
     .player-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0.6rem 1.1rem; border-bottom: 1px solid #0f1825;
+      padding: 0.85rem 1.25rem; border-bottom: 1px solid #0d1520;
       transition: background 0.1s;
     }
     .player-row:hover { background: var(--surface2); }
-    .player-left { display: flex; align-items: center; gap: 0.6rem; }
-    .player-num { font-size: 0.7rem; font-weight: 700; color: var(--muted); min-width: 1.5rem; text-align: center; }
-    .player-name { font-size: 0.82rem; font-weight: 600; color: var(--text); }
-    .player-pos { font-size: 0.62rem; font-weight: 700; color: var(--teal); background: rgba(0,194,168,0.08); border: 1px solid rgba(0,194,168,0.2); border-radius: 3px; padding: 0.1rem 0.35rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .player-left { display: flex; align-items: center; gap: 0.75rem; }
+    .player-num { font-size: 0.78rem; font-weight: 800; color: var(--muted); min-width: 1.75rem; text-align: center; }
+    .player-name { font-size: 0.95rem; font-weight: 700; color: var(--text); margin-right: 0.5rem; }
+    .player-pos {
+      font-size: 0.62rem; font-weight: 800;
+      color: #00ffdd;
+      background: rgba(0,255,221,0.1);
+      border: 1px solid rgba(0,255,221,0.35);
+      border-radius: 4px; padding: 0.15rem 0.45rem;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .player-name-pos { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
     .roster-loading { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
     .roster-empty { padding: 1.5rem; text-align: center; color: var(--dim); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -421,9 +429,11 @@
       <div class="player-row">
         <div class="player-left">
           <span class="player-num">${p.jersey_number||"—"}</span>
-          <span class="player-name">${p.first_name} ${p.last_name}</span>
+          <div class="player-name-pos">
+            <span class="player-name">${p.first_name} ${p.last_name}</span>
+            <span class="player-pos">${p.position||"—"}</span>
+          </div>
         </div>
-        <span class="player-pos">${p.position||"—"}</span>
       </div>
     `).join("");
   }
