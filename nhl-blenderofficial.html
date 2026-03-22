@@ -327,17 +327,27 @@ function getFairProb(lam,line,ou){
   const sigma=Math.sqrt(lam*1.30);
   const z=(line-lam)/sigma;
   const pU=normCDF(z);
-  const raw=ou==='under'?pU:1-pU;
-  // Shrinkage toward 50% increases with line distance from projection
-  // 2.5 line → 88% model (tight)
-  // 3.5 line → 80% model (medium)
-  // 4.5 line → 72% model (conservative)
-  // 5.5+ line → 65% model (very conservative)
+  let raw=ou==='under'?pU:1-pU;
+
+  // Under/Over asymmetry:
+  // Unders: +2% boost (books shade overs, models overproject volume, ice time risk hurts overs)
+  // Overs:  -5% discount (tail risk bigger than model assumes, line script risk)
+  // Line adjustment: ≥3.5 further benefits unders, ≤1.5 slightly helps overs
+  if (ou==='under') {
+    const lineBoost = line >= 3.5 ? 1.03 : 1.02;
+    raw = Math.min(raw * lineBoost, 0.97);
+  } else {
+    const lineDiscount = line >= 3.5 ? 0.93 : line <= 1.5 ? 0.97 : 0.95;
+    raw = raw * lineDiscount;
+  }
+
+  // Line-specific shrinkage toward 50%
   let shrink;
   if (line <= 2.5)      shrink = 0.88;
   else if (line <= 3.5) shrink = 0.80;
   else if (line <= 4.5) shrink = 0.72;
   else                  shrink = 0.65;
+
   return shrink*raw + (1-shrink)*0.5;
 }
 
@@ -348,7 +358,7 @@ function p2american(p){
 
 function getEV(prob,odds){
   const dec=odds<0?1+(100/Math.abs(odds)):1+(odds/100);
-  return((prob*dec)-1)*100;
+  return((prob*dec)-1)*100*0.7; // 0.7 shrink for real market alignment
 }
 
 function runBlend(){
@@ -1225,7 +1235,7 @@ function calcEdge(bookOdds, fairOdds) {
   const bookDecimal = oddsToDecimal(bookOdds);
   if (fairProb == null || bookDecimal == null) return null;
   // EV% = (fair_prob * book_decimal_odds) - 1
-  return ((fairProb * bookDecimal) - 1) * 100;
+  return ((fairProb * bookDecimal) - 1) * 100 * 0.7;
 }
 
 
@@ -1503,7 +1513,7 @@ function updateModalProjDisplay() {
 
     if (!isNaN(odds)) {
       const bookDec = odds < 0 ? 1+(100/Math.abs(odds)) : 1+(odds/100);
-      const ev = ((fp * bookDec) - 1) * 100;
+      const ev = ((fp * bookDec) - 1) * 100 * 0.7;
       const evColor = ev >= 5 ? '#00cc66' : '#f87171';
       const bg = ev >= 5 ? '#00cc6615' : '#f8717115';
       const border = ev >= 5 ? '#00cc6644' : '#f8717133';
@@ -1544,10 +1554,12 @@ function updateModalProjDisplay() {
         if (!proj) return false;
         const fp = getFairProb(proj, line, dir);
         const bookDec = odds < 0 ? 1+(100/Math.abs(odds)) : 1+(odds/100);
-        return ((fp * bookDec) - 1) * 100 >= 5;
+        const rawEv = ((fp * bookDec) - 1) * 100 * 0.7;
+        const threshold = dir === 'over' ? 7 : 5;
+        return rawEv >= threshold;
       }).length;
       const agreeColor = agreeReal >= 3 ? '#00cc66' : agreeReal >= 2 ? '#00aaff' : '#f87171';
-      agreeEl.innerHTML = '<span style="color:' + agreeColor + '">' + agreeReal + '/' + total + ' sources ≥5% EV</span>' +
+      agreeEl.innerHTML = '<span style="color:' + agreeColor + '">' + agreeReal + '/' + total + ' sources ≥EV</span>' +
         (agreeReal >= 3 ? ' <span style="color:#00cc66">✓ STRONG</span>' : agreeReal >= 2 ? ' <span style="color:#00aaff">· OK</span>' : ' <span style="color:#f87171">· WEAK</span>');
     } else {
       agreeEl.textContent = '';
@@ -1567,6 +1579,53 @@ function updateModalProjDisplay() {
       const fp = getFairProb(projs.blend, line, dir);
       const fo = p2american(fp);
       if (fo != null) fairEl.value = fo;
+    }
+  }
+
+  // Bet criteria check
+  const criteriaEl = document.getElementById('bet-criteria');
+  if (criteriaEl) {
+    const lineElC = document.getElementById('modal-line');
+    const oddsElC = document.getElementById('modal-odds');
+    const fairElC = document.getElementById('modal-fair');
+    const lineRawC = lineElC ? lineElC.value.trim().toLowerCase() : '';
+    const lineMatchC = lineRawC.match(/^([ou])[\s]?([\d.]+)$/);
+    const proj = window._modalProj;
+    const bookOdds = parseInt(oddsElC ? oddsElC.value : '');
+    const fairOdds = parseInt(fairElC ? fairElC.value : '');
+
+    if (lineMatchC && proj) {
+      const line = parseFloat(lineMatchC[2]);
+      const projEdge = Math.abs(proj - line);
+      const projOk = projEdge >= 0.4;
+
+      let priceOk = false;
+      let evOk = false;
+      if (!isNaN(bookOdds) && !isNaN(fairOdds)) {
+        // Price edge: difference in implied prob * 100 (cents)
+        const fairProb = fairOdds < 0 ? Math.abs(fairOdds)/(Math.abs(fairOdds)+100) : 100/(fairOdds+100);
+        const bookProb = bookOdds < 0 ? Math.abs(bookOdds)/(Math.abs(bookOdds)+100) : 100/(bookOdds+100);
+        const cents = Math.abs(fairOdds - bookOdds);
+        priceOk = cents >= 20;
+        const bookDec = bookOdds < 0 ? 1+(100/Math.abs(bookOdds)) : 1+(bookOdds/100);
+        const ev = ((fairProb * bookDec) - 1) * 100 * 0.7;
+        evOk = ev >= 5;
+      }
+
+      const chip = (ok, label, val) => `<div style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;
+        background:${ok?'#00cc6622':'#f8717122'};border:1px solid ${ok?'#00cc6655':'#f8717155'};
+        color:${ok?'#00cc66':'#f87171'};">${ok?'✓':'✗'} ${label}${val?': '+val:''}</div>`;
+
+      const passCount = [projOk, priceOk, evOk].filter(Boolean).length;
+      const verdict = passCount === 3 ? '🔒 LOCK' : passCount === 2 ? '✅ OK' : passCount === 1 ? '⚠️ WEAK' : '❌ PASS';
+      const vColor = passCount === 3 ? '#00cc66' : passCount === 2 ? '#00aaff' : passCount === 1 ? '#f59e0b' : '#f87171';
+      criteriaEl.innerHTML =
+        chip(projOk, 'PROJ EDGE', projEdge.toFixed(2)+' SOG') +
+        chip(priceOk, 'PRICE EDGE', !isNaN(bookOdds)&&!isNaN(fairOdds)?Math.abs(fairOdds-bookOdds)+'¢':'?') +
+        chip(evOk, 'EV', !isNaN(bookOdds)&&!isNaN(fairOdds)?((((fairOdds<0?Math.abs(fairOdds)/(Math.abs(fairOdds)+100):100/(fairOdds+100))*(bookOdds<0?1+(100/Math.abs(bookOdds)):1+(bookOdds/100)))-1)*100*0.7).toFixed(1)+'%':'?') +
+        `<div style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800;background:${vColor}22;border:1px solid ${vColor}55;color:${vColor};margin-left:auto;">${verdict}</div>`;
+    } else {
+      criteriaEl.innerHTML = '';
     }
   }
 }
@@ -1649,6 +1708,7 @@ function setProjSrc(src) {
     <div id="ev-breakdown" style="margin-bottom:10px;">
       <div id="ev-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:6px;"></div>
       <div id="ev-agree" style="font-size:12px;font-weight:700;"></div>
+      <div id="bet-criteria" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"></div>
     </div>
     <div id="modal-stake-preview"></div>
     <div class="modal-btns">
