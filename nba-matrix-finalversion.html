@@ -921,15 +921,13 @@ function renderTracker() {
   const pct = (h,t) => t > 0 ? `${((h/t)*100).toFixed(0)}%` : "—";
 
   const statCards = (obj) => Object.entries(obj).map(([k,v]) => {
-    const avgStake = v.total > 0 ? (v.pl + v.total) / v.total : 1;
-    const staked = settled.filter(b => obj[b.stat || b.book] === v || (b.stat===k||b.book===k)).reduce((a,b)=>a+b.stake, 0) || v.total;
+    const staked = settled.filter(b => b.stat===k||b.book===k).reduce((a,b)=>a+b.stake, 0) || v.total;
     const roi = v.total>0 ? ((v.pl/Math.max(0.01,staked))*100).toFixed(1) : '—';
     return `<div class="stat-card">
       <div class="sc-label">${k}</div>
-      <div class="sc-val">${pct(v.hits,v.total)}</div>
-      <div class="sc-sub">${v.hits}/${v.total}</div>
+      <div class="sc-val" style="color:${roi==='—'?'#fff':Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'}</div>
       <div class="sc-sub" style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
-      <div class="sc-sub" style="color:${Number(roi)>=0?'#a78bfa':'#f87171'};">ROI ${roi !== '—' ? roi+'%' : '—'}</div>
+      <div class="sc-sub">${pct(v.hits,v.total)} · ${v.hits}W ${v.total-v.hits}L</div>
     </div>`;}).join("");
 
   const betSearch = (document.getElementById("bet-search")?.value || "").toLowerCase();
@@ -1002,7 +1000,7 @@ function renderTracker() {
           <div class="stat-card" style="display:inline-flex">
             <div class="sc-label">ROI</div>
             <div class="sc-val" style="color:${Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'}</div>
-            <div class="sc-sub">settled bets</div>
+            <div class="sc-sub">${settled.length} settled bets</div>
           </div>
           <div class="stat-card" style="display:inline-flex">
             <div class="sc-label">Over</div>
