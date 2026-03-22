@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -238,17 +238,17 @@
       transition: background 0.1s; min-width: 0; overflow: hidden;
     }
     .stat-row:hover { background: var(--surface2); }
-    .stat-left { display: flex; align-items: center; gap: 0.5rem; width: 155px; flex-shrink: 0; overflow: hidden; }
+    .stat-left { display: flex; align-items: center; gap: 0.5rem; flex: 1; overflow: hidden; }
     .stat-num { font-size: 0.78rem; color: var(--muted); min-width: 1.5rem; text-align: center; }
     .stat-name { font-size: 0.95rem; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 8px rgba(255,255,255,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
     .stat-name.expanded { max-width: 220px; color: var(--teal); text-shadow: 0 0 8px rgba(0,245,196,0.4); }
     .stat-pos-badge { font-size: 0.62rem; color: var(--teal); background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.25); border-radius: 3px; padding: 0.1rem 0.4rem; flex-shrink: 0; }
-    .stat-nums { display: grid; grid-template-columns: 2.8rem 2.8rem 2.8rem 2.8rem 2.8rem 3.5rem; }
-    .stat-item { display: flex; flex-direction: column; align-items: center; }
+    .stat-nums { display: flex; align-items: center; gap: 1.25rem; flex-shrink: 0; }
+    .stat-item { display: flex; flex-direction: column; align-items: center; min-width: 1.5rem; text-align: center; }
     .stat-val { font-size: 1rem; color: #fff; letter-spacing: 0.03em; }
     .stat-val.big { color: var(--teal); text-shadow: 0 0 10px rgba(0,245,196,0.6); }
-    .stat-lbl { font-size: 0.52rem; color: var(--muted); letter-spacing: 0.06em; margin-top: 0.05rem; display: none; }
-    .stat-min { font-size: 0.75rem; color: var(--muted); text-align: right; letter-spacing: 0.03em; }
+    .stat-lbl { font-size: 0.52rem; color: var(--muted); letter-spacing: 0.06em; margin-top: 0.05rem; }
+    .stat-min { font-size: 0.75rem; color: var(--muted); min-width: 3rem; text-align: right; letter-spacing: 0.03em; }
     .stat-col-header { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 0.85rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
     .stat-col-name { flex: 1; }
     .stat-col-nums { display: flex; align-items: center; gap: 0.5rem; }
@@ -918,17 +918,7 @@
 
   function renderStats(stats) {
     if (!stats.length) return `<div class="roster-empty">No stats yet</div>`;
-    const header = `<div class="stat-col-header">
-      <div class="stat-col-name" style="width:155px;flex-shrink:0"></div>
-      <div class="stat-col-nums" style="display:grid;grid-template-columns:2.8rem 2.8rem 2.8rem 2.8rem 2.8rem 3.5rem;">
-        <div class="stat-col-lbl">PTS</div>
-        <div class="stat-col-lbl">REB</div>
-        <div class="stat-col-lbl">AST</div>
-        <div class="stat-col-lbl">3PM</div>
-        <div class="stat-col-lbl">PRA</div>
-        <div class="stat-col-lbl" style="min-width:2.8rem;text-align:right">MIN</div>
-      </div>
-    </div>`;
+    const header = ``;
     return header + stats.map(s => {
       const p = s.player || {};
       const pts = s.pts||0, reb = s.reb||0, ast = s.ast||0;
@@ -958,11 +948,11 @@
         </div>
         <div class="stat-nums">
           ${hnp ? `<span class="stat-hnp">HNP</span>` : `
-          <div class="stat-item"><div class="stat-val${pts>=20?" big":""}">${pts}</div></div>
-          <div class="stat-item"><div class="stat-val${reb>=10?" big":""}">${reb}</div></div>
-          <div class="stat-item"><div class="stat-val${ast>=8?" big":""}">${ast}</div></div>
-          <div class="stat-item"><div class="stat-val${fg3m>=3?" big":""}">${fg3m}</div></div>
-          <div class="stat-item"><div class="stat-val${pra>=30?" big":""}">${pra}</div></div>
+          <div class="stat-item"><div class="stat-val${pts>=20?" big":""}">${pts}</div><div class="stat-lbl">PTS</div></div>
+          <div class="stat-item"><div class="stat-val${reb>=10?" big":""}">${reb}</div><div class="stat-lbl">REB</div></div>
+          <div class="stat-item"><div class="stat-val${ast>=8?" big":""}">${ast}</div><div class="stat-lbl">AST</div></div>
+          <div class="stat-item"><div class="stat-val${fg3m>=3?" big":""}">${fg3m}</div><div class="stat-lbl">3PM</div></div>
+          <div class="stat-item"><div class="stat-val${pra>=30?" big":""}">${pra}</div><div class="stat-lbl">PRA</div></div>
           <div class="stat-min">${minDisplay}</div>
           `}
         </div>
