@@ -123,7 +123,6 @@ td{border-bottom:1px solid #1a1830;}
 .copyable{cursor:pointer;}
 .copyable:hover{opacity:0.8;}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -1197,82 +1196,58 @@ function getOU() {
 
 function screenshotBets() {
   const pending = bets.filter(b => b.result === "pending");
-  if (pending.length === 0) { alert("No active (pending) bets to screenshot."); return; }
+  if (pending.length === 0) { alert("No pending bets to screenshot."); return; }
 
-  // Build a clean screenshot div
-  const wrap = document.createElement("div");
-  wrap.style.cssText = "position:fixed;top:-9999px;left:-9999px;background:#0f0e1a;padding:24px;border-radius:12px;font-family:'Inter',sans-serif;min-width:700px;";
+  // Build a printable page
+  const win = window.open('', '_blank');
+  const rows = pending.map((b,i) => {
+    const e = calcEdge(b.odds, b.fair);
+    const eStr = e != null ? (e>0?'+':'')+e.toFixed(1)+'%' : '—';
+    const fp = b.fair != null ? (b.fair<0?Math.abs(b.fair)/(Math.abs(b.fair)+100):100/(b.fair+100)) : null;
+    const w5 = fp ? (() => { const d=1.05/fp; const o=d>=2?Math.round((d-1)*100):Math.round(-100/(d-1)); return (o>0?'+':'')+o; })() : '—';
+    const w10 = fp ? (() => { const d=1.10/fp; const o=d>=2?Math.round((d-1)*100):Math.round(-100/(d-1)); return (o>0?'+':'')+o; })() : '—';
+    const bg = i%2===0?'#0f0e1a':'#121120';
+    return `<tr style="background:${bg};border-bottom:1px solid #1a1830;">
+      <td>${b.player}</td><td style="color:#8b87b8">${b.team||''}</td>
+      <td style="color:#a78bfa">${b.stat}</td>
+      <td>${b.ou.toUpperCase()} ${b.line}</td>
+      <td style="color:#a78bfa">${b.proj!=null?b.proj.toFixed(2):'—'}</td>
+      <td style="color:${e!=null&&e>0?'#22c55e':'#f87171'};font-weight:700">${eStr}</td>
+      <td>${b.odds>0?'+'+b.odds:b.odds}</td>
+      <td style="color:#6b6896">${b.fair!=null?(b.fair>0?'+'+b.fair:b.fair):'—'}</td>
+      <td style="color:#f59e0b;font-weight:700">${w5}</td>
+      <td style="color:#22c55e;font-weight:700">${w10}</td>
+      <td style="color:#6b6896">${b.book}</td>
+      <td>${b.stake.toFixed(2)}u</td>
+    </tr>`;
+  }).join('');
 
-  const header = document.createElement("div");
-  header.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:20px;";
-  header.innerHTML = `
-    <div style="width:28px;height:28px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border-radius:7px;display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:13px;font-weight:900;color:#fff;">N</span>
-    </div>
-    <span style="font-size:16px;font-weight:800;color:#fff;">NBA</span>
-    <span style="font-size:16px;font-weight:800;color:#a78bfa;margin-left:4px;">MATRIX</span>
-    <span style="font-size:12px;color:#6b6896;margin-left:12px;">Active Plays · ${new Date().toLocaleDateString()}</span>
-    <span style="font-size:12px;color:#22c55e;margin-left:12px;font-weight:700;">${pending.filter(b=>{const e=calcEdge(b.odds,b.fair);return e!=null&&e>=5;}).length} plays ≥5% EV</span>
-  `;
-  wrap.appendChild(header);
+  const evCount = pending.filter(b=>{const e=calcEdge(b.odds,b.fair);return e!=null&&e>=5;}).length;
 
-  const table = document.createElement("table");
-  table.style.cssText = "width:100%;border-collapse:collapse;";
-  table.innerHTML = `
-    <thead>
-      <tr style="border-bottom:1px solid #2a2845;">
-        ${["PLAYER","TEAM","STAT","LINE","PROJ","EDGE","ODDS","FAIR","WORST@5%","WORST@10%","BOOK","STAKE"].map(h =>
-          `<th style="padding:8px 12px;font-size:11px;color:#6b6896;font-weight:600;text-align:left;letter-spacing:0.5px;">${h}</th>`
-        ).join("")}
-      </tr>
-    </thead>
-    <tbody>
-      ${pending.map((b,i) => {
-
-        return `<tr style="background:${i%2===0?"#0f0e1a":"#121120"};border-bottom:1px solid #1a1830;">
-          <td style="padding:8px 12px;font-size:14px;font-weight:600;color:#fff;">${b.player}</td>
-          <td style="padding:8px 12px;font-size:12px;color:#8b87b8;font-weight:600;">${b.team||""}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#a78bfa;font-weight:700;">${b.stat}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.ou.toUpperCase()} ${b.line}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#a78bfa;font-weight:600;">${b.proj != null ? b.proj.toFixed(2) : "—"}</td>
-          <td style="padding:8px 12px;font-size:13px;font-weight:700;color:${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'#6b6896':e>0?'#22c55e':'#f87171';})()}">${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'—':(e>0?'+':'')+e.toFixed(1)+'%';})()}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.odds > 0 ? "+" + b.odds : b.odds}</td>
-          <td style="padding:8px 12px;font-size:13px;color:${b.fair!=null?(b.odds>b.fair?"#22c55e":b.odds<b.fair?"#f87171":"#fff"):"#6b6896"};">${b.fair!=null?(b.fair>0?"+"+b.fair:b.fair):"—"}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#6b6896;">${b.book}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#f59e0b;font-weight:700;">${(()=>{
-            if(!b.fair) return '—';
-            const fp = b.fair<0?Math.abs(b.fair)/(Math.abs(b.fair)+100):100/(b.fair+100);
-            const dec = 1.05/fp;
-            const o = dec>=2?Math.round((dec-1)*100):Math.round(-100/(dec-1));
-            return (o>0?'+':'')+o;
-          })()}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#22c55e;font-weight:700;">${(()=>{
-            if(!b.fair) return '—';
-            const fp = b.fair<0?Math.abs(b.fair)/(Math.abs(b.fair)+100):100/(b.fair+100);
-            const dec = 1.10/fp;
-            const o = dec>=2?Math.round((dec-1)*100):Math.round(-100/(dec-1));
-            return (o>0?'+':'')+o;
-          })()}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.stake.toFixed(2)}u</td>
-        </tr>`;
-      }).join("")}
-    </tbody>`;
-  wrap.appendChild(table);
-  document.body.appendChild(wrap);
-
-  html2canvas(wrap, { backgroundColor: "#0f0e1a", scale: 2 }).then(canvas => {
-    document.body.removeChild(wrap);
-    canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `nba-matrix-plays-${new Date().toLocaleDateString().replace(/\//g,"-")}.png`;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-    });
-  });
+  win.document.write(`<!DOCTYPE html><html><head><title>NBA MATRIX</title>
+  <style>
+    body{background:#0f0e1a;color:#e2e8f0;font-family:'Inter',sans-serif;padding:24px;font-size:13px;}
+    table{width:100%;border-collapse:collapse;}
+    th{padding:8px 12px;font-size:11px;color:#6b6896;font-weight:600;text-align:left;border-bottom:1px solid #2a2845;letter-spacing:0.5px;}
+    td{padding:8px 12px;}
+    .header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+    .logo{width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+  </style></head><body>
+  <div class="header">
+    <div class="logo" style="color:#fff">N</div>
+    <span style="font-size:18px;font-weight:800;color:#fff">NBA</span>
+    <span style="font-size:18px;font-weight:800;color:#a78bfa">MATRIX</span>
+    <span style="font-size:12px;color:#6b6896;margin-left:8px">Active Plays · ${new Date().toLocaleDateString()}</span>
+    <span style="font-size:12px;color:#22c55e;margin-left:8px;font-weight:700">${evCount} plays ≥5% EV</span>
+  </div>
+  <table>
+    <thead><tr>${['PLAYER','TEAM','STAT','LINE','PROJ','EDGE','ODDS','FAIR','WORST@5%','WORST@10%','BOOK','STAKE'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 function oddsToImplied(odds) {
