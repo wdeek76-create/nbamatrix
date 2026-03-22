@@ -4,117 +4,192 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NBA Slate</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg:        #0a0a0e;
+      --surface:   #111118;
+      --surface2:  #16161f;
+      --border:    #1e1e2c;
+      --border2:   #252535;
+      --purple:    #7c3aed;
+      --purple-hi: #9d5ff5;
+      --green:     #a3e635;
+      --green-hi:  #c4f53a;
+      --text:      #e8e8f0;
+      --muted:     #55556a;
+      --dim:       #2a2a3a;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0a0a0a;
-      min-height: 100vh;
+    body { background: var(--bg); min-height: 100vh; font-family: 'DM Sans', sans-serif; color: var(--text); }
+
+    /* NAV */
+    .topnav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-family: 'Courier New', monospace;
-      padding: 2rem;
+      justify-content: space-between;
+      height: 54px;
+      position: sticky; top: 0; z-index: 100;
     }
-    .container { width: 100%; max-width: 520px; }
-    .header { text-align: center; margin-bottom: 2rem; }
-    .sub {
-      font-size: 0.65rem;
-      letter-spacing: 0.3em;
-      color: #ff6b35;
-      text-transform: uppercase;
-      margin-bottom: 0.5rem;
+    .nav-left { display: flex; align-items: center; gap: 0.35rem; }
+    .brand-icon { width: 32px; height: 32px; object-fit: contain; }
+    .brand-name { font-size: 0.95rem; font-weight: 800; letter-spacing: -0.03em; color: #fff; margin-right: 1.5rem; }
+    .brand-name span { color: var(--green); }
+    .nav-tabs { display: flex; }
+    .nav-tab {
+      padding: 0 1rem; height: 54px; display: flex; align-items: center;
+      font-size: 0.78rem; font-weight: 600; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
     }
-    h1 {
-      font-size: 2rem;
-      font-weight: bold;
-      color: #f0f0f0;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+    .nav-tab.active { color: #fff; border-bottom-color: var(--purple-hi); }
+    .nav-tab:hover:not(.active) { color: #aaa; }
+    .nav-right { display: flex; align-items: center; gap: 0.65rem; }
+    .date-pill {
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: 6px; padding: 0.28rem 0.7rem;
+      font-size: 0.7rem; font-weight: 600; color: var(--muted); letter-spacing: 0.02em;
     }
-    .toggle {
+    .load-btn {
+      background: var(--purple); color: #fff; border: none; border-radius: 6px;
+      padding: 0.42rem 1.1rem; font-size: 0.75rem; font-weight: 700;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.15s; letter-spacing: 0.01em;
+    }
+    .load-btn:hover { background: var(--purple-hi); }
+    .load-btn:disabled { background: var(--dim); color: var(--muted); cursor: not-allowed; }
+
+    /* MAIN */
+    .main { padding: 1.25rem 1.5rem 5.5rem; max-width: 1400px; margin: 0 auto; }
+
+    /* CHIPS */
+    .chip-row { display: flex; gap: 0.45rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .chip {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 0.28rem 0.8rem;
+      font-size: 0.7rem; font-weight: 600; color: var(--muted);
+    }
+    .chip .hi { color: var(--green); }
+
+    /* SECTION HEADERS */
+    .section-head {
+      display: flex; align-items: center; gap: 0.55rem;
+      margin: 1.1rem 0 0.55rem; padding-bottom: 0.45rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-time { font-size: 0.7rem; font-weight: 700; color: var(--purple-hi); letter-spacing: 0.04em; }
+    .section-badge {
+      font-size: 0.63rem; font-weight: 600; color: var(--dim);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.1rem 0.5rem;
+    }
+    .day-head {
+      font-size: 0.7rem; font-weight: 700; color: var(--purple-hi);
+      letter-spacing: 0.05em; text-transform: uppercase;
+      margin: 1.75rem 0 0.6rem; padding-bottom: 0.45rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between;
+    }
+    .day-head span { color: var(--dim); font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+    /* GRID */
+    .games-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      border: 1px solid #222;
-      margin-bottom: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 0.45rem;
     }
-    .toggle button {
-      padding: 0.65rem;
-      background: #111;
-      color: #555;
-      border: none;
-      border-right: 1px solid #222;
-      font-family: 'Courier New', monospace;
-      font-size: 0.7rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      font-weight: bold;
-      cursor: pointer;
+
+    /* CARD */
+    .game-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.15s, transform 0.1s;
     }
-    .toggle button:last-child { border-right: none; }
-    .toggle button.active { background: #ff6b35; color: #0a0a0a; }
-    #fetch-btn {
-      width: 100%;
-      padding: 0.85rem;
-      background: #ff6b35;
-      color: #0a0a0a;
-      border: none;
-      font-family: 'Courier New', monospace;
-      font-size: 0.8rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      font-weight: bold;
-      cursor: pointer;
-      margin-bottom: 1rem;
+    .game-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+
+    .card-header {
+      padding: 0.6rem 0.85rem 0;
+      font-size: 0.62rem; font-weight: 600; color: var(--muted); letter-spacing: 0.04em;
     }
-    #fetch-btn:disabled { background: #222; color: #666; cursor: not-allowed; }
-    #error { color: #ff4444; font-size: 0.75rem; text-align: center; margin-bottom: 1rem; display: none; }
-    #slate-box {
-      background: #111;
-      border: 1px solid #222;
-      color: #f0f0f0;
-      padding: 1.25rem;
-      font-size: 0.8rem;
-      line-height: 1.7;
-      white-space: pre;
-      overflow-x: auto;
-      margin-bottom: 0.75rem;
-      max-height: 60vh;
-      overflow-y: auto;
-      display: none;
+    .card-body { padding: 0.4rem 0.85rem 0.75rem; }
+
+    .team-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.3rem 0;
     }
-    #copy-btn {
-      width: 100%;
-      padding: 0.75rem;
-      background: #111;
-      color: #888;
-      border: 1px solid #333;
-      font-family: 'Courier New', monospace;
-      font-size: 0.75rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      cursor: pointer;
-      display: none;
+    .team-row + .team-row { border-top: 1px solid var(--border); }
+    .tl { display: flex; align-items: center; gap: 0.5rem; }
+    .team-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+    .team-abbr { font-size: 0.85rem; font-weight: 700; color: var(--text); letter-spacing: 0.01em; }
+    .team-sub { font-size: 0.58rem; color: var(--dim); font-weight: 500; margin-left: 0.15rem; }
+    .away-tag, .home-tag {
+      font-size: 0.55rem; font-weight: 700; letter-spacing: 0.06em;
+      padding: 0.1rem 0.38rem; border-radius: 3px; text-transform: uppercase;
     }
-    #copy-btn.copied { background: #1a3a1a; color: #4caf50; border-color: #4caf50; }
+    .away-tag { background: #1a1a28; color: var(--muted); border: 1px solid var(--border); }
+    .home-tag { background: rgba(124,58,237,0.15); color: var(--purple-hi); border: 1px solid rgba(124,58,237,0.3); }
+
+    /* EMPTY / ERROR */
+    .empty { text-align: center; color: var(--dim); font-size: 0.8rem; padding: 3rem 1rem; font-weight: 500; }
+    .error-msg { color: #f87171; font-size: 0.78rem; text-align: center; padding: 1rem; display: none; }
+
+    /* COPY BAR */
+    .copy-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 0.7rem 1.5rem; display: none; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    .copy-info { font-size: 0.7rem; color: var(--muted); font-weight: 500; }
+    .copy-info span { color: var(--green); font-weight: 700; }
+    .copy-btn {
+      background: var(--surface2); color: var(--muted); border: 1px solid var(--border2);
+      border-radius: 6px; padding: 0.42rem 1.25rem; font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+    }
+    .copy-btn:hover { color: var(--text); border-color: var(--border2); }
+    .copy-btn.copied { background: rgba(163,230,53,0.1); color: var(--green); border-color: rgba(163,230,53,0.3); }
+
+    @media (max-width: 600px) {
+      .nav-tabs { display: none; }
+      .main { padding: 1rem 1rem 5.5rem; }
+      .games-grid { grid-template-columns: 1fr; }
+      .topnav { padding: 0 1rem; }
+    }
   </style>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div class="sub">Daily</div>
-    <h1>NBA Slate</h1>
-  </div>
 
-  <div class="toggle">
-    <button class="active" onclick="switchView('daily')">Daily</button>
-    <button onclick="switchView('weekly')">Weekly</button>
-    <button onclick="switchView('monthly')">Monthly</button>
+<div class="topnav">
+  <div class="nav-left">
+    <span style="font-size:1.4rem;line-height:1">🏀</span>
+    <div class="brand-name">NBA&nbsp;<span>Slate</span></div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="switchView('daily')">The Board</div>
+      <div class="nav-tab" onclick="switchView('weekly')">This Week</div>
+      <div class="nav-tab" onclick="switchView('monthly')">This Month</div>
+    </div>
   </div>
+  <div class="nav-right">
+    <div class="date-pill" id="date-badge">—</div>
+    <button class="load-btn" id="fetch-btn" onclick="fetchSlate()">Load Slate</button>
+  </div>
+</div>
 
-  <button id="fetch-btn" onclick="fetchSlate()">Get Daily Slate</button>
-  <div id="error"></div>
-  <pre id="slate-box"></pre>
-  <button id="copy-btn" onclick="copySlate()">Copy</button>
+<div class="main">
+  <div class="chip-row" id="chip-row" style="display:none">
+    <div class="chip" id="chip-games">—</div>
+    <div class="chip" id="chip-date">—</div>
+  </div>
+  <div class="error-msg" id="error"></div>
+  <div id="games-container"><div class="empty">Hit Load Slate to pull today's schedule</div></div>
+</div>
+
+<div class="copy-bar" id="copy-bar">
+  <div class="copy-info" id="copy-info">—</div>
+  <button class="copy-btn" id="copy-btn" onclick="copySlate()">Copy as Text</button>
 </div>
 
 <script>
@@ -122,168 +197,191 @@
   let currentView = "daily";
   let currentSlate = "";
 
-  function switchView(v) {
-    currentView = v;
-    document.querySelectorAll(".toggle button").forEach((b, i) => {
-      b.classList.toggle("active", ["daily","weekly","monthly"][i] === v);
-    });
-    const cap = v.charAt(0).toUpperCase() + v.slice(1);
-    document.getElementById("fetch-btn").textContent = "Get " + cap + " Slate";
-    document.getElementById("slate-box").style.display = "none";
-    document.getElementById("copy-btn").style.display = "none";
-    document.getElementById("error").style.display = "none";
-    currentSlate = "";
-  }
+  const TEAM_INFO = {
+    ATL:{city:"Atlanta"},BOS:{city:"Boston"},BKN:{city:"Brooklyn"},CHA:{city:"Charlotte"},
+    CHI:{city:"Chicago"},CLE:{city:"Cleveland"},DAL:{city:"Dallas"},DEN:{city:"Denver"},
+    DET:{city:"Detroit"},GSW:{city:"Golden State"},HOU:{city:"Houston"},IND:{city:"Indiana"},
+    LAC:{city:"LA"},LAL:{city:"LA"},MEM:{city:"Memphis"},MIA:{city:"Miami"},
+    MIL:{city:"Milwaukee"},MIN:{city:"Minnesota"},NOP:{city:"New Orleans"},NYK:{city:"New York"},
+    OKC:{city:"Oklahoma City"},ORL:{city:"Orlando"},PHI:{city:"Philadelphia"},PHX:{city:"Phoenix"},
+    POR:{city:"Portland"},SAC:{city:"Sacramento"},SAS:{city:"San Antonio"},TOR:{city:"Toronto"},
+    UTA:{city:"Utah"},WAS:{city:"Washington"}
+  };
 
-  function pad(n) { return String(n).padStart(2, "0"); }
-  function fmtDate(d) { return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
+  const logoUrl = a => `https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/${a.toLowerCase()}.png`;
+  const pad = n => String(n).padStart(2,"0");
+  const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   function getParams() {
-    const today = new Date();
-    if (currentView === "daily") {
-      return "dates[]=" + fmtDate(today) + "&per_page=100";
+    const t = new Date();
+    if (currentView==="daily") return "dates[]="+fmtDate(t)+"&per_page=100";
+    if (currentView==="weekly") {
+      const s=new Date(t); s.setDate(t.getDate()-t.getDay());
+      const e=new Date(s); e.setDate(s.getDate()+6);
+      return "start_date="+fmtDate(s)+"&end_date="+fmtDate(e)+"&per_page=100";
     }
-    if (currentView === "weekly") {
-      const start = new Date(today);
-      start.setDate(today.getDate() - today.getDay());
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      return "start_date=" + fmtDate(start) + "&end_date=" + fmtDate(end) + "&per_page=100";
-    }
-    if (currentView === "monthly") {
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const start = new Date(year, month, 1);
-      const end = new Date(year, month + 1, 0);
-      return "start_date=" + fmtDate(start) + "&end_date=" + fmtDate(end) + "&per_page=100";
-    }
+    const y=t.getFullYear(),m=t.getMonth();
+    return "start_date="+fmtDate(new Date(y,m,1))+"&end_date="+fmtDate(new Date(y,m+1,0))+"&per_page=100";
   }
 
   function getDateLabel() {
-    const today = new Date();
-    if (currentView === "daily") {
-      return today.toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric" });
+    const t = new Date();
+    if (currentView==="daily") return t.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+    if (currentView==="weekly") {
+      const s=new Date(t); s.setDate(t.getDate()-t.getDay());
+      const e=new Date(s); e.setDate(s.getDate()+6);
+      return s.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" – "+e.toLocaleDateString("en-US",{month:"short",day:"numeric"});
     }
-    if (currentView === "weekly") {
-      const start = new Date(today);
-      start.setDate(today.getDate() - today.getDay());
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      const fmt = d => d.toLocaleDateString("en-US", { month:"short", day:"numeric" });
-      return "Week of " + fmt(start) + " \u2013 " + fmt(end);
-    }
-    if (currentView === "monthly") {
-      return today.toLocaleDateString("en-US", { month:"long", year:"numeric" });
-    }
+    return t.toLocaleDateString("en-US",{month:"long",year:"numeric"});
   }
 
-  function getTime(datetimeStr) {
-    if (!datetimeStr) return "TBD";
-    return new Date(datetimeStr).toLocaleTimeString("en-US", {
-      hour: "numeric", minute: "2-digit",
-      timeZone: "America/New_York", hour12: true
-    });
+  function getTime(dt) {
+    if (!dt) return "TBD";
+    return new Date(dt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York",hour12:true});
   }
 
   function toMin(t) {
-    if (!t || t === "TBD") return 9999;
-    const parts = t.split(" ");
-    let [h, m] = parts[0].split(":").map(Number);
-    if (parts[1] === "PM" && h !== 12) h += 12;
-    if (parts[1] === "AM" && h === 12) h = 0;
-    return h * 60 + m;
+    if (!t||t==="TBD") return 9999;
+    const p=t.split(" "); let [h,m]=p[0].split(":").map(Number);
+    if(p[1]==="PM"&&h!==12)h+=12; if(p[1]==="AM"&&h===12)h=0; return h*60+m;
   }
 
-  function parseDayLabel(dateStr) {
-    const [y, mo, d] = dateStr.split("-").map(Number);
-    return new Date(y, mo-1, d).toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric" });
+  function parseDayLabel(ds) {
+    const [y,mo,d]=ds.split("-").map(Number);
+    return new Date(y,mo-1,d).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
   }
 
-  function formatSlate(games) {
+  function buildSlateText(games) {
     const label = getDateLabel();
-    if (games.length === 0) return "NBA Slate - " + label + "\n0 Games";
-
-    if (currentView === "daily") {
-      const byTime = {};
-      for (const g of games) {
-        const t = getTime(g.datetime);
-        if (!byTime[t]) byTime[t] = [];
-        byTime[t].push(g.visitor_team.abbreviation + " @ " + g.home_team.abbreviation);
-      }
-      const times = Object.keys(byTime).sort((a,b) => toMin(a) - toMin(b));
-      let out = "NBA Slate - " + label + "\n" + games.length + " Game" + (games.length !== 1 ? "s" : "") + "\n";
-      for (const t of times) {
-        const gs = byTime[t];
-        out += "\n" + t + " ET  (" + gs.length + " game" + (gs.length !== 1 ? "s" : "") + ")\n";
-        out += gs.join("\n") + "\n";
-      }
+    if (!games.length) return "NBA Slate - "+label+"\n0 Games";
+    if (currentView==="daily") {
+      const bt={};
+      for(const g of games){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g.visitor_team.abbreviation+" @ "+g.home_team.abbreviation);}
+      const times=Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b));
+      let out="NBA Slate - "+label+"\n"+games.length+" Games\n";
+      for(const t of times){out+="\n"+t+" ET  ("+bt[t].length+" game"+(bt[t].length!==1?"s":"")+")\n"+bt[t].join("\n")+"\n";}
       return out.trim();
     }
-
-    // weekly / monthly
-    const byDay = {};
-    for (const g of games) {
-      if (!byDay[g.date]) byDay[g.date] = [];
-      byDay[g.date].push(g);
-    }
-    const days = Object.keys(byDay).sort();
-    let out = "NBA Slate - " + label + "\n" + games.length + " Game" + (games.length !== 1 ? "s" : "") + "\n";
-    for (const day of days) {
-      const gs = byDay[day].sort((a,b) => toMin(getTime(a.datetime)) - toMin(getTime(b.datetime)));
-      out += "\n\u2500\u2500 " + parseDayLabel(day) + "  (" + gs.length + " game" + (gs.length !== 1 ? "s" : "") + ") \u2500\u2500\n";
-      const byTime = {};
-      for (const g of gs) {
-        const t = getTime(g.datetime);
-        if (!byTime[t]) byTime[t] = [];
-        byTime[t].push(g.visitor_team.abbreviation + " @ " + g.home_team.abbreviation);
-      }
-      const times = Object.keys(byTime).sort((a,b) => toMin(a) - toMin(b));
-      for (const t of times) {
-        out += t + " ET\n" + byTime[t].join("\n") + "\n";
-      }
+    const bd={};
+    for(const g of games){if(!bd[g.date])bd[g.date]=[];bd[g.date].push(g);}
+    let out="NBA Slate - "+label+"\n"+games.length+" Games\n";
+    for(const day of Object.keys(bd).sort()){
+      const gs=bd[day].sort((a,b)=>toMin(getTime(a.datetime))-toMin(getTime(b.datetime)));
+      out+="\n── "+parseDayLabel(day)+" ("+gs.length+" games) ──\n";
+      const bt={};
+      for(const g of gs){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g.visitor_team.abbreviation+" @ "+g.home_team.abbreviation);}
+      for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))){out+=t+" ET\n"+bt[t].join("\n")+"\n";}
     }
     return out.trim();
   }
 
-  async function fetchSlate() {
-    const btn = document.getElementById("fetch-btn");
-    const errEl = document.getElementById("error");
-    const slateBox = document.getElementById("slate-box");
-    const copyBtn = document.getElementById("copy-btn");
+  function gameCard(g) {
+    const away=g.visitor_team.abbreviation, home=g.home_team.abbreviation;
+    const awayCity=(TEAM_INFO[away]||{city:away}).city;
+    const homeCity=(TEAM_INFO[home]||{city:home}).city;
+    const t=getTime(g.datetime);
+    return `<div class="game-card">
+      <div class="card-header">${t} ET</div>
+      <div class="card-body">
+        <div class="team-row">
+          <div class="tl">
+            <img class="team-logo" src="${logoUrl(away)}" onerror="this.style.display='none'" alt="${away}">
+            <span class="team-abbr">${away}</span><span class="team-sub">${awayCity}</span>
+          </div>
+          <span class="away-tag">Away</span>
+        </div>
+        <div class="team-row">
+          <div class="tl">
+            <img class="team-logo" src="${logoUrl(home)}" onerror="this.style.display='none'" alt="${home}">
+            <span class="team-abbr">${home}</span><span class="team-sub">${homeCity}</span>
+          </div>
+          <span class="home-tag">Home</span>
+        </div>
+      </div>
+    </div>`;
+  }
 
-    btn.disabled = true;
-    btn.textContent = "Fetching...";
-    errEl.style.display = "none";
-    slateBox.style.display = "none";
-    copyBtn.style.display = "none";
+  function renderGames(games) {
+    const c = document.getElementById("games-container");
+    c.innerHTML = "";
+    if (!games.length) { c.innerHTML=`<div class="empty">No games scheduled</div>`; return; }
 
-    try {
-      const url = "https://api.balldontlie.io/nba/v1/games?" + getParams();
-      const res = await fetch(url, { headers: { Authorization: API_KEY } });
-      if (!res.ok) throw new Error("API error " + res.status);
-      const data = await res.json();
-      currentSlate = formatSlate(data.data || []);
-      slateBox.textContent = currentSlate;
-      slateBox.style.display = "block";
-      copyBtn.style.display = "block";
-      const cap = currentView.charAt(0).toUpperCase() + currentView.slice(1);
-      btn.textContent = "Refresh " + cap;
-    } catch (e) {
-      errEl.textContent = "Failed to fetch: " + e.message;
-      errEl.style.display = "block";
-      const cap = currentView.charAt(0).toUpperCase() + currentView.slice(1);
-      btn.textContent = "Get " + cap + " Slate";
+    if (currentView==="daily") {
+      const bt={};
+      for(const g of games){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g);}
+      for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))){
+        c.innerHTML+=`<div class="section-head">
+          <div class="section-time">${t} ET</div>
+          <div class="section-badge">${bt[t].length} game${bt[t].length!==1?"s":""}</div>
+        </div><div class="games-grid">${bt[t].map(gameCard).join("")}</div>`;
+      }
+    } else {
+      const bd={};
+      for(const g of games){if(!bd[g.date])bd[g.date]=[];bd[g.date].push(g);}
+      for(const day of Object.keys(bd).sort()){
+        const gs=bd[day].sort((a,b)=>toMin(getTime(a.datetime))-toMin(getTime(b.datetime)));
+        c.innerHTML+=`<div class="day-head">${parseDayLabel(day)}<span>${gs.length} games</span></div>`;
+        const bt={};
+        for(const g of gs){const t=getTime(g.datetime);if(!bt[t])bt[t]=[];bt[t].push(g);}
+        for(const t of Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b))){
+          c.innerHTML+=`<div class="section-head">
+            <div class="section-time">${t} ET</div>
+            <div class="section-badge">${bt[t].length} game${bt[t].length!==1?"s":""}</div>
+          </div><div class="games-grid">${bt[t].map(gameCard).join("")}</div>`;
+        }
+      }
     }
-    btn.disabled = false;
+  }
+
+  function switchView(v) {
+    currentView=v;
+    document.querySelectorAll(".nav-tab").forEach((b,i)=>b.classList.toggle("active",["daily","weekly","monthly"][i]===v));
+    document.getElementById("fetch-btn").textContent="Load Slate";
+    document.getElementById("games-container").innerHTML=`<div class="empty">Hit Load Slate to pull the schedule</div>`;
+    document.getElementById("copy-bar").style.display="none";
+    document.getElementById("error").style.display="none";
+    document.getElementById("chip-row").style.display="none";
+    document.getElementById("date-badge").textContent=getDateLabel();
+    currentSlate="";
+  }
+
+  async function fetchSlate() {
+    const btn=document.getElementById("fetch-btn");
+    const errEl=document.getElementById("error");
+    const copyBar=document.getElementById("copy-bar");
+    btn.disabled=true; btn.textContent="Loading...";
+    errEl.style.display="none"; copyBar.style.display="none";
+    document.getElementById("games-container").innerHTML=`<div class="empty" style="color:#1e1e2c">Fetching games...</div>`;
+    try {
+      const res=await fetch("https://api.balldontlie.io/nba/v1/games?"+getParams(),{headers:{Authorization:API_KEY}});
+      if(!res.ok) throw new Error("API error "+res.status);
+      const data=await res.json();
+      const games=data.data||[];
+      currentSlate=buildSlateText(games);
+      renderGames(games);
+      document.getElementById("chip-games").innerHTML=`<span class="hi">${games.length}</span> games`;
+      document.getElementById("chip-date").textContent=getDateLabel();
+      document.getElementById("chip-row").style.display="flex";
+      document.getElementById("copy-info").innerHTML=`<span>${games.length} games</span> · ${getDateLabel()}`;
+      copyBar.style.display="flex";
+      btn.textContent="Refresh";
+      document.getElementById("date-badge").textContent=getDateLabel();
+    } catch(e) {
+      errEl.textContent="Failed to fetch: "+e.message; errEl.style.display="block";
+      btn.textContent="Load Slate";
+      document.getElementById("games-container").innerHTML=`<div class="empty">Could not load games</div>`;
+    }
+    btn.disabled=false;
   }
 
   function copySlate() {
     navigator.clipboard.writeText(currentSlate);
-    const btn = document.getElementById("copy-btn");
-    btn.textContent = "✓ Copied";
-    btn.classList.add("copied");
-    setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+    const btn=document.getElementById("copy-btn");
+    btn.textContent="✓ Copied!"; btn.classList.add("copied");
+    setTimeout(()=>{btn.textContent="Copy as Text";btn.classList.remove("copied");},2000);
   }
+
+  document.getElementById("date-badge").textContent=getDateLabel();
 </script>
 </body>
 </html>
