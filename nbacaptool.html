@@ -312,7 +312,7 @@
 </div>
 
 <div class="plays-section">
-    <div class="plays-label">Plays</div>
+    <div class="plays-label">Plays <span id="playsCount" style="color:#a855f7;font-size:13px;font-weight:700;margin-left:6px;"></span></div>
     <div class="note-input-row">
       <textarea id="noteInput" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="" rows="2"></textarea>
       <button class="good-to-btn" id="goodToBtn" onclick="appendWorst()" style="display:none">good to</button>
@@ -643,11 +643,15 @@
 
     if (plays.length === 0) {
       empty.style.display = 'block';
+    const countEl2 = document.getElementById('playsCount');
+    if (countEl2) countEl2.textContent = '';
       clearRow.style.display = 'none';
       return;
     }
     empty.style.display = 'none';
     clearRow.style.display = 'flex';
+    const countEl = document.getElementById('playsCount');
+    if (countEl) countEl.textContent = plays.length > 0 ? `(${plays.length})` : '';
 
     plays.forEach((note, i) => {
       const item = document.createElement('div');
@@ -1892,23 +1896,16 @@
     btn.classList.add('grading');
 
     try {
-      const { playerName, direction, line, stat } = parsed;
+      const { direction, line, stat } = parsed;
 
-      // Search for player
-      const playerRes = await fetch(
-        `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(playerName)}&per_page=5`,
-        { headers: { 'Authorization': apiKey } }
-      );
-      const playerData = await playerRes.json();
-      if (!playerData.data || playerData.data.length === 0) {
+      // Use the shared player lookup helper
+      const player = await getBdlPlayerId(parsed, apiKey);
+      if (!player) {
         showManualGrade(i); btn.textContent = 'GRADE'; btn.classList.remove('grading'); return;
       }
-      const player = playerData.data[0];
 
-      // Get yesterday's stats (or most recent game)
-      const today = new Date();
-      const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-      const dateStr = yesterday.toISOString().split('T')[0];
+      // Use the selected date in the tool
+      const dateStr = getPlaysDate();
 
       const statsRes = await fetch(
         `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${dateStr}&end_date=${dateStr}&per_page=5`,
@@ -1917,21 +1914,9 @@
       const statsData = await statsRes.json();
 
       if (!statsData.data || statsData.data.length === 0) {
-        // Try 2 days ago
-        const twoDays = new Date(today); twoDays.setDate(today.getDate() - 2);
-        const dateStr2 = twoDays.toISOString().split('T')[0];
-        const statsRes2 = await fetch(
-          `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${player.id}&start_date=${dateStr2}&end_date=${dateStr2}&per_page=5`,
-          { headers: { 'Authorization': apiKey } }
-        );
-        const statsData2 = await statsRes2.json();
-        if (!statsData2.data || statsData2.data.length === 0) {
-          showGrade(i, 'err', 'NO GAME', null, null); btn.textContent = 'GRADE'; btn.classList.remove('grading'); return;
-        }
-        gradeFromStats(i, statsData2.data[0], stat, line, direction);
-      } else {
-        gradeFromStats(i, statsData.data[0], stat, line, direction);
+        showGrade(i, 'err', 'NO GAME', null, null); btn.textContent = 'GRADE'; btn.classList.remove('grading'); return;
       }
+      gradeFromStats(i, statsData.data[0], stat, line, direction);
 
     } catch(e) {
       showGrade(i, 'err', 'API ERR', null, null);
