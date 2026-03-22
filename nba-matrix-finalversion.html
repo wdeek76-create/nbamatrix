@@ -927,8 +927,8 @@ function renderTracker() {
     const roi = v.total>0 ? ((v.pl/Math.max(0.01,staked))*100).toFixed(1) : '—';
     return `<div class="stat-card">
       <div class="sc-label">${k}</div>
-      <div class="sc-val" style="color:${roi==='—'?'#fff':Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'} <span style="font-size:11px;font-weight:600;color:#6b6896;">ROI</span></div>
       <div class="sc-units" style="color:${v.pl>=0?'#22c55e':'#f87171'}">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
+      <div class="sc-val" style="font-size:16px;color:${roi==='—'?'#fff':Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'} <span style="font-size:11px;font-weight:600;color:#6b6896;">ROI</span></div>
       <div class="sc-sub">${pct(v.hits,v.total)} · ${v.hits}W ${v.total-v.hits}L</div>
     </div>`;}).join("");
 
@@ -1006,17 +1006,17 @@ function renderTracker() {
           </div>
           <div class="stat-card" style="display:inline-flex">
             <div class="sc-label">Over</div>
-            <div class="sc-val">${pct(ouBreak.over.hits,ouBreak.over.total)}</div>
-            <div class="sc-sub">${ouBreak.over.hits}/${ouBreak.over.total}</div>
-            <div class="sc-sub" style="color:${ouBreak.over.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${ouBreak.over.pl>=0?'+':''}${ouBreak.over.pl.toFixed(2)}u</div>
-            <div class="sc-sub" style="color:${ouBreak.over.total>0?(ouBreak.over.pl/bets.filter(b=>b.ou==='over'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)*100)>=0?'#a78bfa':'#f87171':'#6b6896'};">ROI ${ouBreak.over.total>0?((ouBreak.over.pl/Math.max(0.01,bets.filter(b=>b.ou==='over'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)))*100).toFixed(1)+'%':'—'}</div>
+            ${(()=>{const s=bets.filter(b=>b.ou==='over'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0);const roi=ouBreak.over.total>0?((ouBreak.over.pl/Math.max(0.01,s))*100).toFixed(1):'—';return `
+            <div class="sc-units" style="color:${ouBreak.over.pl>=0?'#22c55e':'#f87171'}">${ouBreak.over.pl>=0?'+':''}${ouBreak.over.pl.toFixed(2)}u</div>
+            <div class="sc-val" style="font-size:16px;color:${roi==='—'?'#fff':Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'} <span style="font-size:11px;font-weight:600;color:#6b6896;">ROI</span></div>
+            <div class="sc-sub">${pct(ouBreak.over.hits,ouBreak.over.total)} · ${ouBreak.over.hits}W ${ouBreak.over.total-ouBreak.over.hits}L</div>`;})()}
           </div>
           <div class="stat-card" style="display:inline-flex">
             <div class="sc-label">Under</div>
-            <div class="sc-val">${pct(ouBreak.under.hits,ouBreak.under.total)}</div>
-            <div class="sc-sub">${ouBreak.under.hits}/${ouBreak.under.total}</div>
-            <div class="sc-sub" style="color:${ouBreak.under.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${ouBreak.under.pl>=0?'+':''}${ouBreak.under.pl.toFixed(2)}u</div>
-            <div class="sc-sub" style="color:${ouBreak.under.total>0?(ouBreak.under.pl/bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)*100)>=0?'#a78bfa':'#f87171':'#6b6896'};">ROI ${ouBreak.under.total>0?((ouBreak.under.pl/Math.max(0.01,bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)))*100).toFixed(1)+'%':'—'}</div>
+            ${(()=>{const s=bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0);const roi=ouBreak.under.total>0?((ouBreak.under.pl/Math.max(0.01,s))*100).toFixed(1):'—';return `
+            <div class="sc-units" style="color:${ouBreak.under.pl>=0?'#22c55e':'#f87171'}">${ouBreak.under.pl>=0?'+':''}${ouBreak.under.pl.toFixed(2)}u</div>
+            <div class="sc-val" style="font-size:16px;color:${roi==='—'?'#fff':Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'} <span style="font-size:11px;font-weight:600;color:#6b6896;">ROI</span></div>
+            <div class="sc-sub">${pct(ouBreak.under.hits,ouBreak.under.total)} · ${ouBreak.under.hits}W ${ouBreak.under.total-ouBreak.under.hits}L</div>`;})()}
           </div>
         </div>
       </div>
@@ -1027,8 +1027,8 @@ function renderTracker() {
           ${[['Yesterday', yesterdayStats], ['Last 7 Days', weeklyStats], ['Last 30 Days', monthlyStats]].map(([label, s]) => s.total === 0 ? '' : `
           <div class="stat-card" style="display:inline-flex">
             <div class="sc-label">${label}</div>
-            <div class="sc-val" style="color:${s.roi==='—'?'#fff':Number(s.roi)>=0?'#22c55e':'#f87171'}">${s.roi !== '—' ? s.roi+'%' : '—'} <span style="font-size:11px;font-weight:600;color:#6b6896;">ROI</span></div>
             <div class="sc-units" style="color:${s.pl>=0?'#22c55e':'#f87171'}">${s.pl>=0?'+':''}${s.pl.toFixed(2)}u</div>
+            <div class="sc-val" style="font-size:16px;color:${s.roi==='—'?'#fff':Number(s.roi)>=0?'#22c55e':'#f87171'}">${s.roi !== '—' ? s.roi+'%' : '—'} <span style="font-size:11px;font-weight:600;color:#6b6896;">ROI</span></div>
             <div class="sc-sub">${s.wr}% · ${s.h}W ${s.m}L</div>
           </div>`).join('')}
           ${yesterdayStats.total === 0 && weeklyStats.total === 0 && monthlyStats.total === 0 ? '<span style="color:#3d3a6b;font-size:13px;">No settled bets yet</span>' : ''}
