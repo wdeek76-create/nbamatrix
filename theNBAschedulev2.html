@@ -239,7 +239,7 @@
     .stat-row:hover { background: var(--surface2); }
     .stat-left { display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1; overflow: hidden; }
     .stat-num { font-size: 0.78rem; color: var(--muted); min-width: 1.5rem; text-align: center; }
-    .stat-name { font-size: 0.95rem; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 8px rgba(255,255,255,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; cursor: pointer; transition: max-width 0.2s, color 0.15s; }
+    .stat-name { font-size: 0.95rem; color: #fff; letter-spacing: 0.04em; text-shadow: 0 0 8px rgba(255,255,255,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
     .stat-name.expanded { max-width: 220px; color: var(--teal); text-shadow: 0 0 8px rgba(0,245,196,0.4); }
     .stat-pos-badge { font-size: 0.62rem; color: var(--teal); background: rgba(0,245,196,0.1); border: 1px solid rgba(0,245,196,0.25); border-radius: 3px; padding: 0.1rem 0.4rem; flex-shrink: 0; }
     .stat-nums { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
@@ -947,9 +947,12 @@
         }
       }
       const hnp = minDisplay === "HNP";
+      const firstName = p.first_name || "";
+      const lastName = p.last_name || "";
+      const displayName = firstName ? `${firstName[0]}. ${lastName}` : lastName;
       return `<div class="stat-row${hnp?" hnp":""}">
         <div class="stat-left">
-          <span class="stat-name" onclick="this.classList.toggle('expanded')">${p.first_name||""} ${p.last_name||""}</span>
+          <span class="stat-name" title="${firstName} ${lastName}">${displayName}</span>
           <span class="stat-pos-badge">${p.position||"—"}</span>
         </div>
         <div class="stat-nums">
