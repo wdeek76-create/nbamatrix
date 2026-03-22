@@ -836,33 +836,6 @@ function renderTracker() {
   const roi          = totalStaked > 0 ? ((netPL / totalStaked) * 100).toFixed(1) : "—";
   const winRate      = settled.length > 0 ? ((hits.length / settled.length) * 100).toFixed(1) : "—";
 
-  // Time period breakdowns
-  const now = new Date();
-  const todayStr = now.toLocaleDateString("en-US");
-  const weekAgo = new Date(now - 7*24*60*60*1000);
-  const monthAgo = new Date(now - 30*24*60*60*1000);
-
-  function periodStats(filterFn) {
-    const s = settled.filter(filterFn);
-    const h = s.filter(b => b.result === "hit");
-    const m = s.filter(b => b.result === "miss");
-    const won = h.reduce((a,b) => a+b.toWin, 0);
-    const lost = m.reduce((a,b) => a+b.stake, 0);
-    const pl = won - lost;
-    const staked = s.reduce((a,b) => a+b.stake, 0);
-    const wr = s.length > 0 ? ((h.length/s.length)*100).toFixed(1) : "—";
-    const roi = staked > 0 ? ((pl/staked)*100).toFixed(1) : "—";
-    return { h: h.length, m: m.length, total: s.length, pl, wr, roi };
-  }
-
-  function parseBetDate(b) {
-    try { return new Date(b.date); } catch(e) { return null; }
-  }
-
-  const dailyStats   = periodStats(b => b.date === todayStr);
-  const weeklyStats  = periodStats(b => { const d = parseBetDate(b); return d && d >= weekAgo; });
-  const monthlyStats = periodStats(b => { const d = parseBetDate(b); return d && d >= monthAgo; });
-
   // Breakdown by stat
   const statBreak = {};
   settled.forEach(b => {
@@ -1017,21 +990,6 @@ function renderTracker() {
             <div class="sc-sub" style="color:${ouBreak.under.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${ouBreak.under.pl>=0?'+':''}${ouBreak.under.pl.toFixed(2)}u</div>
             <div class="sc-sub" style="color:${ouBreak.under.total>0?(ouBreak.under.pl/bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)*100)>=0?'#a78bfa':'#f87171':'#6b6896'};">ROI ${ouBreak.under.total>0?((ouBreak.under.pl/Math.max(0.01,bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)))*100).toFixed(1)+'%':'—'}</div>
           </div>
-        </div>
-      </div>
-
-      <div class="tracker-section">
-        <h4>By Period</h4>
-        <div>
-          ${[['Today', dailyStats], ['Last 7 Days', weeklyStats], ['Last 30 Days', monthlyStats]].map(([label, s]) => s.total === 0 ? '' : `
-          <div class="stat-card" style="display:inline-flex">
-            <div class="sc-label">${label}</div>
-            <div class="sc-val" style="color:${Number(s.wr)>=55?'#22c55e':Number(s.wr)<45?'#f87171':'#fff'}">${s.wr}%</div>
-            <div class="sc-sub">${s.h}W · ${s.m}L</div>
-            <div class="sc-sub" style="color:${s.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${s.pl>=0?'+':''}${s.pl.toFixed(2)}u</div>
-            <div class="sc-sub" style="color:#a78bfa;">ROI ${s.roi}%</div>
-          </div>`).join('')}
-          ${dailyStats.total === 0 && weeklyStats.total === 0 ? '<span style="color:#3d3a6b;font-size:13px;">No settled bets yet</span>' : ''}
         </div>
       </div>
 
@@ -1438,8 +1396,6 @@ async function runAutoGrade() {
           playerStats[name] = p;
         });
         pageNum++;
-        agLog.push("📄 Page " + pageNum + " meta: " + JSON.stringify(pageData.meta));
-        renderAutoGrade();
         if (pageData.meta && pageData.meta.next_cursor) {
           cursor = pageData.meta.next_cursor;
         } else {
@@ -1453,26 +1409,11 @@ async function runAutoGrade() {
 
       // Grade each bet
       dateBets.forEach(b => {
-        let searchName = b.player.toLowerCase().replace(/[^a-z ]/g,'');
-        // Name aliases
-        const nameAliases = {
-          'bub carrington': 'carlton carrington',
-          'og anunoby': 'og anunoby',
-          'nic claxton': 'nicolas claxton',
-          'nicolas claxton': 'nicolas claxton',
-          'naz reid': 'nazreon reid',
-          'tj mcconnell': 'tj mcconnell',
-          'cj mccollum': 'cj mccollum',
-          'pj washington': 'pj washington',
-          'aj green': 'aj green',
-          'marcus smart': 'marcus smart',
-          'royce oneale': 'royce oneale',
-        };
-        searchName = nameAliases[searchName] || searchName;
-        // Try exact match first
+        const searchName = b.player.toLowerCase().replace(/[^a-z ]/g,'');
+        // Try exact match first, then partial
         let p = playerStats[searchName];
         if (!p) {
-          // Try last name + first initial
+          // Try last name match
           const lastName = searchName.split(' ').slice(-1)[0];
           const firstInitial = searchName[0];
           p = Object.values(playerStats).find(x => {
@@ -1481,34 +1422,15 @@ async function runAutoGrade() {
             return pName.includes(lastName) && pName[0] === firstInitial;
           });
         }
-        if (!p) {
-          // Try last name only as last resort
-          const lastName = searchName.split(' ').slice(-1)[0];
-          const matches = Object.values(playerStats).filter(x => {
-            if (!x.player) return false;
-            return x.player.last_name.toLowerCase() === lastName;
-          });
-          if (matches.length === 1) p = matches[0];
-        }
 
         if (!p) {
-          agResults[b.id] = { result: "pending", found: false };
-          agLog.push("⏸ " + b.player + " " + b.stat + ": not found (name mismatch or DNP)");
-          return;
-        }
-
-        // Check DNP — player in stats but 0 minutes means they didn't play
-        const minStr = (p.min || "0").toString();
-        const minParts = minStr.split(":");
-        const minVal = minParts.length > 1 ? parseInt(minParts[0]) + parseInt(minParts[1])/60 : parseFloat(minStr);
-        if (!minVal || minVal < 0.5) {
+          // Check if player was DNP (not in box score = likely DNP)
           agResults[b.id] = { result: "void", found: true, actual: null };
-          agLog.push("🚫 " + b.player + " " + b.stat + ": DNP (0 min) — VOID");
+          agLog.push("🚫 " + b.player + " " + b.stat + ": not in box score — VOID (DNP)");
           const realBet = bets.find(x => x.id === b.id);
           if (realBet) { realBet.result = "void"; saveBets(); }
           return;
         }
-
 
         // Get the stat value
         let actual = null;
@@ -1535,7 +1457,10 @@ async function runAutoGrade() {
         agResults[b.id] = { result, actual, found: true };
         const realBet = bets.find(x => x.id === b.id);
         if (realBet) { realBet.result = result; saveBets(); }
-        agLog.push((hit ? "✓ " : "✗ ") + b.player + " " + b.stat + ": " + actual + " vs " + b.ou + " " + line + " → " + result.toUpperCase());
+        const unitStr = hit
+          ? `+${realBet ? realBet.toWin.toFixed(2) : "?"}u`
+          : `-${realBet ? realBet.stake.toFixed(2) : "?"}u`;
+        agLog.push((hit ? "✓ " : "✗ ") + b.player + " " + b.stat + ": " + actual + " vs " + b.ou + " " + line + " → " + result.toUpperCase() + "  " + unitStr);
       });
 
     } catch(e) {
@@ -1546,7 +1471,18 @@ async function runAutoGrade() {
     await new Promise(r => setTimeout(r, 300));
   }
 
-  agLog.push("✅ Done!");
+  // Final W-L + P&L summary
+  const gradedBets = pending.filter(b => agResults[b.id] && agResults[b.id].found);
+  const hitBets  = gradedBets.filter(b => agResults[b.id].result === "hit");
+  const missBets = gradedBets.filter(b => agResults[b.id].result === "miss");
+  const voidBets = pending.filter(b => agResults[b.id] && agResults[b.id].result === "void");
+  const totalWon  = hitBets.reduce((a, b) => a + (bets.find(x => x.id === b.id)?.toWin || 0), 0);
+  const totalLost = missBets.reduce((a, b) => a + (bets.find(x => x.id === b.id)?.stake || 0), 0);
+  const netPL = totalWon - totalLost;
+  const plStr = (netPL >= 0 ? "+" : "") + netPL.toFixed(2) + "u";
+  agLog.push("─────────────────────────────");
+  agLog.push(hitBets.length + "-" + missBets.length + (voidBets.length ? " (" + voidBets.length + " void)" : "") + "  " + plStr);
+
   agRunning = false;
   renderAutoGrade();
 }
