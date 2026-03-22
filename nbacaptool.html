@@ -1914,12 +1914,12 @@
       const statsData = await statsRes.json();
 
       if (!statsData.data || statsData.data.length === 0) {
-        showGrade(i, 'err', 'NO GAME', null, null); btn.textContent = 'GRADE'; btn.classList.remove('grading'); return;
+        showManualGrade(i); btn.textContent = 'GRADE'; btn.classList.remove('grading'); return;
       }
       gradeFromStats(i, statsData.data[0], stat, line, direction);
 
     } catch(e) {
-      showGrade(i, 'err', 'API ERR', null, null);
+      showManualGrade(i);
     }
 
     btn.textContent = 'GRADE';
@@ -2032,20 +2032,9 @@
     if (!parsed) return;
 
     try {
-      const { playerName, direction, line, stat } = parsed;
-      let player = null;
-      for (const searchTerm of [playerName, playerName.split(' ').slice(-1)[0]]) {
-        const searchUrl = `https://api.balldontlie.io/nba/v1/players?search=${encodeURIComponent(normalizeAccents(searchTerm))}&per_page=25`;
-        console.log('BDL search:', searchUrl);
-        const playerRes = await fetch(searchUrl, { headers: { 'Authorization': apiKey } });
-        const playerData = await playerRes.json();
-        console.log('BDL response:', JSON.stringify(playerData).substring(0, 300));
-        if (playerData.data && playerData.data.length > 0) {
-          const firstName = playerName.split(' ')[0].toLowerCase();
-          player = playerData.data.find(p => p.first_name.toLowerCase().startsWith(firstName)) || playerData.data[0];
-          break;
-        }
-      }
+      const { direction, line, stat } = parsed;
+
+      const player = await getBdlPlayerId(parsed, apiKey);
       if (!player) return;
 
       const date = getPlaysDate();
