@@ -1221,7 +1221,7 @@ function screenshotBets() {
   table.innerHTML = `
     <thead>
       <tr style="border-bottom:1px solid #2a2845;">
-        ${["PLAYER","TEAM","STAT","LINE","PROJ","EDGE","ODDS","FAIR","BOOK","STAKE"].map(h =>
+        ${["PLAYER","TEAM","STAT","LINE","PROJ","EDGE","ODDS","FAIR","WORST@5%","WORST@10%","BOOK","STAKE"].map(h =>
           `<th style="padding:8px 12px;font-size:11px;color:#6b6896;font-weight:600;text-align:left;letter-spacing:0.5px;">${h}</th>`
         ).join("")}
       </tr>
@@ -1239,6 +1239,20 @@ function screenshotBets() {
           <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.odds > 0 ? "+" + b.odds : b.odds}</td>
           <td style="padding:8px 12px;font-size:13px;color:${b.fair!=null?(b.odds>b.fair?"#22c55e":b.odds<b.fair?"#f87171":"#fff"):"#6b6896"};">${b.fair!=null?(b.fair>0?"+"+b.fair:b.fair):"—"}</td>
           <td style="padding:8px 12px;font-size:13px;color:#6b6896;">${b.book}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#f59e0b;font-weight:700;">${(()=>{
+            if(!b.fair) return '—';
+            const fp = b.fair<0?Math.abs(b.fair)/(Math.abs(b.fair)+100):100/(b.fair+100);
+            const dec = 1.05/fp;
+            const o = dec>=2?Math.round((dec-1)*100):Math.round(-100/(dec-1));
+            return (o>0?'+':'')+o;
+          })()}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#22c55e;font-weight:700;">${(()=>{
+            if(!b.fair) return '—';
+            const fp = b.fair<0?Math.abs(b.fair)/(Math.abs(b.fair)+100):100/(b.fair+100);
+            const dec = 1.10/fp;
+            const o = dec>=2?Math.round((dec-1)*100):Math.round(-100/(dec-1));
+            return (o>0?'+':'')+o;
+          })()}</td>
           <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.stake.toFixed(2)}u</td>
         </tr>`;
       }).join("")}
