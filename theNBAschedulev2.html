@@ -95,8 +95,10 @@
       box-shadow: 0 0 0 1px rgba(0,245,196,0.15), 0 0 28px rgba(0,245,196,0.12), 0 8px 28px rgba(0,0,0,0.4);
       transform: translateY(-2px);
     }
-    .card-hint { font-size: 0.75rem; color: var(--dim); text-align: center; padding: 0.4rem; letter-spacing: 0.1em; border-top: 1px solid var(--border); transition: color 0.2s; }
+    .card-hint { font-size: 0.75rem; color: var(--dim); letter-spacing: 0.1em; border-top: 1px solid var(--border); transition: color 0.2s; }
     .game-card:hover .card-hint { color: var(--teal); }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 1.1rem; border-top: 1px solid var(--border); }
+    .game-countdown { font-size: 0.85rem; color: var(--muted); letter-spacing: 0.06em; transition: color 0.3s; }
 
     /* SEARCH BAR */
     .inj-search-wrap { position: relative; margin-bottom: 0.85rem; }
@@ -358,7 +360,9 @@
     OKC:25,ORL:19,PHI:20,PHX:21,POR:22,SAC:23,SAS:24,TOR:28,UTA:26,WAS:27
   };
 
-  const logoUrl = a => `https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/${a.toLowerCase()}.png`;
+  // Reverse map: BDL team id -> abbreviation
+  const ID_TO_ABBR = {};
+  for (const [abbr, id] of Object.entries(TEAM_IDS)) ID_TO_ABBR[id] = abbr;
   const pad = n => String(n).padStart(2,"0");
   const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
@@ -429,6 +433,7 @@
     const homeCity=(TEAM_INFO[home]||{city:home}).city;
     const time=getTime(g.datetime);
     const gameData = encodeURIComponent(JSON.stringify({away,home,time,awayId:g.visitor_team.id,homeId:g.home_team.id}));
+    const isoTime = g.datetime || "";
     return `<div class="game-card" onclick="openRoster('${gameData}')">
       <div class="team-row">
         <div class="tl">
@@ -446,7 +451,10 @@
         </div>
         <span class="home-tag">Home</span>
       </div>
-      <div class="card-hint">Click to view rosters</div>
+      <div class="card-footer">
+        <span class="card-hint">Click to view rosters</span>
+        ${isoTime ? `<span class="game-countdown" data-tip="${isoTime}">—</span>` : ""}
+      </div>
     </div>`;
   }
 
@@ -574,7 +582,10 @@
 
       for (const inj of injuries) {
         const p = inj.player || {};
-        const teamAbbr = p.team?.abbreviation || inj.team?.abbreviation || "—";
+        const teamAbbr = p.team?.abbreviation
+          || ID_TO_ABBR[p.team_id]
+          || inj.team?.abbreviation
+          || "—";
         const pos = p.position || "—";
         const status = inj.status || "Out";
         const sl = status.toLowerCase();
@@ -688,7 +699,40 @@
   }
   document.addEventListener("keydown", e => { if(e.key==="Escape") closeModalDirect(); });
 
-  // ── SLATE ──
+  // ── COUNTDOWN TIMERS ──
+  let countdownInterval = null;
+
+  function startCountdowns() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    tickCountdowns();
+    countdownInterval = setInterval(tickCountdowns, 1000);
+  }
+
+  function tickCountdowns() {
+    const now = new Date();
+    document.querySelectorAll(".game-countdown").forEach(el => {
+      const iso = el.dataset.tip;
+      if (!iso) return;
+      const tip = new Date(iso);
+      const diff = tip - now;
+      if (diff <= 0) {
+        el.textContent = "Live";
+        el.style.color = "#00f5c4";
+        el.style.textShadow = "0 0 10px rgba(0,245,196,0.6)";
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      if (h > 0) {
+        el.textContent = `${h}h ${pad(m)}m`;
+      } else {
+        el.textContent = `${m}m ${pad(s)}s`;
+        if (m < 30) { el.style.color = "#fbbf24"; el.style.textShadow = "0 0 8px rgba(251,191,36,0.5)"; }
+      }
+    });
+  }
+
   function switchView(v) {
     currentView = v;
     const views = ["daily","weekly","monthly","injuries"];
@@ -698,16 +742,18 @@
     document.getElementById("error").style.display = "none";
     document.getElementById("chip-row").style.display = "none";
     document.getElementById("date-badge").textContent = v === "injuries" ? "Live" : getDateLabel();
+    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 
     if (v === "injuries") {
       document.getElementById("fetch-btn").textContent = "Refresh";
       document.getElementById("fetch-btn").onclick = loadInjuryTab;
       loadInjuryTab();
     } else {
-      document.getElementById("fetch-btn").textContent = "Load Slate";
+      document.getElementById("fetch-btn").textContent = "Refresh";
       document.getElementById("fetch-btn").onclick = fetchSlate;
-      document.getElementById("games-container").innerHTML = `<div class="empty">Load Slate to pull the schedule</div>`;
+      document.getElementById("games-container").innerHTML = `<div class="empty" style="color:#1e2d42">Fetching games...</div>`;
       currentSlate = "";
+      fetchSlate();
     }
   }
 
@@ -719,12 +765,22 @@
     errEl.style.display="none"; copyBar.style.display="none";
     document.getElementById("games-container").innerHTML=`<div class="empty" style="color:#1e2d42">Fetching games...</div>`;
     try {
-      const res=await fetch("https://api.balldontlie.io/nba/v1/games?"+getParams(),{headers:{Authorization:API_KEY}});
-      if(!res.ok) throw new Error("API error "+res.status);
-      const data=await res.json();
-      const games=data.data||[];
+      // Paginate to get all games (monthly needs multiple pages)
+      let games = [];
+      let cursor = null;
+      const baseParams = getParams();
+      do {
+        const url = "https://api.balldontlie.io/nba/v1/games?" + baseParams + (cursor ? "&cursor="+cursor : "");
+        const res = await fetch(url, {headers:{Authorization:API_KEY}});
+        if(!res.ok) throw new Error("API error "+res.status);
+        const data = await res.json();
+        games = games.concat(data.data||[]);
+        cursor = data.meta?.next_cursor || null;
+      } while (cursor);
+
       currentSlate=buildSlateText(games);
       renderGames(games);
+      startCountdowns();
       document.getElementById("chip-games").innerHTML=`<span class="hi">${games.length}</span> Games`;
       document.getElementById("chip-date").textContent=getDateLabel();
       document.getElementById("chip-row").style.display="flex";
@@ -770,6 +826,8 @@
 
   document.getElementById("date-badge").textContent=getDateLabel();
   document.getElementById("fetch-btn").onclick = fetchSlate;
+  // Auto-load daily slate on open
+  fetchSlate();
 </script>
 </body>
 </html>
