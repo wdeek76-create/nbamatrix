@@ -1,55 +1,1261 @@
-function screenshotBets() {
-  const pending = [...bets.filter(b => b.result === "pending")].sort((a,b) => { const ea = calcEdge(a.odds,a.fair)||0; const eb = calcEdge(b.odds,b.fair)||0; return eb-ea; });
-  if (pending.length === 0) { alert("No pending bets to screenshot."); return; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NBA MATRIX</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0f0e1a;color:#e2e8f0;font-family:'Inter',sans-serif;min-height:100vh;font-size:15px;}
+button{font-family:'Inter',sans-serif;cursor:pointer;font-size:15px;}
+input{font-family:'Inter',sans-serif;font-size:15px;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:#1a1830;}
+::-webkit-scrollbar-thumb{background:#3d3560;border-radius:3px;}
 
-  // Build a printable page
-  const win = window.open('', '_blank');
-  const rows = pending.map((b,i) => {
-    const e = calcEdge(b.odds, b.fair);
-    const eStr = e != null ? (e>0?'+':'')+e.toFixed(1)+'%' : '—';
-    const fp = b.fair != null ? (b.fair<0?Math.abs(b.fair)/(Math.abs(b.fair)+100):100/(b.fair+100)) : null;
-    const w5 = fp ? (() => { const d=1.05/fp; const o=d>=2?Math.round((d-1)*100):Math.round(-100/(d-1)); return (o>0?'+':'')+o; })() : '—';
-    const w10 = fp ? (() => { const d=1.10/fp; const o=d>=2?Math.round((d-1)*100):Math.round(-100/(d-1)); return (o>0?'+':'')+o; })() : '—';
-    const bg = i%2===0?'#0f0e1a':'#121120';
-    return `<tr style="background:${bg};border-bottom:1px solid #1a1830;">
-      <td>${b.player}</td><td style="color:#8b87b8">${b.team||''}</td>
-      <td style="color:#a78bfa">${b.stat}</td>
-      <td>${b.ou.toUpperCase()} ${b.line}</td>
-      <td style="color:#a78bfa">${b.proj!=null?b.proj.toFixed(2):'—'}</td>
-      <td style="color:${e!=null&&e>0?'#22c55e':'#f87171'};font-weight:700">${eStr}</td>
-      <td>${b.odds>0?'+'+b.odds:b.odds}</td>
-      <td style="color:#6b6896">${b.fair!=null?(b.fair>0?'+'+b.fair:b.fair):'—'}</td>
-      <td style="color:#f59e0b;font-weight:700">${w5}</td>
-      <td style="color:#22c55e;font-weight:700">${w10}</td>
-      <td style="color:#6b6896">${b.book}</td>
-      <td>${b.stake.toFixed(2)}u</td>
-    </tr>`;
-  }).join('');
+#header{padding:14px 32px;border-bottom:1px solid #1e1c35;display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#0f0e1a;}
+#tabs{display:flex;border-bottom:1px solid #1e1c35;background:#0f0e1a;padding:0 32px;}
+.tab-btn{padding:11px 22px;font-size:12px;letter-spacing:1px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:#6b6896;text-transform:uppercase;font-family:'Inter',sans-serif;cursor:pointer;transition:color 0.2s;}
+.tab-btn:hover{color:#a89cf7;}
+.tab-btn.active{color:#a78bfa;border-bottom-color:#7c3aed;}
 
+#main{padding:24px 32px;width:100%;}
 
-  win.document.write(`<!DOCTYPE html><html><head><title>NBA MATRIX</title>
-  <style>
-    body{background:#0f0e1a;color:#e2e8f0;font-family:'Inter',sans-serif;padding:24px;font-size:13px;}
-    table{width:100%;border-collapse:collapse;}
-    th{padding:8px 12px;font-size:11px;color:#6b6896;font-weight:600;text-align:left;border-bottom:1px solid #2a2845;letter-spacing:0.5px;}
-    td{padding:8px 12px;}
-    .header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
-    .logo{width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
-  </style></head><body>
-  <div class="header">
-    <div class="logo" style="color:#fff">N</div>
-    <span style="font-size:18px;font-weight:800;color:#fff">NBA</span>
-    <span style="font-size:18px;font-weight:800;color:#a78bfa">MATRIX</span>
-    <span style="font-size:12px;color:#6b6896;margin-left:8px">Active Plays · ${new Date().toLocaleDateString()} · ${pending.length} plays</span>
+.slot{margin-bottom:8px;padding:14px 18px;background:#16152a;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #1e1c35;}
+.slot.loaded{border-color:#7c3aed44;background:#1a1535;}
+.upload-label{cursor:pointer;background:#7c3aed;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;color:#fff;font-family:'Inter',sans-serif;transition:background 0.2s;}
+.upload-label:hover{background:#6d28d9;}
+
+#merge-btn{width:100%;padding:14px;font-size:13px;font-weight:700;letter-spacing:0.5px;border:none;border-radius:8px;margin-top:8px;transition:all 0.2s;}
+
+#controls{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+#controls input[type=text]{background:#16152a;border:1px solid #1e1c35;border-radius:6px;padding:8px 14px;font-size:13px;color:#e2e8f0;outline:none;width:170px;transition:border-color 0.2s;}
+#controls input[type=text]:focus{border-color:#7c3aed;}
+
+.ctrl-btn{background:#16152a;border:1px solid #1e1c35;color:#6b6896;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;transition:all 0.2s;}
+.ctrl-btn:hover{border-color:#7c3aed55;color:#a89cf7;}
+.ctrl-btn.active{background:#7c3aed22;border-color:#7c3aed;color:#a78bfa;}
+
+.stat-btn{background:#16152a;border:1px solid #1e1c35;color:#6b6896;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;transition:all 0.2s;}
+.stat-btn:hover{border-color:#7c3aed55;color:#a89cf7;}
+.stat-btn.active{background:#7c3aed22;border-color:#7c3aed;color:#a78bfa;}
+
+#export-btn{background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-size:13px;font-weight:600;transition:background 0.2s;}
+#export-btn:hover{background:#6d28d9;}
+
+#table-wrap{overflow-x:auto;border-radius:8px;border:1px solid #1e1c35;}
+table{width:100%;border-collapse:collapse;table-layout:auto;}
+thead{background:#16152a;}
+th{padding:10px 12px;font-size:12px;color:#6b6896;letter-spacing:0.8px;font-weight:600;text-transform:uppercase;white-space:nowrap;}
+th.left{text-align:left;}th.center{text-align:center;}
+tr.even{background:#0f0e1a;}tr.odd{background:#121120;}
+tr:hover{background:#1a1535 !important;}
+td{border-bottom:1px solid #1a1830;}
+
+.tol-wrap{display:flex;align-items:center;gap:8px;margin-left:auto;}
+
+#tol-val{font-size:13px;font-weight:700;color:#a78bfa;min-width:44px;}
+#shown-count{font-size:12px;font-weight:500;color:#6b6896;}
+#log{font-size:12px;color:#6b6896;margin-left:auto;}
+.sep{color:#2a2845;font-size:10px;}
+#empty-results{color:#3d3a6b;text-align:center;padding:60px 0;font-size:13px;}
+
+/* MODAL */
+#track-modal{display:none;position:fixed;inset:0;background:#0008;z-index:1000;align-items:center;justify-content:center;}
+#track-modal.open{display:flex;}
+#track-modal-box{background:#16152a;border:1px solid #2a2845;border-radius:14px;padding:28px 28px 24px;width:460px;max-width:95vw;}
+#track-modal-box h3{font-size:17px;font-weight:800;color:#fff;margin-bottom:2px;}
+#track-modal-box .sub{font-size:12px;color:#6b6896;margin-bottom:22px;}
+.modal-row{display:flex;gap:12px;margin-bottom:12px;}
+.modal-field{flex:1;display:flex;flex-direction:column;gap:5px;}
+.modal-field label{font-size:10px;font-weight:700;color:#6b6896;letter-spacing:1px;text-transform:uppercase;}
+.modal-field input,.modal-field select{background:#0f0e1a;border:1px solid #1e1c35;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color 0.15s;width:100%;}
+.modal-field input:focus,.modal-field select:focus{border-color:#7c3aed;}
+.modal-field select option{background:#16152a;}
+#modal-proj-display{font-size:13px;color:#a78bfa;font-weight:600;margin-bottom:4px;min-height:18px;}
+#modal-stake-preview{font-size:13px;color:#6b6896;margin-bottom:18px;min-height:18px;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+.modal-btn-cancel{background:transparent;border:1px solid #1e1c35;color:#6b6896;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+.modal-btn-save{background:#7c3aed;border:none;color:#fff;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+
+/* QUICK GRADE */
+#qg-overlay{display:none;position:fixed;inset:0;background:#0a0918;z-index:2000;flex-direction:column;align-items:center;justify-content:center;font-family:'Inter',sans-serif;}
+#qg-overlay.open{display:flex;}
+#qg-card{background:#16152a;border:1px solid #2a2845;border-radius:16px;padding:32px;width:420px;max-width:95vw;text-align:center;}
+#qg-progress{font-size:11px;color:#6b6896;letter-spacing:1px;margin-bottom:20px;}
+#qg-player{font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;}
+#qg-detail{font-size:15px;color:#a78bfa;font-weight:600;margin-bottom:6px;}
+#qg-proj{font-size:13px;color:#6b6896;margin-bottom:28px;}
+.qg-btns{display:flex;gap:12px;justify-content:center;}
+.qg-btn{border:none;border-radius:10px;padding:16px 28px;font-size:15px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;transition:transform 0.1s;letter-spacing:0.5px;}
+.qg-btn:active{transform:scale(0.95);}
+#qg-hit{background:#22c55e;color:#fff;}
+#qg-miss{background:#f87171;color:#fff;}
+#qg-void{background:#f59e0b;color:#fff;}
+#qg-skip{background:#16152a;border:1px solid #2a2845;color:#6b6896;}
+#qg-close-btn{margin-top:20px;background:transparent;border:none;color:#6b6896;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;}
+
+/* TRACKER */
+.tracker-section{margin-bottom:28px;}
+.tracker-section h4{font-size:13px;font-weight:700;color:#6b6896;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1e1c35;}
+.stat-card{display:inline-flex;flex-direction:column;background:#16152a;border:1px solid #1e1c35;border-radius:8px;padding:12px 18px;margin:0 8px 8px 0;min-width:110px;}
+.stat-card .sc-label{font-size:11px;color:#6b6896;font-weight:600;margin-bottom:4px;}
+.stat-card .sc-val{font-size:18px;font-weight:800;color:#fff;}
+.stat-card .sc-sub{font-size:11px;color:#6b6896;margin-top:2px;}
+.bet-row-hit{color:#22c55e;}
+.bet-row-miss{color:#f87171;}
+.bet-row-pending{color:#a78bfa;}
+#tracker-controls{display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;}
+#tracker-export-btn{background:#16152a;border:1px solid #2a2845;color:#a78bfa;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+#tracker-import-btn{background:#16152a;border:1px solid #2a2845;color:#6b6896;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+.result-btn{border:none;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin:0 2px;}
+.result-btn.hit{background:#22c55e22;color:#22c55e;border:1px solid #22c55e55;}
+.result-btn.miss{background:#f8717122;color:#f87171;border:1px solid #f8717155;}
+.result-btn.pending{background:#a78bfa22;color:#a78bfa;border:1px solid #a78bfa55;}
+
+#copy-toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:#7c3aed;color:#fff;padding:8px 20px;border-radius:8px;
+  font-size:13px;font-weight:600;opacity:0;transition:opacity 0.2s;
+  pointer-events:none;z-index:9999;
+}
+.copyable{cursor:pointer;}
+.copyable:hover{opacity:0.8;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<div id="header">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div style="width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:14px;font-weight:900;color:#fff;">N</span>
+    </div>
+    <div>
+      <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:0.5px;">NBA</span>
+      <span style="font-size:18px;font-weight:800;color:#a78bfa;letter-spacing:0.5px;margin-left:5px;">MATRIX</span>
+    </div>
   </div>
-  <table>
-    <thead><tr>${['PLAYER','TEAM','STAT','LINE','PROJ','EDGE','ODDS','FAIR','WORST@5%','WORST@10%','BOOK','STAKE'].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <script>window.onload=()=>window.print()<\/script>
-  </body></html>`);
-  win.document.close();
+  <div id="source-badges" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:16px;"></div>
+  <span id="log"></span>
+</div>
+
+<div id="tabs">
+  <button class="tab-btn active" onclick="switchTab('upload')">UPLOAD</button>
+  <button class="tab-btn" onclick="switchTab('results')">RESULTS</button>
+  <button class="tab-btn" onclick="switchTab('tracker')">TRACKER</button>
+  <button class="tab-btn" onclick="switchTab('autograde')">AUTO GRADE</button>
+</div>
+
+<div id="main">
+  <!-- UPLOAD TAB -->
+  <div id="upload-tab">
+    <div id="slots-container"></div>
+    <button id="merge-btn" onclick="runMerge()">RUN CONSENSUS MERGE — 0/4 SOURCES LOADED</button>
+  </div>
+
+  <!-- TRACKER TAB -->
+  <div id="tracker-tab" style="display:none;"></div>
+
+  <!-- AUTO GRADE TAB -->
+  <div id="autograde-tab" style="display:none;"></div>
+
+  <!-- RESULTS TAB -->
+  <div id="results-tab" style="display:none;">
+    <div id="empty-results">Upload sources and run merge first.</div>
+    <div id="results-content" style="display:none;">
+      <div id="controls">
+        <input type="text" id="search-box" placeholder="Search player…" oninput="renderTable()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+        <button class="ctrl-btn" id="con-btn" onclick="toggleConOnly()">CONSENSUS ONLY</button>
+        <span class="sep">|</span>
+        <span style="color:#3d5570;font-size:11px;font-weight:600;letter-spacing:2px;">SORT</span>
+        <button class="ctrl-btn" id="tight-btn" onclick="toggleSortMode()">TIGHTEST FIRST</button>
+        <span class="sep">|</span>
+        <div id="stat-btns"></div>
+        <div class="tol-wrap">
+          <span style="font-size:12px;font-weight:600;color:#6b6896;">TIGHTNESS</span>
+          <div style="display:flex;align-items:center;gap:4px;background:#16152a;border:1px solid #1e1c35;border-radius:6px;padding:4px 10px;">
+            <span style="font-size:12px;color:#6b6896;">±</span>
+            <input type="number" id="tol-input" min="1" max="100" value="15" autocomplete="off" spellcheck="false"
+              oninput="onTolChange()"
+              style="width:40px;background:transparent;border:none;outline:none;color:#a78bfa;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;text-align:center;"/>
+            <span style="font-size:12px;color:#6b6896;">%</span>
+          </div>
+          <span id="shown-count"></span>
+        </div>
+        <button id="export-btn" onclick="doExport()">EXPORT CSV</button>
+      </div>
+      <div id="table-wrap">
+        <table>
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SOURCES = [
+  {key:"ua",   label:"UA",   color:"#fb923c"},
+  {key:"etr",  label:"ETR",  color:"#38bdf8"},
+  {key:"stok", label:"STOK", color:"#c084fc"},
+  {key:"roto", label:"ROTO", color:"#34d399"},
+];
+const STATS = ["pts","reb","ast","threepm","pra","min"];
+const STAT_LABEL = {pts:"PTS",reb:"REB",ast:"AST",threepm:"3PM",pra:"PRA",min:"MIN"};
+
+const UA_TEMPLATE = [{"id": "460274", "name": "Asa Newell", "first_name": "Asa", "last_name": "Newell", "position": "F", "team": "ATL"}, {"id": "43423", "name": "Buddy Hield", "first_name": "Buddy", "last_name": "Hield", "position": "G", "team": "ATL"}, {"id": "425608", "name": "Caleb Houstan", "first_name": "Caleb", "last_name": "Houstan", "position": "G", "team": "ATL"}, {"id": "42914", "name": "Chris Silva", "first_name": "Chris", "last_name": "Silva", "position": "F", "team": "ATL"}, {"id": "43016", "name": "Christian Koloko", "first_name": "Christian", "last_name": "Koloko", "position": "C", "team": "ATL"}, {"id": "43034", "name": "CJ McCollum", "first_name": "CJ", "last_name": "McCollum", "position": "G", "team": "ATL"}, {"id": "43254", "name": "Corey Kispert", "first_name": "Corey", "last_name": "Kispert", "position": "F", "team": "ATL"}, {"id": "359899", "name": "Donovan Williams", "first_name": "Donovan", "last_name": "Williams", "position": "G", "team": "ATL"}, {"id": "425405", "name": "Duop Reath", "first_name": "Duop", "last_name": "Reath", "position": "C", "team": "ATL"}, {"id": "43410", "name": "Dylan Windler", "first_name": "Dylan", "last_name": "Windler", "position": "G-F", "team": "ATL"}, {"id": "7", "name": "Dyson Daniels", "first_name": "Dyson", "last_name": "Daniels", "position": "G", "team": "ATL"}, {"id": "460316", "name": "Eli John Ndiaye", "first_name": "Eli John", "last_name": "Ndiaye", "position": "F", "team": "ATL"}, {"id": "42858", "name": "Gabe Vincent", "first_name": "Gabe", "last_name": "Vincent", "position": "G", "team": "ATL"}, {"id": "417250", "name": "Jacob Toppin", "first_name": "Jacob", "last_name": "Toppin", "position": "F", "team": "ATL"}, {"id": "43456", "name": "Jalen Johnson", "first_name": "Jalen", "last_name": "Johnson", "position": "F", "team": "ATL"}, {"id": "241000", "name": "Jock Landale", "first_name": "Jock", "last_name": "Landale", "position": "C", "team": "ATL"}, {"id": "42643", "name": "Jonathan Kuminga", "first_name": "Jonathan", "last_name": "Kuminga", "position": "F", "team": "ATL"}, {"id": "230606", "name": "Keaton Wallace", "first_name": "Keaton", "last_name": "Wallace", "position": "G", "team": "ATL"}, {"id": "474750", "name": "Keshon Gilbert", "first_name": "Keshon", "last_name": "Gilbert", "position": "G", "team": "ATL"}, {"id": "435601", "name": "Malik Williams", "first_name": "Malik", "last_name": "Williams", "position": "C", "team": "ATL"}, {"id": "417197", "name": "Mouhamed Gueye", "first_name": "Mouhamed", "last_name": "Gueye", "position": "F", "team": "ATL"}, {"id": "439696", "name": "N'Faly Dante", "first_name": "N'Faly", "last_name": "Dante", "position": "C", "team": "ATL"}, {"id": "42674", "name": "Nickeil Alexander-Walker", "first_name": "Nickeil", "last_name": "Alexander-Walker", "position": "G", "team": "ATL"}, {"id": "439735", "name": "Nikola Đurišić", "first_name": "Nikola", "last_name": "Đurišić", "position": "G", "team": "ATL"}, {"id": "43444", "name": "Onyeka Okongwu", "first_name": "Onyeka", "last_name": "Okongwu", "position": "F-C", "team": "ATL"}, {"id": "449278", "name": "RayJ Dennis", "first_name": "RayJ", "last_name": "Dennis", "position": "G", "team": "ATL"}, {"id": "242204", "name": "Rudy Gay", "first_name": "Rudy", "last_name": "Gay", "position": "F-G", "team": "ATL"}, {"id": "235897", "name": "Trent Forrest", "first_name": "Trent", "last_name": "Forrest", "position": "G", "team": "ATL"}, {"id": "43421", "name": "Wesley Matthews", "first_name": "Wesley", "last_name": "Matthews", "position": "G", "team": "ATL"}, {"id": "439734", "name": "Zaccharie Risacher", "first_name": "Zaccharie", "last_name": "Risacher", "position": "F", "team": "ATL"}, {"id": "417228", "name": "Amari Bailey", "first_name": "Amari", "last_name": "Bailey", "position": "G", "team": "BKN"}, {"id": "425388", "name": "Armoni Brooks", "first_name": "Armoni", "last_name": "Brooks", "position": "G", "team": "BKN"}, {"id": "460270", "name": "Ben Saraf", "first_name": "Ben", "last_name": "Saraf", "position": "G", "team": "BKN"}, {"id": "1357", "name": "Bojan Bogdanović", "first_name": "Bojan", "last_name": "Bogdanović", "position": "F", "team": "BKN"}, {"id": "470324", "name": "Chaney Johnson", "first_name": "Chaney", "last_name": "Johnson", "position": "G-F", "team": "BKN"}, {"id": "460267", "name": "Danny Wolf", "first_name": "Danny", "last_name": "Wolf", "position": "F", "team": "BKN"}, {"id": "43309", "name": "Day'Ron Sharpe", "first_name": "Day'Ron", "last_name": "Sharpe", "position": "C", "team": "BKN"}, {"id": "460269", "name": "Drake Powell", "first_name": "Drake", "last_name": "Powell", "position": "G-F", "team": "BKN"}, {"id": "460268", "name": "Egor Dëmin", "first_name": "Egor", "last_name": "Dëmin", "position": "G", "team": "BKN"}, {"id": "43036", "name": "E.J. Liddell", "first_name": "E.J.", "last_name": "Liddell", "position": "F", "team": "BKN"}, {"id": "475456", "name": "Grant Nelson", "first_name": "Grant", "last_name": "Nelson", "position": "F", "team": "BKN"}, {"id": "417243", "name": "Jalen Wilson", "first_name": "Jalen", "last_name": "Wilson", "position": "F", "team": "BKN"}, {"id": "241364", "name": "Josh Minott", "first_name": "Josh", "last_name": "Minott", "position": "F", "team": "BKN"}, {"id": "43381", "name": "Keon Johnson", "first_name": "Keon", "last_name": "Johnson", "position": "G", "team": "BKN"}, {"id": "417236", "name": "Maxwell Lewis", "first_name": "Maxwell", "last_name": "Lewis", "position": "F", "team": "BKN"}, {"id": "43516", "name": "Michael Porter", "first_name": "Michael", "last_name": "Porter", "position": "F", "team": "BKN"}, {"id": "43511", "name": "Nerlens Noel", "first_name": "Nerlens", "last_name": "Noel", "position": "C-F", "team": "BKN"}, {"id": "243114", "name": "Nic Claxton", "first_name": "Nic", "last_name": "Claxton", "position": "C", "team": "BKN"}, {"id": "417259", "name": "Noah Clowney", "first_name": "Noah", "last_name": "Clowney", "position": "F-C", "team": "BKN"}, {"id": "460266", "name": "Nolan Traore", "first_name": "Nolan", "last_name": "Traore", "position": "G", "team": "BKN"}, {"id": "242374", "name": "Ochai Agbaji", "first_name": "Ochai", "last_name": "Agbaji", "position": "G", "team": "BKN"}, {"id": "417206", "name": "Ricky Council", "first_name": "Ricky", "last_name": "Council", "position": "G", "team": "BKN"}, {"id": "238591", "name": "Terance Mann", "first_name": "Terance", "last_name": "Mann", "position": "G-F", "team": "BKN"}, {"id": "42898", "name": "Tyson Etienne", "first_name": "Tyson", "last_name": "Etienne", "position": "G", "team": "BKN"}, {"id": "449284", "name": "Yongxi Cui", "first_name": "Yongxi", "last_name": "Cui", "position": "F", "team": "BKN"}, {"id": "242428", "name": "Ziaire Williams", "first_name": "Ziaire", "last_name": "Williams", "position": "F", "team": "BKN"}, {"id": "460299", "name": "Amari Williams", "first_name": "Amari", "last_name": "Williams", "position": "F-C", "team": "BOS"}, {"id": "439742", "name": "Baylor Scheierman", "first_name": "Baylor", "last_name": "Scheierman", "position": "G", "team": "BOS"}, {"id": "239996", "name": "Blake Griffin", "first_name": "Blake", "last_name": "Griffin", "position": "F", "team": "BOS"}, {"id": "42943", "name": "Bruno Caboclo", "first_name": "Bruno", "last_name": "Caboclo", "position": "F", "team": "BOS"}, {"id": "242919", "name": "Charles Bassey", "first_name": "Charles", "last_name": "Bassey", "position": "C-F", "team": "BOS"}, {"id": "241419", "name": "Chris Boucher", "first_name": "Chris", "last_name": "Boucher", "position": "F", "team": "BOS"}, {"id": "43008", "name": "Dalano Banton", "first_name": "Dalano", "last_name": "Banton", "position": "F", "team": "BOS"}, {"id": "42930", "name": "Denzel Valentine", "first_name": "Denzel", "last_name": "Valentine", "position": "G", "team": "BOS"}, {"id": "42962", "name": "Derrick White", "first_name": "Derrick", "last_name": "White", "position": "G", "team": "BOS"}, {"id": "429496", "name": "Dmytro Skapintsev", "first_name": "Dmytro", "last_name": "Skapintsev", "position": "C", "team": "BOS"}, {"id": "460263", "name": "Hugo González", "first_name": "Hugo", "last_name": "González", "position": "G", "team": "BOS"}, {"id": "439718", "name": "Jalen Bridges", "first_name": "Jalen", "last_name": "Bridges", "position": "F", "team": "BOS"}, {"id": "408187", "name": "Jay Scrubb", "first_name": "Jay", "last_name": "Scrubb", "position": "G", "team": "BOS"}, {"id": "242292", "name": "Jaylen Brown", "first_name": "Jaylen", "last_name": "Brown", "position": "G-F", "team": "BOS"}, {"id": "43294", "name": "Jayson Tatum", "first_name": "Jayson", "last_name": "Tatum", "position": "F-G", "team": "BOS"}, {"id": "460284", "name": "John Tonje", "first_name": "John", "last_name": "Tonje", "position": "G", "team": "BOS"}, {"id": "417192", "name": "Jordan Walsh", "first_name": "Jordan", "last_name": "Walsh", "position": "G", "team": "BOS"}, {"id": "241882", "name": "Kendall Brown", "first_name": "Kendall", "last_name": "Brown", "position": "G", "team": "BOS"}, {"id": "239235", "name": "Luka Garza", "first_name": "Luka", "last_name": "Garza", "position": "C", "team": "BOS"}, {"id": "460300", "name": "Max Shulga", "first_name": "Max", "last_name": "Shulga", "position": "G", "team": "BOS"}, {"id": "242327", "name": "Mfiondu Kabengele", "first_name": "Mfiondu", "last_name": "Kabengele", "position": "C", "team": "BOS"}, {"id": "425404", "name": "Miles Norris", "first_name": "Miles", "last_name": "Norris", "position": "F", "team": "BOS"}, {"id": "241886", "name": "Nathan Knight", "first_name": "Nathan", "last_name": "Knight", "position": "F-C", "team": "BOS"}, {"id": "43067", "name": "Neemias Queta", "first_name": "Neemias", "last_name": "Queta", "position": "C", "team": "BOS"}, {"id": "3231", "name": "Nikola Vučević", "first_name": "Nikola", "last_name": "Vučević", "position": "C", "team": "BOS"}, {"id": "43463", "name": "Noah Vonleh", "first_name": "Noah", "last_name": "Vonleh", "position": "F", "team": "BOS"}, {"id": "43455", "name": "Payton Pritchard", "first_name": "Payton", "last_name": "Pritchard", "position": "G", "team": "BOS"}, {"id": "236458", "name": "Ron Harper", "first_name": "Ron", "last_name": "Harper", "position": "G-F", "team": "BOS"}, {"id": "42975", "name": "Sam Hauser", "first_name": "Sam", "last_name": "Hauser", "position": "F", "team": "BOS"}, {"id": "818", "name": "Torrey Craig", "first_name": "Torrey", "last_name": "Craig", "position": "F", "team": "BOS"}, {"id": "43501", "name": "Aleksej Pokusevski", "first_name": "Aleksej", "last_name": "Pokusevski", "position": "F", "team": "CHA"}, {"id": "439695", "name": "Antonio Reeves", "first_name": "Antonio", "last_name": "Reeves", "position": "G", "team": "CHA"}, {"id": "43454", "name": "Arnoldas Kulboka", "first_name": "Arnoldas", "last_name": "Kulboka", "position": "F", "team": "CHA"}, {"id": "417246", "name": "Brandon Miller", "first_name": "Brandon", "last_name": "Miller", "position": "F", "team": "CHA"}, {"id": "3320", "name": "Coby White", "first_name": "Coby", "last_name": "White", "position": "G", "team": "CHA"}, {"id": "237471", "name": "DaQuan Jeffries", "first_name": "DaQuan", "last_name": "Jeffries", "position": "G-F", "team": "CHA"}, {"id": "42521", "name": "Davis Bertans", "first_name": "Davis", "last_name": "Bertans", "position": "F", "team": "CHA"}, {"id": "429167", "name": "Drew Peterson", "first_name": "Drew", "last_name": "Peterson", "position": "F", "team": "CHA"}, {"id": "240428", "name": "Duane Washington", "first_name": "Duane", "last_name": "Washington", "position": "G", "team": "CHA"}, {"id": "42992", "name": "Edmond Sumner", "first_name": "Edmond", "last_name": "Sumner", "position": "G", "team": "CHA"}, {"id": "42491", "name": "Frank Ntilikina", "first_name": "Frank", "last_name": "Ntilikina", "position": "G", "team": "CHA"}, {"id": "43458", "name": "Grant Williams", "first_name": "Grant", "last_name": "Williams", "position": "F", "team": "CHA"}, {"id": "425387", "name": "Harry Giles", "first_name": "Harry", "last_name": "Giles", "position": "F-C", "team": "CHA"}, {"id": "231162", "name": "Ibou Badji", "first_name": "Ibou", "last_name": "Badji", "position": "C", "team": "CHA"}, {"id": "230521", "name": "Isaiah Whaley", "first_name": "Isaiah", "last_name": "Whaley", "position": "F", "team": "CHA"}, {"id": "417330", "name": "Isaiah Wong", "first_name": "Isaiah", "last_name": "Wong", "position": "G", "team": "CHA"}, {"id": "242918", "name": "Ish Smith", "first_name": "Ish", "last_name": "Smith", "position": "G", "team": "CHA"}, {"id": "440145", "name": "Jake Stephens", "first_name": "Jake", "last_name": "Stephens", "position": "C", "team": "CHA"}, {"id": "230618", "name": "James Bouknight", "first_name": "James", "last_name": "Bouknight", "position": "G", "team": "CHA"}, {"id": "417214", "name": "James Nnaji", "first_name": "James", "last_name": "Nnaji", "position": "C", "team": "CHA"}, {"id": "239987", "name": "Jaylen Sims", "first_name": "Jaylen", "last_name": "Sims", "position": "G", "team": "CHA"}, {"id": "84", "name": "Josh Green", "first_name": "Josh", "last_name": "Green", "position": "G", "team": "CHA"}, {"id": "417224", "name": "Keyontae Johnson", "first_name": "Keyontae", "last_name": "Johnson", "position": "F", "team": "CHA"}, {"id": "442319", "name": "Kon Knueppel", "first_name": "Kon", "last_name": "Knueppel", "position": "G-F", "team": "CHA"}, {"id": "43460", "name": "LaMelo Ball", "first_name": "LaMelo", "last_name": "Ball", "position": "G", "team": "CHA"}, {"id": "460276", "name": "Liam McNeeley", "first_name": "Liam", "last_name": "McNeeley", "position": "F", "team": "CHA"}, {"id": "43001", "name": "Malachi Flynn", "first_name": "Malachi", "last_name": "Flynn", "position": "G", "team": "CHA"}, {"id": "241792", "name": "Malaki Branham", "first_name": "Malaki", "last_name": "Branham", "position": "F", "team": "CHA"}, {"id": "42892", "name": "Marcus Garrett", "first_name": "Marcus", "last_name": "Garrett", "position": "G", "team": "CHA"}, {"id": "42942", "name": "Miles Bridges", "first_name": "Miles", "last_name": "Bridges", "position": "F", "team": "CHA"}, {"id": "425602", "name": "Moussa Diabaté", "first_name": "Moussa", "last_name": "Diabaté", "position": "F", "team": "CHA"}, {"id": "43192", "name": "Pat Connaughton", "first_name": "Pat", "last_name": "Connaughton", "position": "G", "team": "CHA"}, {"id": "439709", "name": "PJ Hall", "first_name": "PJ", "last_name": "Hall", "position": "C", "team": "CHA"}, {"id": "460321", "name": "Ryan Kalkbrenner", "first_name": "Ryan", "last_name": "Kalkbrenner", "position": "C", "team": "CHA"}, {"id": "42926", "name": "Scottie Lewis", "first_name": "Scottie", "last_name": "Lewis", "position": "G", "team": "CHA"}, {"id": "460322", "name": "Sion James", "first_name": "Sion", "last_name": "James", "position": "G", "team": "CHA"}, {"id": "51", "name": "Spencer Dinwiddie", "first_name": "Spencer", "last_name": "Dinwiddie", "position": "G", "team": "CHA"}, {"id": "439736", "name": "Tidjane Salaün", "first_name": "Tidjane", "last_name": "Salaün", "position": "F", "team": "CHA"}, {"id": "431740", "name": "Tosan Evbuomwan", "first_name": "Tosan", "last_name": "Evbuomwan", "position": "F", "team": "CHA"}, {"id": "42672", "name": "Tre Mann", "first_name": "Tre", "last_name": "Mann", "position": "G", "team": "CHA"}, {"id": "417913", "name": "Vasilije Micić", "first_name": "Vasilije", "last_name": "Micić", "position": "G", "team": "CHA"}, {"id": "239302", "name": "Xavier Sneed", "first_name": "Xavier", "last_name": "Sneed", "position": "F", "team": "CHA"}, {"id": "238614", "name": "Xavier Tillman", "first_name": "Xavier", "last_name": "Tillman", "position": "F", "team": "CHA"}, {"id": "43432", "name": "Zavier Simpson", "first_name": "Zavier", "last_name": "Simpson", "position": "G", "team": "CHA"}, {"id": "417200", "name": "Adama Sanogo", "first_name": "Adama", "last_name": "Sanogo", "position": "F", "team": "CHI"}, {"id": "432301", "name": "Andrew Funk", "first_name": "Andrew", "last_name": "Funk", "position": "G", "team": "CHI"}, {"id": "43387", "name": "Anfernee Simons", "first_name": "Anfernee", "last_name": "Simons", "position": "G", "team": "CHI"}, {"id": "42793", "name": "Awudu Abass", "first_name": "Awudu", "last_name": "Abass", "position": "F", "team": "CHI"}, {"id": "240109", "name": "Carlik Jones", "first_name": "Carlik", "last_name": "Jones", "position": "G", "team": "CHI"}, {"id": "242334", "name": "Chris Duarte", "first_name": "Chris", "last_name": "Duarte", "position": "G", "team": "CHI"}, {"id": "239493", "name": "Collin Sexton", "first_name": "Collin", "last_name": "Sexton", "position": "G", "team": "CHI"}, {"id": "445180", "name": "DJ Steward", "first_name": "DJ", "last_name": "Steward", "position": "G", "team": "CHI"}, {"id": "445535", "name": "Guerschon Yabusele", "first_name": "Guerschon", "last_name": "Yabusele", "position": "F", "team": "CHI"}, {"id": "429233", "name": "Henri Drell", "first_name": "Henri", "last_name": "Drell", "position": "F", "team": "CHI"}, {"id": "242663", "name": "Isaac Okoro", "first_name": "Isaac", "last_name": "Okoro", "position": "F-G", "team": "CHI"}, {"id": "43526", "name": "Jaden Ivey", "first_name": "Jaden", "last_name": "Ivey", "position": "G", "team": "CHI"}, {"id": "42825", "name": "Jalen Smith", "first_name": "Jalen", "last_name": "Smith", "position": "F-C", "team": "CHI"}, {"id": "42679", "name": "Josh Giddey", "first_name": "Josh", "last_name": "Giddey", "position": "G", "team": "CHI"}, {"id": "237671", "name": "Justin Lewis", "first_name": "Justin", "last_name": "Lewis", "position": "F", "team": "CHI"}, {"id": "241903", "name": "Kenneth Lofton", "first_name": "Kenneth", "last_name": "Lofton", "position": "F", "team": "CHI"}, {"id": "42728", "name": "Kevin Knox", "first_name": "Kevin", "last_name": "Knox", "position": "F", "team": "CHI"}, {"id": "240166", "name": "Kostas Antetokounmpo", "first_name": "Kostas", "last_name": "Antetokounmpo", "position": "F", "team": "CHI"}, {"id": "460314", "name": "Lachlan Olbrich", "first_name": "Lachlan", "last_name": "Olbrich", "position": "C", "team": "CHI"}, {"id": "417240", "name": "Leonard Miller", "first_name": "Leonard", "last_name": "Miller", "position": "F", "team": "CHI"}, {"id": "43107", "name": "Mac McClung", "first_name": "Mac", "last_name": "McClung", "position": "G", "team": "CHI"}, {"id": "3413", "name": "Marko Simonovic", "first_name": "Marko", "last_name": "Simonovic", "position": "C", "team": "CHI"}, {"id": "439762", "name": "Matas Buzelis", "first_name": "Matas", "last_name": "Buzelis", "position": "F", "team": "CHI"}, {"id": "43171", "name": "Matt Thomas", "first_name": "Matt", "last_name": "Thomas", "position": "G", "team": "CHI"}, {"id": "240772", "name": "Mouhamadou Gueye", "first_name": "Mouhamadou", "last_name": "Gueye", "position": "F", "team": "CHI"}, {"id": "239400", "name": "Nick Richards", "first_name": "Nick", "last_name": "Richards", "position": "C", "team": "CHI"}, {"id": "460272", "name": "Noa Essengue", "first_name": "Noa", "last_name": "Essengue", "position": "F", "team": "CHI"}, {"id": "425372", "name": "Onuralp Bitim", "first_name": "Onuralp", "last_name": "Bitim", "position": "G-F", "team": "CHI"}, {"id": "43415", "name": "Patrick Williams", "first_name": "Patrick", "last_name": "Williams", "position": "F", "team": "CHI"}, {"id": "439712", "name": "Rob Dillingham", "first_name": "Rob", "last_name": "Dillingham", "position": "G", "team": "CHI"}, {"id": "42670", "name": "Talen Horton-Tucker", "first_name": "Talen", "last_name": "Horton-Tucker", "position": "G", "team": "CHI"}, {"id": "42537", "name": "Tre Jones", "first_name": "Tre", "last_name": "Jones", "position": "G", "team": "CHI"}, {"id": "446312", "name": "Trentyn Flowers", "first_name": "Trentyn", "last_name": "Flowers", "position": "F", "team": "CHI"}, {"id": "449275", "name": "Yuki Kawamura", "first_name": "Yuki", "last_name": "Kawamura", "position": "G", "team": "CHI"}, {"id": "43064", "name": "Zach Collins", "first_name": "Zach", "last_name": "Collins", "position": "F-C", "team": "CHI"}, {"id": "43222", "name": "Brandon Goodwin", "first_name": "Brandon", "last_name": "Goodwin", "position": "G", "team": "CLE"}, {"id": "230417", "name": "Chandler Vaudrin", "first_name": "Chandler", "last_name": "Vaudrin", "position": "G", "team": "CLE"}, {"id": "417326", "name": "Chris Livingston", "first_name": "Chris", "last_name": "Livingston", "position": "F", "team": "CLE"}, {"id": "43446", "name": "Chuma Okeke", "first_name": "Chuma", "last_name": "Okeke", "position": "F", "team": "CLE"}, {"id": "425373", "name": "Craig Porter", "first_name": "Craig", "last_name": "Porter", "position": "G", "team": "CLE"}, {"id": "43357", "name": "Damian Jones", "first_name": "Damian", "last_name": "Jones", "position": "C", "team": "CLE"}, {"id": "470452", "name": "Darius Brown", "first_name": "Darius", "last_name": "Brown", "position": "G", "team": "CLE"}, {"id": "242506", "name": "Dean Wade", "first_name": "Dean", "last_name": "Wade", "position": "F-C", "team": "CLE"}, {"id": "242105", "name": "Dennis Schröder", "first_name": "Dennis", "last_name": "Schröder", "position": "G", "team": "CLE"}, {"id": "439757", "name": "DJ Burns", "first_name": "DJ", "last_name": "Burns", "position": "F", "team": "CLE"}, {"id": "42844", "name": "Donovan Mitchell", "first_name": "Donovan", "last_name": "Mitchell", "position": "G", "team": "CLE"}, {"id": "242516", "name": "Evan Mobley", "first_name": "Evan", "last_name": "Mobley", "position": "C", "team": "CLE"}, {"id": "239220", "name": "Jacob Gilyard", "first_name": "Jacob", "last_name": "Gilyard", "position": "G", "team": "CLE"}, {"id": "42958", "name": "James Harden", "first_name": "James", "last_name": "Harden", "position": "G", "team": "CLE"}, {"id": "43220", "name": "Jarrett Allen", "first_name": "Jarrett", "last_name": "Allen", "position": "C", "team": "CLE"}, {"id": "439758", "name": "Jaylon Tyson", "first_name": "Jaylon", "last_name": "Tyson", "position": "G-F", "team": "CLE"}, {"id": "240061", "name": "Keon Ellis", "first_name": "Keon", "last_name": "Ellis", "position": "G", "team": "CLE"}, {"id": "43437", "name": "Khalifa Diop", "first_name": "Khalifa", "last_name": "Diop", "position": "C", "team": "CLE"}, {"id": "239231", "name": "Larry Nance", "first_name": "Larry", "last_name": "Nance", "position": "F-C", "team": "CLE"}, {"id": "43398", "name": "Lonzo Ball", "first_name": "Lonzo", "last_name": "Ball", "position": "G", "team": "CLE"}, {"id": "43566", "name": "Luke Travers", "first_name": "Luke", "last_name": "Travers", "position": "F", "team": "CLE"}, {"id": "43320", "name": "Marcus Morris", "first_name": "Marcus", "last_name": "Morris", "position": "F", "team": "CLE"}, {"id": "42894", "name": "Max Strus", "first_name": "Max", "last_name": "Strus", "position": "G-F", "team": "CLE"}, {"id": "453371", "name": "Nae'Qwan Tomlin", "first_name": "Nae'Qwan", "last_name": "Tomlin", "position": "F", "team": "CLE"}, {"id": "42750", "name": "Olivier Sarr", "first_name": "Olivier", "last_name": "Sarr", "position": "C", "team": "CLE"}, {"id": "42831", "name": "Raul Neto", "first_name": "Raul", "last_name": "Neto", "position": "G", "team": "CLE"}, {"id": "43219", "name": "Ricky Rubio", "first_name": "Ricky", "last_name": "Rubio", "position": "G", "team": "CLE"}, {"id": "445174", "name": "Riley Minix", "first_name": "Riley", "last_name": "Minix", "position": "F", "team": "CLE"}, {"id": "240742", "name": "Sam Merrill", "first_name": "Sam", "last_name": "Merrill", "position": "G", "team": "CLE"}, {"id": "43095", "name": "Thomas Bryant", "first_name": "Thomas", "last_name": "Bryant", "position": "C-F", "team": "CLE"}, {"id": "449288", "name": "Tristan Enaruna", "first_name": "Tristan", "last_name": "Enaruna", "position": "F", "team": "CLE"}, {"id": "409185", "name": "Tristan Thompson", "first_name": "Tristan", "last_name": "Thompson", "position": "C-F", "team": "CLE"}, {"id": "460306", "name": "Tyrese Proctor", "first_name": "Tyrese", "last_name": "Proctor", "position": "G", "team": "CLE"}, {"id": "431972", "name": "Zhaire Smith", "first_name": "Zhaire", "last_name": "Smith", "position": "G", "team": "CLE"}, {"id": "42722", "name": "Aaron Gordon", "first_name": "Aaron", "last_name": "Gordon", "position": "F", "team": "DEN"}, {"id": "238563", "name": "Bruce Brown", "first_name": "Bruce", "last_name": "Brown", "position": "G-F", "team": "DEN"}, {"id": "43085", "name": "Cameron Johnson", "first_name": "Cameron", "last_name": "Johnson", "position": "F", "team": "DEN"}, {"id": "43401", "name": "Christian Braun", "first_name": "Christian", "last_name": "Braun", "position": "G", "team": "DEN"}, {"id": "468626", "name": "Curtis Jones", "first_name": "Curtis", "last_name": "Jones", "position": "G", "team": "DEN"}, {"id": "439710", "name": "DaRon Holmes", "first_name": "DaRon", "last_name": "Holmes", "position": "F", "team": "DEN"}, {"id": "239219", "name": "David Roddy", "first_name": "David", "last_name": "Roddy", "position": "F", "team": "DEN"}, {"id": "417229", "name": "Hunter Tyson", "first_name": "Hunter", "last_name": "Tyson", "position": "F", "team": "DEN"}, {"id": "43166", "name": "Ismael Kamagate", "first_name": "Ismael", "last_name": "Kamagate", "position": "C", "team": "DEN"}, {"id": "417241", "name": "Jalen Pickett", "first_name": "Jalen", "last_name": "Pickett", "position": "G", "team": "DEN"}, {"id": "42747", "name": "Jamal Murray", "first_name": "Jamal", "last_name": "Murray", "position": "G", "team": "DEN"}, {"id": "449267", "name": "Jaylin Williams", "first_name": "Jaylin", "last_name": "Williams", "position": "F", "team": "DEN"}, {"id": "42511", "name": "Jonas Valančiūnas", "first_name": "Jonas", "last_name": "Valančiūnas", "position": "C", "team": "DEN"}, {"id": "417324", "name": "Julian Strawther", "first_name": "Julian", "last_name": "Strawther", "position": "G", "team": "DEN"}, {"id": "43256", "name": "Justin Holiday", "first_name": "Justin", "last_name": "Holiday", "position": "F-G", "team": "DEN"}, {"id": "43522", "name": "Justin Tillman", "first_name": "Justin", "last_name": "Tillman", "position": "F", "team": "DEN"}, {"id": "42993", "name": "Kessler Edwards", "first_name": "Kessler", "last_name": "Edwards", "position": "F", "team": "DEN"}, {"id": "439737", "name": "KJ Simpson", "first_name": "KJ", "last_name": "Simpson", "position": "G", "team": "DEN"}, {"id": "42756", "name": "Markus Howard", "first_name": "Markus", "last_name": "Howard", "position": "G", "team": "DEN"}, {"id": "43212", "name": "Moses Brown", "first_name": "Moses", "last_name": "Brown", "position": "C", "team": "DEN"}, {"id": "43562", "name": "Nikola Jokić", "first_name": "Nikola", "last_name": "Jokić", "position": "C", "team": "DEN"}, {"id": "43397", "name": "Peyton Watson", "first_name": "Peyton", "last_name": "Watson", "position": "G", "team": "DEN"}, {"id": "445173", "name": "Spencer Jones", "first_name": "Spencer", "last_name": "Jones", "position": "F", "team": "DEN"}, {"id": "468625", "name": "Tamar Bates", "first_name": "Tamar", "last_name": "Bates", "position": "G", "team": "DEN"}, {"id": "234682", "name": "Tim Hardaway", "first_name": "Tim", "last_name": "Hardaway", "position": "G-F", "team": "DEN"}, {"id": "109", "name": "Tyus Jones", "first_name": "Tyus", "last_name": "Jones", "position": "G", "team": "DEN"}, {"id": "42762", "name": "Vlatko Čančar", "first_name": "Vlatko", "last_name": "Čančar", "position": "F", "team": "DEN"}, {"id": "238429", "name": "Zeke Nnaji", "first_name": "Zeke", "last_name": "Nnaji", "position": "F", "team": "DEN"}, {"id": "449397", "name": "Aaron Estrada", "first_name": "Aaron", "last_name": "Estrada", "position": "G", "team": "DET"}, {"id": "417201", "name": "Ausar Thompson", "first_name": "Ausar", "last_name": "Thompson", "position": "G-F", "team": "DET"}, {"id": "439765", "name": "Bobi Klintman", "first_name": "Bobi", "last_name": "Klintman", "position": "F", "team": "DET"}, {"id": "242200", "name": "Cade Cunningham", "first_name": "Cade", "last_name": "Cunningham", "position": "G", "team": "DET"}, {"id": "43230", "name": "Caris LeVert", "first_name": "Caris", "last_name": "LeVert", "position": "G", "team": "DET"}, {"id": "425391", "name": "Charles Bediako", "first_name": "Charles", "last_name": "Bediako", "position": "C", "team": "DET"}, {"id": "460313", "name": "Chaz Lanier", "first_name": "Chaz", "last_name": "Lanier", "position": "G", "team": "DET"}, {"id": "43346", "name": "Chimezie Metu", "first_name": "Chimezie", "last_name": "Metu", "position": "F-C", "team": "DET"}, {"id": "417331", "name": "Colby Jones", "first_name": "Colby", "last_name": "Jones", "position": "G", "team": "DET"}, {"id": "439763", "name": "Daniss Jenkins", "first_name": "Daniss", "last_name": "Jenkins", "position": "G", "team": "DET"}, {"id": "43074", "name": "Dario Šarić", "first_name": "Dario", "last_name": "Šarić", "position": "F-C", "team": "DET"}, {"id": "237469", "name": "Dereon Seabron", "first_name": "Dereon", "last_name": "Seabron", "position": "G", "team": "DET"}, {"id": "43535", "name": "Duncan Robinson", "first_name": "Duncan", "last_name": "Robinson", "position": "F", "team": "DET"}, {"id": "43303", "name": "Evan Fournier", "first_name": "Evan", "last_name": "Fournier", "position": "G-F", "team": "DET"}, {"id": "42778", "name": "Gabriele Procida", "first_name": "Gabriele", "last_name": "Procida", "position": "G", "team": "DET"}, {"id": "439727", "name": "Isaac Jones", "first_name": "Isaac", "last_name": "Jones", "position": "F", "team": "DET"}, {"id": "242076", "name": "Isaiah Stewart", "first_name": "Isaiah", "last_name": "Stewart", "position": "F-C", "team": "DET"}, {"id": "43165", "name": "Jalen Duren", "first_name": "Jalen", "last_name": "Duren", "position": "C", "team": "DET"}, {"id": "43104", "name": "Javante McCoy", "first_name": "Javante", "last_name": "McCoy", "position": "G", "team": "DET"}, {"id": "242034", "name": "Javonte Green", "first_name": "Javonte", "last_name": "Green", "position": "G", "team": "DET"}, {"id": "42990", "name": "Joe Harris", "first_name": "Joe", "last_name": "Harris", "position": "G", "team": "DET"}, {"id": "43496", "name": "Kevin Huerter", "first_name": "Kevin", "last_name": "Huerter", "position": "G-F", "team": "DET"}, {"id": "425385", "name": "Malcolm Cazalon", "first_name": "Malcolm", "last_name": "Cazalon", "position": "G", "team": "DET"}, {"id": "43138", "name": "Malik Beasley", "first_name": "Malik", "last_name": "Beasley", "position": "G", "team": "DET"}, {"id": "417208", "name": "Marcus Sasser", "first_name": "Marcus", "last_name": "Sasser", "position": "G", "team": "DET"}, {"id": "42968", "name": "Paul Reed", "first_name": "Paul", "last_name": "Reed", "position": "F", "team": "DET"}, {"id": "42764", "name": "Rodney McGruder", "first_name": "Rodney", "last_name": "McGruder", "position": "G", "team": "DET"}, {"id": "439764", "name": "Ronald Holland", "first_name": "Ronald", "last_name": "Holland", "position": "F", "team": "DET"}, {"id": "241736", "name": "Ryan Arcidiacono", "first_name": "Ryan", "last_name": "Arcidiacono", "position": "G", "team": "DET"}, {"id": "5424", "name": "Tobias Harris", "first_name": "Tobias", "last_name": "Harris", "position": "F", "team": "DET"}, {"id": "449299", "name": "Tolu Smith", "first_name": "Tolu", "last_name": "Smith", "position": "F", "team": "DET"}, {"id": "242070", "name": "Troy Brown", "first_name": "Troy", "last_name": "Brown", "position": "F", "team": "DET"}, {"id": "239248", "name": "Wendell Moore", "first_name": "Wendell", "last_name": "Moore", "position": "G", "team": "DET"}, {"id": "242466", "name": "Al Horford", "first_name": "Al", "last_name": "Horford", "position": "C-F", "team": "GSW"}, {"id": "460294", "name": "Alex Toohey", "first_name": "Alex", "last_name": "Toohey", "position": "F", "team": "GSW"}, {"id": "440142", "name": "Allen Flanigan", "first_name": "Allen", "last_name": "Flanigan", "position": "G", "team": "GSW"}, {"id": "241091", "name": "Andre Iguodala", "first_name": "Andre", "last_name": "Iguodala", "position": "G-F", "team": "GSW"}, {"id": "417213", "name": "Brandin Podziemski", "first_name": "Brandin", "last_name": "Podziemski", "position": "G", "team": "GSW"}, {"id": "5378", "name": "De'Anthony Melton", "first_name": "De'Anthony", "last_name": "Melton", "position": "G", "team": "GSW"}, {"id": "42625", "name": "Draymond Green", "first_name": "Draymond", "last_name": "Green", "position": "F", "team": "GSW"}, {"id": "43148", "name": "Gary Payton", "first_name": "Gary", "last_name": "Payton", "position": "G", "team": "GSW"}, {"id": "43370", "name": "Gui Santos", "first_name": "Gui", "last_name": "Santos", "position": "F", "team": "GSW"}, {"id": "445177", "name": "Jackson Rowe", "first_name": "Jackson", "last_name": "Rowe", "position": "F", "team": "GSW"}, {"id": "242189", "name": "JaMychal Green", "first_name": "JaMychal", "last_name": "Green", "position": "F-C", "team": "GSW"}, {"id": "238627", "name": "Jerome Robinson", "first_name": "Jerome", "last_name": "Robinson", "position": "G", "team": "GSW"}, {"id": "43429", "name": "Jimmy Butler", "first_name": "Jimmy", "last_name": "Butler", "position": "F", "team": "GSW"}, {"id": "440162", "name": "Jimmy Whitt", "first_name": "Jimmy", "last_name": "Whitt", "position": "G", "team": "GSW"}, {"id": "43441", "name": "Kristaps Porziņģis", "first_name": "Kristaps", "last_name": "Porziņģis", "position": "F-C", "team": "GSW"}, {"id": "470337", "name": "LJ Cryer", "first_name": "LJ", "last_name": "Cryer", "position": "G", "team": "GSW"}, {"id": "449264", "name": "Malevy Leons", "first_name": "Malevy", "last_name": "Leons", "position": "F", "team": "GSW"}, {"id": "440160", "name": "Mantas Rubstavicius", "first_name": "Mantas", "last_name": "Rubstavicius", "position": "G", "team": "GSW"}, {"id": "238405", "name": "Marques Bolden", "first_name": "Marques", "last_name": "Bolden", "position": "C", "team": "GSW"}, {"id": "42638", "name": "Moses Moody", "first_name": "Moses", "last_name": "Moody", "position": "G", "team": "GSW"}, {"id": "240876", "name": "Nate Williams", "first_name": "Nate", "last_name": "Williams", "position": "G", "team": "GSW"}, {"id": "42867", "name": "Ömer Yurtseven", "first_name": "Ömer", "last_name": "Yurtseven", "position": "C", "team": "GSW"}, {"id": "240756", "name": "Pat Spencer", "first_name": "Pat", "last_name": "Spencer", "position": "G", "team": "GSW"}, {"id": "439728", "name": "Quinten Post", "first_name": "Quinten", "last_name": "Post", "position": "C", "team": "GSW"}, {"id": "43468", "name": "Seth Curry", "first_name": "Seth", "last_name": "Curry", "position": "G", "team": "GSW"}, {"id": "42631", "name": "Stephen Curry", "first_name": "Stephen", "last_name": "Curry", "position": "G", "team": "GSW"}, {"id": "434844", "name": "Taevion Kinsey", "first_name": "Taevion", "last_name": "Kinsey", "position": "G", "team": "GSW"}, {"id": "453437", "name": "Taran Armstrong", "first_name": "Taran", "last_name": "Armstrong", "position": "G", "team": "GSW"}, {"id": "42523", "name": "Usman Garuba", "first_name": "Usman", "last_name": "Garuba", "position": "F", "team": "GSW"}, {"id": "460295", "name": "Will Richard", "first_name": "Will", "last_name": "Richard", "position": "G", "team": "GSW"}, {"id": "440141", "name": "Yuri Collins", "first_name": "Yuri", "last_name": "Collins", "position": "G", "team": "GSW"}, {"id": "236454", "name": "Aaron Holiday", "first_name": "Aaron", "last_name": "Holiday", "position": "G", "team": "HOU"}, {"id": "43284", "name": "AJ Griffin", "first_name": "AJ", "last_name": "Griffin", "position": "F", "team": "HOU"}, {"id": "43037", "name": "Alperen Sengun", "first_name": "Alperen", "last_name": "Sengun", "position": "C", "team": "HOU"}, {"id": "417219", "name": "Amen Thompson", "first_name": "Amen", "last_name": "Thompson", "position": "G-F", "team": "HOU"}, {"id": "235654", "name": "Boban Marjanovic", "first_name": "Boban", "last_name": "Marjanovic", "position": "C", "team": "HOU"}, {"id": "468627", "name": "Cameron Matthews", "first_name": "Cameron", "last_name": "Matthews", "position": "F", "team": "HOU"}, {"id": "42911", "name": "Clint Capela", "first_name": "Clint", "last_name": "Capela", "position": "C", "team": "HOU"}, {"id": "239523", "name": "Cody Zeller", "first_name": "Cody", "last_name": "Zeller", "position": "F-C", "team": "HOU"}, {"id": "242485", "name": "Darius Days", "first_name": "Darius", "last_name": "Days", "position": "F", "team": "HOU"}, {"id": "404753", "name": "D.J. Augustin", "first_name": "D.J.", "last_name": "Augustin", "position": "G", "team": "HOU"}, {"id": "43020", "name": "Dorian Finney-Smith", "first_name": "Dorian", "last_name": "Finney-Smith", "position": "F", "team": "HOU"}, {"id": "43006", "name": "Fred VanVleet", "first_name": "Fred", "last_name": "VanVleet", "position": "G", "team": "HOU"}, {"id": "439726", "name": "Isaiah Crawford", "first_name": "Isaiah", "last_name": "Crawford", "position": "F", "team": "HOU"}, {"id": "237541", "name": "Jabari Smith", "first_name": "Jabari", "last_name": "Smith", "position": "F", "team": "HOU"}, {"id": "445175", "name": "Jack McVeigh", "first_name": "Jack", "last_name": "McVeigh", "position": "G-F", "team": "HOU"}, {"id": "43023", "name": "Jae'Sean Tate", "first_name": "Jae'Sean", "last_name": "Tate", "position": "F", "team": "HOU"}, {"id": "43286", "name": "JD Davison", "first_name": "JD", "last_name": "Davison", "position": "G", "team": "HOU"}, {"id": "42768", "name": "Jeff Green", "first_name": "Jeff", "last_name": "Green", "position": "F", "team": "HOU"}, {"id": "425379", "name": "Jermaine Samuels", "first_name": "Jermaine", "last_name": "Samuels", "position": "F", "team": "HOU"}, {"id": "240046", "name": "Josh Okogie", "first_name": "Josh", "last_name": "Okogie", "position": "G", "team": "HOU"}, {"id": "42988", "name": "Kevin Durant", "first_name": "Kevin", "last_name": "Durant", "position": "F", "team": "HOU"}, {"id": "4390", "name": "Kevon Harris", "first_name": "Kevon", "last_name": "Harris", "position": "G", "team": "HOU"}, {"id": "417195", "name": "Markquis Nowell", "first_name": "Markquis", "last_name": "Nowell", "position": "G", "team": "HOU"}, {"id": "42834", "name": "Nate Hinton", "first_name": "Nate", "last_name": "Hinton", "position": "G-F", "team": "HOU"}, {"id": "439697", "name": "Reed Sheppard", "first_name": "Reed", "last_name": "Sheppard", "position": "G", "team": "HOU"}, {"id": "40", "name": "Reggie Bullock", "first_name": "Reggie", "last_name": "Bullock", "position": "G-F", "team": "HOU"}, {"id": "102", "name": "Steven Adams", "first_name": "Steven", "last_name": "Adams", "position": "C", "team": "HOU"}, {"id": "242275", "name": "Tari Eason", "first_name": "Tari", "last_name": "Eason", "position": "F", "team": "HOU"}, {"id": "449276", "name": "Thon Maker", "first_name": "Thon", "last_name": "Maker", "position": "F-C", "team": "HOU"}, {"id": "242430", "name": "Trevor Hudgins", "first_name": "Trevor", "last_name": "Hudgins", "position": "G", "team": "HOU"}, {"id": "439760", "name": "Tristen Newton", "first_name": "Tristen", "last_name": "Newton", "position": "G", "team": "HOU"}, {"id": "43026", "name": "Willie Cauley-Stein", "first_name": "Willie", "last_name": "Cauley-Stein", "position": "C", "team": "HOU"}, {"id": "441717", "name": "Kasparas Jakucionis", "first_name": "Kasparas", "last_name": "Jakucionis", "position": "G", "team": "MIA"}, {"id": "43313", "name": "Ben Simmons", "first_name": "Ben", "last_name": "Simmons", "position": "G-F", "team": "LAC"}, {"id": "43529", "name": "Bennedict Mathurin", "first_name": "Bennedict", "last_name": "Mathurin", "position": "G-F", "team": "LAC"}, {"id": "42909", "name": "Bogdan Bogdanović", "first_name": "Bogdan", "last_name": "Bogdanović", "position": "G", "team": "LAC"}, {"id": "43274", "name": "Bradley Beal", "first_name": "Bradley", "last_name": "Beal", "position": "G", "team": "LAC"}, {"id": "43530", "name": "Brook Lopez", "first_name": "Brook", "last_name": "Lopez", "position": "C", "team": "LAC"}, {"id": "439717", "name": "Cam Christie", "first_name": "Cam", "last_name": "Christie", "position": "G", "team": "LAC"}, {"id": "43094", "name": "Chris Paul", "first_name": "Chris", "last_name": "Paul", "position": "G", "team": "LAC"}, {"id": "43225", "name": "Darius Garland", "first_name": "Darius", "last_name": "Garland", "position": "G", "team": "LAC"}, {"id": "43521", "name": "Derrick Jones", "first_name": "Derrick", "last_name": "Jones", "position": "F", "team": "LAC"}, {"id": "43203", "name": "Isaiah Jackson", "first_name": "Isaiah", "last_name": "Jackson", "position": "F", "team": "LAC"}, {"id": "470335", "name": "Jahmyl Telfort", "first_name": "Jahmyl", "last_name": "Telfort", "position": "F", "team": "LAC"}, {"id": "43069", "name": "Jason Preston", "first_name": "Jason", "last_name": "Preston", "position": "G", "team": "LAC"}, {"id": "43567", "name": "John Collins", "first_name": "John", "last_name": "Collins", "position": "F-C", "team": "LAC"}, {"id": "43050", "name": "John Wall", "first_name": "John", "last_name": "Wall", "position": "G", "team": "LAC"}, {"id": "417323", "name": "Jordan Miller", "first_name": "Jordan", "last_name": "Miller", "position": "G", "team": "LAC"}, {"id": "43485", "name": "Joshua Primo", "first_name": "Joshua", "last_name": "Primo", "position": "G", "team": "LAC"}, {"id": "42597", "name": "Kawhi Leonard", "first_name": "Kawhi", "last_name": "Leonard", "position": "F", "team": "LAC"}, {"id": "460290", "name": "Kobe Sanders", "first_name": "Kobe", "last_name": "Sanders", "position": "G", "team": "LAC"}, {"id": "359932", "name": "Kris Dunn", "first_name": "Kris", "last_name": "Dunn", "position": "G", "team": "LAC"}, {"id": "43077", "name": "Michael Devoe", "first_name": "Michael", "last_name": "Devoe", "position": "G", "team": "LAC"}, {"id": "241026", "name": "Moussa Diabate", "first_name": "Moussa", "last_name": "Diabate", "position": "F-C", "team": "LAC"}, {"id": "43552", "name": "Nicolas Batum", "first_name": "Nicolas", "last_name": "Batum", "position": "G-F", "team": "LAC"}, {"id": "470323", "name": "Norchad Omier", "first_name": "Norchad", "last_name": "Omier", "position": "F", "team": "LAC"}, {"id": "42991", "name": "Patty Mills", "first_name": "Patty", "last_name": "Mills", "position": "G", "team": "LAC"}, {"id": "474846", "name": "Sean Pedulla", "first_name": "Sean", "last_name": "Pedulla", "position": "G", "team": "LAC"}, {"id": "417205", "name": "Seth Lundy", "first_name": "Seth", "last_name": "Lundy", "position": "G-F", "team": "LAC"}, {"id": "241564", "name": "TyTy Washington", "first_name": "TyTy", "last_name": "Washington", "position": "G", "team": "LAC"}, {"id": "42557", "name": "Xavier Moon", "first_name": "Xavier", "last_name": "Moon", "position": "G", "team": "LAC"}, {"id": "460260", "name": "Yanic Konan Niederhäuser", "first_name": "Yanic Konan", "last_name": "Niederhäuser", "position": "C", "team": "LAC"}, {"id": "460293", "name": "Adou Thiero", "first_name": "Adou", "last_name": "Thiero", "position": "G", "team": "LAL"}, {"id": "439741", "name": "Anton Watson", "first_name": "Anton", "last_name": "Watson", "position": "F", "team": "LAL"}, {"id": "439723", "name": "Armel Traore", "first_name": "Armel", "last_name": "Traore", "position": "F", "team": "LAL"}, {"id": "468619", "name": "Augustas Marčiulionis", "first_name": "Augustas", "last_name": "Marčiulionis", "position": "G", "team": "LAL"}, {"id": "42647", "name": "Austin Reaves", "first_name": "Austin", "last_name": "Reaves", "position": "G", "team": "LAL"}, {"id": "439724", "name": "Bronny James", "first_name": "Bronny", "last_name": "James", "position": "G", "team": "LAL"}, {"id": "43297", "name": "Cam Reddish", "first_name": "Cam", "last_name": "Reddish", "position": "F-G", "team": "LAL"}, {"id": "468621", "name": "Chris Mañon", "first_name": "Chris", "last_name": "Mañon", "position": "G", "team": "LAL"}, {"id": "43324", "name": "Christian Wood", "first_name": "Christian", "last_name": "Wood", "position": "F-C", "team": "LAL"}, {"id": "439722", "name": "Dalton Knecht", "first_name": "Dalton", "last_name": "Knecht", "position": "F", "team": "LAL"}, {"id": "42731", "name": "Davon Reed", "first_name": "Davon", "last_name": "Reed", "position": "G", "team": "LAL"}, {"id": "43491", "name": "Deandre Ayton", "first_name": "Deandre", "last_name": "Ayton", "position": "C", "team": "LAL"}, {"id": "425374", "name": "D'Moi Hodge", "first_name": "D'Moi", "last_name": "Hodge", "position": "G", "team": "LAL"}, {"id": "417352", "name": "Drew Timme", "first_name": "Drew", "last_name": "Timme", "position": "F", "team": "LAL"}, {"id": "42634", "name": "Fabian White", "first_name": "Fabian", "last_name": "White", "position": "F", "team": "LAL"}, {"id": "239225", "name": "Jake LaRavia", "first_name": "Jake", "last_name": "LaRavia", "position": "F", "team": "LAL"}, {"id": "240451", "name": "Jarred Vanderbilt", "first_name": "Jarred", "last_name": "Vanderbilt", "position": "F", "team": "LAL"}, {"id": "10", "name": "Jaxson Hayes", "first_name": "Jaxson", "last_name": "Hayes", "position": "C-F", "team": "LAL"}, {"id": "417235", "name": "Kobe Bufkin", "first_name": "Kobe", "last_name": "Bufkin", "position": "G", "team": "LAL"}, {"id": "43096", "name": "LeBron James", "first_name": "LeBron", "last_name": "James", "position": "F", "team": "LAL"}, {"id": "93", "name": "Luka Dončić", "first_name": "Luka", "last_name": "Dončić", "position": "F-G", "team": "LAL"}, {"id": "42575", "name": "Luke Kennard", "first_name": "Luke", "last_name": "Kennard", "position": "G", "team": "LAL"}, {"id": "43464", "name": "Marcus Smart", "first_name": "Marcus", "last_name": "Smart", "position": "G", "team": "LAL"}, {"id": "42971", "name": "Markieff Morris", "first_name": "Markieff", "last_name": "Morris", "position": "F", "team": "LAL"}, {"id": "240743", "name": "Maxi Kleber", "first_name": "Maxi", "last_name": "Kleber", "position": "F-C", "team": "LAL"}, {"id": "417255", "name": "Nick Smith", "first_name": "Nick", "last_name": "Smith", "position": "G", "team": "LAL"}, {"id": "449283", "name": "Quincy Olivari", "first_name": "Quincy", "last_name": "Olivari", "position": "G", "team": "LAL"}, {"id": "468622", "name": "R.J. Davis", "first_name": "R.J.", "last_name": "Davis", "position": "G", "team": "LAL"}, {"id": "42896", "name": "Rui Hachimura", "first_name": "Rui", "last_name": "Hachimura", "position": "F", "team": "LAL"}, {"id": "43271", "name": "Shake Milton", "first_name": "Shake", "last_name": "Milton", "position": "G", "team": "LAL"}, {"id": "235828", "name": "Brandon Clarke", "first_name": "Brandon", "last_name": "Clarke", "position": "F", "team": "MEM"}, {"id": "42771", "name": "Braxton Key", "first_name": "Braxton", "last_name": "Key", "position": "F", "team": "MEM"}, {"id": "439699", "name": "Cam Spencer", "first_name": "Cam", "last_name": "Spencer", "position": "G", "team": "MEM"}, {"id": "460256", "name": "Cedric Coward", "first_name": "Cedric", "last_name": "Coward", "position": "G", "team": "MEM"}, {"id": "5500", "name": "Charlie Brown", "first_name": "Charlie", "last_name": "Brown", "position": "G", "team": "MEM"}, {"id": "42486", "name": "Dakota Mathias", "first_name": "Dakota", "last_name": "Mathias", "position": "G", "team": "MEM"}, {"id": "434843", "name": "DeJon Jarreau", "first_name": "DeJon", "last_name": "Jarreau", "position": "G", "team": "MEM"}, {"id": "43547", "name": "Derrick Rose", "first_name": "Derrick", "last_name": "Rose", "position": "G", "team": "MEM"}, {"id": "42543", "name": "Eric Gordon", "first_name": "Eric", "last_name": "Gordon", "position": "G", "team": "MEM"}, {"id": "5603", "name": "Georges Niang", "first_name": "Georges", "last_name": "Niang", "position": "F", "team": "MEM"}, {"id": "417190", "name": "GG Jackson", "first_name": "GG", "last_name": "Jackson", "position": "F", "team": "MEM"}, {"id": "43019", "name": "Ja Morant", "first_name": "Ja", "last_name": "Morant", "position": "G", "team": "MEM"}, {"id": "230277", "name": "Jack White", "first_name": "Jack", "last_name": "White", "position": "F", "team": "MEM"}, {"id": "460285", "name": "Jahmai Mashack", "first_name": "Jahmai", "last_name": "Mashack", "position": "G", "team": "MEM"}, {"id": "460286", "name": "Javon Small", "first_name": "Javon", "last_name": "Small", "position": "G", "team": "MEM"}, {"id": "439700", "name": "Jaylen Wells", "first_name": "Jaylen", "last_name": "Wells", "position": "F", "team": "MEM"}, {"id": "43542", "name": "Johnny Davis", "first_name": "Johnny", "last_name": "Davis", "position": "G", "team": "MEM"}, {"id": "230280", "name": "Kentavious Caldwell-Pope", "first_name": "Kentavious", "last_name": "Caldwell-Pope", "position": "G", "team": "MEM"}, {"id": "43528", "name": "Lamar Stevens", "first_name": "Lamar", "last_name": "Stevens", "position": "F", "team": "MEM"}, {"id": "470345", "name": "Lawson Lovering", "first_name": "Lawson", "last_name": "Lovering", "position": "C", "team": "MEM"}, {"id": "435205", "name": "Maozinha Pereira", "first_name": "Maozinha", "last_name": "Pereira", "position": "F", "team": "MEM"}, {"id": "240736", "name": "Matt Hurt", "first_name": "Matt", "last_name": "Hurt", "position": "F", "team": "MEM"}, {"id": "449273", "name": "Miye Oni", "first_name": "Miye", "last_name": "Oni", "position": "G", "team": "MEM"}, {"id": "417222", "name": "Olivier-Maxence Prosper", "first_name": "Olivier-Maxence", "last_name": "Prosper", "position": "F", "team": "MEM"}, {"id": "417230", "name": "Rayan Rupert", "first_name": "Rayan", "last_name": "Rupert", "position": "G-F", "team": "MEM"}, {"id": "235673", "name": "Santi Aldama", "first_name": "Santi", "last_name": "Aldama", "position": "F-C", "team": "MEM"}, {"id": "242926", "name": "Scotty Pippen", "first_name": "Scotty", "last_name": "Pippen", "position": "G", "team": "MEM"}, {"id": "239478", "name": "Shaquille Harrison", "first_name": "Shaquille", "last_name": "Harrison", "position": "G", "team": "MEM"}, {"id": "42903", "name": "Taj Gibson", "first_name": "Taj", "last_name": "Gibson", "position": "F", "team": "MEM"}, {"id": "417194", "name": "Tarik Biberovic", "first_name": "Tarik", "last_name": "Biberovic", "position": "F", "team": "MEM"}, {"id": "417265", "name": "Taylor Hendricks", "first_name": "Taylor", "last_name": "Hendricks", "position": "F", "team": "MEM"}, {"id": "435667", "name": "Timmy Allen", "first_name": "Timmy", "last_name": "Allen", "position": "F", "team": "MEM"}, {"id": "242628", "name": "Ty Jerome", "first_name": "Ty", "last_name": "Jerome", "position": "G-F", "team": "MEM"}, {"id": "470344", "name": "Tyler Burton", "first_name": "Tyler", "last_name": "Burton", "position": "F", "team": "MEM"}, {"id": "4168", "name": "Victor Oladipo", "first_name": "Victor", "last_name": "Oladipo", "position": "G", "team": "MEM"}, {"id": "460254", "name": "Walter Clayton", "first_name": "Walter", "last_name": "Clayton", "position": "G", "team": "MEM"}, {"id": "43101", "name": "Wenyen Gabriel", "first_name": "Wenyen", "last_name": "Gabriel", "position": "F", "team": "MEM"}, {"id": "242518", "name": "Yuta Watanabe", "first_name": "Yuta", "last_name": "Watanabe", "position": "G-F", "team": "MEM"}, {"id": "439698", "name": "Zach Edey", "first_name": "Zach", "last_name": "Edey", "position": "C", "team": "MEM"}, {"id": "43180", "name": "Alec Burks", "first_name": "Alec", "last_name": "Burks", "position": "G", "team": "MIA"}, {"id": "43492", "name": "Andrew Wiggins", "first_name": "Andrew", "last_name": "Wiggins", "position": "F", "team": "MIA"}, {"id": "42849", "name": "Bam Adebayo", "first_name": "Bam", "last_name": "Adebayo", "position": "C-F", "team": "MIA"}, {"id": "417328", "name": "Caleb Daniels", "first_name": "Caleb", "last_name": "Daniels", "position": "G", "team": "MIA"}, {"id": "42565", "name": "Davion Mitchell", "first_name": "Davion", "last_name": "Mitchell", "position": "G", "team": "MIA"}, {"id": "242930", "name": "Dru Smith", "first_name": "Dru", "last_name": "Smith", "position": "G", "team": "MIA"}, {"id": "449269", "name": "Jahmir Young", "first_name": "Jahmir", "last_name": "Young", "position": "G", "team": "MIA"}, {"id": "417203", "name": "Jaime Jaquez", "first_name": "Jaime", "last_name": "Jaquez", "position": "G", "team": "MIA"}, {"id": "42531", "name": "Josh Christopher", "first_name": "Josh", "last_name": "Christopher", "position": "G", "team": "MIA"}, {"id": "43350", "name": "Josh Richardson", "first_name": "Josh", "last_name": "Richardson", "position": "G", "team": "MIA"}, {"id": "460275", "name": "Kasparas Jakučionis", "first_name": "Kasparas", "last_name": "Jakučionis", "position": "G", "team": "MIA"}, {"id": "439733", "name": "Kel'el Ware", "first_name": "Kel'el", "last_name": "Ware", "position": "C", "team": "MIA"}, {"id": "439731", "name": "Keshad Johnson", "first_name": "Keshad", "last_name": "Johnson", "position": "F", "team": "MIA"}, {"id": "468617", "name": "Myron Gardner", "first_name": "Myron", "last_name": "Gardner", "position": "F", "team": "MIA"}, {"id": "43514", "name": "Nassir Little", "first_name": "Nassir", "last_name": "Little", "position": "F-G", "team": "MIA"}, {"id": "43543", "name": "Nikola Jović", "first_name": "Nikola", "last_name": "Jović", "position": "F", "team": "MIA"}, {"id": "43488", "name": "Norman Powell", "first_name": "Norman", "last_name": "Powell", "position": "G", "team": "MIA"}, {"id": "439732", "name": "Pelle Larsson", "first_name": "Pelle", "last_name": "Larsson", "position": "G", "team": "MIA"}, {"id": "43142", "name": "Simone Fontecchio", "first_name": "Simone", "last_name": "Fontecchio", "position": "F", "team": "MIA"}, {"id": "42947", "name": "Terry Rozier", "first_name": "Terry", "last_name": "Rozier", "position": "G", "team": "MIA"}, {"id": "43302", "name": "Trevor Keels", "first_name": "Trevor", "last_name": "Keels", "position": "G", "team": "MIA"}, {"id": "43243", "name": "Tyler Herro", "first_name": "Tyler", "last_name": "Herro", "position": "G", "team": "MIA"}, {"id": "42889", "name": "Udonis Haslem", "first_name": "Udonis", "last_name": "Haslem", "position": "F", "team": "MIA"}, {"id": "460317", "name": "Vladislav Goldin", "first_name": "Vladislav", "last_name": "Goldin", "position": "C", "team": "MIA"}, {"id": "42795", "name": "AJ Green", "first_name": "AJ", "last_name": "Green", "position": "G", "team": "MIL"}, {"id": "470421", "name": "Alex Antetokounmpo", "first_name": "Alex", "last_name": "Antetokounmpo", "position": "F", "team": "MIL"}, {"id": "241936", "name": "Amir Coffey", "first_name": "Amir", "last_name": "Coffey", "position": "F-G", "team": "MIL"}, {"id": "417254", "name": "Andre Jackson", "first_name": "Andre", "last_name": "Jackson", "position": "G", "team": "MIL"}, {"id": "43201", "name": "Bobby Portis", "first_name": "Bobby", "last_name": "Portis", "position": "F", "team": "MIL"}, {"id": "43316", "name": "Cam Thomas", "first_name": "Cam", "last_name": "Thomas", "position": "G", "team": "MIL"}, {"id": "449265", "name": "Cormac Ryan", "first_name": "Cormac", "last_name": "Ryan", "position": "G", "team": "MIL"}, {"id": "42937", "name": "Danilo Gallinari", "first_name": "Danilo", "last_name": "Gallinari", "position": "F", "team": "MIL"}, {"id": "43424", "name": "Gary Harris", "first_name": "Gary", "last_name": "Harris", "position": "G", "team": "MIL"}, {"id": "43007", "name": "Gary Trent", "first_name": "Gary", "last_name": "Trent", "position": "G", "team": "MIL"}, {"id": "43416", "name": "Giannis Antetokounmpo", "first_name": "Giannis", "last_name": "Antetokounmpo", "position": "F", "team": "MIL"}, {"id": "42804", "name": "Goran Dragic", "first_name": "Goran", "last_name": "Dragic", "position": "G", "team": "MIL"}, {"id": "43523", "name": "Hugo Besson", "first_name": "Hugo", "last_name": "Besson", "position": "G", "team": "MIL"}, {"id": "42811", "name": "Iverson Molinar", "first_name": "Iverson", "last_name": "Molinar", "position": "G", "team": "MIL"}, {"id": "449298", "name": "James Akinjo", "first_name": "James", "last_name": "Akinjo", "position": "G", "team": "MIL"}, {"id": "432532", "name": "Jaylin Galloway", "first_name": "Jaylin", "last_name": "Galloway", "position": "F", "team": "MIL"}, {"id": "43470", "name": "Jericho Sims", "first_name": "Jericho", "last_name": "Sims", "position": "C", "team": "MIL"}, {"id": "42539", "name": "Kevin Porter", "first_name": "Kevin", "last_name": "Porter", "position": "G-F", "team": "MIL"}, {"id": "4810", "name": "Kyle Kuzma", "first_name": "Kyle", "last_name": "Kuzma", "position": "F", "team": "MIL"}, {"id": "449295", "name": "Liam Robbins", "first_name": "Liam", "last_name": "Robbins", "position": "C", "team": "MIL"}, {"id": "43190", "name": "Lindell Wigginton", "first_name": "Lindell", "last_name": "Wigginton", "position": "G", "team": "MIL"}, {"id": "460312", "name": "Mark Sears", "first_name": "Mark", "last_name": "Sears", "position": "G", "team": "MIL"}, {"id": "42819", "name": "Myles Turner", "first_name": "Myles", "last_name": "Turner", "position": "C-F", "team": "MIL"}, {"id": "417262", "name": "Omari Moore", "first_name": "Omari", "last_name": "Moore", "position": "G", "team": "MIL"}, {"id": "42695", "name": "Ousmane Dieng", "first_name": "Ousmane", "last_name": "Dieng", "position": "F", "team": "MIL"}, {"id": "43500", "name": "Patrick Beverley", "first_name": "Patrick", "last_name": "Beverley", "position": "G", "team": "MIL"}, {"id": "430519", "name": "Pete Nance", "first_name": "Pete", "last_name": "Nance", "position": "F", "team": "MIL"}, {"id": "42869", "name": "Robin Lopez", "first_name": "Robin", "last_name": "Lopez", "position": "C", "team": "MIL"}, {"id": "42655", "name": "Ryan Rollins", "first_name": "Ryan", "last_name": "Rollins", "position": "G", "team": "MIL"}, {"id": "43182", "name": "Serge Ibaka", "first_name": "Serge", "last_name": "Ibaka", "position": "F", "team": "MIL"}, {"id": "43133", "name": "Taurean Prince", "first_name": "Taurean", "last_name": "Prince", "position": "F", "team": "MIL"}, {"id": "42797", "name": "Thanasis Antetokounmpo", "first_name": "Thanasis", "last_name": "Antetokounmpo", "position": "F", "team": "MIL"}, {"id": "42707", "name": "Anthony Edwards", "first_name": "Anthony", "last_name": "Edwards", "position": "G", "team": "MIN"}, {"id": "43127", "name": "Austin Rivers", "first_name": "Austin", "last_name": "Rivers", "position": "G", "team": "MIN"}, {"id": "43439", "name": "Ayo Dosunmu", "first_name": "Ayo", "last_name": "Dosunmu", "position": "G", "team": "MIN"}, {"id": "243113", "name": "Bones Hyland", "first_name": "Bones", "last_name": "Hyland", "position": "G", "team": "MIN"}, {"id": "42706", "name": "Bryn Forbes", "first_name": "Bryn", "last_name": "Forbes", "position": "G", "team": "MIN"}, {"id": "43493", "name": "Donte DiVincenzo", "first_name": "Donte", "last_name": "DiVincenzo", "position": "G", "team": "MIN"}, {"id": "439761", "name": "Enrique Freeman", "first_name": "Enrique", "last_name": "Freeman", "position": "F", "team": "MIN"}, {"id": "42701", "name": "Jaden McDaniels", "first_name": "Jaden", "last_name": "McDaniels", "position": "F", "team": "MIN"}, {"id": "417245", "name": "Jaylen Clark", "first_name": "Jaylen", "last_name": "Clark", "position": "G", "team": "MIN"}, {"id": "445172", "name": "Jesse Edwards", "first_name": "Jesse", "last_name": "Edwards", "position": "C", "team": "MIN"}, {"id": "460252", "name": "Joan Beringer", "first_name": "Joan", "last_name": "Beringer", "position": "F", "team": "MIN"}, {"id": "241863", "name": "Joe Ingles", "first_name": "Joe", "last_name": "Ingles", "position": "F-G", "team": "MIN"}, {"id": "241307", "name": "Johnny Juzang", "first_name": "Johnny", "last_name": "Juzang", "position": "G", "team": "MIN"}, {"id": "241592", "name": "Jules Bernard", "first_name": "Jules", "last_name": "Bernard", "position": "G", "team": "MIN"}, {"id": "417216", "name": "Julian Phillips", "first_name": "Julian", "last_name": "Phillips", "position": "F", "team": "MIN"}, {"id": "43282", "name": "Julius Randle", "first_name": "Julius", "last_name": "Randle", "position": "F-C", "team": "MIN"}, {"id": "230759", "name": "Justin Jackson", "first_name": "Justin", "last_name": "Jackson", "position": "F", "team": "MIN"}, {"id": "43482", "name": "Keita Bates-Diop", "first_name": "Keita", "last_name": "Bates-Diop", "position": "F", "team": "MIN"}, {"id": "43364", "name": "Kyle Anderson", "first_name": "Kyle", "last_name": "Anderson", "position": "F-G", "team": "MIN"}, {"id": "43557", "name": "Matteo Spagnolo", "first_name": "Matteo", "last_name": "Spagnolo", "position": "G", "team": "MIN"}, {"id": "43358", "name": "Mike Conley", "first_name": "Mike", "last_name": "Conley", "position": "G", "team": "MIN"}, {"id": "243052", "name": "Naz Reid", "first_name": "Naz", "last_name": "Reid", "position": "C-F", "team": "MIN"}, {"id": "238669", "name": "PJ Dozier", "first_name": "PJ", "last_name": "Dozier", "position": "G", "team": "MIN"}, {"id": "460280", "name": "Rocco Zikarsky", "first_name": "Rocco", "last_name": "Zikarsky", "position": "C", "team": "MIN"}, {"id": "42685", "name": "Rudy Gobert", "first_name": "Rudy", "last_name": "Gobert", "position": "C", "team": "MIN"}, {"id": "42905", "name": "Skylar Mays", "first_name": "Skylar", "last_name": "Mays", "position": "G", "team": "MIN"}, {"id": "439711", "name": "Terrence Shannon", "first_name": "Terrence", "last_name": "Shannon", "position": "G-F", "team": "MIN"}, {"id": "42708", "name": "Theo John", "first_name": "Theo", "last_name": "John", "position": "F", "team": "MIN"}, {"id": "439878", "name": "Zyon Pullin", "first_name": "Zyon", "last_name": "Pullin", "position": "G", "team": "MIN"}, {"id": "42550", "name": "Brandon Boston", "first_name": "Brandon", "last_name": "Boston", "position": "G", "team": "NOP"}, {"id": "42918", "name": "Bryce McGowens", "first_name": "Bryce", "last_name": "McGowens", "position": "G", "team": "NOP"}, {"id": "242192", "name": "DeAndre Jordan", "first_name": "DeAndre", "last_name": "Jordan", "position": "C", "team": "NOP"}, {"id": "42901", "name": "Dejounte Murray", "first_name": "Dejounte", "last_name": "Murray", "position": "G", "team": "NOP"}, {"id": "460259", "name": "Derik Queen", "first_name": "Derik", "last_name": "Queen", "position": "C", "team": "NOP"}, {"id": "451375", "name": "Elfrid Payton", "first_name": "Elfrid", "last_name": "Payton", "position": "G", "team": "NOP"}, {"id": "6", "name": "Gary Clark", "first_name": "Gary", "last_name": "Clark", "position": "F", "team": "NOP"}, {"id": "237474", "name": "Herbert Jones", "first_name": "Herbert", "last_name": "Jones", "position": "F", "team": "NOP"}, {"id": "460289", "name": "Hunter Dickinson", "first_name": "Hunter", "last_name": "Dickinson", "position": "C", "team": "NOP"}, {"id": "230352", "name": "Izaiah Brockington", "first_name": "Izaiah", "last_name": "Brockington", "position": "G", "team": "NOP"}, {"id": "43462", "name": "Jaden Springer", "first_name": "Jaden", "last_name": "Springer", "position": "G", "team": "NOP"}, {"id": "43259", "name": "Jalen McDaniels", "first_name": "Jalen", "last_name": "McDaniels", "position": "F", "team": "NOP"}, {"id": "43028", "name": "Jared Harper", "first_name": "Jared", "last_name": "Harper", "position": "G", "team": "NOP"}, {"id": "450110", "name": "Jeremiah Fears", "first_name": "Jeremiah", "last_name": "Fears", "position": "G", "team": "NOP"}, {"id": "417188", "name": "Jordan Hawkins", "first_name": "Jordan", "last_name": "Hawkins", "position": "G", "team": "NOP"}, {"id": "43093", "name": "Jordan Poole", "first_name": "Jordan", "last_name": "Poole", "position": "G", "team": "NOP"}, {"id": "449593", "name": "Josh Oduro", "first_name": "Josh", "last_name": "Oduro", "position": "C", "team": "NOP"}, {"id": "425377", "name": "Kaiser Gates", "first_name": "Kaiser", "last_name": "Gates", "position": "F", "team": "NOP"}, {"id": "445176", "name": "Karlo Matković", "first_name": "Karlo", "last_name": "Matković", "position": "F-C", "team": "NOP"}, {"id": "449277", "name": "Keion Brooks", "first_name": "Keion", "last_name": "Brooks", "position": "F", "team": "NOP"}, {"id": "240833", "name": "Kelan Martin", "first_name": "Kelan", "last_name": "Martin", "position": "F", "team": "NOP"}, {"id": "238647", "name": "Kevon Looney", "first_name": "Kevon", "last_name": "Looney", "position": "F", "team": "NOP"}, {"id": "449282", "name": "Kylor Kelley", "first_name": "Kylor", "last_name": "Kelley", "position": "C", "team": "NOP"}, {"id": "460288", "name": "Micah Peavy", "first_name": "Micah", "last_name": "Peavy", "position": "G-F", "team": "NOP"}, {"id": "241990", "name": "Saddiq Bey", "first_name": "Saddiq", "last_name": "Bey", "position": "G-F", "team": "NOP"}, {"id": "440188", "name": "Trey Alexander", "first_name": "Trey", "last_name": "Alexander", "position": "G", "team": "NOP"}, {"id": "237470", "name": "Trey Murphy", "first_name": "Trey", "last_name": "Murphy", "position": "F", "team": "NOP"}, {"id": "242420", "name": "Willy Hernangomez", "first_name": "Willy", "last_name": "Hernangomez", "position": "C-F", "team": "NOP"}, {"id": "439694", "name": "Yves Missi", "first_name": "Yves", "last_name": "Missi", "position": "C", "team": "NOP"}, {"id": "11", "name": "Zion Williamson", "first_name": "Zion", "last_name": "Williamson", "position": "F", "team": "NOP"}, {"id": "43569", "name": "Alex Len", "first_name": "Alex", "last_name": "Len", "position": "C", "team": "NYK"}, {"id": "439745", "name": "Ariel Hukporti", "first_name": "Ariel", "last_name": "Hukporti", "position": "C", "team": "NYK"}, {"id": "439706", "name": "Dillon Jones", "first_name": "Dillon", "last_name": "Jones", "position": "F", "team": "NYK"}, {"id": "233839", "name": "Isaiah Roby", "first_name": "Isaiah", "last_name": "Roby", "position": "F", "team": "NYK"}, {"id": "43296", "name": "Jalen Brunson", "first_name": "Jalen", "last_name": "Brunson", "position": "G", "team": "NYK"}, {"id": "43480", "name": "Jeremy Sochan", "first_name": "Jeremy", "last_name": "Sochan", "position": "F", "team": "NYK"}, {"id": "43106", "name": "Jordan Clarkson", "first_name": "Jordan", "last_name": "Clarkson", "position": "G", "team": "NYK"}, {"id": "43323", "name": "Jose Alvarado", "first_name": "Jose", "last_name": "Alvarado", "position": "G", "team": "NYK"}, {"id": "43159", "name": "Josh Hart", "first_name": "Josh", "last_name": "Hart", "position": "G", "team": "NYK"}, {"id": "43144", "name": "Karl-Anthony Towns", "first_name": "Karl-Anthony", "last_name": "Towns", "position": "C-F", "team": "NYK"}, {"id": "439743", "name": "Kevin McCullar", "first_name": "Kevin", "last_name": "McCullar", "position": "G", "team": "NYK"}, {"id": "42583", "name": "Landry Shamet", "first_name": "Landry", "last_name": "Shamet", "position": "G", "team": "NYK"}, {"id": "5833", "name": "Malcolm Brogdon", "first_name": "Malcolm", "last_name": "Brogdon", "position": "G", "team": "NYK"}, {"id": "238475", "name": "Matt Ryan", "first_name": "Matt", "last_name": "Ryan", "position": "F", "team": "NYK"}, {"id": "43092", "name": "Mikal Bridges", "first_name": "Mikal", "last_name": "Bridges", "position": "G-F", "team": "NYK"}, {"id": "43466", "name": "Miles McBride", "first_name": "Miles", "last_name": "McBride", "position": "G", "team": "NYK"}, {"id": "43549", "name": "Mitchell Robinson", "first_name": "Mitchell", "last_name": "Robinson", "position": "C-F", "team": "NYK"}, {"id": "460301", "name": "Mohamed Diawara", "first_name": "Mohamed", "last_name": "Diawara", "position": "F", "team": "NYK"}, {"id": "43012", "name": "OG Anunoby", "first_name": "OG", "last_name": "Anunoby", "position": "F-G", "team": "NYK"}, {"id": "439746", "name": "Pacôme Dadiet", "first_name": "Pacôme", "last_name": "Dadiet", "position": "F", "team": "NYK"}, {"id": "5530", "name": "P.J. Tucker", "first_name": "P.J.", "last_name": "Tucker", "position": "F", "team": "NYK"}, {"id": "42978", "name": "T.J. Warren", "first_name": "T.J.", "last_name": "Warren", "position": "F", "team": "NYK"}, {"id": "431113", "name": "Trey Jemison", "first_name": "Trey", "last_name": "Jemison", "position": "C", "team": "NYK"}, {"id": "439744", "name": "Tyler Kolek", "first_name": "Tyler", "last_name": "Kolek", "position": "G", "team": "NYK"}, {"id": "43541", "name": "Admiral Schofield", "first_name": "Admiral", "last_name": "Schofield", "position": "F", "team": "ORL"}, {"id": "449662", "name": "Alex Morales", "first_name": "Alex", "last_name": "Morales", "position": "G", "team": "ORL"}, {"id": "417327", "name": "Anthony Black", "first_name": "Anthony", "last_name": "Black", "position": "G", "team": "ORL"}, {"id": "425375", "name": "Colin Castleton", "first_name": "Colin", "last_name": "Castleton", "position": "C", "team": "ORL"}, {"id": "43402", "name": "Cory Joseph", "first_name": "Cory", "last_name": "Joseph", "position": "G", "team": "ORL"}, {"id": "235715", "name": "Desmond Bane", "first_name": "Desmond", "last_name": "Bane", "position": "G", "team": "ORL"}, {"id": "43533", "name": "Franz Wagner", "first_name": "Franz", "last_name": "Wagner", "position": "F", "team": "ORL"}, {"id": "42809", "name": "Goga Bitadze", "first_name": "Goga", "last_name": "Bitadze", "position": "C-F", "team": "ORL"}, {"id": "240545", "name": "Jalen Crutcher", "first_name": "Jalen", "last_name": "Crutcher", "position": "G", "team": "ORL"}, {"id": "43426", "name": "Jalen Suggs", "first_name": "Jalen", "last_name": "Suggs", "position": "G", "team": "ORL"}, {"id": "240820", "name": "Jamal Cain", "first_name": "Jamal", "last_name": "Cain", "position": "F", "team": "ORL"}, {"id": "242925", "name": "Jarrett Culver", "first_name": "Jarrett", "last_name": "Culver", "position": "G-F", "team": "ORL"}, {"id": "460273", "name": "Jase Richardson", "first_name": "Jase", "last_name": "Richardson", "position": "G", "team": "ORL"}, {"id": "241544", "name": "Javonte Smart", "first_name": "Javonte", "last_name": "Smart", "position": "G", "team": "ORL"}, {"id": "417248", "name": "Jett Howard", "first_name": "Jett", "last_name": "Howard", "position": "G", "team": "ORL"}, {"id": "42807", "name": "Jevon Carter", "first_name": "Jevon", "last_name": "Carter", "position": "G", "team": "ORL"}, {"id": "230416", "name": "Joel Ayayi", "first_name": "Joel", "last_name": "Ayayi", "position": "G", "team": "ORL"}, {"id": "42855", "name": "Jonathan Isaac", "first_name": "Jonathan", "last_name": "Isaac", "position": "F", "team": "ORL"}, {"id": "408021", "name": "Justin Minaya", "first_name": "Justin", "last_name": "Minaya", "position": "F", "team": "ORL"}, {"id": "42614", "name": "Lester Quinones", "first_name": "Lester", "last_name": "Quinones", "position": "G", "team": "ORL"}, {"id": "409098", "name": "Michael Carter-Williams", "first_name": "Michael", "last_name": "Carter-Williams", "position": "G", "team": "ORL"}, {"id": "237754", "name": "Moritz Wagner", "first_name": "Moritz", "last_name": "Wagner", "position": "F-C", "team": "ORL"}, {"id": "460315", "name": "Noah Penda", "first_name": "Noah", "last_name": "Penda", "position": "G-F", "team": "ORL"}, {"id": "43449", "name": "Orlando Robinson", "first_name": "Orlando", "last_name": "Robinson", "position": "C", "team": "ORL"}, {"id": "42838", "name": "Paolo Banchero", "first_name": "Paolo", "last_name": "Banchero", "position": "F", "team": "ORL"}, {"id": "453960", "name": "Phillip Wheeler", "first_name": "Phillip", "last_name": "Wheeler", "position": "F", "team": "ORL"}, {"id": "439729", "name": "Reece Beekman", "first_name": "Reece", "last_name": "Beekman", "position": "G", "team": "ORL"}, {"id": "241123", "name": "Trevelin Queen", "first_name": "Trevelin", "last_name": "Queen", "position": "G", "team": "ORL"}, {"id": "439730", "name": "Tristan da Silva", "first_name": "Tristan", "last_name": "da Silva", "position": "F", "team": "ORL"}, {"id": "238452", "name": "Wendell Carter", "first_name": "Wendell", "last_name": "Carter", "position": "C-F", "team": "ORL"}, {"id": "439749", "name": "Adem Bona", "first_name": "Adem", "last_name": "Bona", "position": "F", "team": "PHI"}, {"id": "449266", "name": "Alex Reese", "first_name": "Alex", "last_name": "Reese", "position": "F-C", "team": "PHI"}, {"id": "43408", "name": "Andre Drummond", "first_name": "Andre", "last_name": "Drummond", "position": "C", "team": "PHI"}, {"id": "417231", "name": "Azuolas Tubelis", "first_name": "Azuolas", "last_name": "Tubelis", "position": "F", "team": "PHI"}, {"id": "43098", "name": "Cameron Payne", "first_name": "Cameron", "last_name": "Payne", "position": "G", "team": "PHI"}, {"id": "242497", "name": "Dalen Terry", "first_name": "Dalen", "last_name": "Terry", "position": "F", "team": "PHI"}, {"id": "42487", "name": "Danny Green", "first_name": "Danny", "last_name": "Green", "position": "G", "team": "PHI"}, {"id": "43452", "name": "Danuel House", "first_name": "Danuel", "last_name": "House", "position": "F-G", "team": "PHI"}, {"id": "43447", "name": "Dewayne Dedmon", "first_name": "Dewayne", "last_name": "Dedmon", "position": "C", "team": "PHI"}, {"id": "43011", "name": "D.J. Wilson", "first_name": "D.J.", "last_name": "Wilson", "position": "F", "team": "PHI"}, {"id": "43550", "name": "Dominick Barlow", "first_name": "Dominick", "last_name": "Barlow", "position": "F", "team": "PHI"}, {"id": "417189", "name": "Emoni Bates", "first_name": "Emoni", "last_name": "Bates", "position": "F", "team": "PHI"}, {"id": "5555", "name": "Furkan Korkmaz", "first_name": "Furkan", "last_name": "Korkmaz", "position": "G-F", "team": "PHI"}, {"id": "460304", "name": "Hunter Sallis", "first_name": "Hunter", "last_name": "Sallis", "position": "G", "team": "PHI"}, {"id": "43419", "name": "Isaiah Mobley", "first_name": "Isaiah", "last_name": "Mobley", "position": "F", "team": "PHI"}, {"id": "43162", "name": "Jabari Walker", "first_name": "Jabari", "last_name": "Walker", "position": "F", "team": "PHI"}, {"id": "417321", "name": "Jalen Hood-Schifino", "first_name": "Jalen", "last_name": "Hood-Schifino", "position": "G", "team": "PHI"}, {"id": "43002", "name": "Jeff Dowtin", "first_name": "Jeff", "last_name": "Dowtin", "position": "G", "team": "PHI"}, {"id": "43292", "name": "Joel Embiid", "first_name": "Joel", "last_name": "Embiid", "position": "C-F", "team": "PHI"}, {"id": "460305", "name": "Johni Broome", "first_name": "Johni", "last_name": "Broome", "position": "F", "team": "PHI"}, {"id": "449289", "name": "Jordan Tucker", "first_name": "Jordan", "last_name": "Tucker", "position": "F", "team": "PHI"}, {"id": "449330", "name": "Judah Mintz", "first_name": "Judah", "last_name": "Mintz", "position": "G", "team": "PHI"}, {"id": "439748", "name": "Justin Edwards", "first_name": "Justin", "last_name": "Edwards", "position": "F", "team": "PHI"}, {"id": "42927", "name": "Kelly Oubre", "first_name": "Kelly", "last_name": "Oubre", "position": "F-G", "team": "PHI"}, {"id": "42493", "name": "Kennedy Chandler", "first_name": "Kennedy", "last_name": "Chandler", "position": "G", "team": "PHI"}, {"id": "42871", "name": "Kyle Lowry", "first_name": "Kyle", "last_name": "Lowry", "position": "G", "team": "PHI"}, {"id": "242833", "name": "Lonnie Walker", "first_name": "Lonnie", "last_name": "Walker", "position": "G-F", "team": "PHI"}, {"id": "408269", "name": "Louis King", "first_name": "Louis", "last_name": "King", "position": "F", "team": "PHI"}, {"id": "431707", "name": "Malcolm Hill", "first_name": "Malcolm", "last_name": "Hill", "position": "F", "team": "PHI"}, {"id": "453891", "name": "Marcus Bagley", "first_name": "Marcus", "last_name": "Bagley", "position": "F", "team": "PHI"}, {"id": "4083", "name": "MarJon Beauchamp", "first_name": "MarJon", "last_name": "Beauchamp", "position": "F", "team": "PHI"}, {"id": "449329", "name": "Max Fiedler", "first_name": "Max", "last_name": "Fiedler", "position": "F", "team": "PHI"}, {"id": "230744", "name": "Montrezl Harrell", "first_name": "Montrezl", "last_name": "Harrell", "position": "F-C", "team": "PHI"}, {"id": "42821", "name": "Oshae Brissett", "first_name": "Oshae", "last_name": "Brissett", "position": "F-G", "team": "PHI"}, {"id": "43484", "name": "Paul George", "first_name": "Paul", "last_name": "George", "position": "F", "team": "PHI"}, {"id": "43475", "name": "Quentin Grimes", "first_name": "Quentin", "last_name": "Grimes", "position": "G", "team": "PHI"}, {"id": "43057", "name": "Reggie Jackson", "first_name": "Reggie", "last_name": "Jackson", "position": "G", "team": "PHI"}, {"id": "43319", "name": "Robert Covington", "first_name": "Robert", "last_name": "Covington", "position": "F", "team": "PHI"}, {"id": "417223", "name": "Terquavion Smith", "first_name": "Terquavion", "last_name": "Smith", "position": "G", "team": "PHI"}, {"id": "43393", "name": "Trendon Watford", "first_name": "Trendon", "last_name": "Watford", "position": "G-F", "team": "PHI"}, {"id": "43568", "name": "Tyrese Martin", "first_name": "Tyrese", "last_name": "Martin", "position": "F", "team": "PHI"}, {"id": "42939", "name": "Tyrese Maxey", "first_name": "Tyrese", "last_name": "Maxey", "position": "G", "team": "PHI"}, {"id": "460271", "name": "VJ Edgecombe", "first_name": "VJ", "last_name": "Edgecombe", "position": "G", "team": "PHI"}, {"id": "43234", "name": "Bol Bol", "first_name": "Bol", "last_name": "Bol", "position": "C-F", "team": "PHX"}, {"id": "468623", "name": "CJ Huntley", "first_name": "CJ", "last_name": "Huntley", "position": "F", "team": "PHX"}, {"id": "43538", "name": "Cole Anthony", "first_name": "Cole", "last_name": "Anthony", "position": "G", "team": "PHX"}, {"id": "43164", "name": "Collin Gillespie", "first_name": "Collin", "last_name": "Gillespie", "position": "G", "team": "PHX"}, {"id": "449285", "name": "Damion Baugh", "first_name": "Damion", "last_name": "Baugh", "position": "G", "team": "PHX"}, {"id": "242030", "name": "Damion Lee", "first_name": "Damion", "last_name": "Lee", "position": "G-F", "team": "PHX"}, {"id": "43312", "name": "David Duke", "first_name": "David", "last_name": "Duke", "position": "G", "team": "PHX"}, {"id": "43351", "name": "Devin Booker", "first_name": "Devin", "last_name": "Booker", "position": "G", "team": "PHX"}, {"id": "78", "name": "Dillon Brooks", "first_name": "Dillon", "last_name": "Brooks", "position": "G-F", "team": "PHX"}, {"id": "42913", "name": "Frank Kaminsky", "first_name": "Frank", "last_name": "Kaminsky", "position": "F-C", "team": "PHX"}, {"id": "43434", "name": "Grayson Allen", "first_name": "Grayson", "last_name": "Allen", "position": "G", "team": "PHX"}, {"id": "42876", "name": "Haywood Highsmith", "first_name": "Haywood", "last_name": "Highsmith", "position": "F", "team": "PHX"}, {"id": "43198", "name": "Isaiah Livers", "first_name": "Isaiah", "last_name": "Livers", "position": "F", "team": "PHX"}, {"id": "435106", "name": "Isaiah Thomas", "first_name": "Isaiah", "last_name": "Thomas", "position": "G", "team": "PHX"}, {"id": "43272", "name": "Isaiah Todd", "first_name": "Isaiah", "last_name": "Todd", "position": "F", "team": "PHX"}, {"id": "42592", "name": "Ish Wainright", "first_name": "Ish", "last_name": "Wainright", "position": "F", "team": "PHX"}, {"id": "42535", "name": "Jalen Green", "first_name": "Jalen", "last_name": "Green", "position": "G", "team": "PHX"}, {"id": "238413", "name": "Jamaree Bouyea", "first_name": "Jamaree", "last_name": "Bouyea", "position": "G", "team": "PHX"}, {"id": "43110", "name": "Jared Butler", "first_name": "Jared", "last_name": "Butler", "position": "G", "team": "PHX"}, {"id": "239979", "name": "Jordan Goodwin", "first_name": "Jordan", "last_name": "Goodwin", "position": "G", "team": "PHX"}, {"id": "460262", "name": "Khaman Maluach", "first_name": "Khaman", "last_name": "Maluach", "position": "C", "team": "PHX"}, {"id": "460297", "name": "Koby Brea", "first_name": "Koby", "last_name": "Brea", "position": "G", "team": "PHX"}, {"id": "241625", "name": "Mamadi Diakite", "first_name": "Mamadi", "last_name": "Diakite", "position": "F", "team": "PHX"}, {"id": "238574", "name": "Mark Williams", "first_name": "Mark", "last_name": "Williams", "position": "C", "team": "PHX"}, {"id": "449281", "name": "Moses Wood", "first_name": "Moses", "last_name": "Wood", "position": "F", "team": "PHX"}, {"id": "468624", "name": "Nigel Hayes-Davis", "first_name": "Nigel", "last_name": "Hayes-Davis", "position": "F", "team": "PHX"}, {"id": "439719", "name": "Oso Ighodaro", "first_name": "Oso", "last_name": "Ighodaro", "position": "F", "team": "PHX"}, {"id": "460298", "name": "Rasheer Fleming", "first_name": "Rasheer", "last_name": "Fleming", "position": "F", "team": "PHX"}, {"id": "43315", "name": "Royce O'Neale", "first_name": "Royce", "last_name": "O'Neale", "position": "F", "team": "PHX"}, {"id": "439720", "name": "Ryan Dunn", "first_name": "Ryan", "last_name": "Dunn", "position": "F", "team": "PHX"}, {"id": "234730", "name": "Saben Lee", "first_name": "Saben", "last_name": "Lee", "position": "G", "team": "PHX"}, {"id": "42874", "name": "Terrence Ross", "first_name": "Terrence", "last_name": "Ross", "position": "G-F", "team": "PHX"}, {"id": "43003", "name": "Thaddeus Young", "first_name": "Thaddeus", "last_name": "Young", "position": "F", "team": "PHX"}, {"id": "242980", "name": "Theo Maledon", "first_name": "Theo", "last_name": "Maledon", "position": "G", "team": "PHX"}, {"id": "242196", "name": "Udoka Azubuike", "first_name": "Udoka", "last_name": "Azubuike", "position": "C-F", "team": "PHX"}, {"id": "431905", "name": "Ashton Hagans", "first_name": "Ashton", "last_name": "Hagans", "position": "G", "team": "POR"}, {"id": "43038", "name": "Blake Wesley", "first_name": "Blake", "last_name": "Wesley", "position": "G", "team": "POR"}, {"id": "460281", "name": "Caleb Love", "first_name": "Caleb", "last_name": "Love", "position": "G", "team": "POR"}, {"id": "408018", "name": "Chance Comanche", "first_name": "Chance", "last_name": "Comanche", "position": "C", "team": "POR"}, {"id": "470340", "name": "Chris Youngblood", "first_name": "Chris", "last_name": "Youngblood", "position": "G", "team": "POR"}, {"id": "42720", "name": "Damian Lillard", "first_name": "Damian", "last_name": "Lillard", "position": "G", "team": "POR"}, {"id": "43250", "name": "Deni Avdija", "first_name": "Deni", "last_name": "Avdija", "position": "F", "team": "POR"}, {"id": "15", "name": "Devonte' Graham", "first_name": "Devonte'", "last_name": "Graham", "position": "G", "team": "POR"}, {"id": "439716", "name": "Donovan Clingan", "first_name": "Donovan", "last_name": "Clingan", "position": "C", "team": "POR"}, {"id": "470395", "name": "Javonte Cooke", "first_name": "Javonte", "last_name": "Cooke", "position": "G", "team": "POR"}, {"id": "475472", "name": "Jayson Kent", "first_name": "Jayson", "last_name": "Kent", "position": "F", "team": "POR"}, {"id": "43558", "name": "Jerami Grant", "first_name": "Jerami", "last_name": "Grant", "position": "F", "team": "POR"}, {"id": "42798", "name": "Jrue Holiday", "first_name": "Jrue", "last_name": "Holiday", "position": "G", "team": "POR"}, {"id": "417266", "name": "Kris Murray", "first_name": "Kris", "last_name": "Murray", "position": "F", "team": "POR"}, {"id": "42951", "name": "Matisse Thybulle", "first_name": "Matisse", "last_name": "Thybulle", "position": "G-F", "team": "POR"}, {"id": "242274", "name": "Robert Williams", "first_name": "Robert", "last_name": "Williams", "position": "C-F", "team": "POR"}, {"id": "417263", "name": "Scoot Henderson", "first_name": "Scoot", "last_name": "Henderson", "position": "G", "team": "POR"}, {"id": "43160", "name": "Shaedon Sharpe", "first_name": "Shaedon", "last_name": "Sharpe", "position": "G", "team": "POR"}, {"id": "417204", "name": "Sidy Cissoko", "first_name": "Sidy", "last_name": "Cissoko", "position": "G", "team": "POR"}, {"id": "425380", "name": "Taze Moore", "first_name": "Taze", "last_name": "Moore", "position": "G", "team": "POR"}, {"id": "417198", "name": "Toumani Camara", "first_name": "Toumani", "last_name": "Camara", "position": "F", "team": "POR"}, {"id": "42691", "name": "Vít Krejčí", "first_name": "Vít", "last_name": "Krejčí", "position": "G", "team": "POR"}, {"id": "460253", "name": "Yang Hansen", "first_name": "Yang", "last_name": "Hansen", "position": "C", "team": "POR"}, {"id": "242917", "name": "Chima Moneke", "first_name": "Chima", "last_name": "Moneke", "position": "F", "team": "SAC"}, {"id": "42504", "name": "Daeqwon Plowden", "first_name": "Daeqwon", "last_name": "Plowden", "position": "G-F", "team": "SAC"}, {"id": "42530", "name": "Daishen Nix", "first_name": "Daishen", "last_name": "Nix", "position": "G", "team": "SAC"}, {"id": "425607", "name": "De'Andre Hunter", "first_name": "De'Andre", "last_name": "Hunter", "position": "F-G", "team": "SAC"}, {"id": "43412", "name": "DeMar DeRozan", "first_name": "DeMar", "last_name": "DeRozan", "position": "G-F", "team": "SAC"}, {"id": "439725", "name": "Devin Carter", "first_name": "Devin", "last_name": "Carter", "position": "G", "team": "SAC"}, {"id": "425381", "name": "Dexter Dennis", "first_name": "Dexter", "last_name": "Dennis", "position": "G", "team": "SAC"}, {"id": "240737", "name": "Domantas Sabonis", "first_name": "Domantas", "last_name": "Sabonis", "position": "F-C", "team": "SAC"}, {"id": "43059", "name": "Doug McDermott", "first_name": "Doug", "last_name": "McDermott", "position": "F", "team": "SAC"}, {"id": "42716", "name": "Drew Eubanks", "first_name": "Drew", "last_name": "Eubanks", "position": "F-C", "team": "SAC"}, {"id": "468618", "name": "Dylan Cardwell", "first_name": "Dylan", "last_name": "Cardwell", "position": "C", "team": "SAC"}, {"id": "425386", "name": "Filip Petrusev", "first_name": "Filip", "last_name": "Petrusev", "position": "C", "team": "SAC"}, {"id": "449331", "name": "Isaiah Stevens", "first_name": "Isaiah", "last_name": "Stevens", "position": "G", "team": "SAC"}, {"id": "42609", "name": "Jae Crowder", "first_name": "Jae", "last_name": "Crowder", "position": "F", "team": "SAC"}, {"id": "42489", "name": "JaVale McGee", "first_name": "JaVale", "last_name": "McGee", "position": "C", "team": "SAC"}, {"id": "241727", "name": "Jordan Ford", "first_name": "Jordan", "last_name": "Ford", "position": "G", "team": "SAC"}, {"id": "42652", "name": "Juan Toscano-Anderson", "first_name": "Juan", "last_name": "Toscano-Anderson", "position": "F", "team": "SAC"}, {"id": "43061", "name": "Keegan Murray", "first_name": "Keegan", "last_name": "Murray", "position": "F", "team": "SAC"}, {"id": "43194", "name": "Killian Hayes", "first_name": "Killian", "last_name": "Hayes", "position": "G", "team": "SAC"}, {"id": "43333", "name": "Malik Monk", "first_name": "Malik", "last_name": "Monk", "position": "G", "team": "SAC"}, {"id": "43228", "name": "Markelle Fultz", "first_name": "Markelle", "last_name": "Fultz", "position": "G", "team": "SAC"}, {"id": "43498", "name": "Mason Jones", "first_name": "Mason", "last_name": "Jones", "position": "G", "team": "SAC"}, {"id": "460296", "name": "Maxime Raynaud", "first_name": "Maxime", "last_name": "Raynaud", "position": "C", "team": "SAC"}, {"id": "460261", "name": "Nique Clifford", "first_name": "Nique", "last_name": "Clifford", "position": "G", "team": "SAC"}, {"id": "240746", "name": "Patrick Baldwin", "first_name": "Patrick", "last_name": "Baldwin", "position": "F", "team": "SAC"}, {"id": "43004", "name": "Precious Achiuwa", "first_name": "Precious", "last_name": "Achiuwa", "position": "F", "team": "SAC"}, {"id": "42640", "name": "Russell Westbrook", "first_name": "Russell", "last_name": "Westbrook", "position": "G", "team": "SAC"}, {"id": "43339", "name": "Terence Davis", "first_name": "Terence", "last_name": "Davis", "position": "G", "team": "SAC"}, {"id": "42829", "name": "Terry Taylor", "first_name": "Terry", "last_name": "Taylor", "position": "F", "team": "SAC"}, {"id": "43494", "name": "Trey Lyles", "first_name": "Trey", "last_name": "Lyles", "position": "F", "team": "SAC"}, {"id": "42799", "name": "Zach LaVine", "first_name": "Zach", "last_name": "LaVine", "position": "G", "team": "SAC"}, {"id": "431971", "name": "Adam Flagler", "first_name": "Adam", "last_name": "Flagler", "position": "G", "team": "SAS"}, {"id": "42601", "name": "Bismack Biyombo", "first_name": "Bismack", "last_name": "Biyombo", "position": "C", "team": "SAS"}, {"id": "460258", "name": "Carter Bryant", "first_name": "Carter", "last_name": "Bryant", "position": "F", "team": "SAS"}, {"id": "43241", "name": "Cedi Osman", "first_name": "Cedi", "last_name": "Osman", "position": "F", "team": "SAS"}, {"id": "445178", "name": "David Jones Garcia", "first_name": "David", "last_name": "Jones Garcia", "position": "G", "team": "SAS"}, {"id": "42608", "name": "De'Aaron Fox", "first_name": "De'Aaron", "last_name": "Fox", "position": "G", "team": "SAS"}, {"id": "242453", "name": "Devin Vassell", "first_name": "Devin", "last_name": "Vassell", "position": "G-F", "team": "SAS"}, {"id": "441990", "name": "Dylan Harper", "first_name": "Dylan", "last_name": "Harper", "position": "G", "team": "SAS"}, {"id": "449270", "name": "Emanuel Miller", "first_name": "Emanuel", "last_name": "Miller", "position": "F", "team": "SAS"}, {"id": "43087", "name": "Gorgui Dieng", "first_name": "Gorgui", "last_name": "Dieng", "position": "C", "team": "SAS"}, {"id": "42605", "name": "Harrison Barnes", "first_name": "Harrison", "last_name": "Barnes", "position": "F", "team": "SAS"}, {"id": "439703", "name": "Harrison Ingram", "first_name": "Harrison", "last_name": "Ingram", "position": "F", "team": "SAS"}, {"id": "42705", "name": "Jordan McLaughlin", "first_name": "Jordan", "last_name": "McLaughlin", "position": "G", "team": "SAS"}, {"id": "242670", "name": "Julian Champagnie", "first_name": "Julian", "last_name": "Champagnie", "position": "F", "team": "SAS"}, {"id": "242025", "name": "Keldon Johnson", "first_name": "Keldon", "last_name": "Johnson", "position": "F-G", "team": "SAS"}, {"id": "241774", "name": "Kelly Olynyk", "first_name": "Kelly", "last_name": "Olynyk", "position": "F-C", "team": "SAS"}, {"id": "42995", "name": "Khem Birch", "first_name": "Khem", "last_name": "Birch", "position": "C", "team": "SAS"}, {"id": "472969", "name": "Kyle Mangas", "first_name": "Kyle", "last_name": "Mangas", "position": "G", "team": "SAS"}, {"id": "242350", "name": "Lindy Waters", "first_name": "Lindy", "last_name": "Waters", "position": "F", "team": "SAS"}, {"id": "425609", "name": "Luke Kornet", "first_name": "Luke", "last_name": "Kornet", "position": "C-F", "team": "SAS"}, {"id": "42928", "name": "Mason Plumlee", "first_name": "Mason", "last_name": "Plumlee", "position": "F-C", "team": "SAS"}, {"id": "429166", "name": "Nathan Mensah", "first_name": "Nathan", "last_name": "Mensah", "position": "C", "team": "SAS"}, {"id": "409116", "name": "RaiQuan Gray", "first_name": "RaiQuan", "last_name": "Gray", "position": "F", "team": "SAS"}, {"id": "242488", "name": "Romeo Langford", "first_name": "Romeo", "last_name": "Langford", "position": "G-F", "team": "SAS"}, {"id": "417221", "name": "Sir'Jabari Rice", "first_name": "Sir'Jabari", "last_name": "Rice", "position": "G", "team": "SAS"}, {"id": "240157", "name": "Stanley Umude", "first_name": "Stanley", "last_name": "Umude", "position": "G", "team": "SAS"}, {"id": "439704", "name": "Stephon Castle", "first_name": "Stephon", "last_name": "Castle", "position": "G", "team": "SAS"}, {"id": "417211", "name": "Victor Wembanyama", "first_name": "Victor", "last_name": "Wembanyama", "position": "F-C", "team": "SAS"}, {"id": "240078", "name": "A.J. Lawson", "first_name": "A.J.", "last_name": "Lawson", "position": "G", "team": "TOR"}, {"id": "460303", "name": "Alijah Martin", "first_name": "Alijah", "last_name": "Martin", "position": "G", "team": "TOR"}, {"id": "42496", "name": "Brandon Ingram", "first_name": "Brandon", "last_name": "Ingram", "position": "F", "team": "TOR"}, {"id": "42520", "name": "Bruno Fernando", "first_name": "Bruno", "last_name": "Fernando", "position": "F-C", "team": "TOR"}, {"id": "460302", "name": "Chucky Hepburn", "first_name": "Chucky", "last_name": "Hepburn", "position": "G", "team": "TOR"}, {"id": "241620", "name": "Cole Swider", "first_name": "Cole", "last_name": "Swider", "position": "F", "team": "TOR"}, {"id": "460265", "name": "Collin Murray-Boyles", "first_name": "Collin", "last_name": "Murray-Boyles", "position": "F", "team": "TOR"}, {"id": "432202", "name": "D.J. Carton", "first_name": "D.J.", "last_name": "Carton", "position": "G", "team": "TOR"}, {"id": "236605", "name": "Eugene Omoruyi", "first_name": "Eugene", "last_name": "Omoruyi", "position": "F", "team": "TOR"}, {"id": "42517", "name": "Garrett Temple", "first_name": "Garrett", "last_name": "Temple", "position": "G-F", "team": "TOR"}, {"id": "417225", "name": "Gradey Dick", "first_name": "Gradey", "last_name": "Dick", "position": "G-F", "team": "TOR"}, {"id": "43474", "name": "Immanuel Quickley", "first_name": "Immanuel", "last_name": "Quickley", "position": "G", "team": "TOR"}, {"id": "434622", "name": "Jahmi'us Ramsey", "first_name": "Jahmi'us", "last_name": "Ramsey", "position": "G", "team": "TOR"}, {"id": "42579", "name": "Jakob Poeltl", "first_name": "Jakob", "last_name": "Poeltl", "position": "C", "team": "TOR"}, {"id": "439750", "name": "Ja'Kobe Walter", "first_name": "Ja'Kobe", "last_name": "Walter", "position": "G", "team": "TOR"}, {"id": "439754", "name": "Jamal Shead", "first_name": "Jamal", "last_name": "Shead", "position": "G", "team": "TOR"}, {"id": "449287", "name": "Jamison Battle", "first_name": "Jamison", "last_name": "Battle", "position": "F", "team": "TOR"}, {"id": "42714", "name": "Jared Rhoden", "first_name": "Jared", "last_name": "Rhoden", "position": "G", "team": "TOR"}, {"id": "43418", "name": "Javon Freeman-Liberty", "first_name": "Javon", "last_name": "Freeman-Liberty", "position": "G", "team": "TOR"}, {"id": "42569", "name": "Joe Wieskamp", "first_name": "Joe", "last_name": "Wieskamp", "position": "G-F", "team": "TOR"}, {"id": "439753", "name": "Jonathan Mogbo", "first_name": "Jonathan", "last_name": "Mogbo", "position": "F", "team": "TOR"}, {"id": "429067", "name": "Jontay Porter", "first_name": "Jontay", "last_name": "Porter", "position": "C-F", "team": "TOR"}, {"id": "42815", "name": "Jordan Nwora", "first_name": "Jordan", "last_name": "Nwora", "position": "F", "team": "TOR"}, {"id": "43015", "name": "Juancho Hernangomez", "first_name": "Juancho", "last_name": "Hernangomez", "position": "F", "team": "TOR"}, {"id": "42715", "name": "Justise Winslow", "first_name": "Justise", "last_name": "Winslow", "position": "F-G", "team": "TOR"}, {"id": "408234", "name": "Kobi Simmons", "first_name": "Kobi", "last_name": "Simmons", "position": "G", "team": "TOR"}, {"id": "43290", "name": "RJ Barrett", "first_name": "RJ", "last_name": "Barrett", "position": "F-G", "team": "TOR"}, {"id": "43214", "name": "Sandro Mamukelashvili", "first_name": "Sandro", "last_name": "Mamukelashvili", "position": "F-C", "team": "TOR"}, {"id": "417947", "name": "Sasha Vezenkov", "first_name": "Sasha", "last_name": "Vezenkov", "position": "F", "team": "TOR"}, {"id": "43472", "name": "Scottie Barnes", "first_name": "Scottie", "last_name": "Barnes", "position": "F-G", "team": "TOR"}, {"id": "417320", "name": "Trayce Jackson-Davis", "first_name": "Trayce", "last_name": "Jackson-Davis", "position": "F", "team": "TOR"}, {"id": "439751", "name": "Ulrich Chomche", "first_name": "Ulrich", "last_name": "Chomche", "position": "C", "team": "TOR"}, {"id": "42899", "name": "Will Barton", "first_name": "Will", "last_name": "Barton", "position": "G", "team": "TOR"}, {"id": "460255", "name": "Ace Bailey", "first_name": "Ace", "last_name": "Bailey", "position": "F", "team": "UTA"}, {"id": "475476", "name": "Andersson Garcia", "first_name": "Andersson", "last_name": "Garcia", "position": "F", "team": "UTA"}, {"id": "445171", "name": "Balsa Koprivica", "first_name": "Balsa", "last_name": "Koprivica", "position": "C", "team": "UTA"}, {"id": "475478", "name": "Bez Mbeng", "first_name": "Bez", "last_name": "Mbeng", "position": "G", "team": "UTA"}, {"id": "439721", "name": "Blake Hinson", "first_name": "Blake", "last_name": "Hinson", "position": "F", "team": "UTA"}, {"id": "417260", "name": "Brice Sensabaugh", "first_name": "Brice", "last_name": "Sensabaugh", "position": "F", "team": "UTA"}, {"id": "439715", "name": "Cody Williams", "first_name": "Cody", "last_name": "Williams", "position": "F", "team": "UTA"}, {"id": "42678", "name": "Darius Bazley", "first_name": "Darius", "last_name": "Bazley", "position": "F", "team": "UTA"}, {"id": "449494", "name": "Elijah Harkless", "first_name": "Elijah", "last_name": "Harkless", "position": "G", "team": "UTA"}, {"id": "242081", "name": "Frank Jackson", "first_name": "Frank", "last_name": "Jackson", "position": "G", "team": "UTA"}, {"id": "439713", "name": "Isaiah Collier", "first_name": "Isaiah", "last_name": "Collier", "position": "G", "team": "UTA"}, {"id": "42485", "name": "Jaren Jackson", "first_name": "Jaren", "last_name": "Jackson", "position": "F-C", "team": "UTA"}, {"id": "417252", "name": "Joey Hauser", "first_name": "Joey", "last_name": "Hauser", "position": "F", "team": "UTA"}, {"id": "239223", "name": "John Konchar", "first_name": "John", "last_name": "Konchar", "position": "G", "team": "UTA"}, {"id": "43154", "name": "Jusuf Nurkić", "first_name": "Jusuf", "last_name": "Nurkić", "position": "C", "team": "UTA"}, {"id": "241861", "name": "Kevin Love", "first_name": "Kevin", "last_name": "Love", "position": "F-C", "team": "UTA"}, {"id": "417325", "name": "Keyonte George", "first_name": "Keyonte", "last_name": "George", "position": "G", "team": "UTA"}, {"id": "242057", "name": "KJ Martin", "first_name": "KJ", "last_name": "Martin", "position": "F", "team": "UTA"}, {"id": "439714", "name": "Kyle Filipowski", "first_name": "Kyle", "last_name": "Filipowski", "position": "C", "team": "UTA"}, {"id": "43502", "name": "Lauri Markkanen", "first_name": "Lauri", "last_name": "Markkanen", "position": "F-C", "team": "UTA"}, {"id": "425382", "name": "Luka Samanic", "first_name": "Luka", "last_name": "Samanic", "position": "F", "team": "UTA"}, {"id": "4360", "name": "Mo Bamba", "first_name": "Mo", "last_name": "Bamba", "position": "C", "team": "UTA"}, {"id": "417251", "name": "Oscar Tshiebwe", "first_name": "Oscar", "last_name": "Tshiebwe", "position": "F-C", "team": "UTA"}, {"id": "43010", "name": "Otto Porter", "first_name": "Otto", "last_name": "Porter", "position": "F", "team": "UTA"}, {"id": "242320", "name": "Svi Mykhailiuk", "first_name": "Svi", "last_name": "Mykhailiuk", "position": "G-F", "team": "UTA"}, {"id": "242023", "name": "Vince Williams", "first_name": "Vince", "last_name": "Williams", "position": "G", "team": "UTA"}, {"id": "43506", "name": "Walker Kessler", "first_name": "Walker", "last_name": "Kessler", "position": "C", "team": "UTA"}, {"id": "439740", "name": "Alex Sarr", "first_name": "Alex", "last_name": "Sarr", "position": "C", "team": "WAS"}, {"id": "42989", "name": "Alondes Williams", "first_name": "Alondes", "last_name": "Williams", "position": "G", "team": "WAS"}, {"id": "43392", "name": "Anthony Davis", "first_name": "Anthony", "last_name": "Davis", "position": "F-C", "team": "WAS"}, {"id": "4896", "name": "Anthony Gill", "first_name": "Anthony", "last_name": "Gill", "position": "F", "team": "WAS"}, {"id": "417329", "name": "Bilal Coulibaly", "first_name": "Bilal", "last_name": "Coulibaly", "position": "G", "team": "WAS"}, {"id": "439739", "name": "Bub Carrington", "first_name": "Bub", "last_name": "Carrington", "position": "G", "team": "WAS"}, {"id": "417319", "name": "Cam Whitmore", "first_name": "Cam", "last_name": "Whitmore", "position": "F", "team": "WAS"}, {"id": "42709", "name": "D'Angelo Russell", "first_name": "D'Angelo", "last_name": "Russell", "position": "G", "team": "WAS"}, {"id": "417950", "name": "Danté Exum", "first_name": "Danté", "last_name": "Exum", "position": "G", "team": "WAS"}, {"id": "230512", "name": "Davion Mintz", "first_name": "Davion", "last_name": "Mintz", "position": "G", "team": "WAS"}, {"id": "240034", "name": "Devon Dotson", "first_name": "Devon", "last_name": "Dotson", "position": "G", "team": "WAS"}, {"id": "449464", "name": "Erik Stevenson", "first_name": "Erik", "last_name": "Stevenson", "position": "G", "team": "WAS"}, {"id": "242050", "name": "Hamidou Diallo", "first_name": "Hamidou", "last_name": "Diallo", "position": "G", "team": "WAS"}, {"id": "73", "name": "Jaden Hardy", "first_name": "Jaden", "last_name": "Hardy", "position": "G", "team": "WAS"}, {"id": "460323", "name": "Jamir Watkins", "first_name": "Jamir", "last_name": "Watkins", "position": "F", "team": "WAS"}, {"id": "417218", "name": "Jaylen Martin", "first_name": "Jaylen", "last_name": "Martin", "position": "G", "team": "WAS"}, {"id": "42693", "name": "Jaylen Nowell", "first_name": "Jaylen", "last_name": "Nowell", "position": "G", "team": "WAS"}, {"id": "242635", "name": "John Butler", "first_name": "John", "last_name": "Butler", "position": "C", "team": "WAS"}, {"id": "42920", "name": "JT Thor", "first_name": "JT", "last_name": "Thor", "position": "F", "team": "WAS"}, {"id": "470460", "name": "Julian Reese", "first_name": "Julian", "last_name": "Reese", "position": "F", "team": "WAS"}, {"id": "43009", "name": "Justin Champagnie", "first_name": "Justin", "last_name": "Champagnie", "position": "G-F", "team": "WAS"}, {"id": "470422", "name": "Kadary Richmond", "first_name": "Kadary", "last_name": "Richmond", "position": "G", "team": "WAS"}, {"id": "43504", "name": "Kendrick Nunn", "first_name": "Kendrick", "last_name": "Nunn", "position": "G", "team": "WAS"}, {"id": "43022", "name": "Kira Lewis", "first_name": "Kira", "last_name": "Lewis", "position": "G", "team": "WAS"}, {"id": "439738", "name": "Kyshawn George", "first_name": "Kyshawn", "last_name": "George", "position": "F", "team": "WAS"}, {"id": "425384", "name": "Leaky Black", "first_name": "Leaky", "last_name": "Black", "position": "F", "team": "WAS"}, {"id": "43366", "name": "Richaun Holmes", "first_name": "Richaun", "last_name": "Holmes", "position": "F", "team": "WAS"}, {"id": "43531", "name": "RJ Hampton", "first_name": "RJ", "last_name": "Hampton", "position": "G", "team": "WAS"}, {"id": "239281", "name": "Sharife Cooper", "first_name": "Sharife", "last_name": "Cooper", "position": "G", "team": "WAS"}, {"id": "449280", "name": "Skal Labissière", "first_name": "Skal", "last_name": "Labissière", "position": "F-C", "team": "WAS"}, {"id": "5334", "name": "Trae Young", "first_name": "Trae", "last_name": "Young", "position": "G", "team": "WAS"}, {"id": "460277", "name": "Tre Johnson", "first_name": "Tre", "last_name": "Johnson", "position": "G", "team": "WAS"}, {"id": "417242", "name": "Tristan Vukcevic", "first_name": "Tristan", "last_name": "Vukcevic", "position": "F", "team": "WAS"}, {"id": "460278", "name": "Will Riley", "first_name": "Will", "last_name": "Riley", "position": "F", "team": "WAS"}, {"id": "403601", "name": "Xavier Cooks", "first_name": "Xavier", "last_name": "Cooks", "position": "F", "team": "WAS"}, {"id": "43248", "name": "Yannick Nzosa", "first_name": "Yannick", "last_name": "Nzosa", "position": "C", "team": "WAS"}];
+
+// State
+let slots = [null,null,null,null];
+let merged = null;
+let conOnly = false;
+let sortBy = "pra";
+let sortMode = "stat";
+let tolerance = 15;
+let currentTab = "upload";
+
+function norm(s) {
+  if (!s) return "";
+  return s.toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g,"").replace(/[^a-z]/g,"");
+}
+
+
+// Known name aliases: maps normalized source name -> normalized UA name
+const NAME_ALIASES = {
+  "carltoncarrington": "bubcarrington",
+  "moewagner": "moritzwagner",
+};
+
+function resolveNorm(n) {
+  const normalized = norm(n);
+  return NAME_ALIASES[normalized] || normalized;
+}
+
+function parseCSV(raw) {
+  const text = raw.charCodeAt(0)===0xFEFF ? raw.slice(1) : raw;
+  const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n");
+  const nonEmpty = lines.filter(l=>l.trim());
+  if (!nonEmpty.length) return [];
+  const headers = splitLine(nonEmpty[0]);
+  return nonEmpty.slice(1).map(line=>{
+    const vals = splitLine(line);
+    const row = {};
+    headers.forEach((h,i)=>{ row[h]=vals[i]??""; });
+    return row;
+  }).filter(r=>Object.values(r).some(v=>v.trim()));
+}
+
+function splitLine(line) {
+  const vals=[]; let cur="", inQ=false;
+  for (let ci=0; ci<line.length; ci++) {
+    const ch = line[ci];
+    if (ch==='"') { inQ=!inQ; }
+    else if (ch===',' && !inQ) { vals.push(cur.trim()); cur=""; }
+    else cur+=ch;
+  }
+  vals.push(cur.trim());
+  return vals.map(v=>v.replace(/^"|"$/g,"").trim());
+}
+
+function findCol(headers, candidates) {
+  const lc = headers.map(h=>h.toLowerCase().trim());
+  for (const c of candidates) {
+    const i = lc.findIndex(h=>h===c);
+    if (i!==-1) return headers[i];
+  }
+  for (const c of candidates) {
+    const i = lc.findIndex(h=>h.includes(c));
+    if (i!==-1) return headers[i];
+  }
+  return null;
+}
+
+function parseSource(text) {
+  const rows = parseCSV(text);
+  if (!rows.length) return [];
+  const h = Object.keys(rows[0]);
+  const C = {
+    name:    findCol(h,["player","name"]),
+    pts:     findCol(h,["points","pts","exp pts"]),
+    reb:     findCol(h,["rebounds","reb","exp reb"]),
+    ast:     findCol(h,["assists","ast","exp ast"]),
+    threepm: findCol(h,["3pm","exp 3p","three pointers made","threepm"]),
+    pra:     findCol(h,["exp pra","pra","p-r-a"]),
+    min:     findCol(h,["proj min","minutes","mins","min"]),
+  };
+  if (!C.name) return [];
+  return rows.filter(r=>r[C.name]?.trim()).map(r=>{
+    const g=col=>{if(!col)return null;const v=parseFloat(r[col]);return isNaN(v)?null:v;};
+    const pts=g(C.pts),reb=g(C.reb),ast=g(C.ast);
+    const pra=g(C.pra)??(pts!=null&&reb!=null&&ast!=null?pts+reb+ast:null);
+    return {rawName:r[C.name].trim(), norm:resolveNorm(r[C.name]), pts,reb,ast,threepm:g(C.threepm),pra,min:g(C.min)};
+  });
+}
+
+function setLog(msg) {
+  document.getElementById("log").textContent = msg;
+}
+
+function updateBadges() {
+  const el = document.getElementById("source-badges");
+  el.innerHTML = SOURCES.map((s,i)=>`
+    <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;
+      border:1px solid ${slots[i]?'#7c3aed':'#1e1c35'};
+      color:${slots[i]?'#a78bfa':'#6b6896'};
+      background:${slots[i]?'#7c3aed22':'#16152a'}">
+      ${s.label}${slots[i]?' ✓':''}
+    </span>`).join("");
+}
+
+function updateMergeBtn() {
+  const n = slots.filter(Boolean).length;
+  const btn = document.getElementById("merge-btn");
+  btn.textContent = `RUN CONSENSUS MERGE — ${n}/4 SOURCES LOADED`;
+  btn.style.background = n>0 ? "#7c3aed" : "#16152a";
+  btn.style.color = n>0 ? "#ffffff" : "#3d3a6b";
+  btn.style.border = n>0 ? "none" : "1px solid #1e1c35";
+  btn.style.cursor = n>0 ? "pointer" : "not-allowed";
+}
+
+function buildSlots() {
+  const container = document.getElementById("slots-container");
+  container.innerHTML = SOURCES.map((s,i)=>`
+    <div class="slot ${slots[i]?'loaded':''}">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${slots[i]?'#a78bfa':'#2a2845'};"></div>
+        <div>
+          <span style="color:${slots[i]?'#e2e8f0':'#6b6896'};font-weight:600;font-size:13px;">${s.label}</span>
+          ${slots[i]?`<span style="color:#6b6896;font-size:12px;margin-left:10px;">${slots[i].label} · ${slots[i].players.length} players</span>`:'<span style="color:#3d3a6b;font-size:12px;margin-left:10px;">No file loaded</span>'}
+        </div>
+      </div>
+      <label class="upload-label">
+        ${slots[i]?'CHANGE FILE':'UPLOAD CSV'}
+        <input type="file" accept=".csv" style="display:none;" onchange="loadFile(${i},this)"/>
+      </label>
+    </div>`).join("");
+  updateMergeBtn();
+}
+
+function loadFile(idx, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const players = parseSource(e.target.result);
+    slots[idx] = {label: file.name, players};
+    setLog(`${SOURCES[idx].label} loaded: ${players.length} players`);
+    buildSlots();
+    updateBadges();
+  };
+  reader.readAsText(file);
+}
+
+function getSlotLookups() {
+  return slots.map(s => {
+    if (!s) return null;
+    const lk = {};
+    s.players.forEach(p => { lk[p.norm] = p; });
+    return lk;
+  });
+}
+
+function getStatVals(r, stat, lookups) {
+  return lookups.flatMap(lk => {
+    if (!lk) return [];
+    const m = lk[norm(r.rawName)];
+    return (m && m[stat] != null && m[stat] > 0) ? [m[stat]] : [];
+  });
+}
+
+function isTight(r, stat, lookups) {
+  const vals = getStatVals(r, stat, lookups);
+  const minNeeded = Math.min(3, slots.filter(Boolean).length);
+  if (vals.length < minNeeded) return false;
+  const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
+  if (avg === 0) return false;
+  return vals.every(v => Math.abs(v - avg) / avg * 100 <= tolerance);
+}
+
+function runMerge() {
+  const active = slots.filter(Boolean);
+  if (!active.length) { setLog("Load at least 1 source"); return; }
+
+  const lookups = getSlotLookups();
+  const minCon = Math.min(3, active.length);
+
+  merged = UA_TEMPLATE.map(r => {
+    const epNorm = norm(r.name);
+    const matches = lookups.map(lk => lk ? (lk[epNorm]||null) : null);
+    const found = matches.filter(Boolean);
+    const con = {};
+    STATS.forEach(stat => {
+      const vals = found.map(p=>p[stat]).filter(v=>v!=null && v>0);
+      con[stat] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    });
+    return {rawName:r.name, norm:epNorm, team:r.team, pos:r.position, matches, found:found.length, con, isConsensus:found.length>=minCon};
+  });
+
+  const nM = merged.filter(r=>r.found>0).length;
+  const nC = merged.filter(r=>r.isConsensus).length;
+  setLog(`${nM} matched · ${nC} consensus (need ${minCon} sources)`);
+  switchTab("results");
+  renderTable();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll(".tab-btn").forEach((b,i)=>{
+    b.classList.toggle("active", ["upload","results","tracker","autograde"][i]===tab);
+  });
+  document.getElementById("upload-tab").style.display = tab==="upload"?"block":"none";
+  document.getElementById("results-tab").style.display = tab==="results"?"block":"none";
+  document.getElementById("tracker-tab").style.display = tab==="tracker"?"block":"none";
+  document.getElementById("autograde-tab").style.display = tab==="autograde"?"block":"none";
+  if (tab==="tracker") renderTracker();
+  if (tab==="autograde") renderAutoGrade();
+}
+
+function toggleConOnly() {
+  conOnly = !conOnly;
+  document.getElementById("con-btn").classList.toggle("active", conOnly);
+  document.getElementById("con-btn").textContent = (conOnly?"✓ ":"")+"CONSENSUS ONLY";
+  renderTable();
+}
+
+function toggleSortMode() {
+  sortMode = sortMode==="consensus"?"stat":"consensus";
+  document.getElementById("tight-btn").classList.toggle("active", sortMode==="consensus");
+  document.getElementById("tight-btn").textContent = (sortMode==="consensus"?"✓ ":"")+"TIGHTEST FIRST";
+  renderTable();
+}
+
+function onTolChange() {
+  const val = Number(document.getElementById("tol-input").value);
+  if (isNaN(val) || val < 1) return;
+  tolerance = val;
+  renderTable();
+}
+
+function buildStatBtns() {
+  const el = document.getElementById("stat-btns");
+  el.style.display="flex";el.style.gap="4px";
+  el.innerHTML = STATS.map(f=>`
+    <button class="stat-btn${f===sortBy?' active':''}" onclick="setSortBy('${f}')">${STAT_LABEL[f]}</button>
+  `).join("");
+}
+
+function setSortBy(f) {
+  sortBy = f;
+  document.querySelectorAll(".stat-btn").forEach((b,i)=>{
+    b.classList.toggle("active", STATS[i]===f);
+  });
+  renderTable();
+}
+
+let rowCache = [];
+
+function trackRow(i) {
+  const r = rowCache[i];
+  if (!r) return;
+  openTrackModal(r.player, r.pos, r.stat, r.proj, r.team);
+}
+
+function renderTable() {
+  if (!merged) return;
+  document.getElementById("empty-results").style.display="none";
+  document.getElementById("results-content").style.display="block";
+  buildStatBtns();
+
+  const lookups = getSlotLookups();
+  const search = document.getElementById("search-box").value.toLowerCase();
+
+  let rows = merged
+    .filter(r => !conOnly || isTight(r, sortBy, lookups))
+    .filter(r => !search || r.rawName.toLowerCase().includes(search))
+    .sort((a,b) => {
+      if (sortMode==="consensus") {
+        const aVals=getStatVals(a,sortBy,lookups), bVals=getStatVals(b,sortBy,lookups);
+        const aAvg=aVals.length?aVals.reduce((x,y)=>x+y,0)/aVals.length:0;
+        const bAvg=bVals.length?bVals.reduce((x,y)=>x+y,0)/bVals.length:0;
+        const aSpread=aVals.length>1?Math.max(...aVals)-Math.min(...aVals):999;
+        const bSpread=bVals.length>1?Math.max(...bVals)-Math.min(...bVals):999;
+        if (aSpread!==bSpread) return aSpread-bSpread;
+        if (aVals.length!==bVals.length) return bVals.length-aVals.length;
+        return bAvg-aAvg;
+      }
+      return (b.con[sortBy]??-1)-(a.con[sortBy]??-1);
+    });
+
+  document.getElementById("shown-count").textContent = `${rows.length} shown`;
+
+  // Header
+  const head = document.getElementById("table-head");
+  head.innerHTML = `<tr style="border-bottom:1px solid #252525">${
+    ["PLAYER","POS","TEAM","INJ","TRACK",...SOURCES.map(s=>s.label),STAT_LABEL[sortBy]+" (AVG)"]
+    .map((h,i)=>{
+      const tight = i===1||i===2;
+      const style = tight ? 'style="padding:10px 6px;width:50px"' : '';
+      return `<th class="${i===0?'left':'center'}" ${style}>${h}</th>`;
+    }).join("")
+  }</tr>`;
+
+  // Body
+  const tbody = document.getElementById("table-body");
+  // Cache rows for safe onclick access (avoids apostrophe issues)
+  rowCache = rows.map((r,i) => {
+    const lk = getSlotLookups();
+    const srcVals = lk.map(l => { if(!l) return null; const m=l[norm(r.rawName)]; return (m&&m[sortBy]!=null)?m[sortBy]:null; });
+    const pv = srcVals.filter(v=>v!=null);
+    const avg = pv.length ? pv.reduce((a,b)=>a+b,0)/pv.length : null;
+    return { player: r.rawName, pos: r.pos, team: r.team, stat: STAT_LABEL[sortBy], proj: avg };
+  });
+
+  tbody.innerHTML = rows.map((r,i)=>{
+    const srcVals = lookups.map(lk=>{
+      if(!lk) return null;
+      const m=lk[norm(r.rawName)];
+      return (m&&m[sortBy]!=null)?m[sortBy]:null;
+    });
+    const presentVals = srcVals.filter(v=>v!=null);
+    const avg = presentVals.length ? presentVals.reduce((a,b)=>a+b,0)/presentVals.length : null;
+    const tight = isTight(r, sortBy, lookups);
+    const tc = presentVals.length===0?"#2a2845":tight?"#ffffff":"#8b87b8";
+    const pc = presentVals.length===0?"#2a2845":tight?"#a78bfa":"#6b6896";
+
+    const srcCells = srcVals.map((v,si)=>{
+      const withinTol = v!=null&&avg!=null&&(avg===0||Math.abs(v-avg)/avg*100<=tolerance);
+      if (v!=null) {
+        return `<td style="padding:8px 12px;text-align:center" class="copyable" onclick="copyVal('${v.toFixed(2)}')" title="Click to copy"><span style="color:${withinTol?SOURCES[si].color:SOURCES[si].color+'33'};font-size:14px;font-weight:${withinTol?700:400}">${v.toFixed(2)}</span></td>`;
+      }
+      return `<td style="padding:8px 12px;text-align:center"><span style="color:#2a2845">—</span></td>`;
+    }).join("");
+
+    return `<tr class="${i%2===0?'even':'odd'}">
+      <td style="padding:8px 12px;font-size:15px;font-weight:600;color:${tc};white-space:nowrap;width:200px">${r.rawName}</td>
+      <td style="padding:8px 6px;font-size:14px;font-weight:500;color:#ffffff;text-align:center;width:50px">${r.pos}</td>
+      <td style="padding:8px 6px;font-size:14px;font-weight:600;color:#ffffff;text-align:center;width:50px">${r.team}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:600;text-align:center;color:#f87171"></td>
+      <td style="padding:4px 8px;text-align:center"><button onclick="trackRow(${i})" style="background:#7c3aed22;border:1px solid #7c3aed55;color:#a78bfa;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">TRACK</button></td>
+      ${srcCells}
+      <td style="padding:8px 12px;font-size:15px;color:${avg!=null?'#ffffff':'#2a2845'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer':''}" ${avg!=null?`onclick="copyVal('${avg.toFixed(2)}')" title="Click to copy"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'—'}</td>
+    </tr>`;
+  }).join("");
+}
+
+function doExport() {
+  if (!merged) return;
+  const conLookup = {};
+  merged.forEach(r => { if (r.found>0) conLookup[norm(r.rawName)] = r.con; });
+  const header = "id,name,first_name,last_name,position,team,three_pointers_made,assists,blocks,double_double,points,rebounds,steals,triple_double,turnovers,fd_points,dk_points";
+  const dataRows = UA_TEMPLATE.map(r => {
+    const con = conLookup[norm(r.name)] || {};
+    return [
+      r.id, r.name, r.first_name, r.last_name, r.position, r.team,
+      con.threepm!=null?con.threepm.toFixed(2):"",
+      con.ast!=null?con.ast.toFixed(2):"",
+      "","",
+      con.pts!=null?con.pts.toFixed(2):"",
+      con.reb!=null?con.reb.toFixed(2):"",
+      "","","","","",
+    ].map(v=>`"${v}"`).join(",");
+  });
+  const csv = [header,...dataRows].join("\n");
+  const blob = new Blob([csv],{type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="NBAmatrixProjections.csv"; a.style.display="none";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+}
+
+
+
+function copyVal(val) {
+  navigator.clipboard.writeText(String(val)).then(() => {
+    const t = document.getElementById("copy-toast");
+    t.textContent = "Copied " + val;
+    t.style.opacity = 1;
+    clearTimeout(window._copyTimer);
+    window._copyTimer = setTimeout(() => t.style.opacity = 0, 1200);
+  });
+}
+
+
+// ── TRACKER ─────────────────────────────────────────────────────────────
+let bets = [];
+let modalPlayer = "";
+let modalPos = "";
+
+const BOOKS = ["DraftKings","FanDuel","BetMGM","Caesars","PrizePicks","Underdog","ESPNBet","Other"];
+
+// Use IndexedDB for unlimited bet storage
+let db = null;
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("nba_matrix", 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains("bets")) {
+        d.createObjectStore("bets", {keyPath: "id"});
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(); };
+    req.onerror = () => {
+      console.warn("IndexedDB failed, falling back to localStorage");
+      resolve();
+    };
+  });
+}
+
+function loadBets() {
+  return new Promise(resolve => {
+    // Always try localStorage first - most reliable for file://
+    try {
+      const raw = localStorage.getItem("nba_matrix_bets");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.length > 0) {
+          bets = parsed.sort((a,b) => b.id - a.id);
+          resolve();
+          return;
+        }
+      }
+    } catch(e) {}
+    // Try IndexedDB as fallback
+    if (db) {
+      try {
+        const tx = db.transaction("bets", "readonly");
+        const store = tx.objectStore("bets");
+        const req = store.getAll();
+        req.onsuccess = () => {
+          bets = (req.result || []).sort((a,b) => b.id - a.id);
+          resolve();
+        };
+        req.onerror = () => resolve();
+      } catch(e) { resolve(); }
+    } else {
+      resolve();
+    }
+  });
+}
+
+function saveBets() {
+  // Always save to localStorage as primary (compact, reliable for local files)
+  try {
+    // Store only essential fields to stay under size limit
+    const slim = bets.map(b => ({
+      id:b.id, date:b.date, player:b.player, pos:b.pos,
+      stat:b.stat, ou:b.ou, line:b.line, odds:b.odds,
+      stake:b.stake, toWin:b.toWin, type:b.type,
+      book:b.book, proj:b.proj, result:b.result
+    }));
+    localStorage.setItem("nba_matrix_bets", JSON.stringify(slim));
+  } catch(e) {
+    console.warn("localStorage save failed:", e);
+  }
+  // Also save to IndexedDB if available
+  if (db) {
+    try {
+      const tx = db.transaction("bets", "readwrite");
+      const store = tx.objectStore("bets");
+      store.clear();
+      bets.forEach(b => store.put(b));
+    } catch(e) { console.warn("IndexedDB save failed:", e); }
+  }
+}
+
+function deleteBetFromDB(id) {
+  if (db) {
+    const tx = db.transaction("bets", "readwrite");
+    tx.objectStore("bets").delete(id);
+  }
+}
+
+function calcStake(odds) {
+  if (!odds || isNaN(odds)) return null;
+  odds = Number(odds);
+  if (odds < 0) {
+    // Favorite: stake enough to win 1u
+    const stake = Math.abs(odds) / 100;
+    return { stake: parseFloat(stake.toFixed(2)), toWin: 1.00, type: "fav" };
+  } else {
+    // Dog: stake 1u
+    const toWin = odds / 100;
+    return { stake: 1.00, toWin: parseFloat(toWin.toFixed(2)), type: "dog" };
+  }
+}
+
+function updateStakePreview() {
+  const odds = Number(document.getElementById("modal-odds").value);
+  const preview = document.getElementById("modal-stake-preview");
+  if (!odds || isNaN(odds)) { preview.textContent = ""; return; }
+  const s = calcStake(odds);
+  if (!s) { preview.textContent = ""; return; }
+  preview.textContent = s.type === "fav"
+    ? `Stake ${s.stake.toFixed(2)}u to win 1.00u (favorite)`
+    : `Stake 1.00u to win ${s.toWin.toFixed(2)}u (underdog)`;
+}
+
+function openTrackModal(player, pos, stat, proj, team) {
+  modalPlayer = player;
+  modalPos = pos;
+  document.getElementById("modal-player-name").textContent = player;
+  document.getElementById("modal-player-sub").textContent = pos + " · Add a bet";
+  document.getElementById("modal-line").value = "";
+  window._modalLine = null;
+  const lp = document.getElementById("line-preview"); if(lp) lp.textContent = "";
+  const dateEl = document.getElementById("modal-date"); if(dateEl) dateEl.value = new Date().toISOString().split("T")[0];
+  document.getElementById("modal-odds").value = "";
+  document.getElementById("modal-fair").value = "";
+  document.getElementById("modal-stat").value = stat || "PTS";
+  document.getElementById("modal-proj-display").textContent = proj && proj !== 'null' ? `Blended Proj: ${proj}` : 'Blended Proj: —';
+  window._modalProj = (proj && proj !== 'null') ? parseFloat(proj) : null;
+  window._modalTeam = team || null;
+  document.getElementById("modal-book").value = "DraftKings";
+  document.getElementById("modal-stake-preview").textContent = "";
+  document.getElementById("modal-save-btn").textContent = "Track Bet";
+  document.getElementById("modal-save-btn").onclick = saveBet;
+  window._editId = null;
+  setOU("under");
+  document.getElementById("track-modal").classList.add("open");
+}
+
+function closeTrackModal() {
+  document.getElementById("track-modal").classList.remove("open");
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeTrackModal(); });
+
+function saveBet() {
+  // Parse line from combined input (u17.5 / o17.5)
+  const lineRaw = document.getElementById("modal-line").value.trim().toLowerCase();
+  const lineMatch = lineRaw.match(/^[ou]\s*([\d.]+)$/);
+  const line = lineMatch ? parseFloat(lineMatch[1]) : parseFloat(lineRaw);
+  const odds = parseInt(document.getElementById("modal-odds").value);
+  const stat = document.getElementById("modal-stat").value;
+  const ou   = getOU();
+  const book = document.getElementById("modal-book").value;
+
+  if (isNaN(line) || isNaN(odds)) {
+    alert("Please enter a line and odds.");
+    return;
+  }
+
+  const s = calcStake(odds);
+  const fair = parseInt(document.getElementById("modal-fair").value) || null;
+  const now = new Date();
+  const modalDateVal = document.getElementById("modal-date")?.value;
+  const gameDate = modalDateVal ? new Date(modalDateVal + "T12:00:00") : now;
+  const gameDateStr = gameDate.toLocaleDateString();
+  const timestamp = now.toLocaleTimeString("en-US", {hour:"2-digit",minute:"2-digit"}) + " " + gameDateStr;
+  const bet = {
+    id: Date.now(),
+    date: gameDateStr,
+    timestamp,
+    player: modalPlayer,
+    pos: modalPos,
+    stat, ou, line, odds, fair,
+    stake: s.stake,
+    toWin: s.toWin,
+    type: s.type,
+    book,
+    proj: window._modalProj,
+    team: window._modalTeam,
+    result: "pending",
+    actual: null,
+  };
+
+  bets.unshift(bet);
+  saveBets();
+  closeTrackModal();
+  if (currentTab === "tracker") renderTracker();
+  copyVal(`${modalPlayer} ${ou} ${line} ${stat}`);
+}
+
+function setBetResult(id, result) {
+  const bet = bets.find(b => b.id === id);
+  if (!bet) return;
+  bet.result = result;
+  saveBets();
+  renderTracker();
+}
+
+function deleteBet(id) {
+  if (!confirm("Delete this bet?")) return;
+  bets = bets.filter(b => b.id !== id);
+  deleteBetFromDB(id);
+  renderTracker();
+}
+
+function exportBets() {
+  const json = JSON.stringify(bets, null, 2);
+  const blob = new Blob([json], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "nba_matrix_bets.json"; a.style.display = "none";
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
+function importBets() {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = ".json";
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        bets = imported;
+        saveBets();
+        renderTracker();
+      } catch { alert("Invalid file."); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function renderTracker() {
+  const el = document.getElementById("tracker-tab");
+
+  const settled = bets.filter(b => b.result !== "pending" && b.result !== "void");
+  const hits    = bets.filter(b => b.result === "hit");
+  const misses  = bets.filter(b => b.result === "miss");
+  const pending = bets.filter(b => b.result === "pending");
+
+  const totalStaked  = settled.reduce((a,b) => a + b.stake, 0);
+  const totalWon     = hits.reduce((a,b) => a + b.toWin, 0);
+  const totalLost    = misses.reduce((a,b) => a + b.stake, 0);
+  const netPL        = totalWon - totalLost;
+  const roi          = totalStaked > 0 ? ((netPL / totalStaked) * 100).toFixed(1) : "—";
+  const winRate      = settled.length > 0 ? ((hits.length / settled.length) * 100).toFixed(1) : "—";
+
+  // Time period breakdowns
+  const now = new Date();
+  const todayStr = now.toLocaleDateString("en-US");
+  const weekAgo = new Date(now - 7*24*60*60*1000);
+  const monthAgo = new Date(now - 30*24*60*60*1000);
+
+  function periodStats(filterFn) {
+    const s = settled.filter(filterFn);
+    const h = s.filter(b => b.result === "hit");
+    const m = s.filter(b => b.result === "miss");
+    const won = h.reduce((a,b) => a+b.toWin, 0);
+    const lost = m.reduce((a,b) => a+b.stake, 0);
+    const pl = won - lost;
+    const staked = s.reduce((a,b) => a+b.stake, 0);
+    const wr = s.length > 0 ? ((h.length/s.length)*100).toFixed(1) : "—";
+    const roi = staked > 0 ? ((pl/staked)*100).toFixed(1) : "—";
+    return { h: h.length, m: m.length, total: s.length, pl, wr, roi };
+  }
+
+  function parseBetDate(b) {
+    try { return new Date(b.date); } catch(e) { return null; }
+  }
+
+  const dailyStats   = periodStats(b => b.date === todayStr);
+  const weeklyStats  = periodStats(b => { const d = parseBetDate(b); return d && d >= weekAgo; });
+  const monthlyStats = periodStats(b => { const d = parseBetDate(b); return d && d >= monthAgo; });
+
+  // Breakdown by stat
+  const statBreak = {};
+  settled.forEach(b => {
+    if (!statBreak[b.stat]) statBreak[b.stat] = {hits:0,total:0,pl:0};
+    statBreak[b.stat].total++;
+    if (b.result==="hit") { statBreak[b.stat].hits++; statBreak[b.stat].pl += b.toWin; }
+    else statBreak[b.stat].pl -= b.stake;
+  });
+
+  // Breakdown by book
+  const bookBreak = {};
+  settled.forEach(b => {
+    if (!bookBreak[b.book]) bookBreak[b.book] = {hits:0,total:0,pl:0};
+    bookBreak[b.book].total++;
+    if (b.result==="hit") { bookBreak[b.book].hits++; bookBreak[b.book].pl += b.toWin; }
+    else bookBreak[b.book].pl -= b.stake;
+  });
+
+  // EV bucket breakdown
+  const evBuckets = {"5-9%":{hits:0,total:0,pl:0}, "10-14%":{hits:0,total:0,pl:0}, "15-19%":{hits:0,total:0,pl:0}, "20%+":{hits:0,total:0,pl:0}};
+  settled.forEach(b => {
+    const ev = calcEdge(b.odds, b.fair);
+    if (ev == null || ev < 5) return;
+    const bucket = ev>=20?"20%+":ev>=15?"15-19%":ev>=10?"10-14%":"5-9%";
+    evBuckets[bucket].total++;
+    if (b.result==="hit") { evBuckets[bucket].hits++; evBuckets[bucket].pl += b.toWin; }
+    else evBuckets[bucket].pl -= b.stake;
+  });
+
+  // Over/Under breakdown
+  const ouBreak = {over:{hits:0,total:0,pl:0}, under:{hits:0,total:0,pl:0}};
+  settled.forEach(b => {
+    ouBreak[b.ou].total++;
+    if (b.result==="hit") { ouBreak[b.ou].hits++; ouBreak[b.ou].pl += b.toWin; }
+    else ouBreak[b.ou].pl -= b.stake;
+  });
+
+  // Time frame breakdown (by hour of tracking timestamp)
+  const timeBreak = {};
+  bets.filter(b => b.result !== "pending" && b.timestamp).forEach(b => {
+    const t = b.timestamp || "";
+    const hrMatch = t.match(/^(\d+):(\d+)\s*(AM|PM)/i);
+    if (!hrMatch) return;
+    let hr = parseInt(hrMatch[1]);
+    const ampm = hrMatch[3].toUpperCase();
+    if (ampm === "PM" && hr !== 12) hr += 12;
+    if (ampm === "AM" && hr === 12) hr = 0;
+    const label = (hr % 12 || 12) + ":00 " + (hr < 12 ? "AM" : "PM") + " – " + ((hr+1) % 12 || 12) + ":00 " + ((hr+1) < 12 ? "AM" : "PM");
+    if (!timeBreak[label]) timeBreak[label] = {hits:0,total:0,pl:0,hr};
+    timeBreak[label].total++;
+    if (b.result==="hit") { timeBreak[label].hits++; timeBreak[label].pl += b.toWin; }
+    else timeBreak[label].pl -= b.stake;
+  });
+
+  const pct = (h,t) => t > 0 ? `${((h/t)*100).toFixed(0)}%` : "—";
+
+  const statCards = (obj) => Object.entries(obj).map(([k,v]) => {
+    const avgStake = v.total > 0 ? (v.pl + v.total) / v.total : 1;
+    const staked = settled.filter(b => obj[b.stat || b.book] === v || (b.stat===k||b.book===k)).reduce((a,b)=>a+b.stake, 0) || v.total;
+    const roi = v.total>0 ? ((v.pl/Math.max(0.01,staked))*100).toFixed(1) : '—';
+    return `<div class="stat-card">
+      <div class="sc-label">${k}</div>
+      <div class="sc-val">${pct(v.hits,v.total)}</div>
+      <div class="sc-sub">${v.hits}/${v.total}</div>
+      <div class="sc-sub" style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
+      <div class="sc-sub" style="color:${Number(roi)>=0?'#a78bfa':'#f87171'};">ROI ${roi !== '—' ? roi+'%' : '—'}</div>
+    </div>`;}).join("");
+
+  const betSearch = (document.getElementById("bet-search")?.value || "").toLowerCase();
+  const filteredBets = betSearch
+    ? bets.filter(b => b.player.toLowerCase().includes(betSearch) ||
+        b.stat.toLowerCase().includes(betSearch) ||
+        b.book.toLowerCase().includes(betSearch))
+    : bets;
+
+  const betRows = filteredBets.map(b => {
+    const rc = b.result==="hit"?"bet-row-hit":b.result==="miss"?"bet-row-miss":"bet-row-pending";
+    const plVal = b.result==="hit" ? `+${b.toWin.toFixed(2)}u` : b.result==="miss" ? `-${b.stake.toFixed(2)}u` : b.result==="void" ? "VOID" : "—";
+    const plColor = b.result==="hit"?"#22c55e":b.result==="miss"?"#f87171":b.result==="void"?"#f59e0b":"#6b6896";
+    return `<tr style="border-bottom:1px solid #1a1830;">
+      <td style="padding:8px 12px;font-size:14px;font-weight:600;color:#fff;white-space:nowrap">${b.player}</td>
+      <td style="padding:8px 8px;font-size:12px;color:#6b6896;text-align:center;white-space:nowrap">${b.timestamp||b.date}</td>
+      <td style="padding:8px 8px;font-size:13px;color:#a78bfa;text-align:center;font-weight:700">${b.stat}</td>
+      <td style="padding:8px 8px;font-size:13px;color:#fff;text-align:center">${b.ou.toUpperCase()} ${b.line}</td>
+      <td style="padding:8px 8px;font-size:13px;color:#a78bfa;text-align:center;font-weight:600">${b.proj != null ? b.proj.toFixed(2) : '—'}</td>
+      <td style="padding:8px 8px;font-size:13px;text-align:center;font-weight:700;color:${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'#6b6896':e>0?'#22c55e':'#f87171';})()}">${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'—':(e>0?'+':'')+e.toFixed(1)+'%';})()}</td>
+      <td style="padding:8px 8px;font-size:13px;color:#fff;text-align:center">${b.odds > 0 ? '+'+b.odds : b.odds}</td>
+      <td style="padding:8px 8px;font-size:13px;color:${b.fair!=null?(b.odds>b.fair?'#22c55e':b.odds<b.fair?'#f87171':'#fff'):'#6b6896'};text-align:center;font-weight:600">${b.fair!=null?(b.fair>0?'+'+b.fair:b.fair):'—'}</td>
+      <td style="padding:8px 8px;font-size:13px;color:#8b87b8;text-align:center">${b.book}</td>
+      <td style="padding:8px 8px;font-size:13px;color:#fff;text-align:center">${b.stake.toFixed(2)}u</td>
+      <td style="padding:8px 8px;font-size:13px;font-weight:700;text-align:center;color:${plColor}">${plVal}</td>
+      <td style="padding:8px 8px;text-align:center">
+        <button class="result-btn hit" onclick="setBetResult(${b.id},'hit')">HIT</button>
+        <button class="result-btn miss" onclick="setBetResult(${b.id},'miss')">MISS</button>
+        <button class="result-btn" onclick="setBetResult(${b.id},'void')" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b55;">VOID</button>
+      </td>
+      <td style="padding:8px 8px;text-align:center;white-space:nowrap">
+        <button onclick="openEditModal(${b.id})" style="background:transparent;border:none;color:#6b6896;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;margin-right:6px;" title="Edit">✎</button>
+        <button onclick="deleteBet(${b.id})" style="background:transparent;border:none;color:#3d3a6b;font-size:16px;cursor:pointer;" title="Delete">✕</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div style="padding:0">
+      <div id="tracker-controls">
+        <span style="font-size:16px;font-weight:800;color:#fff;">${bets.length} Bets Tracked</span>
+        <span style="font-size:11px;color:#22c55e;background:#22c55e15;border:1px solid #22c55e33;border-radius:4px;padding:2px 8px;">● Auto-saved</span>
+        <input type="text" id="bet-search" placeholder="Search bets..." oninput="filterBetRows(this.value)"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          style="background:#16152a;border:1px solid #2a2845;border-radius:6px;padding:7px 14px;
+            font-size:13px;color:#e2e8f0;outline:none;width:180px;font-family:'Inter',sans-serif;"/>
+        <button onclick="screenshotBets()" style="background:#16152a;border:1px solid #2a2845;color:#a78bfa;
+          border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;
+          font-family:'Inter',sans-serif;">📸 Screenshot</button>
+        <span style="color:#2a2845;font-size:12px;">|</span>
+        <span style="font-size:13px;color:#6b6896;">${pending.length} pending · ${settled.length} settled</span>
+        <button onclick="openQuickGrade()" style="background:#7c3aed;border:none;color:#fff;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">⚡ Quick Grade</button>
+        <button id="tracker-export-btn" onclick="exportBets()">Backup to file</button>
+        <button id="tracker-import-btn" onclick="importBets()">Restore from file</button>
+      </div>
+
+      <div class="tracker-section">
+        <h4>Overview</h4>
+        <div>
+          <div class="stat-card" style="display:inline-flex">
+            <div class="sc-label">Win Rate</div>
+            <div class="sc-val" style="color:${Number(winRate)>=55?'#22c55e':Number(winRate)<45?'#f87171':'#fff'}">${winRate}%</div>
+            <div class="sc-sub">${hits.length}W · ${misses.length}L</div>
+          </div>
+          <div class="stat-card" style="display:inline-flex">
+            <div class="sc-label">Net P&L</div>
+            <div class="sc-val" style="color:${netPL>=0?'#22c55e':'#f87171'}">${netPL>=0?'+':''}${netPL.toFixed(2)}u</div>
+            <div class="sc-sub">${totalStaked.toFixed(2)}u staked</div>
+          </div>
+          <div class="stat-card" style="display:inline-flex">
+            <div class="sc-label">ROI</div>
+            <div class="sc-val" style="color:${Number(roi)>=0?'#22c55e':'#f87171'}">${roi !== '—' ? roi+'%' : '—'}</div>
+            <div class="sc-sub">settled bets</div>
+          </div>
+          <div class="stat-card" style="display:inline-flex">
+            <div class="sc-label">Over</div>
+            <div class="sc-val">${pct(ouBreak.over.hits,ouBreak.over.total)}</div>
+            <div class="sc-sub">${ouBreak.over.hits}/${ouBreak.over.total}</div>
+            <div class="sc-sub" style="color:${ouBreak.over.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${ouBreak.over.pl>=0?'+':''}${ouBreak.over.pl.toFixed(2)}u</div>
+            <div class="sc-sub" style="color:${ouBreak.over.total>0?(ouBreak.over.pl/bets.filter(b=>b.ou==='over'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)*100)>=0?'#a78bfa':'#f87171':'#6b6896'};">ROI ${ouBreak.over.total>0?((ouBreak.over.pl/Math.max(0.01,bets.filter(b=>b.ou==='over'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)))*100).toFixed(1)+'%':'—'}</div>
+          </div>
+          <div class="stat-card" style="display:inline-flex">
+            <div class="sc-label">Under</div>
+            <div class="sc-val">${pct(ouBreak.under.hits,ouBreak.under.total)}</div>
+            <div class="sc-sub">${ouBreak.under.hits}/${ouBreak.under.total}</div>
+            <div class="sc-sub" style="color:${ouBreak.under.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${ouBreak.under.pl>=0?'+':''}${ouBreak.under.pl.toFixed(2)}u</div>
+            <div class="sc-sub" style="color:${ouBreak.under.total>0?(ouBreak.under.pl/bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)*100)>=0?'#a78bfa':'#f87171':'#6b6896'};">ROI ${ouBreak.under.total>0?((ouBreak.under.pl/Math.max(0.01,bets.filter(b=>b.ou==='under'&&b.result!=='pending'&&b.result!=='void').reduce((a,b)=>a+b.stake,0)))*100).toFixed(1)+'%':'—'}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tracker-section">
+        <h4>By Period</h4>
+        <div>
+          ${[['Today', dailyStats], ['Last 7 Days', weeklyStats], ['Last 30 Days', monthlyStats]].map(([label, s]) => s.total === 0 ? '' : `
+          <div class="stat-card" style="display:inline-flex">
+            <div class="sc-label">${label}</div>
+            <div class="sc-val" style="color:${Number(s.wr)>=55?'#22c55e':Number(s.wr)<45?'#f87171':'#fff'}">${s.wr}%</div>
+            <div class="sc-sub">${s.h}W · ${s.m}L</div>
+            <div class="sc-sub" style="color:${s.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${s.pl>=0?'+':''}${s.pl.toFixed(2)}u</div>
+            <div class="sc-sub" style="color:#a78bfa;">ROI ${s.roi}%</div>
+          </div>`).join('')}
+          ${dailyStats.total === 0 && weeklyStats.total === 0 ? '<span style="color:#3d3a6b;font-size:13px;">No settled bets yet</span>' : ''}
+        </div>
+      </div>
+
+      <div class="tracker-section">
+        <h4>By Stat</h4>
+        <div>${statCards(statBreak) || '<span style="color:#3d3a6b;font-size:13px;">No settled bets yet</span>'}</div>
+      </div>
+
+      <div class="tracker-section">
+        <h4>By Sportsbook</h4>
+        <div>${statCards(bookBreak) || '<span style="color:#3d3a6b;font-size:13px;">No settled bets yet</span>'}</div>
+      </div>
+
+      <div class="tracker-section">
+        <h4>++EV Buckets</h4>
+        <div>${Object.entries(evBuckets).map(([k,v]) => v.total===0 ? '' : `
+    <div class="stat-card">
+      <div class="sc-label">${k}</div>
+      <div class="sc-val" style="color:${v.hits/v.total>=0.55?'#22c55e':v.hits/v.total<0.45?'#f87171':'#fff'}">${pct(v.hits,v.total)}</div>
+      <div class="sc-sub">${v.hits}W · ${v.total-v.hits}L</div>
+      <div class="sc-sub" style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
+      <div class="sc-sub" style="color:#a78bfa;">ROI ${v.total>0?((v.pl/Math.max(0.01,v.total))*100).toFixed(1)+'%':'—'}</div>
+    </div>`).join('')}
+        ${Object.values(evBuckets).every(v=>v.total===0)?'<span style="color:#3d3a6b;font-size:13px;">Track bets with fair value to see EV breakdown</span>':''}
+      </div>
+
+      <div class="tracker-section">
+        <h4>By Time Tracked</h4>
+        <div>${Object.entries(timeBreak).sort((a,b)=>a[1].hr-b[1].hr).map(([label,v]) => `
+    <div class="stat-card">
+      <div class="sc-label" style="font-size:10px;white-space:nowrap;">${label}</div>
+      <div class="sc-val" style="color:${v.hits/v.total>=0.55?'#22c55e':v.hits/v.total<0.45?'#f87171':'#fff'}">${pct(v.hits,v.total)}</div>
+      <div class="sc-sub">${v.hits}W · ${v.total-v.hits}L</div>
+      <div class="sc-sub" style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:600;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</div>
+    </div>`).join('')}
+        ${Object.keys(timeBreak).length===0?'<span style="color:#3d3a6b;font-size:13px;">Bets need timestamps to show time breakdown</span>':''}
+        </div>
+      </div>
+
+      <div class="tracker-section">
+        <h4>Bet History</h4>
+        ${filteredBets.length === 0 ? '<p style="color:#3d3a6b;font-size:13px;">' + (betSearch ? 'No bets match your search.' : 'No bets tracked yet. Hit TRACK on any player.') + '</p>' : `
+        <div style="overflow-x:auto;border-radius:8px;border:1px solid #1e1c35;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead style="background:#16152a;">
+              <tr>
+                ${["PLAYER","TRACKED","STAT","LINE","PROJ","EDGE (EV)","ODDS","FAIR","BOOK","STAKE","P&L","RESULT",""].map(h=>`<th style="padding:10px 8px;font-size:11px;color:#6b6896;font-weight:600;text-align:center;letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap;">${h}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody id="bet-table-body">${betRows}</tbody>
+          </table>
+        </div>`}
+      </div>
+    </div>`;
+}
+
+// Patch odds input to update preview live
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("modal-odds").addEventListener("input", updateStakePreview);
+  initDB().then(() => loadBets()).then(() => {
+    if (currentTab === "tracker") renderTracker();
+  });
+});
+
+
+function openEditModal(id) {
+  const bet = bets.find(b => b.id === id);
+  if (!bet) return;
+  window._editId = id;
+  document.getElementById("modal-player-name").textContent = bet.player;
+  document.getElementById("modal-player-sub").textContent = bet.pos + " · Editing bet";
+  document.getElementById("modal-stat").value = bet.stat;
+  setOU(bet.ou);
+  document.getElementById("modal-line").value = (bet.ou==="over"?"o":"u") + bet.line;
+  window._modalLine = bet.line;
+  parseLineInput(document.getElementById("modal-line"));
+  const editDateEl = document.getElementById("modal-date");
+  if (editDateEl && bet.date) { try { const d = new Date(bet.date); editDateEl.value = d.toISOString().split("T")[0]; } catch(e) {} }
+  document.getElementById("modal-odds").value = bet.odds;
+  document.getElementById("modal-fair").value = bet.fair || "";
+  document.getElementById("modal-book").value = bet.book;
+  document.getElementById("modal-proj-display").textContent = bet.proj != null ? `Blended Proj: ${bet.proj.toFixed(2)}` : "Blended Proj: —";
+  window._modalProj = bet.proj;
+  updateStakePreview();
+  document.getElementById("modal-save-btn").textContent = "Save Changes";
+  document.getElementById("modal-save-btn").onclick = saveEdit;
+  document.getElementById("track-modal").classList.add("open");
+}
+
+function saveEdit() {
+  const id = window._editId;
+  const bet = bets.find(b => b.id === id);
+  if (!bet) return;
+  // Parse line from combined input (u17.5 / o17.5)
+  const lineRaw = document.getElementById("modal-line").value.trim().toLowerCase();
+  const lineMatch = lineRaw.match(/^[ou]\s*([\d.]+)$/);
+  const line = lineMatch ? parseFloat(lineMatch[1]) : parseFloat(lineRaw);
+  const odds = parseInt(document.getElementById("modal-odds").value);
+  if (isNaN(line) || isNaN(odds)) { alert("Please enter a line and odds."); return; }
+  const s = calcStake(odds);
+  const editDateVal = document.getElementById("modal-date")?.value;
+  if (editDateVal) { const gd = new Date(editDateVal + "T12:00:00"); bet.date = gd.toLocaleDateString(); }
+  bet.stat  = document.getElementById("modal-stat").value;
+  bet.ou    = getOU();
+  bet.line  = line;
+  bet.odds  = odds;
+  bet.fair  = parseInt(document.getElementById("modal-fair").value) || null;
+  bet.book  = document.getElementById("modal-book").value;
+  bet.stake = s.stake;
+  bet.toWin = s.toWin;
+  bet.type  = s.type;
+  bet.proj  = window._modalProj;
+  saveBets();
+  closeTrackModal();
+  renderTracker();
+}
+
+
+function setOU(val) {
+  window._modalOU = val;
+  // Update line input color preview if it exists
+  const preview = document.getElementById("line-preview");
+  if (preview && window._modalLine != null) {
+    preview.textContent = val === "over" ? `OVER ${window._modalLine}` : val === "under" ? `UNDER ${window._modalLine}` : "";
+    preview.style.color = val === "over" ? "#22c55e" : "#f87171";
+  }
+}
+
+function parseLineInput(el) {
+  const raw = el.value.trim().toLowerCase();
+  const preview = document.getElementById("line-preview");
+  // Match patterns: u17.5, o17.5, u 17.5, o 17.5
+  const match = raw.match(/^([ou])\s*([\d.]+)$/);
+  if (match) {
+    const dir = match[1] === "o" ? "over" : "under";
+    const num = parseFloat(match[2]);
+    window._modalOU = dir;
+    window._modalLine = num;
+    el.style.borderColor = "#7c3aed";
+    if (preview) {
+      preview.textContent = (dir === "over" ? "OVER " : "UNDER ") + num;
+      preview.style.color = dir === "over" ? "#22c55e" : "#f87171";
+    }
+  } else if (raw === "") {
+    window._modalOU = "under";
+    window._modalLine = null;
+    el.style.borderColor = "#1e1c35";
+    if (preview) preview.textContent = "";
+  } else {
+    window._modalLine = null;
+    el.style.borderColor = "#f8717155";
+    if (preview) { preview.textContent = "Type u17.5 or o17.5"; preview.style.color = "#f87171"; }
+  }
+}
+
+function getOU() {
+  return window._modalOU || "under";
+}
+
+
+function screenshotBets() {
+  const pending = bets.filter(b => b.result === "pending");
+  if (pending.length === 0) { alert("No active (pending) bets to screenshot."); return; }
+
+  // Build a clean screenshot div
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "position:fixed;top:-9999px;left:-9999px;background:#0f0e1a;padding:24px;border-radius:12px;font-family:'Inter',sans-serif;min-width:700px;";
+
+  const header = document.createElement("div");
+  header.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:20px;";
+  header.innerHTML = `
+    <div style="width:28px;height:28px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border-radius:7px;display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:13px;font-weight:900;color:#fff;">N</span>
+    </div>
+    <span style="font-size:16px;font-weight:800;color:#fff;">NBA</span>
+    <span style="font-size:16px;font-weight:800;color:#a78bfa;margin-left:4px;">MATRIX</span>
+    <span style="font-size:12px;color:#6b6896;margin-left:12px;">Active Plays · ${new Date().toLocaleDateString()}</span>
+    <span style="font-size:12px;color:#22c55e;margin-left:12px;font-weight:700;">${pending.filter(b=>{const e=calcEdge(b.odds,b.fair);return e!=null&&e>=5;}).length} plays ≥5% EV</span>
+  `;
+  wrap.appendChild(header);
+
+  const table = document.createElement("table");
+  table.style.cssText = "width:100%;border-collapse:collapse;";
+  table.innerHTML = `
+    <thead>
+      <tr style="border-bottom:1px solid #2a2845;">
+        ${["PLAYER","TEAM","STAT","LINE","PROJ","EDGE","ODDS","FAIR","BOOK","STAKE"].map(h =>
+          `<th style="padding:8px 12px;font-size:11px;color:#6b6896;font-weight:600;text-align:left;letter-spacing:0.5px;">${h}</th>`
+        ).join("")}
+      </tr>
+    </thead>
+    <tbody>
+      ${pending.map((b,i) => {
+
+        return `<tr style="background:${i%2===0?"#0f0e1a":"#121120"};border-bottom:1px solid #1a1830;">
+          <td style="padding:8px 12px;font-size:14px;font-weight:600;color:#fff;">${b.player}</td>
+          <td style="padding:8px 12px;font-size:12px;color:#8b87b8;font-weight:600;">${b.team||""}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#a78bfa;font-weight:700;">${b.stat}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.ou.toUpperCase()} ${b.line}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#a78bfa;font-weight:600;">${b.proj != null ? b.proj.toFixed(2) : "—"}</td>
+          <td style="padding:8px 12px;font-size:13px;font-weight:700;color:${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'#6b6896':e>0?'#22c55e':'#f87171';})()}">${(()=>{const e=calcEdge(b.odds,b.fair);return e==null?'—':(e>0?'+':'')+e.toFixed(1)+'%';})()}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.odds > 0 ? "+" + b.odds : b.odds}</td>
+          <td style="padding:8px 12px;font-size:13px;color:${b.fair!=null?(b.odds>b.fair?"#22c55e":b.odds<b.fair?"#f87171":"#fff"):"#6b6896"};">${b.fair!=null?(b.fair>0?"+"+b.fair:b.fair):"—"}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#6b6896;">${b.book}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#fff;">${b.stake.toFixed(2)}u</td>
+        </tr>`;
+      }).join("")}
+    </tbody>`;
+  wrap.appendChild(table);
+  document.body.appendChild(wrap);
+
+  html2canvas(wrap, { backgroundColor: "#0f0e1a", scale: 2 }).then(canvas => {
+    document.body.removeChild(wrap);
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nba-matrix-plays-${new Date().toLocaleDateString().replace(/\//g,"-")}.png`;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    });
+  });
 }
 
 function oddsToImplied(odds) {
@@ -175,18 +1381,7 @@ function renderAutoGrade() {
 
       <div id="ag-log-box" style="background:#0f0e1a;border:1px solid #1e1c35;border-radius:8px;padding:16px;min-height:60px;font-family:monospace;font-size:12px;line-height:1.8;">
         ${agLog.length === 0 ? '<span style="color:#3d3a6b;">Grade log will appear here...</span>' :
-          agLog.map(l => {
-          const isSummary = /^\d+-\d+/.test(l);
-          const isDiv = l.startsWith("─");
-          const color = isSummary ? (l.includes('+') ? '#22c55e' : '#f87171') :
-            isDiv ? '#2a2845' :
-            l.startsWith("✓") ? '#22c55e' :
-            l.startsWith("✗") ? '#f87171' :
-            l.startsWith("🚫") ? '#f59e0b' : '#6b6896';
-          const weight = isSummary ? '800' : '400';
-          const size = isSummary ? '15px' : '12px';
-          return `<div style="color:${color};font-weight:${weight};font-size:${size};margin-top:${isSummary?'6px':'0'}">${l}</div>`;
-        }).join("")}
+          agLog.map(l => `<div style="color:${l.startsWith("✓")?"#22c55e":l.startsWith("✗")?"#f87171":l.startsWith("🚫")?"#f59e0b":"#6b6896"}">${l}</div>`).join("")}
       </div>
     </div>`;
 }
@@ -351,17 +1546,7 @@ async function runAutoGrade() {
     await new Promise(r => setTimeout(r, 300));
   }
 
-  // Summary
-  const gradedBets = pending.filter(b => agResults[b.id] && agResults[b.id].found);
-  const hitBets = gradedBets.filter(b => agResults[b.id].result === "hit");
-  const missBets = gradedBets.filter(b => agResults[b.id].result === "miss");
-  const totalWon = hitBets.reduce((a,b) => a + b.toWin, 0);
-  const totalLost = missBets.reduce((a,b) => a + b.stake, 0);
-  const netPL = totalWon - totalLost;
-  const plStr = (netPL >= 0 ? "+" : "") + netPL.toFixed(2) + "u";
-  agLog.push("─────────────────────────────");
-  agLog.push(hitBets.length + "-" + missBets.length + "  " + plStr);
-
+  agLog.push("✅ Done!");
   agRunning = false;
   renderAutoGrade();
 }
