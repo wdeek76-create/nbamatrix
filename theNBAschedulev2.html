@@ -568,7 +568,6 @@
       );
       if (!res.ok) return;
       const data = await res.json();
-      // Group by game_id, pick DraftKings if available else first vendor
       const byGame = {};
       for (const o of (data.data || [])) {
         if (!byGame[o.game_id]) byGame[o.game_id] = [];
@@ -576,8 +575,11 @@
       }
       oddsMap = {};
       for (const [gid, odds] of Object.entries(byGame)) {
-        const dk = odds.find(o => o.vendor === "draftkings") || odds[0];
-        oddsMap[gid] = dk;
+        // Prefer DraftKings, fallback to first available
+        const dk = odds.find(o => o.vendor === "draftkings")
+          || odds.find(o => o.vendor === "fanduel")
+          || odds[0];
+        oddsMap[parseInt(gid)] = dk;
       }
     } catch(e) { console.log("odds err", e); }
   }
@@ -641,6 +643,11 @@
     c.innerHTML = `<div class="inj-loading">Loading injuries...</div>`;
     document.getElementById("copy-bar").style.display = "none";
     document.getElementById("chip-row").style.display = "none";
+
+    // Make sure player->team map is populated before we render
+    if (Object.keys(BDL_PLAYER_TEAM).length === 0) {
+      await buildPlayerTeamMap();
+    }
 
     try {
       const res = await fetch(
@@ -902,6 +909,7 @@
       if (currentView === "daily") {
         const today = new Date();
         await fetchOdds([fmtDate(today)]);
+        console.log("oddsMap keys:", Object.keys(oddsMap).length, Object.keys(oddsMap).slice(0,3));
       } else {
         oddsMap = {};
       }
