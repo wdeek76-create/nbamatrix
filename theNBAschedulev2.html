@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -407,7 +407,6 @@
       <div class="nav-tab" onclick="switchView('weekly')">This Week</div>
       <div class="nav-tab" onclick="switchView('monthly')">This Month</div>
       <div class="nav-tab" onclick="switchView('injuries')">Injuries</div>
-      <div class="nav-tab" onclick="switchView('players')">Players</div>
     </div>
   </div>
   <div class="nav-right">
@@ -421,7 +420,6 @@
   <div class="mobile-tab" onclick="switchView('weekly')">Week</div>
   <div class="mobile-tab" onclick="switchView('monthly')">Month</div>
   <div class="mobile-tab" onclick="switchView('injuries')">Injuries</div>
-  <div class="mobile-tab" onclick="switchView('players')">Players</div>
 </div>
 
 <div class="main">
@@ -1123,15 +1121,19 @@
 
   function searchModalPlayer(query) {
     const q = query.toLowerCase().trim();
+    let firstMatch = null;
     document.querySelectorAll(".stat-row, .player-row").forEach(row => {
       const name = row.querySelector(".stat-name, .player-name");
       if (!name) return;
       row.classList.remove("player-highlight");
       if (q && name.textContent.toLowerCase().includes(q)) {
         row.classList.add("player-highlight");
-        row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        if (!firstMatch) firstMatch = row;
       }
     });
+    if (firstMatch) {
+      firstMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   }
 
   function closeModal(e) {
@@ -1219,124 +1221,20 @@
   async function openRosterAndHighlight(encoded, playerName) {
     clearSlateSearch();
     await openRoster(encoded);
-    // Wait for roster to load then highlight
-    setTimeout(() => {
-      searchModalPlayer(playerName);
-      document.getElementById("modal-player-search").value = playerName;
-    }, 1200);
-  }
-
-  // ── PLAYER SEARCH ──
-  let playerSearchTimeout = null;
-
-  function loadPlayerSearch() {
-    const c = document.getElementById("games-container");
-    c.innerHTML = `
-      <div class="player-search-wrap">
-        <span class="player-search-icon">⌕</span>
-        <input class="player-search-input" id="player-search-input" type="text"
-          placeholder="Search any player..."
-          oninput="debouncePlayerSearch(this.value)"
-          autofocus>
-      </div>
-      <div class="player-results" id="player-results">
-        <div class="player-search-hint">Type a player name to search</div>
-      </div>`;
-  }
-
-  function debouncePlayerSearch(q) {
-    clearTimeout(playerSearchTimeout);
-    if (q.trim().length < 2) {
-      document.getElementById("player-results").innerHTML = `<div class="player-search-hint">Type a player name to search</div>`;
-      return;
-    }
-    playerSearchTimeout = setTimeout(() => searchPlayers(q.trim()), 400);
-  }
-
-  async function searchPlayers(q) {
-    const resultsEl = document.getElementById("player-results");
-    resultsEl.innerHTML = `<div class="player-search-hint">Searching...</div>`;
-    try {
-      const res = await fetch(
-        `https://api.balldontlie.io/nba/v1/players/active?search=${encodeURIComponent(q)}&per_page=10`,
-        { headers: { Authorization: API_KEY } }
-      );
-      if (!res.ok) throw new Error(res.status);
-      const data = await res.json();
-      const players = data.data || [];
-      if (!players.length) {
-        resultsEl.innerHTML = `<div class="player-search-hint">No players found</div>`;
-        return;
+    // Poll until stat/player rows are rendered, then highlight
+    let attempts = 0;
+    const poll = setInterval(() => {
+      attempts++;
+      const rows = document.querySelectorAll(".stat-row, .player-row");
+      if (rows.length > 0 || attempts > 20) {
+        clearInterval(poll);
+        document.getElementById("modal-player-search").value = playerName;
+        searchModalPlayer(playerName);
       }
-      resultsEl.innerHTML = players.map(p => `
-        <div class="player-result-row" onclick="loadPlayerBoxScore(${p.id},'${p.first_name} ${p.last_name}','${p.team?.abbreviation||""}','${p.position||""}')">
-          <div>
-            <div class="player-result-name">${p.first_name} ${p.last_name}</div>
-            <span class="player-result-pos">${p.position||"—"}</span>
-          </div>
-          <span class="player-result-team">${p.team?.abbreviation||"—"}</span>
-        </div>`).join("");
-    } catch(e) {
-      resultsEl.innerHTML = `<div class="player-search-hint">Error: ${e.message}</div>`;
-    }
+    }, 150);
   }
 
-  async function loadPlayerBoxScore(playerId, name, team, pos) {
-    const resultsEl = document.getElementById("player-results");
-    // Show selected + loading
-    resultsEl.innerHTML = `
-      <div class="player-result-row" style="border-color:var(--teal)">
-        <div><div class="player-result-name">${name}</div><span class="player-result-pos">${pos}</span></div>
-        <span class="player-result-team">${team}</span>
-      </div>
-      <div class="player-box">
-        <div class="player-search-hint">Loading stats...</div>
-      </div>`;
-    try {
-      // Get most recent game stats
-      const res = await fetch(
-        `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${playerId}&seasons[]=2024&per_page=5`,
-        { headers: { Authorization: API_KEY } }
-      );
-      if (!res.ok) throw new Error(res.status);
-      const data = await res.json();
-      const games = (data.data || []).filter(s => s.min && s.min !== "0" && s.min !== "00:00");
-      if (!games.length) {
-        resultsEl.querySelector(".player-box").innerHTML = `<div class="player-search-hint">No recent stats found</div>`;
-        return;
-      }
-      // Show last 3 games
-      const boxHtml = games.slice(0, 3).map(s => {
-        const pts=s.pts||0, reb=s.reb||0, ast=s.ast||0, fg3m=s.fg3m||0, stl=s.stl||0, blk=s.blk||0;
-        const pra=pts+reb+ast;
-        const opp = s.game?.home_team_id === s.team?.id
-          ? `vs ${ID_TO_ABBR[s.game?.visitor_team_id]||"?"}`
-          : `@ ${ID_TO_ABBR[s.game?.home_team_id]||"?"}`;
-        const dateStr = s.game?.date ? new Date(s.game.date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
-        return `<div class="player-box">
-          <div class="player-box-game">${dateStr} · ${opp} · ${s.min} min</div>
-          <div class="player-box-stats">
-            <div class="player-box-stat"><div class="player-box-val${pts>=20?" big":""}">${pts}</div><div class="player-box-lbl">PTS</div></div>
-            <div class="player-box-stat"><div class="player-box-val${reb>=10?" big":""}">${reb}</div><div class="player-box-lbl">REB</div></div>
-            <div class="player-box-stat"><div class="player-box-val${ast>=8?" big":""}">${ast}</div><div class="player-box-lbl">AST</div></div>
-            <div class="player-box-stat"><div class="player-box-val${fg3m>=3?" big":""}">${fg3m}</div><div class="player-box-lbl">3PM</div></div>
-            <div class="player-box-stat"><div class="player-box-val${pra>=30?" big":""}">${pra}</div><div class="player-box-lbl">PRA</div></div>
-            <div class="player-box-stat"><div class="player-box-val">${stl||0}/${blk||0}</div><div class="player-box-lbl">STL/BLK</div></div>
-          </div>
-        </div>`;
-      }).join("");
-      resultsEl.innerHTML = `
-        <div class="player-result-row" style="border-color:var(--teal);cursor:default">
-          <div><div class="player-result-name">${name}</div><span class="player-result-pos">${pos}</span></div>
-          <span class="player-result-team">${team}</span>
-        </div>
-        <div style="font-size:0.65rem;color:var(--muted);letter-spacing:0.08em;margin:0.75rem 0 0.4rem">LAST ${games.slice(0,3).length} GAMES</div>
-        ${boxHtml}`;
-    } catch(e) {
-      resultsEl.querySelector(".player-box").innerHTML = `<div class="player-search-hint">Error: ${e.message}</div>`;
-    }
-  }
-  let countdownInterval = null;
+    let countdownInterval = null;
 
   function startCountdowns() {
     if (countdownInterval) clearInterval(countdownInterval);
@@ -1384,17 +1282,13 @@
     document.getElementById("slot-tabs").style.display = "none";
     document.getElementById("slate-player-search").style.display = "none";
     clearSlateSearch();
-    document.getElementById("date-badge").textContent = v === "injuries" ? "Live" : v === "players" ? "Search" : getDateLabel();
+    document.getElementById("date-badge").textContent = v === "injuries" ? "Live" : getDateLabel();
     if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 
     if (v === "injuries") {
       document.getElementById("fetch-btn").textContent = "Refresh";
       document.getElementById("fetch-btn").onclick = loadInjuryTab;
       loadInjuryTab();
-    } else if (v === "players") {
-      document.getElementById("fetch-btn").textContent = "Refresh";
-      document.getElementById("fetch-btn").onclick = loadPlayerSearch;
-      loadPlayerSearch();
     } else {
       document.getElementById("fetch-btn").textContent = "Refresh";
       document.getElementById("fetch-btn").onclick = fetchSlate;
