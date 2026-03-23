@@ -108,13 +108,16 @@
     .slate-result-team { color: var(--teal); font-size: 0.7rem; background: rgba(0,229,204,0.1); border: 1px solid rgba(0,229,204,0.25); border-radius: 4px; padding: 0.08rem 0.4rem; }
 
     .slot-tab {
-      font-family: 'AmericanCaptain', 'Bebas Neue', sans-serif; font-size: 0.82rem; letter-spacing: 0.08em;
-      padding: 0.3rem 0.85rem; border-radius: 20px; cursor: pointer;
-      background: var(--surface2); color: var(--muted);
-      border: 1px solid var(--border2); transition: all 0.15s;
+      font-family: 'AmericanCaptain', 'Bebas Neue', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em;
+      padding: 0.35rem 1rem; border-radius: 6px; cursor: pointer;
+      background: var(--surface2); color: #fff;
+      border: 1px solid rgba(255,255,255,0.12); transition: all 0.15s;
     }
-    .slot-tab:hover { color: #fff; border-color: var(--border2); }
+    .slot-tab:hover { background: var(--surface); border-color: rgba(255,255,255,0.25); }
     .slot-tab.active { background: var(--teal); color: #000; border-color: var(--teal); box-shadow: 0 0 10px rgba(0,229,204,0.35); }
+    .slot-tab.live-tab { border-color: #00bfaa; color: #00e5cc; display: flex; align-items: center; gap: 0.4rem; }
+    .slot-tab.live-tab.active { background: var(--teal); color: #000; }
+    .slot-live-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e5cc; animation: pulse 1.2s infinite; flex-shrink: 0; }
 
     .time-section { margin-bottom: 0.25rem; }
     .section-head { display: flex; align-items: center; gap: 0.6rem; margin: 1.75rem 0 0.75rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
@@ -688,8 +691,15 @@
       const times = Object.keys(bt).sort((a,b)=>toMin(a)-toMin(b));
 
       // Build slot tabs (only non-final games)
+      // Check which time slots have live games
+      const liveSlots = new Set(
+        active.filter(g => g.status && g.status !== "scheduled" && g.period > 0 && g.status !== "Final")
+              .map(g => getTime(g.datetime))
+      );
+
       slotTabsEl.innerHTML = `<button class="slot-tab active" onclick="filterSlot('all',this)">All</button>`
-        + times.map(t => `<button class="slot-tab" onclick="filterSlot('${t}',this)">${t} ET</button>`).join("")
+        + (liveSlots.size ? `<button class="slot-tab live-tab" onclick="filterSlot('live',this)"><span class="slot-live-dot"></span>On Now</button>` : "")
+        + times.map(t => `<button class="slot-tab${liveSlots.has(t)?" live-tab":""}" onclick="filterSlot('${t}',this)">${liveSlots.has(t)?`<span class="slot-live-dot"></span>`:""}${t} ET</button>`).join("")
         + (finals.length ? `<button class="slot-tab" onclick="filterSlot('final',this)">Final (${finals.length})</button>` : "");
       slotTabsEl.style.display = "flex";
 
@@ -730,7 +740,15 @@
     document.querySelectorAll(".slot-tab").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     document.querySelectorAll(".time-section").forEach(sec => {
-      sec.style.display = (slot === "all" || sec.dataset.slot === slot) ? "" : "none";
+      if (slot === "all") { sec.style.display = ""; return; }
+      if (slot === "live") {
+        // Show only sections that have live games
+        const hasLive = sec.querySelector(".game-countdown") &&
+          [...sec.querySelectorAll(".game-countdown")].some(el => el.textContent === "Live");
+        sec.style.display = hasLive || sec.dataset.slot === "live" ? "" : "none";
+        return;
+      }
+      sec.style.display = sec.dataset.slot === slot ? "" : "none";
     });
   }
   // ── ODDS ──
