@@ -1186,12 +1186,21 @@
       if (currentView === "daily") {
         const today = new Date();
         await fetchOdds([fmtDate(today)]);
-        // Fetch stats for final games to get real scores
+      } else {
+        oddsMap = {};
+      }
+
+      renderGames(games);
+      startCountdowns();
+
+      // After render, fetch final game scores one at a time (avoid rate limit)
+      if (currentView === "daily") {
         const finalGames = games.filter(g => g.status === "Final");
-        await Promise.all(finalGames.map(async g => {
+        for (const g of finalGames) {
+          await new Promise(r => setTimeout(r, 400));
           try {
             const r = await fetch(`https://api.balldontlie.io/nba/v1/stats?game_ids[]=${g.id}&per_page=100`, {headers:{Authorization:API_KEY}});
-            if (!r.ok) return;
+            if (!r.ok) continue;
             const d = await r.json();
             const stats = d.data || [];
             const awayAbbr = g.visitor_team.abbreviation;
@@ -1200,13 +1209,10 @@
             const homePts = stats.filter(s=>s.team?.abbreviation===homeAbbr).reduce((sum,s)=>sum+(s.pts||0),0);
             finalScores[g.id] = {away: awayPts, home: homePts};
           } catch {}
-        }));
-      } else {
-        oddsMap = {};
+        }
+        // Re-render with scores populated
+        if (finalGames.length) renderGames(games);
       }
-
-      renderGames(games);
-      startCountdowns();
       document.getElementById("chip-games").innerHTML=`<span class="hi">${games.length}</span> Games`;
       document.getElementById("chip-date").textContent=getDateLabel();
       document.getElementById("chip-row").style.display="flex";
