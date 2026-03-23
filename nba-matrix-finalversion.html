@@ -706,6 +706,89 @@ function updateStakePreview() {
     : `Stake 1.00u to win ${s.toWin.toFixed(2)}u (underdog)`;
 }
 
+const BOOK_ALIASES = {
+  fd: "FanDuel", fanduel: "FanDuel",
+  dk: "DraftKings", draftkings: "DraftKings",
+  onyx: "Onyx",
+  pb: "Prop Builder", propbuilder: "Prop Builder", "prop builder": "Prop Builder",
+  bm: "Bookmaker", bookmaker: "Bookmaker",
+  pin: "Pinnacle", pinnacle: "Pinnacle",
+  novig: "Novig", "no vig": "Novig", novig: "Novig", nv: "Novig",
+  fliff: "Fliff",
+  px: "ProphetX", prophetx: "ProphetX", "prophet x": "ProphetX", prophet: "ProphetX",
+};
+
+function parseQuickInput(val) {
+  const preview = document.getElementById("quick-preview");
+  const fields = document.getElementById("modal-fields");
+  const raw = val.trim().toLowerCase();
+  if (!raw) { preview.textContent = ""; fields.style.opacity = "0.6"; return; }
+
+  let line = null, ou = null, odds = null, book = null, fair = null;
+
+  // Try multi-word book matches first (e.g. "no vig", "prophet x", "prop builder")
+  let working = raw;
+  for (const [alias, name] of Object.entries(BOOK_ALIASES)) {
+    if (alias.includes(' ') && working.includes(alias)) {
+      book = name;
+      working = working.replace(alias, '').trim();
+      break;
+    }
+  }
+
+  const tokens = working.split(/\s+/);
+  tokens.forEach(t => {
+    if (!t) return;
+    // Line: u/o + number
+    if (/^[uo][\d.]+$/.test(t)) {
+      ou = t[0] === 'o' ? 'over' : 'under';
+      line = parseFloat(t.slice(1));
+    }
+    // Single-word book alias
+    else if (!book && BOOK_ALIASES[t]) {
+      book = BOOK_ALIASES[t];
+    }
+    // Number (odds first, then fair)
+    else if (/^[+-]?\d+$/.test(t)) {
+      const n = parseInt(t);
+      if (odds === null) odds = n;
+      else if (fair === null) fair = n;
+    }
+  });
+
+  // Update fields
+  if (line !== null && ou !== null) {
+    document.getElementById("modal-line").value = (ou === 'over' ? 'o' : 'u') + line;
+    parseLineInput(document.getElementById("modal-line"));
+  }
+  if (odds !== null) {
+    document.getElementById("modal-odds").value = odds;
+    updateStakePreview();
+  }
+  if (book) {
+    document.getElementById("modal-book").value = book;
+  }
+  if (fair !== null) {
+    document.getElementById("modal-fair").value = fair;
+  }
+
+  // Build preview string
+  const parts = [];
+  if (ou && line !== null) parts.push((ou === 'over' ? '🟢 OVER' : '🔴 UNDER') + ' ' + line);
+  if (odds !== null) parts.push((odds > 0 ? '+' : '') + odds);
+  if (book) parts.push(book);
+  if (fair !== null) parts.push('Fair: ' + (fair > 0 ? '+' : '') + fair);
+
+  if (parts.length > 0) {
+    preview.textContent = parts.join(' · ');
+    preview.style.color = "#a78bfa";
+    fields.style.opacity = "1";
+  } else {
+    preview.textContent = "e.g. u2.5 100 fd -118";
+    preview.style.color = "#3d3a6b";
+  }
+}
+
 function openTrackModal(player, pos, stat, proj, team) {
   modalPlayer = player;
   modalPos = pos;
@@ -721,13 +804,19 @@ function openTrackModal(player, pos, stat, proj, team) {
   document.getElementById("modal-proj-display").textContent = proj && proj !== 'null' ? `Blended Proj: ${proj}` : 'Blended Proj: —';
   window._modalProj = (proj && proj !== 'null') ? parseFloat(proj) : null;
   window._modalTeam = team || null;
-  document.getElementById("modal-book").value = "DraftKings";
+  document.getElementById("modal-book").value = "FanDuel";
   document.getElementById("modal-stake-preview").textContent = "";
   document.getElementById("modal-save-btn").textContent = "Track Bet";
   document.getElementById("modal-save-btn").onclick = saveBet;
   window._editId = null;
+  // Clear quick input
+  const qi = document.getElementById("modal-quick");
+  if (qi) { qi.value = ""; }
+  document.getElementById("quick-preview").textContent = "";
+  document.getElementById("modal-fields").style.opacity = "0.6";
   setOU("under");
   document.getElementById("track-modal").classList.add("open");
+  setTimeout(() => { if(qi) qi.focus(); }, 50);
 }
 
 function closeTrackModal() {
@@ -1562,67 +1651,82 @@ updateBadges();
   <div id="track-modal-box">
     <h3 id="modal-player-name">Player Name</h3>
     <div class="sub" id="modal-player-sub">Add a bet</div>
-    <div class="modal-row">
-      <div class="modal-field">
-        <label>Stat</label>
-        <select id="modal-stat">
-          <option value="PTS">PTS</option>
-          <option value="REB">REB</option>
-          <option value="AST">AST</option>
-          <option value="3PM">3PM</option>
-          <option value="PRA">PRA</option>
-          <option value="MIN">MIN</option>
-          <option value="PR">PR</option>
-          <option value="PA">PA</option>
-          <option value="RA">RA</option>
-        </select>
-      </div>
 
-      <div class="modal-field">
-        <label>Line</label>
-        <input type="text" id="modal-line" placeholder="u17.5 or o17.5"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          oninput="parseLineInput(this)"
-          style="background:#0f0e1a;border:1px solid #1e1c35;border-radius:8px;padding:10px 12px;
-            color:#e2e8f0;font-family:'Inter',sans-serif;font-size:14px;outline:none;width:100%;"/>
-        <div id="line-preview" style="font-size:11px;color:#6b6896;margin-top:3px;min-height:14px;"></div>
+    <!-- QUICK TYPE INPUT -->
+    <div style="margin-bottom:14px;">
+      <label style="font-size:10px;font-weight:700;color:#6b6896;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;">QUICK ENTRY</label>
+      <input type="text" id="modal-quick" placeholder="u2.5 100 fd -118"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+        oninput="parseQuickInput(this.value)"
+        onkeydown="if(event.key==='Enter')saveBet()"
+        style="width:100%;background:#0f0e1a;border:1px solid #7c3aed;border-radius:8px;padding:12px 14px;
+          color:#e2e8f0;font-family:'Inter',sans-serif;font-size:16px;outline:none;"/>
+      <div id="quick-preview" style="font-size:12px;color:#a78bfa;margin-top:5px;min-height:16px;font-weight:600;"></div>
+    </div>
+
+    <!-- PARSED FIELDS (shown for confirmation/override) -->
+    <div id="modal-fields" style="opacity:0.6;">
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Stat</label>
+          <select id="modal-stat">
+            <option value="PTS">PTS</option>
+            <option value="REB">REB</option>
+            <option value="AST">AST</option>
+            <option value="3PM">3PM</option>
+            <option value="PRA">PRA</option>
+            <option value="MIN">MIN</option>
+            <option value="PR">PR</option>
+            <option value="PA">PA</option>
+            <option value="RA">RA</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Line</label>
+          <input type="text" id="modal-line" placeholder="u17.5 or o17.5"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            oninput="parseLineInput(this)"
+            style="background:#0f0e1a;border:1px solid #1e1c35;border-radius:8px;padding:10px 12px;
+              color:#e2e8f0;font-family:'Inter',sans-serif;font-size:14px;outline:none;width:100%;"/>
+          <div id="line-preview" style="font-size:11px;color:#6b6896;margin-top:3px;min-height:14px;"></div>
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Odds (American)</label>
+          <input type="number" id="modal-odds" placeholder="-167 or +130" autocomplete="off" spellcheck="false"/>
+        </div>
+        <div class="modal-field">
+          <label>Fair Value Odds</label>
+          <input type="number" id="modal-fair" placeholder="e.g. -140" autocomplete="off" spellcheck="false"/>
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Game Date</label>
+          <input type="date" id="modal-date" autocomplete="off"
+            style="background:#0f0e1a;border:1px solid #1e1c35;border-radius:8px;padding:10px 12px;
+              color:#e2e8f0;font-family:'Inter',sans-serif;font-size:14px;outline:none;width:100%;color-scheme:dark;"/>
+        </div>
+        <div class="modal-field">
+          <label>Sportsbook</label>
+          <select id="modal-book">
+            <option>FanDuel</option>
+            <option>Onyx</option>
+            <option>Prop Builder</option>
+            <option>Fliff</option>
+            <option>Novig</option>
+            <option>ProphetX</option>
+            <option>Bookmaker</option>
+            <option>Pinnacle</option>
+            <option>Other</option>
+          </select>
+        </div>
       </div>
     </div>
-    <div class="modal-row">
-      <div class="modal-field">
-        <label>Odds (American)</label>
-        <input type="number" id="modal-odds" placeholder="e.g. -167 or +130" autocomplete="off" spellcheck="false"/>
-      </div>
-      <div class="modal-field">
-        <label>Fair Value Odds</label>
-        <input type="number" id="modal-fair" placeholder="e.g. -140" autocomplete="off" spellcheck="false"/>
-      </div>
-    </div>
-    <div class="modal-row">
-      <div class="modal-field">
-        <label>Game Date</label>
-        <input type="date" id="modal-date" autocomplete="off"
-          style="background:#0f0e1a;border:1px solid #1e1c35;border-radius:8px;padding:10px 12px;
-            color:#e2e8f0;font-family:'Inter',sans-serif;font-size:14px;outline:none;width:100%;
-            color-scheme:dark;"/>
-      </div>
-      <div class="modal-field">
-        <label>Sportsbook</label>
-        <select id="modal-book">
-          <option>FanDuel</option>
-          <option>Onyx</option>
-          <option>Prop Builder</option>
-          <option>Fliff</option>
-          <option>Novig</option>
-          <option>ProphetX</option>
-          <option>Bookmaker</option>
-          <option>Pinnacle</option>
-          <option>Other</option>
-        </select>
-      </div>
-    </div>
-    <div id="modal-proj-display" style="font-size:13px;color:#a78bfa;margin-bottom:8px;font-weight:600;"></div>
-    <div id="modal-stake-preview"></div>
+
+    <div id="modal-proj-display" style="font-size:13px;color:#a78bfa;margin-bottom:4px;font-weight:600;margin-top:8px;"></div>
+    <div id="modal-stake-preview" style="font-size:13px;color:#6b6896;margin-bottom:14px;min-height:18px;"></div>
     <div class="modal-btns">
       <button class="modal-btn-cancel" onclick="closeTrackModal()">Cancel</button>
       <button class="modal-btn-save" id="modal-save-btn" onclick="saveBet()">Track Bet</button>
