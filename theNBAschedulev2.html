@@ -28,11 +28,11 @@
       content: '';
       position: fixed;
       inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110'%3E%3Cg fill='none' stroke='%23252878' stroke-width='1.2' opacity='0.6'%3E%3Cpolygon points='22,8 34,8 20,44 32,44 12,80 17,80 38,40 26,40 40,8' /%3E%3Cpolygon points='68,8 80,8 66,44 78,44 58,80 63,80 84,40 72,40 86,8' /%3E%3C/g%3E%3C/svg%3E");
-      background-size: 110px 110px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='40' cy='40' r='16' fill='none' stroke='%231a1d4a' stroke-width='1.5'/%3E%3Cpath d='M40,24 Q48,32 48,40 Q48,48 40,56 M40,24 Q32,32 32,40 Q32,48 40,56 M24,40 Q32,34 40,34 Q48,34 56,40 M24,40 Q32,46 40,46 Q48,46 56,40' fill='none' stroke='%231a1d4a' stroke-width='0.8'/%3E%3C/svg%3E");
+      background-size: 80px 80px;
       pointer-events: none;
       z-index: 0;
-      opacity: 0.4;
+      opacity: 0.25;
     }
     .topnav, .main, .modal-overlay, .copy-bar, .mobile-tabs { position: relative; z-index: 1; }
 
@@ -151,7 +151,7 @@
     .schedule-option:hover { background: #1a1c35; color: #00e5c8; }
     .section-head { display: flex; align-items: center; gap: 0.6rem; margin: 1.5rem 0 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid #1e2040; }
     .section-time { font-size: 0.78rem; color: #6b7ab5; letter-spacing: 0.1em; font-weight: 700; text-transform: uppercase; }
-    .section-badge { font-size: 0.65rem; color: #6b7ab5; background: #1a1c35; border: 1px solid #1e2040; border-radius: 4px; padding: 0.1rem 0.5rem; letter-spacing: 0.08em; font-weight: 700; }
+    .section-badge { font-size: 0.65rem; color: #fff; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 0.1rem 0.5rem; letter-spacing: 0.06em; font-weight: 700; }
 
     /* Weekly/monthly compact day rows */
     .day-head { font-size: 1.05rem; color: #fff; letter-spacing: 0.08em; margin: 2rem 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1e2040; display: flex; justify-content: space-between; align-items: center; }
@@ -726,10 +726,10 @@
               .map(g => getTime(g.datetime))
       );
 
-      slotTabsEl.innerHTML = `<button class="slot-tab active" onclick="filterSlot('all',this)">All</button>`
+      slotTabsEl.innerHTML = `<button class="slot-tab active" onclick="filterSlot('all',this)">All <span style="opacity:0.6">(${active.length})</span></button>`
         + (liveSlots.size ? `<button class="slot-tab live-tab" onclick="filterSlot('live',this)"><span class="slot-live-dot"></span>On Now</button>` : "")
-        + times.map(t => `<button class="slot-tab${liveSlots.has(t)?" live-tab":""}" onclick="filterSlot('${t}',this)">${liveSlots.has(t)?`<span class="slot-live-dot"></span>`:""}${t} ET</button>`).join("")
-        + (finals.length ? `<button class="slot-tab" onclick="filterSlot('final',this)">Final (${finals.length})</button>` : "");
+        + times.map(t => `<button class="slot-tab${liveSlots.has(t)?" live-tab":""}" onclick="filterSlot('${t}',this)">${liveSlots.has(t)?`<span class="slot-live-dot"></span>`:""}${t} <span style="opacity:0.6">(${bt[t].length})</span></button>`).join("")
+        + (finals.length ? `<button class="slot-tab" onclick="filterSlot('final',this)">Final <span style="opacity:0.6">(${finals.length})</span></button>` : "");
       slotTabsEl.style.display = "flex";
 
       for(const t of times) c.innerHTML+=renderTimeGroup(t,bt[t]);
@@ -857,10 +857,7 @@
     document.getElementById("copy-bar").style.display = "none";
     document.getElementById("chip-row").style.display = "none";
 
-    // Make sure player->team map is populated before we render
-    if (Object.keys(BDL_PLAYER_TEAM).length === 0) {
-      try { await buildPlayerTeamMap(); } catch(e) {}
-    }
+    // Team lookup happens via inline batch fetch below
 
     try {
       const res = await fetch(
@@ -1225,6 +1222,14 @@
       document.getElementById("slate-search-results").innerHTML = "";
       return;
     }
+    // Build roster cache lazily on first search
+    if (Object.keys(slateRosterCache).length === 0 && slateGamesCache.length > 0) {
+      document.getElementById("slate-search-results").innerHTML = `<div style="color:#6b7ab5;font-size:0.8rem;padding:0.4rem 0">Loading rosters...</div>`;
+      buildSlateRosterCache(slateGamesCache).then(() => {
+        slateSearchDebounce = setTimeout(() => runSlateSearch(q.trim()), 100);
+      });
+      return;
+    }
     slateSearchDebounce = setTimeout(() => runSlateSearch(q.trim()), 200);
   }
 
@@ -1413,32 +1418,13 @@
       renderGames(games);
       startCountdowns();
 
-      // Show player search bar on daily view and build roster cache
+      // Show player search bar on daily view
       if (currentView === "daily") {
         document.getElementById("slate-player-search").style.display = "block";
-        buildSlateRosterCache(games); // async, runs in background
+        slateGamesCache = games; // store games but DON'T auto-fetch rosters
       }
 
-      // After render, fetch final game scores one at a time (avoid rate limit)
-      if (currentView === "daily") {
-        const finalGames = games.filter(g => g.status === "Final");
-        for (const g of finalGames) {
-          await new Promise(r => setTimeout(r, 400));
-          try {
-            const r = await fetch(`https://api.balldontlie.io/nba/v1/stats?game_ids[]=${g.id}&per_page=100`, {headers:{Authorization:API_KEY}});
-            if (!r.ok) continue;
-            const d = await r.json();
-            const stats = d.data || [];
-            const awayAbbr = g.visitor_team.abbreviation;
-            const homeAbbr = g.home_team.abbreviation;
-            const awayPts = stats.filter(s=>s.team?.abbreviation===awayAbbr).reduce((sum,s)=>sum+(s.pts||0),0);
-            const homePts = stats.filter(s=>s.team?.abbreviation===homeAbbr).reduce((sum,s)=>sum+(s.pts||0),0);
-            finalScores[g.id] = {away: awayPts, home: homePts};
-          } catch {}
-        }
-        // Re-render with scores populated
-        if (finalGames.length) renderGames(games);
-      }
+      // Final scores load on-demand when card is clicked (avoid rate limiting)
       document.getElementById("chip-games").innerHTML=`<span class="hi">${games.length}</span> Games`;
       document.getElementById("chip-date").textContent=getDateLabel();
       document.getElementById("chip-row").style.display="flex";
