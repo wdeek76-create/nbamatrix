@@ -1470,9 +1470,18 @@ async function runAutoGrade() {
         }
 
         if (!p) {
-          // Check if player was DNP (not in box score = likely DNP)
+          agResults[b.id] = { result: "pending", found: false };
+          agLog.push("⏸ " + b.player + " " + b.stat + ": not found in box score (name mismatch or no data yet)");
+          return;
+        }
+
+        // Check minutes — 0 min means DNP, void the bet
+        const minRaw = (p.min || "0").toString();
+        const minParts = minRaw.split(":");
+        const minVal = minParts.length > 1 ? parseInt(minParts[0]) + parseInt(minParts[1])/60 : parseFloat(minRaw);
+        if (!minVal || minVal < 0.5) {
           agResults[b.id] = { result: "void", found: true, actual: null };
-          agLog.push("🚫 " + b.player + " " + b.stat + ": not in box score — VOID (DNP)");
+          agLog.push("🚫 " + b.player + " " + b.stat + ": 0 minutes played — VOID (DNP)");
           const realBet = bets.find(x => x.id === b.id);
           if (realBet) { realBet.result = "void"; saveBets(); }
           return;
