@@ -277,8 +277,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function initDate() {
   const el = document.getElementById('betDate');
+  const stored = localStorage.getItem('bt_date');
   const today = new Date().toISOString().split('T')[0];
-  el.value = today;
+  el.value = stored || today;
+  el.addEventListener('change', () => {
+    localStorage.setItem('bt_date', el.value);
+  });
 }
 
 // ── Storage ──────────────────────────────────────────────────────────
@@ -645,6 +649,7 @@ function renderBets() {
         <div id="badge-${realIdx}">${badgeHtml}</div>
         <button class="bet-btn" onclick="gradeBet(${realIdx}, this)">GRADE</button>
         <button class="bet-btn" onclick="copyBet(${realIdx}, this)">COPY</button>
+        <button class="bet-btn" onclick="editDate(${realIdx})">📅</button>
         <button class="bet-btn delete" onclick="deleteBet(${realIdx})">✕</button>
       </div>
     </div>`;
@@ -1755,6 +1760,29 @@ function deleteBet(i) {
   bets.splice(i, 1);
   saveToStorage();
   render();
+}
+
+function editDate(i) {
+  const bet = bets[i];
+  if (!bet) return;
+  const current = bet.date || new Date().toISOString().split('T')[0];
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.value = current;
+  input.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+  document.body.appendChild(input);
+  input.addEventListener('change', () => {
+    if (input.value) {
+      bet.date = input.value;
+      saveToStorage();
+      render();
+    }
+    document.body.removeChild(input);
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); }, 200);
+  });
+  input.showPicker ? input.showPicker() : input.click();
 }
 
 function copyBet(i, btn) {
