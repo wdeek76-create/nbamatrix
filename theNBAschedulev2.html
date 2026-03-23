@@ -184,11 +184,11 @@
     .team-winner { color: #00e5c8 !important; text-shadow: 0 0 12px rgba(0,229,200,0.5) !important; }
     .win-badge { font-size: 1.3rem; color: #00e5c8; font-family: 'Inter', sans-serif; font-weight: 900; letter-spacing: 0; text-shadow: 0 0 8px rgba(0,229,200,0.9), 0 0 20px rgba(0,229,200,0.6), 0 0 40px rgba(0,229,200,0.3); line-height: 1; }
     .game-card:hover .card-hint { color: #00e5c8; }
-    .card-footer { display: flex; align-items: center; justify-content: space-between; padding: 0.45rem 1rem; border-top: 1px solid #1e2040; background: rgba(0,0,0,0.15); }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 1rem; border-top: 1px solid #1e2040; background: rgba(0,0,0,0.15); height: 32px; flex-shrink: 0; }
+    .card-hint { font-size: 0.6rem; color: #6b7ab5; letter-spacing: 0.03em; font-weight: 400; transition: color 0.2s; white-space: nowrap; }
     .game-countdown {
-      font-size: 0.9rem; letter-spacing: 0.08em; transition: color 0.3s;
-      color: #fff;
-      text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.2);
+      font-size: 0.6rem; letter-spacing: 0.05em; transition: color 0.3s;
+      color: #aab4c8; white-space: nowrap; flex-shrink: 0;
     }
 
     /* ODDS */
@@ -469,7 +469,7 @@
     </div>
     <div class="slate-search-results" id="slate-search-results"></div>
   </div>
-  <div id="games-container"><div class="empty">Load Slate to pull today's schedule</div></div>
+  <div id="games-container"><div class="empty" style="padding:3rem 1rem;text-align:center"><div style="font-size:1.1rem;color:#e8eaf8;margin-bottom:0.5rem">Welcome to Courtside</div><div style="font-size:0.8rem;color:#6b7ab5">Press Refresh to load today's games</div></div></div>
 </div>
 
 <div class="copy-bar" id="copy-bar">
@@ -1323,27 +1323,23 @@
     document.querySelectorAll(".game-countdown").forEach(el => {
       const iso = el.dataset.tip;
       if (!iso) return;
-      // NBA games typically tip off ~10 mins after listed start time
       const tip = new Date(new Date(iso).getTime() + 10 * 60000);
       const diff = tip - now;
       if (diff <= 0) {
-        el.textContent = "Live";
-        el.style.color = "#00bfaa";
-        el.style.textShadow = "0 0 8px rgba(0,229,200,0.4)";
+        if (el.textContent !== "● Live") {
+          el.textContent = "● Live";
+          el.style.color = "#00e5c8";
+          el.style.textShadow = "";
+        }
         return;
       }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       const timeStr = h > 0 ? `${h}h ${pad(m)}m` : `${m}m ${pad(s)}s`;
-      el.textContent = `Starts In: ${timeStr}`;
-      if (diff < 1800000) {
-        el.style.color = "#fbbf24";
-        el.style.textShadow = "0 0 10px rgba(251,191,36,0.9), 0 0 24px rgba(251,191,36,0.5), 0 0 40px rgba(251,191,36,0.2)";
-      } else {
-        el.style.color = "#fff";
-        el.style.textShadow = "0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.2)";
-      }
+      el.textContent = timeStr;
+      el.style.textShadow = "";
+      el.style.color = diff < 1800000 ? "#fbbf24" : "#6b7ab5";
     });
   }
 
@@ -1380,7 +1376,7 @@
       document.getElementById("fetch-btn").onclick = fetchSlate;
       document.getElementById("games-container").innerHTML = `<div class="empty" style="color:#1e2d42">Fetching games...</div>`;
       currentSlate = "";
-      fetchSlate();
+      // Don't auto-fetch on tab switch - user must press Refresh
     }
   }
 
@@ -1470,7 +1466,7 @@
 
   document.getElementById("date-badge").textContent=getDateLabel();
   document.getElementById("fetch-btn").onclick = fetchSlate;
-  fetchSlate();
+  // Don't auto-load - wait for user to press Refresh to avoid rate limits
 </script>
 </body>
 </html>
