@@ -67,7 +67,30 @@
     .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 0.32rem 0.9rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.08em; }
     .chip .hi { color: var(--teal); }
 
-    /* TIME SLOT TABS */
+    /* PLAYER SEARCH */
+    .player-search-wrap { max-width: 520px; margin: 0 auto 1.5rem; position: relative; }
+    .player-search-input { width: 100%; padding: 0.85rem 1rem 0.85rem 2.75rem; background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; color: var(--text); font-family: 'AmericanCaptain','Bebas Neue',sans-serif; font-size: 1rem; letter-spacing: 0.06em; outline: none; transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box; }
+    .player-search-input:focus { border-color: var(--teal); box-shadow: 0 0 0 1px rgba(0,229,204,0.2); }
+    .player-search-input::placeholder { color: var(--muted); }
+    .player-search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1.1rem; pointer-events: none; }
+    .player-results { display: flex; flex-direction: column; gap: 0.4rem; max-width: 520px; margin: 0 auto; }
+    .player-result-row { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .player-result-row:hover { border-color: var(--teal); background: var(--surface2); }
+    .player-result-name { font-size: 1rem; color: #fff; letter-spacing: 0.04em; flex: 1; }
+    .player-result-team { font-size: 0.72rem; color: var(--teal); background: rgba(0,229,204,0.1); border: 1px solid rgba(0,229,204,0.25); border-radius: 4px; padding: 0.1rem 0.5rem; }
+    .player-result-pos { font-size: 0.72rem; color: var(--muted); }
+    .player-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; max-width: 520px; margin: 1rem auto 0; overflow: hidden; }
+    .player-box-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .player-box-name { font-size: 1.3rem; color: #fff; letter-spacing: 0.05em; }
+    .player-box-meta { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.05em; margin-top: 0.15rem; }
+    .player-box-stats { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid var(--border); }
+    .player-box-stat { padding: 0.9rem 0.5rem; display: flex; flex-direction: column; align-items: center; border-right: 1px solid var(--border); }
+    .player-box-stat:last-child { border-right: none; }
+    .player-box-val { font-size: 1.4rem; color: #fff; }
+    .player-box-val.big { color: var(--teal); text-shadow: 0 0 8px rgba(0,229,204,0.5); }
+    .player-box-lbl { font-size: 0.52rem; color: var(--muted); letter-spacing: 0.08em; margin-top: 0.2rem; }
+    .player-box-game { font-size: 0.72rem; color: var(--muted); padding: 0.6rem 1.25rem; border-top: 1px solid var(--border); letter-spacing: 0.04em; }
+    .player-search-hint { text-align: center; color: var(--muted); font-size: 0.85rem; letter-spacing: 0.06em; padding: 2rem 0; }
     .slot-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
     .slot-tab {
       font-family: 'AmericanCaptain', 'Bebas Neue', sans-serif; font-size: 0.82rem; letter-spacing: 0.08em;
@@ -369,6 +392,7 @@
       <div class="nav-tab" onclick="switchView('weekly')">This Week</div>
       <div class="nav-tab" onclick="switchView('monthly')">This Month</div>
       <div class="nav-tab" onclick="switchView('injuries')">Injuries</div>
+      <div class="nav-tab" onclick="switchView('players')">Players</div>
     </div>
   </div>
   <div class="nav-right">
@@ -382,6 +406,7 @@
   <div class="mobile-tab" onclick="switchView('weekly')">Week</div>
   <div class="mobile-tab" onclick="switchView('monthly')">Month</div>
   <div class="mobile-tab" onclick="switchView('injuries')">Injuries</div>
+  <div class="mobile-tab" onclick="switchView('players')">Players</div>
 </div>
 
 <div class="main">
@@ -1096,7 +1121,116 @@
   }
   document.addEventListener("keydown", e => { if(e.key==="Escape") closeModalDirect(); });
 
-  // ── COUNTDOWN TIMERS ──
+  // ── PLAYER SEARCH ──
+  let playerSearchTimeout = null;
+
+  function loadPlayerSearch() {
+    const c = document.getElementById("games-container");
+    c.innerHTML = `
+      <div class="player-search-wrap">
+        <span class="player-search-icon">⌕</span>
+        <input class="player-search-input" id="player-search-input" type="text"
+          placeholder="Search any player..."
+          oninput="debouncePlayerSearch(this.value)"
+          autofocus>
+      </div>
+      <div class="player-results" id="player-results">
+        <div class="player-search-hint">Type a player name to search</div>
+      </div>`;
+  }
+
+  function debouncePlayerSearch(q) {
+    clearTimeout(playerSearchTimeout);
+    if (q.trim().length < 2) {
+      document.getElementById("player-results").innerHTML = `<div class="player-search-hint">Type a player name to search</div>`;
+      return;
+    }
+    playerSearchTimeout = setTimeout(() => searchPlayers(q.trim()), 400);
+  }
+
+  async function searchPlayers(q) {
+    const resultsEl = document.getElementById("player-results");
+    resultsEl.innerHTML = `<div class="player-search-hint">Searching...</div>`;
+    try {
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/players/active?search=${encodeURIComponent(q)}&per_page=10`,
+        { headers: { Authorization: API_KEY } }
+      );
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      const players = data.data || [];
+      if (!players.length) {
+        resultsEl.innerHTML = `<div class="player-search-hint">No players found</div>`;
+        return;
+      }
+      resultsEl.innerHTML = players.map(p => `
+        <div class="player-result-row" onclick="loadPlayerBoxScore(${p.id},'${p.first_name} ${p.last_name}','${p.team?.abbreviation||""}','${p.position||""}')">
+          <div>
+            <div class="player-result-name">${p.first_name} ${p.last_name}</div>
+            <span class="player-result-pos">${p.position||"—"}</span>
+          </div>
+          <span class="player-result-team">${p.team?.abbreviation||"—"}</span>
+        </div>`).join("");
+    } catch(e) {
+      resultsEl.innerHTML = `<div class="player-search-hint">Error: ${e.message}</div>`;
+    }
+  }
+
+  async function loadPlayerBoxScore(playerId, name, team, pos) {
+    const resultsEl = document.getElementById("player-results");
+    // Show selected + loading
+    resultsEl.innerHTML = `
+      <div class="player-result-row" style="border-color:var(--teal)">
+        <div><div class="player-result-name">${name}</div><span class="player-result-pos">${pos}</span></div>
+        <span class="player-result-team">${team}</span>
+      </div>
+      <div class="player-box">
+        <div class="player-search-hint">Loading stats...</div>
+      </div>`;
+    try {
+      // Get most recent game stats
+      const res = await fetch(
+        `https://api.balldontlie.io/nba/v1/stats?player_ids[]=${playerId}&seasons[]=2024&per_page=5`,
+        { headers: { Authorization: API_KEY } }
+      );
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      const games = (data.data || []).filter(s => s.min && s.min !== "0" && s.min !== "00:00");
+      if (!games.length) {
+        resultsEl.querySelector(".player-box").innerHTML = `<div class="player-search-hint">No recent stats found</div>`;
+        return;
+      }
+      // Show last 3 games
+      const boxHtml = games.slice(0, 3).map(s => {
+        const pts=s.pts||0, reb=s.reb||0, ast=s.ast||0, fg3m=s.fg3m||0, stl=s.stl||0, blk=s.blk||0;
+        const pra=pts+reb+ast;
+        const opp = s.game?.home_team_id === s.team?.id
+          ? `vs ${ID_TO_ABBR[s.game?.visitor_team_id]||"?"}`
+          : `@ ${ID_TO_ABBR[s.game?.home_team_id]||"?"}`;
+        const dateStr = s.game?.date ? new Date(s.game.date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
+        return `<div class="player-box">
+          <div class="player-box-game">${dateStr} · ${opp} · ${s.min} min</div>
+          <div class="player-box-stats">
+            <div class="player-box-stat"><div class="player-box-val${pts>=20?" big":""}">${pts}</div><div class="player-box-lbl">PTS</div></div>
+            <div class="player-box-stat"><div class="player-box-val${reb>=10?" big":""}">${reb}</div><div class="player-box-lbl">REB</div></div>
+            <div class="player-box-stat"><div class="player-box-val${ast>=8?" big":""}">${ast}</div><div class="player-box-lbl">AST</div></div>
+            <div class="player-box-stat"><div class="player-box-val${fg3m>=3?" big":""}">${fg3m}</div><div class="player-box-lbl">3PM</div></div>
+            <div class="player-box-stat"><div class="player-box-val${pra>=30?" big":""}">${pra}</div><div class="player-box-lbl">PRA</div></div>
+            <div class="player-box-stat"><div class="player-box-val">${stl||0}/${blk||0}</div><div class="player-box-lbl">STL/BLK</div></div>
+          </div>
+        </div>`;
+      }).join("");
+      resultsEl.innerHTML = `
+        <div class="player-result-row" style="border-color:var(--teal);cursor:default">
+          <div><div class="player-result-name">${name}</div><span class="player-result-pos">${pos}</span></div>
+          <span class="player-result-team">${team}</span>
+        </div>
+        <div style="font-size:0.65rem;color:var(--muted);letter-spacing:0.08em;margin:0.75rem 0 0.4rem">LAST ${games.slice(0,3).length} GAMES</div>
+        ${boxHtml}`;
+    } catch(e) {
+      resultsEl.querySelector(".player-box").innerHTML = `<div class="player-search-hint">Error: ${e.message}</div>`;
+    }
+  }
   let countdownInterval = null;
 
   function startCountdowns() {
@@ -1143,13 +1277,17 @@
     document.getElementById("error").style.display = "none";
     document.getElementById("chip-row").style.display = "none";
     document.getElementById("slot-tabs").style.display = "none";
-    document.getElementById("date-badge").textContent = v === "injuries" ? "Live" : getDateLabel();
+    document.getElementById("date-badge").textContent = v === "injuries" ? "Live" : v === "players" ? "Search" : getDateLabel();
     if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 
     if (v === "injuries") {
       document.getElementById("fetch-btn").textContent = "Refresh";
       document.getElementById("fetch-btn").onclick = loadInjuryTab;
       loadInjuryTab();
+    } else if (v === "players") {
+      document.getElementById("fetch-btn").textContent = "Refresh";
+      document.getElementById("fetch-btn").onclick = loadPlayerSearch;
+      loadPlayerSearch();
     } else {
       document.getElementById("fetch-btn").textContent = "Refresh";
       document.getElementById("fetch-btn").onclick = fetchSlate;
