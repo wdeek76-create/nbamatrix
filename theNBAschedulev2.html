@@ -575,6 +575,7 @@
           <img class="team-logo" src="${logoUrl(away)}" onerror="this.style.display='none'" alt="${away}">
           <span class="team-abbr${awayWon?" team-winner":""}">${away}</span>
           <span class="team-city">${awayCity}</span>
+          ${awayWon ? `<span class="win-badge">W</span>` : ""}
         </div>
         ${isFinal||isLive ? scoreHtml : '<span class="away-tag">Away</span>'}
       </div>
@@ -583,6 +584,7 @@
           <img class="team-logo" src="${logoUrl(home)}" onerror="this.style.display='none'" alt="${home}">
           <span class="team-abbr${homeWon?" team-winner":""}">${home}</span>
           <span class="team-city">${homeCity}</span>
+          ${homeWon ? `<span class="win-badge">W</span>` : ""}
         </div>
         ${isFinal||isLive ? "" : '<span class="home-tag">Home</span>'}
       </div>
