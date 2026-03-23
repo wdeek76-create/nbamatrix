@@ -120,7 +120,7 @@
     .card-score.score-win { color: var(--teal); text-shadow: 0 0 10px rgba(163,255,0,0.5); }
     .card-score-sep { font-size: 0.9rem; color: var(--muted); }
     .team-winner { color: var(--teal) !important; text-shadow: 0 0 12px rgba(163,255,0,0.5) !important; }
-    .win-badge { font-size: 0.65rem; color: #000; background: var(--teal); border-radius: 3px; padding: 0.1rem 0.35rem; letter-spacing: 0.08em; font-weight: 700; }
+    .win-badge { font-size: 1.3rem; color: #39ff14; font-family: Impact, 'Arial Black', sans-serif; font-weight: 900; letter-spacing: 0; text-shadow: 0 0 8px rgba(57,255,20,0.9), 0 0 20px rgba(57,255,20,0.6), 0 0 40px rgba(57,255,20,0.3); line-height: 1; }
     .game-card:hover .card-hint { color: var(--teal); }
     .card-footer { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 1.1rem; border-top: 1px solid var(--border); }
     .game-countdown {
@@ -1088,7 +1088,7 @@
       const tip = new Date(new Date(iso).getTime() + 10 * 60000);
       const diff = tip - now;
       if (diff <= 0) {
-        el.textContent = "● Live";
+        el.textContent = "Live";
         el.style.color = "#5aab00";
         el.style.textShadow = "0 0 8px rgba(90,171,0,0.5)";
         return;
