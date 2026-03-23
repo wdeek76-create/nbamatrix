@@ -120,6 +120,7 @@
     .card-score.score-win { color: var(--teal); text-shadow: 0 0 10px rgba(163,255,0,0.5); }
     .card-score-sep { font-size: 0.9rem; color: var(--muted); }
     .team-winner { color: var(--teal) !important; text-shadow: 0 0 12px rgba(163,255,0,0.5) !important; }
+    .win-badge { font-size: 0.65rem; color: #000; background: var(--teal); border-radius: 3px; padding: 0.1rem 0.35rem; letter-spacing: 0.08em; font-weight: 700; }
     .game-card:hover .card-hint { color: var(--teal); }
     .card-footer { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 1.1rem; border-top: 1px solid var(--border); }
     .game-countdown {
@@ -232,8 +233,8 @@
     .player-name-pos { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
     /* LIVE STATS */
-    .live-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(163,255,0,0.1); border: 1px solid rgba(163,255,0,0.3); border-radius: 20px; padding: 0.15rem 0.6rem; font-size: 0.7rem; color: var(--teal); letter-spacing: 0.08em; margin-left: 0.5rem; }
-    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 1.2s infinite; }
+    .live-badge { display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(34,85,0,0.5); border: 1px solid #2d6e00; border-radius: 20px; padding: 0.1rem 0.45rem; font-size: 0.55rem; color: #5aab00; letter-spacing: 0.1em; margin-left: 0.5rem; }
+    .live-dot { width: 5px; height: 5px; border-radius: 50%; background: #5aab00; animation: pulse 1.2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     .live-score-bar { display: flex; align-items: center; gap: 0.5rem; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 0.3rem 0.85rem; }
     .score-side { font-size: 1.4rem; color: #fff; letter-spacing: 0.05em; text-shadow: 0 0 12px rgba(255,255,255,0.4); min-width: 1.5rem; text-align: center; }
@@ -530,6 +531,7 @@
     const homeCity=(TEAM_INFO[home]||{name:home}).name;
     const time=getTime(g.datetime);
     const isFinal = g.status === "Final";
+    if (isFinal) console.log("Final game:", g.visitor_team.abbreviation, g.visitor_team_score, "vs", g.home_team.abbreviation, g.home_team_score, "| status:", g.status);
     const isLive = !isFinal && g.status && g.status !== "scheduled" && g.period > 0;
     const gameData = encodeURIComponent(JSON.stringify({
       away, home, time,
@@ -541,10 +543,11 @@
     }));
     const isoTime = g.datetime || "";
 
-    const awayScore = g.visitor_team_score ?? null;
-    const homeScore = g.home_team_score ?? null;
-    const awayWon = isFinal && awayScore > homeScore;
-    const homeWon = isFinal && homeScore > awayScore;
+    const awayScore = isFinal ? (finalScores[g.id]?.away ?? 0) : (g.visitor_team_score || 0);
+    const homeScore = isFinal ? (finalScores[g.id]?.home ?? 0) : (g.home_team_score || 0);
+    const hasScores = (awayScore > 0 || homeScore > 0);
+    const awayWon = isFinal && hasScores && awayScore > homeScore;
+    const homeWon = isFinal && hasScores && homeScore > awayScore;
 
     // Odds
     const o = oddsMap[g.id];
@@ -562,7 +565,7 @@
       </div>`;
     }
 
-    const scoreHtml = (isFinal || isLive) && awayScore !== null ? `
+    const scoreHtml = (isFinal || isLive) && (hasScores || isLive) ? `
       <div class="card-score-row">
         <span class="card-score ${awayWon?"score-win":""}">${awayScore}</span>
         <span class="card-score-sep">–</span>
@@ -887,13 +890,14 @@
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
 
-    // Detect if game is live based on countdown showing "Live"
+    // Detect if game is live or final
     const isLive = g.isLive || false;
+    const isFinal = (g.status || "").toLowerCase() === "final";
 
-    if (isLive && g.gameId) {
-      document.getElementById("modal-live-badge").style.display = "inline-flex";
-      await loadLiveStats(g.gameId, g.away, g.home);
-      liveStatsInterval = setInterval(() => loadLiveStats(g.gameId, g.away, g.home), 60000);
+    if ((isLive || isFinal) && g.gameId) {
+      if (isLive) document.getElementById("modal-live-badge").style.display = "inline-flex";
+      await loadLiveStats(g.gameId, g.away, g.home, isFinal);
+      if (isLive) liveStatsInterval = setInterval(() => loadLiveStats(g.gameId, g.away, g.home, false), 60000);
     } else {
       const [awayPlayers, homePlayers, injuries] = await Promise.all([
         fetchRoster(g.awayId),
@@ -906,7 +910,9 @@
     }
   }
 
-  async function loadLiveStats(gameId, awayAbbr, homeAbbr) {
+  const finalScores = {}; // gameId -> {away, home}
+
+  async function loadLiveStats(gameId, awayAbbr, homeAbbr, isFinal=false) {
     try {
       const res = await fetch(
         `https://api.balldontlie.io/nba/v1/stats?game_ids[]=${gameId}&per_page=100`,
@@ -924,12 +930,16 @@
       });
       const awayStats = sortStats(stats.filter(s => s.team?.abbreviation === awayAbbr));
       const homeStats = sortStats(stats.filter(s => s.team?.abbreviation === homeAbbr));
-      document.getElementById("roster-away").innerHTML = rosterColHeader(awayAbbr,"away") + renderStats(awayStats);
-      document.getElementById("roster-home").innerHTML = rosterColHeader(homeAbbr,"home") + renderStats(homeStats);
+      document.getElementById("roster-away").innerHTML = rosterColHeader(awayAbbr, isFinal?"final":"away") + renderStats(awayStats);
+      document.getElementById("roster-home").innerHTML = rosterColHeader(homeAbbr, isFinal?"final":"home") + renderStats(homeStats);
 
-      // Calculate running score from player pts
+      // Calculate score from player pts
       const awayScore = awayStats.reduce((sum, s) => sum + (s.pts||0), 0);
       const homeScore = homeStats.reduce((sum, s) => sum + (s.pts||0), 0);
+
+      // Store for card W badge updates
+      if (isFinal) finalScores[gameId] = {away: awayScore, home: homeScore};
+
       const scoreEl = document.getElementById("modal-score");
       const leading = awayScore > homeScore ? "away" : awayScore < homeScore ? "home" : null;
       document.getElementById("score-away").textContent = awayScore;
@@ -937,8 +947,13 @@
       document.getElementById("score-home").textContent = homeScore;
       document.getElementById("score-home").style.color = leading === "home" ? "var(--teal)" : "#fff";
       scoreEl.style.display = "flex";
-      const now = new Date();
-      document.getElementById("modal-refresh-info").textContent = `Updated ${now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})} · Auto-refresh 60s`;
+
+      if (!isFinal) {
+        const now = new Date();
+        document.getElementById("modal-refresh-info").textContent = `Updated ${now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})} · Auto-refresh 60s`;
+      } else {
+        document.getElementById("modal-refresh-info").textContent = "Final";
+      }
     } catch(e) {
       document.getElementById("modal-refresh-info").textContent = "Stats unavailable";
     }
@@ -1073,9 +1088,9 @@
       const tip = new Date(new Date(iso).getTime() + 10 * 60000);
       const diff = tip - now;
       if (diff <= 0) {
-        el.textContent = "🔴 Live";
-        el.style.color = "#a3ff00";
-        el.style.textShadow = "0 0 10px rgba(163,255,0,0.8), 0 0 24px rgba(163,255,0,0.4)";
+        el.textContent = "● Live";
+        el.style.color = "#5aab00";
+        el.style.textShadow = "0 0 8px rgba(90,171,0,0.5)";
         return;
       }
       const h = Math.floor(diff / 3600000);
