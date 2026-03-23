@@ -710,6 +710,7 @@
   let injuryMap = {}; // playerId -> injury object
   let injuriesLoaded = false;
   let BDL_PLAYER_TEAM = {}; // playerId -> team abbreviation, built from BDL rosters
+  const finalScores = {}; // gameId -> {away, home}
 
   async function buildPlayerTeamMap() {
     try {
@@ -909,8 +910,6 @@
       document.getElementById("roster-home").innerHTML = rosterColHeader(g.home, "home") + renderRoster(homePlayers);
     }
   }
-
-  const finalScores = {}; // gameId -> {away, home}
 
   async function loadLiveStats(gameId, awayAbbr, homeAbbr, isFinal=false) {
     try {
@@ -1156,11 +1155,25 @@
 
       currentSlate=buildSlateText(games);
 
-      // Fetch odds for daily view only (odds endpoint uses dates[])
+      // Fetch odds for daily view only
       if (currentView === "daily") {
         const today = new Date();
         await fetchOdds([fmtDate(today)]);
-        console.log("oddsMap keys:", Object.keys(oddsMap).length, Object.keys(oddsMap).slice(0,3));
+        // Fetch stats for final games to get real scores
+        const finalGames = games.filter(g => g.status === "Final");
+        await Promise.all(finalGames.map(async g => {
+          try {
+            const r = await fetch(`https://api.balldontlie.io/nba/v1/stats?game_ids[]=${g.id}&per_page=100`, {headers:{Authorization:API_KEY}});
+            if (!r.ok) return;
+            const d = await r.json();
+            const stats = d.data || [];
+            const awayAbbr = g.visitor_team.abbreviation;
+            const homeAbbr = g.home_team.abbreviation;
+            const awayPts = stats.filter(s=>s.team?.abbreviation===awayAbbr).reduce((sum,s)=>sum+(s.pts||0),0);
+            const homePts = stats.filter(s=>s.team?.abbreviation===homeAbbr).reduce((sum,s)=>sum+(s.pts||0),0);
+            finalScores[g.id] = {away: awayPts, home: homePts};
+          } catch {}
+        }));
       } else {
         oddsMap = {};
       }
