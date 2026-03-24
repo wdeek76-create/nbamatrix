@@ -434,7 +434,9 @@
   <div class="topnav-row1">
     <div class="nav-left">
       <img class="brand-logo" src="nba-logo.png" alt="NBA" onerror="this.style.display='none'">
-      <div class="brand-name" style="font-family:'Exo 2',sans-serif;font-weight:900;letter-spacing:0.1em"><span class="court" style="-webkit-text-fill-color:#fff;background:none">COURT</span><span>SIDE</span></div>
+      <div class="brand-name" style="font-family:'Exo 2',sans-serif;font-weight:900;letter-spacing:0.08em;font-size:1rem">
+        <span class="court" style="-webkit-text-fill-color:#fff;background:none">THE COURT</span><span>SIDE</span><span style="-webkit-text-fill-color:#e8eaf8;background:none"> APP</span>
+      </div>
     </div>
     <div class="nav-right">
       <div class="date-pill" id="date-badge">—</div>
@@ -458,12 +460,16 @@
   <div class="mobile-tab active" onclick="switchView('daily')">Today</div>
   <div class="mobile-tab schedule-tab" id="schedule-mobile-tab" onclick="toggleScheduleDropdown(event)">
     Schedule ▾
-    <div class="schedule-dropdown" id="schedule-dropdown-mobile">
-      <div class="schedule-option" onclick="pickSchedule('weekly',event)">This Week</div>
-      <div class="schedule-option" onclick="pickSchedule('monthly',event)">This Month</div>
-    </div>
   </div>
   <div class="mobile-tab" onclick="switchView('injuries')">Injuries</div>
+</div>
+
+<!-- Schedule bottom sheet (mobile) -->
+<div id="schedule-backdrop" onclick="closeScheduleDropdown()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199"></div>
+<div class="schedule-dropdown" id="schedule-dropdown-mobile">
+  <div style="width:40px;height:4px;background:#444;border-radius:2px;margin:0.75rem auto 1rem"></div>
+  <div class="schedule-option" onclick="pickSchedule('weekly',event)">This Week</div>
+  <div class="schedule-option" onclick="pickSchedule('monthly',event)">This Month</div>
 </div>
 
 <div class="main">
@@ -1306,9 +1312,14 @@
     e.stopPropagation();
     const dd = document.getElementById("schedule-dropdown");
     const ddm = document.getElementById("schedule-dropdown-mobile");
+    const backdrop = document.getElementById("schedule-backdrop");
     const isOpen = dd.classList.contains("open") || ddm.classList.contains("open");
     closeScheduleDropdown();
-    if (!isOpen) { dd.classList.add("open"); ddm.classList.add("open"); }
+    if (!isOpen) {
+      dd.classList.add("open");
+      ddm.classList.add("open");
+      if (backdrop) backdrop.style.display = "block";
+    }
   }
 
   function pickSchedule(view, e) {
@@ -1323,6 +1334,8 @@
   function closeScheduleDropdown() {
     document.getElementById("schedule-dropdown")?.classList.remove("open");
     document.getElementById("schedule-dropdown-mobile")?.classList.remove("open");
+    const backdrop = document.getElementById("schedule-backdrop");
+    if (backdrop) backdrop.style.display = "none";
   }
   document.addEventListener("click", closeScheduleDropdown);
 
