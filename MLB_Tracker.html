@@ -132,6 +132,12 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 .summary-record{font-family:var(--display);font-size:36px;font-weight:900;letter-spacing:.02em;color:var(--green);text-align:center;padding:12px 0 4px;}
 .summary-record-sub{font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;text-align:center;margin-bottom:16px;}
 .summary-copy-row{display:flex;justify-content:flex-end;margin-top:14px;}
+  .t-row{display:grid;grid-template-columns:46px 1fr 48px 48px 48px 52px 52px 52px 28px;gap:4px;margin-bottom:5px;align-items:center;}
+  .t-row input,.t-row select{background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:6px 7px;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;width:100%;}
+  .t-row input:focus,.t-row select:focus{border-color:var(--green);}
+  .t-row select option{background:var(--surface);}
+  .t-row-del{background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;padding:6px 4px;width:100%;}
+  .t-row-del:hover{border-color:var(--red);color:var(--red);}
 #fileInput{display:none;}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
@@ -255,15 +261,20 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
     <div class="stat-card"><div class="stat-label">Bets</div><div class="stat-val neu" id="t-dBets">—</div></div>
     <div class="stat-card"><div class="stat-label">Avg Odds</div><div class="stat-val neu" id="t-dOdds">—</div></div>
   </div>
+  <div class="stats-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="stat-card"><div class="stat-label">Avg Edge %</div><div class="stat-val neu" id="t-dEdge">—</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Model Total</div><div class="stat-val neu" id="t-dModel">—</div></div>
+  </div>
 
   <!-- Over/Under breakdown table -->
   <div class="breakdown-wrap" id="t-breakdownWrap" style="display:none">
     <table class="breakdown-table">
       <thead>
         <tr>
-          <th class="left">Direction</th>
+          <th class="left">Direction / Grade</th>
           <th>Bets</th><th>W</th><th>L</th><th>Win%</th>
-          <th>Units Staked</th><th>Units Won</th><th>Net</th><th>ROI</th>
+          <th>Staked</th><th>Net</th><th>ROI</th>
+          <th>Avg Edge</th><th>Avg Model</th>
         </tr>
       </thead>
       <tbody id="t-breakdownBody"></tbody>
@@ -283,24 +294,27 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
       <span class="date-label">Date</span>
       <input type="date" class="date-input" id="t-betDate">
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-      <div class="paste-label" style="margin-bottom:0">Paste totals or upload screenshot</div>
-      <label class="btn" style="cursor:pointer;margin:0">
-        📷 UPLOAD IMAGE
-        <input type="file" accept="image/*" style="display:none" onchange="handleTotalsImage(event)">
-      </label>
+
+    <!-- Quick entry form — one row per game -->
+    <div style="font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Quick entry — add rows then hit + ADD ALL</div>
+
+    <div style="display:grid;grid-template-columns:46px 1fr 48px 48px 48px 52px 52px 52px 28px;gap:4px;margin-bottom:5px;align-items:center">
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Grade</span>
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Game</span>
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Mkt</span>
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Model</span>
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Edge%</span>
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">O/U</span>
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Odds</span>
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Book</span>
+      <span></span>
     </div>
-    <div id="t-imgStatus" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:.06em"></div>
-    <textarea class="bet-input" id="t-slateInput" rows="7"
-      placeholder="Paste from model output:&#10;&#10;9/9  KC @ ATL&#10;8.4  7.5  5.8%&#10;OVER +105&#10;&#10;8/9  CLE @ SEA&#10;7  7  4.0%&#10;UNDER -110"
-      autocorrect="off" autocapitalize="off" spellcheck="false"
-      oninput="previewParse('totals')"></textarea>
-    <div class="parse-preview" id="t-parsePreview">
-      <div class="parse-preview-title">Parsed — <span id="t-parseCount">0</span> bets</div>
-      <div id="t-parsePills"></div>
-    </div>
-    <div class="add-row">
-      <button class="btn btn-green" onclick="addSlate('totals')">+ ADD ALL</button>
+
+    <div id="t-rowsContainer"></div>
+
+    <div style="display:flex;gap:8px;margin-top:8px;justify-content:space-between;align-items:center">
+      <button class="btn" onclick="addTotalRow()">+ ROW</button>
+      <button class="btn btn-green" onclick="submitTotalRows()">+ ADD ALL</button>
     </div>
   </div>
 
@@ -388,6 +402,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('t-betDate').value = today;
   render('props');
   render('totals');
+  for(let i=0;i<3;i++) addTotalRow();
 });
 
 function betsFor(scope){ return scope==='props' ? propBets : totalBets; }
@@ -802,6 +817,15 @@ function updateDash(scope){
   set(`${p}-dBets`,all.length||'—','neu');
   set(`${p}-dOdds`,avg?fmtOdds(avg):'—','neu');
 
+  if(scope==='totals'){
+    const edgeArr=all.filter(b=>b.edge).map(b=>parseFloat(b.edge));
+    const avgEdge=edgeArr.length?(edgeArr.reduce((a,b)=>a+b,0)/edgeArr.length).toFixed(1)+'%':null;
+    const modelArr=all.filter(b=>b.model).map(b=>b.model);
+    const avgModel=modelArr.length?(modelArr.reduce((a,b)=>a+b,0)/modelArr.length).toFixed(1):null;
+    set('t-dEdge',avgEdge||'—',avgEdge?'pos':'neu');
+    set('t-dModel',avgModel||'—','neu');
+  }
+
   if(scope==='props') updatePropsBreakdown(all);
   else updateTotalsBreakdown(all);
   updateSummary(scope,wins,losses,pl);
@@ -851,47 +875,38 @@ function updateTotalsBreakdown(filtered){
   if(!graded.length){wrap.style.display='none';return;}
   wrap.style.display='';
 
-  // Over/Under split
-  const ouRows=['over','under'].map(dir=>{
-    const rows=graded.filter(b=>b.ou===dir);
+  function buildRow(label, rows, color){
     if(!rows.length) return '';
     const w=rows.filter(b=>b.grade==='win').length, l=rows.filter(b=>b.grade==='loss').length;
     const pl=rows.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
     const staked=calcRisk(rows);
-    const won=rows.filter(b=>b.grade==='win').reduce((s,b)=>s+calcPayout(b.odds),0);
     const roi=staked?(pl/staked*100).toFixed(1)+'%':'—';
     const plCls=pl>0?'pos-val':pl<0?'neg-val':'neu-val';
+    const edgeArr=rows.filter(b=>b.edge).map(b=>parseFloat(b.edge));
+    const avgEdge=edgeArr.length?(edgeArr.reduce((a,b)=>a+b,0)/edgeArr.length).toFixed(1)+'%':'—';
+    const modelArr=rows.filter(b=>b.model).map(b=>b.model);
+    const avgModel=modelArr.length?(modelArr.reduce((a,b)=>a+b,0)/modelArr.length).toFixed(1):'—';
     return `<tr>
-      <td class="left" style="color:${dir==='over'?'var(--orange)':'var(--purple)'}">${cap(dir)}</td>
+      <td class="left" style="color:${color}">${label}</td>
       <td>${rows.length}</td><td>${w}</td><td>${l}</td>
       <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
-      <td>${staked.toFixed(2)}u</td><td>${won.toFixed(2)}u</td>
+      <td>${staked.toFixed(2)}u</td>
       <td class="${plCls}">${fmtPL(pl)}</td>
       <td class="${plCls}">${roi}</td>
+      <td style="color:var(--green)">${avgEdge}</td>
+      <td style="color:var(--muted)">${avgModel}</td>
     </tr>`;
-  }).join('');
+  }
 
-  // Grade breakdown rows (7/9, 8/9, 9/9)
+  const ouRows = [
+    buildRow('Over',  graded.filter(b=>b.ou==='over'),  'var(--orange)'),
+    buildRow('Under', graded.filter(b=>b.ou==='under'), 'var(--purple)'),
+  ].join('');
+
   const grades=[...new Set(graded.map(b=>b.modelGrade).filter(Boolean))].sort();
-  const gradeRows=grades.map(g=>{
-    const rows=graded.filter(b=>b.modelGrade===g);
-    const w=rows.filter(b=>b.grade==='win').length, l=rows.filter(b=>b.grade==='loss').length;
-    const pl=rows.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
-    const staked=calcRisk(rows);
-    const won=rows.filter(b=>b.grade==='win').reduce((s,b)=>s+calcPayout(b.odds),0);
-    const roi=staked?(pl/staked*100).toFixed(1)+'%':'—';
-    const plCls=pl>0?'pos-val':pl<0?'neg-val':'neu-val';
-    return `<tr>
-      <td class="left" style="color:var(--yellow)">Grade ${g}</td>
-      <td>${rows.length}</td><td>${w}</td><td>${l}</td>
-      <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
-      <td>${staked.toFixed(2)}u</td><td>${won.toFixed(2)}u</td>
-      <td class="${plCls}">${fmtPL(pl)}</td>
-      <td class="${plCls}">${roi}</td>
-    </tr>`;
-  }).join('');
+  const divider=grades.length?`<tr><td colspan="10" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Model Grade</td></tr>`:'';
+  const gradeRows=grades.map(g=>buildRow(`Grade ${g}`, graded.filter(b=>b.modelGrade===g), 'var(--yellow)')).join('');
 
-  const divider=grades.length?`<tr><td colspan="9" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Model Grade</td></tr>`:'';
   body.innerHTML=ouRows+divider+gradeRows;
 }
 
@@ -1059,8 +1074,8 @@ function renderBets(scope){
     } else {
       mainText=`${esc(bet.away||'')} <span style="color:var(--muted)">@</span> ${esc(bet.home||'')}`;
       const gradePill=bet.modelGrade?`<span class="stat-pill" style="background:#1a1000;border-color:#3a2800;color:var(--yellow)">${bet.modelGrade}</span>`:'';
-      const edgePill=bet.edge?`<span class="stat-pill" style="background:#001a10;border-color:#003a20;color:#00e676">${bet.edge} edge</span>`:'';
-      const modelPill=(bet.model&&bet.market)?`<span class="stat-pill" style="color:var(--muted)">model ${bet.model} / mkt ${bet.market}</span>`:'';
+      const edgePill=bet.edge?`<span class="stat-pill" style="background:#001a10;border-color:#003a20;color:var(--green)">${bet.edge} edge</span>`:'';
+      const modelPill=bet.model?`<span class="stat-pill" style="color:var(--muted)">model ${bet.model}${bet.market?' / mkt '+bet.market:''}</span>`:'';
       metaPills=[
         gradePill,
         ouStr?`<span class="stat-pill">${ouStr} ${bet.line}</span>`:'',
@@ -1401,6 +1416,71 @@ Only include rows where direction and odds are visible. Output nothing else.`
     console.error(err);
   }
 }
+// ── Totals row-entry form ─────────────────────────────────────────────
+let rowCount = 0;
+
+function addTotalRow(vals={}){
+  rowCount++;
+  const id = `trow-${rowCount}`;
+  const div = document.createElement('div');
+  div.className = 't-row';
+  div.id = id;
+  div.innerHTML = `
+    <input type="text" placeholder="9/9" value="${vals.grade||''}" style="text-align:center">
+    <input type="text" placeholder="KC @ ATL" value="${vals.game||''}">
+    <input type="number" placeholder="7.5" step="0.5" value="${vals.market||''}">
+    <input type="number" placeholder="8.4" step="0.1" value="${vals.model||''}">
+    <input type="text" placeholder="5.8%" value="${vals.edge||''}">
+    <select><option value="over" ${(vals.ou||'over')==='over'?'selected':''}>Over</option><option value="under" ${vals.ou==='under'?'selected':''}>Under</option></select>
+    <input type="text" placeholder="+105" value="${vals.odds||''}">
+    <input type="text" placeholder="DK" value="${vals.book||''}">
+    <button class="t-row-del" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  document.getElementById('t-rowsContainer').appendChild(div);
+  if(!vals.game) div.querySelectorAll('input')[1].focus();
+}
+
+function submitTotalRows(){
+  const rows = document.querySelectorAll('#t-rowsContainer .t-row');
+  if(!rows.length) return;
+  const date = document.getElementById('t-betDate').value;
+  const newBets = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const sel = row.querySelector('select');
+    const grade   = inputs[0].value.trim();
+    const game    = inputs[1].value.trim();
+    const market  = parseFloat(inputs[2].value);
+    const model   = parseFloat(inputs[3].value);
+    const edge    = inputs[4].value.trim();
+    const ou      = sel.value;
+    const oddsRaw = inputs[6].value.trim();
+    const book    = inputs[7].value.trim();
+    if(!game||isNaN(market)) return;
+    const gm = game.match(/^(.+?)\s*(?:@|vs\.?)\s*(.+)$/i);
+    if(!gm) return;
+    const away = gm[1].trim().toUpperCase();
+    const home = gm[2].trim().toUpperCase();
+    const odds = oddsRaw ? (oddsRaw.startsWith('-')?-1:1)*Math.abs(parseInt(oddsRaw)) : null;
+    const bookName = BOOK_MAP[book.toLowerCase()]||book||null;
+    const b = {away,home,ou,line:market,odds,book:bookName,modelGrade:grade||null,model:isNaN(model)?null:model,market,edge:edge||null,pitchers:null};
+    newBets.push({
+      id:Date.now()+Math.random(), text:fmtTotalText(b),
+      away, home, ou, line:market, odds, book:bookName,
+      modelGrade:grade||null, model:isNaN(model)?null:model,
+      market, edge:edge||null, pitchers:null,
+      date, grade:null, actual:null,
+    });
+  });
+  if(!newBets.length) return;
+  totalBets=[...newBets,...totalBets];
+  saveBets('totals');
+  document.getElementById('t-rowsContainer').innerHTML='';
+  rowCount=0;
+  for(let i=0;i<3;i++) addTotalRow();
+  render('totals');
+}
+
 function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
 function clearAll(scope){ if(!confirm('Clear all bets?')) return; if(scope==='props') propBets=[]; else totalBets=[]; saveBets(scope); render(scope); }
 function cap(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
