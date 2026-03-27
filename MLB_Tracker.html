@@ -325,8 +325,10 @@ let filters  = { props:null, totals:null };
 let activeTab = 'props';
 
 window.addEventListener('DOMContentLoaded', () => {
-  try { propBets  = JSON.parse(localStorage.getItem('mlb_props')  || '[]'); } catch(e){propBets=[];}
-  try { totalBets = JSON.parse(localStorage.getItem('mlb_totals') || '[]'); } catch(e){totalBets=[];}
+  try { propBets  = migrateBets(JSON.parse(localStorage.getItem('mlb_props')  || '[]')); } catch(e){propBets=[];}
+  try { totalBets = migrateBets(JSON.parse(localStorage.getItem('mlb_totals') || '[]')); } catch(e){totalBets=[];}
+  // Save migrated data back
+  saveBets('props'); saveBets('totals');
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('p-betDate').value = today;
   document.getElementById('t-betDate').value = today;
@@ -453,6 +455,25 @@ function normOdds(str){
   const n=parseInt((str||'').replace(/[^0-9\-+]/g,''));
   if(isNaN(n)) return null;
   return str.trim().startsWith('-') ? n : Math.abs(n);
+}
+
+// Normalize a stored stat string — fixes legacy bad values
+function cleanStat(s){
+  if(!s) return s;
+  // Strip trailing possessive/plural artifacts: strikeouts's → strikeouts
+  s = s.toLowerCase().replace(/[''']s$/, '').replace(/[''']s\b/, '').trim();
+  // Strip any leaked team e.g. "sb (orioles)" → "sb"
+  s = s.replace(/\s*\([^)]+\)\s*$/, '').trim();
+  // Re-map through STAT_MAP
+  return STAT_MAP[s] || STAT_MAP[s.replace(/s$/,'')] || s;
+}
+
+// Migrate stored bets to fix bad stat values from older parser
+function migrateBets(bets){
+  return bets.map(b=>{
+    if(b.stat) b.stat = cleanStat(b.stat);
+    return b;
+  });
 }
 
 // PROPS parser
@@ -800,14 +821,13 @@ function updatePropsBreakdown(filtered){
   if(!graded.length){wrap.style.display='none';return;}
   wrap.style.display='';
 
-  // All stat markets that appear
   const MARKETS=['hits','total bases','home runs','rbis','runs','walks','singles','doubles',
                  'stolen bases','strikeouts','pitcher ks','hits allowed','earned runs','walks allowed','outs recorded'];
-  const extra=[...new Set(graded.map(b=>b.stat))].filter(s=>s&&!MARKETS.includes(s));
+  const extra=[...new Set(graded.map(b=>cleanStat(b.stat)))].filter(s=>s&&!MARKETS.includes(s));
   const markets=[...MARKETS,...extra];
 
   body.innerHTML=markets.map(mkt=>{
-    const rows=graded.filter(b=>b.stat===mkt);
+    const rows=graded.filter(b=>cleanStat(b.stat)===mkt);
     if(!rows.length) return '';
     const ov=rows.filter(b=>b.ou==='over'), un=rows.filter(b=>b.ou==='under');
     const ow=ov.filter(b=>b.grade==='win').length, ol=ov.filter(b=>b.grade==='loss').length;
@@ -897,7 +917,7 @@ function updateSummary(scope,wins,losses,pl){
 
     const lines=graded.map(b=>{
       const ouStr=cap(b.ou||'');
-      const statStr=cap(b.stat||'');
+      const statStr = cap(cleanStat(b.stat||''));
       const actStr=b.actual!==null&&b.actual!=='manual'?` (${b.actual})`:'';
       const result=b.grade==='win'?'Win':b.grade==='loss'?'Loss':'Push';
       return `${b.player} ${ouStr} ${b.line} ${statStr}${actStr} ${result}`;
@@ -936,7 +956,7 @@ function updateFilterBar(scope){
   const bar=document.getElementById(`${scope[0]}-filterBar`);
   let keys;
   if(scope==='props'){
-    keys=[...new Set(betsFor(scope).map(b=>b.stat).filter(Boolean))].sort();
+    keys=[...new Set(betsFor(scope).map(b=>cleanStat(b.stat)).filter(Boolean))].sort();
   } else {
     const grades=[...new Set(betsFor(scope).map(b=>b.modelGrade).filter(Boolean))].sort();
     keys=['over','under',...grades.map(g=>`grade:${g}`)];
@@ -1035,9 +1055,10 @@ function renderBets(scope){
     const oddsStr=bet.odds!==null?(bet.odds>0?'+'+bet.odds:''+bet.odds):'';
     let mainText, metaPills;
     if(scope==='props'){
+      const displayStat = cleanStat(bet.stat||'');
       mainText=`${esc(bet.player)} <span style="color:var(--muted)">(${esc(bet.team||'')})</span>`;
       metaPills=[
-        bet.stat?`<span class="stat-pill">${esc(bet.stat)}</span>`:'',
+        displayStat?`<span class="stat-pill">${esc(displayStat)}</span>`:'',
         ouStr?`<span class="stat-pill">${ouStr} ${bet.line}</span>`:'',
         bet.book?`<span class="stat-pill">${esc(bet.book)}</span>`:'',
         oddsStr?`<span class="stat-pill">${oddsStr}</span>`:'',
@@ -1258,7 +1279,12 @@ async function handleTotalsImage(e){
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': '',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
@@ -1294,6 +1320,11 @@ Only include rows where direction and odds are visible. Output nothing else.`
       })
     });
 
+    if(!resp.ok){
+      const errBody = await resp.text();
+      throw new Error(`API ${resp.status}: ${errBody.substring(0,120)}`);
+    }
+
     const data = await resp.json();
     const extracted = data.content?.find(c=>c.type==='text')?.text || '';
 
@@ -1313,7 +1344,7 @@ Only include rows where direction and odds are visible. Output nothing else.`
 
   } catch(err) {
     status.style.color = 'var(--red)';
-    status.textContent = 'Error reading image — paste manually';
+    status.textContent = 'Error: ' + (err.message||'unknown') + ' — paste manually';
     console.error(err);
   }
 }
