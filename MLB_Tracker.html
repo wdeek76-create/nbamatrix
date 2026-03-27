@@ -1143,136 +1143,132 @@ function doGrade(scope,i,result){
   saveBets(scope); render(scope);
 }
 
-// ── MLB Stats API ─────────────────────────────────────────────────────
-const MLB_KEYS={
-  'hits':'hits','total bases':'totalBases','strikeouts':'strikeOuts',
-  'home runs':'homeRuns','rbis':'rbi','runs':'runs','walks':'baseOnBalls',
-  'singles':'hits','doubles':'doubles','stolen bases':'stolenBases',
-  'pitcher ks':'strikeOuts','hits allowed':'hits','earned runs':'earnedRuns',
-  'walks allowed':'baseOnBalls','outs recorded':'outs',
-};
-const PITCH_STATS=new Set(['strikeouts','pitcher ks','hits allowed','earned runs','walks allowed','outs recorded']);
+// ── BallDontLie MLB API ───────────────────────────────────────────────
+const BDL_KEY = '9cdb249f-9635-4cca-a998-37c7b98a9372';
+const BDL_HEADERS = { 'Authorization': BDL_KEY };
 
-// Cache player IDs we've looked up this session
+const BDL_STAT_KEYS = {
+  'hits':'hits', 'total bases':'total_bases', 'home runs':'hr',
+  'rbis':'rbi', 'runs':'runs', 'walks':'bb', 'doubles':'doubles',
+  'stolen bases':'stolen_bases', 'strikeouts':'p_k',
+  'pitcher ks':'p_k', 'hits allowed':'p_hits', 'earned runs':'er',
+  'walks allowed':'p_bb', 'outs recorded':'pitching_outs',
+  'singles':'hits', // approximation — BDL doesn't have singles directly
+};
+
 const playerIdCache = {};
+const gameIdCache   = {};  // date → array of games
+
+async function bdlFetch(url){
+  const r = await fetch(url, { headers: BDL_HEADERS });
+  if(!r.ok) throw new Error(`BDL ${r.status}: ${url}`);
+  return r.json();
+}
 
 async function findPlayer(name){
   if(playerIdCache[name]) return playerIdCache[name];
-
   const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').trim();
   const normName=norm(name);
   const parts=name.trim().split(/\s+/);
   const last=parts[parts.length-1];
   const first=parts[0];
 
-  // Strategy 1: people/search by full name
   try{
-    const r=await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name)}&sportId=1&active=true`);
-    if(r.ok){
-      const d=await r.json();
-      if(d.people?.length){
-        const exact=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===normName);
-        const fuzzy=d.people.find(p=>norm(p.lastName)===norm(last)&&p.firstName?.[0]?.toLowerCase()===first[0].toLowerCase());
-        const found=exact||fuzzy||d.people[0];
-        if(found){ playerIdCache[name]=found; return found; }
-      }
+    const d=await bdlFetch(`https://api.balldontlie.io/mlb/v1/players?search=${encodeURIComponent(name)}&per_page=10`);
+    if(d.data?.length){
+      const exact=d.data.find(p=>norm(p.full_name||`${p.first_name} ${p.last_name}`)===normName);
+      const fuzzy=d.data.find(p=>norm(p.last_name)===norm(last)&&p.first_name?.[0]?.toLowerCase()===first[0].toLowerCase());
+      const found=exact||fuzzy||d.data[0];
+      if(found){ playerIdCache[name]=found; return found; }
     }
-  }catch(e){}
+  }catch(e){ console.warn('BDL player search failed, trying last name:',e.message); }
 
-  // Strategy 2: search by last name only
+  // Fallback: search by last name
   try{
-    const r=await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportId=1&active=true`);
-    if(r.ok){
-      const d=await r.json();
-      if(d.people?.length){
-        const exact=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===normName);
-        const fuzzy=d.people.find(p=>norm(p.lastName)===norm(last)&&p.firstName?.[0]?.toLowerCase()===first[0].toLowerCase());
-        const found=exact||fuzzy;
-        if(found){ playerIdCache[name]=found; return found; }
-      }
+    const d=await bdlFetch(`https://api.balldontlie.io/mlb/v1/players?search=${encodeURIComponent(last)}&per_page=25`);
+    if(d.data?.length){
+      const exact=d.data.find(p=>norm(p.full_name||`${p.first_name} ${p.last_name}`)===normName);
+      const fuzzy=d.data.find(p=>norm(p.last_name)===norm(last)&&p.first_name?.[0]?.toLowerCase()===first[0].toLowerCase());
+      const found=exact||fuzzy;
+      if(found){ playerIdCache[name]=found; return found; }
     }
-  }catch(e){}
-
-  // Strategy 3: search without active filter (catches players on IL etc)
-  try{
-    const r=await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name)}&sportId=1`);
-    if(r.ok){
-      const d=await r.json();
-      if(d.people?.length){
-        const exact=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===normName);
-        const fuzzy=d.people.find(p=>norm(p.lastName)===norm(last)&&p.firstName?.[0]?.toLowerCase()===first[0].toLowerCase());
-        const found=exact||fuzzy||d.people[0];
-        if(found){ playerIdCache[name]=found; return found; }
-      }
-    }
-  }catch(e){}
+  }catch(e){ console.warn('BDL last name search failed:',e.message); }
 
   return null;
+}
+
+async function getGamesForDate(dateStr){
+  if(gameIdCache[dateStr]) return gameIdCache[dateStr];
+  try{
+    const d=await bdlFetch(`https://api.balldontlie.io/mlb/v1/games?dates[]=${dateStr}&per_page=25`);
+    if(d.data){ gameIdCache[dateStr]=d.data; return d.data; }
+  }catch(e){ console.warn('BDL games fetch failed:',e.message); }
+  return [];
 }
 
 async function getPlayerStat(playerId, dateStr, rawStat){
   const stat=cleanStat(rawStat);
-  const isPitch=PITCH_STATS.has(stat);
-  const key=MLB_KEYS[stat];
-  if(!key){ console.warn('No MLB key for stat:', stat); return null; }
+  const key=BDL_STAT_KEYS[stat];
+  if(!key){ console.warn('No BDL key for stat:',stat); return null; }
 
-  // Try both groups — some players appear under unexpected groups
-  const groups=isPitch?['pitching','hitting']:['hitting','pitching'];
+  try{
+    // Get all games on that date to find the right game_id
+    const games=await getGamesForDate(dateStr);
+    if(!games.length){ console.warn('No BDL games found for',dateStr); return null; }
 
-  for(const group of groups){
-    try{
-      const season=dateStr.substring(0,4);
-      const url=`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${group}&season=${season}&sportId=1`;
-      const r=await fetch(url);
-      if(!r.ok) continue;
-      const d=await r.json();
-      const splits=d.stats?.[0]?.splits||[];
-      if(!splits.length) continue;
+    // Fetch stats for this player across all games that day
+    const gameIds=games.map(g=>g.id);
+    const params=gameIds.map(id=>`game_ids[]=${id}`).join('&');
+    const d=await bdlFetch(`https://api.balldontlie.io/mlb/v1/stats?player_ids[]=${playerId}&${params}&per_page=10`);
 
-      // Exact date
-      let split=splits.find(s=>s.date===dateStr);
-      if(split && split.stat[key]!==undefined) return split.stat[key];
+    if(!d.data?.length){ console.warn('No BDL stats for player',playerId,'on',dateStr); return null; }
 
-      // ±1 day for timezone edge cases
-      for(const delta of [-1,1]){
-        const adj=new Date(dateStr+'T12:00:00');
-        adj.setDate(adj.getDate()+delta);
-        const adjStr=adj.toISOString().split('T')[0];
-        split=splits.find(s=>s.date===adjStr);
-        if(split && split.stat[key]!==undefined){
-          console.log(`Found stat on adjacent date ${adjStr} for player ${playerId}`);
-          return split.stat[key];
-        }
-      }
-    }catch(e){ console.error('getPlayerStat error group='+group, e); }
-  }
-
-  console.warn(`No ${stat} found for player ${playerId} on ${dateStr}`);
-  return null;
+    const stat_row=d.data[0];
+    const val=stat_row[key];
+    if(val===null||val===undefined){ console.warn('Key',key,'not in stats row:',Object.keys(stat_row)); return null; }
+    return val;
+  }catch(e){ console.error('getPlayerStat BDL error:',e); return null; }
 }
 
-// Totals: get game final score
 async function getGameTotal(away, home, dateStr){
   try{
-    const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
-    const d=await r.json();
-    if(!d.dates||!d.dates.length) return null;
+    const games=await getGamesForDate(dateStr);
+    if(!games.length) return null;
+
     const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
-    for(const game of (d.dates[0].games||[])){
-      const aN=norm(game.teams?.away?.team?.name||'');
-      const hN=norm(game.teams?.home?.team?.name||'');
+    // BDL game has away_team_name, home_team_name, away_team.abbreviation etc.
+    for(const game of games){
+      const gAwayAbbr=norm(game.away_team?.abbreviation||'');
+      const gHomeAbbr=norm(game.home_team?.abbreviation||'');
+      const gAwayName=norm(game.away_team_name||game.away_team?.display_name||'');
+      const gHomeName=norm(game.home_team_name||game.home_team?.display_name||'');
+
       const awayN=norm(away), homeN=norm(home);
-      const awayMatch=aN.includes(awayN)||awayN.includes(aN.substring(0,5));
-      const homeMatch=hN.includes(homeN)||homeN.includes(hN.substring(0,5));
-      if(awayMatch||homeMatch){
-        const ls=game.linescore;
-        if(ls&&ls.teams){
-          const ar=ls.teams.away?.runs, hr=ls.teams.home?.runs;
-          if(ar!==undefined&&hr!==undefined) return ar+hr;
-        }
+
+      const awayMatch = gAwayAbbr===awayN || gAwayName.includes(awayN) || awayN.includes(gAwayAbbr);
+      const homeMatch = gHomeAbbr===homeN || gHomeName.includes(homeN) || homeN.includes(gHomeAbbr);
+
+      if(awayMatch && homeMatch){
+        const ar=game.away_team_data?.runs;
+        const hr=game.home_team_data?.runs;
+        if(ar!==undefined&&ar!==null&&hr!==undefined&&hr!==null) return ar+hr;
       }
     }
-  }catch(e){}
+    // Fallback: match either team
+    for(const game of games){
+      const gAwayAbbr=norm(game.away_team?.abbreviation||'');
+      const gHomeAbbr=norm(game.home_team?.abbreviation||'');
+      const gAwayName=norm(game.away_team_name||'');
+      const gHomeName=norm(game.home_team_name||'');
+      const awayN=norm(away), homeN=norm(home);
+      const awayMatch=gAwayAbbr===awayN||gAwayName.includes(awayN)||awayN.includes(gAwayAbbr);
+      const homeMatch=gHomeAbbr===homeN||gHomeName.includes(homeN)||homeN.includes(gHomeAbbr);
+      if(awayMatch||homeMatch){
+        const ar=game.away_team_data?.runs, hr=game.home_team_data?.runs;
+        if(ar!==undefined&&ar!==null&&hr!==undefined&&hr!==null) return ar+hr;
+      }
+    }
+  }catch(e){ console.error('getGameTotal BDL error:',e); }
   return null;
 }
 
