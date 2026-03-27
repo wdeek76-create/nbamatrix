@@ -362,7 +362,12 @@ function normOdds(str){
 
 function cleanStat(s){
   if(!s) return s;
-  s = s.toLowerCase().replace(/[''']s$/, '').replace(/[''']s\b/g, '').trim();
+  // Strip ALL variants of apostrophe+s (straight, curly, unicode)
+  s = s.toLowerCase()
+    .replace(/[\u2018\u2019\u02bc\u0060'`'']/g, "'") // normalize all apostrophes to straight
+    .replace(/'s\b/g, '')   // strip 's
+    .replace(/s'$/g, 's')   // strip trailing apostrophe after s
+    .trim();
   s = s.replace(/\s*\([^)]+\)\s*$/, '').trim();
   return STAT_MAP[s] || STAT_MAP[s.replace(/s$/,'')] || s;
 }
@@ -372,8 +377,11 @@ function migrateBets(bets){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  try { propBets  = migrateBets(JSON.parse(localStorage.getItem('mlb_props')  || '[]')); } catch(e){propBets=[];}
-  try { totalBets = migrateBets(JSON.parse(localStorage.getItem('mlb_totals') || '[]')); } catch(e){totalBets=[];}
+  try { propBets  = JSON.parse(localStorage.getItem('mlb_props')  || '[]'); } catch(e){propBets=[];}
+  try { totalBets = JSON.parse(localStorage.getItem('mlb_totals') || '[]'); } catch(e){totalBets=[];}
+  // Always re-migrate on load to fix any bad stat values
+  propBets  = migrateBets(propBets);
+  totalBets = migrateBets(totalBets);
   saveBets('props'); saveBets('totals');
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('p-betDate').value = today;
