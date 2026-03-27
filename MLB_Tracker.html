@@ -123,6 +123,15 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 .summary-label{font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
 .summary-text .line1{color:var(--text);}
 .summary-text .line2{color:var(--green);font-weight:700;}
+.summary-card{background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:20px 24px;}
+.summary-card-title{font-family:var(--display);font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-bottom:16px;}
+.summary-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+.summary-row:last-child{border-bottom:none;}
+.summary-row-label{font-size:12px;color:var(--muted);letter-spacing:.06em;}
+.summary-row-val{font-family:var(--display);font-size:18px;font-weight:800;letter-spacing:.02em;}
+.summary-record{font-family:var(--display);font-size:36px;font-weight:900;letter-spacing:.02em;color:var(--green);text-align:center;padding:12px 0 4px;}
+.summary-record-sub{font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;text-align:center;margin-bottom:16px;}
+.summary-copy-row{display:flex;justify-content:flex-end;margin-top:14px;}
 #fileInput{display:none;}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
@@ -223,6 +232,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
   <button class="grade-all-btn" onclick="gradeAll('props',this)">⚡ GRADE ALL</button>
   <div class="filter-bar" id="p-filterBar"></div>
   <div id="p-betsList"></div>
+  <div id="p-summary" style="display:none;margin-top:24px;"></div>
 </div>
 
 <!-- ═══ TOTALS TAB ═══ -->
@@ -294,6 +304,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
   <button class="grade-all-btn" onclick="gradeAll('totals',this)">⚡ GRADE ALL</button>
   <div class="filter-bar" id="t-filterBar"></div>
   <div id="t-betsList"></div>
+  <div id="t-summary" style="display:none;margin-top:24px;"></div>
 </div>
 
 </div><!-- .app -->
@@ -442,8 +453,8 @@ function parsePropsSlate(text){
       const cur=tokens[i],nxt=tokens[i+1]||'';
       if((isOdds(cur)&&isBook(nxt))||(isBook(cur)&&isOdds(nxt))){ firstPairIdx=i; break; }
     }
-    const statRaw=tokens.slice(0,firstPairIdx).join(' ').toLowerCase().replace(/[.,]+$/,'').trim();
-    const stat=STAT_MAP[statRaw]||statRaw||'unknown';
+    const statRaw=tokens.slice(0,firstPairIdx).join(' ').toLowerCase().replace(/[.,]+$/,'').replace(/['']s$/,'').trim();
+    const stat=STAT_MAP[statRaw]||STAT_MAP[statRaw.replace(/s$/,'')]||statRaw||'unknown';
     const bookTokens=tokens.slice(firstPairIdx);
     const books=[];
     for(let i=0;i<bookTokens.length;i++){
@@ -711,6 +722,59 @@ function render(scope){
   updateDash(scope);
   updateFilterBar(scope);
   renderBets(scope);
+  renderSummary(scope);
+}
+
+function renderSummary(scope){
+  const p=scope[0];
+  const el=document.getElementById(`${p}-summary`);
+  if(!el) return;
+  const all=betsFor(scope).filter(b=>inPeriod(scope,b));
+  const graded=all.filter(b=>b.grade==='win'||b.grade==='loss'||b.grade==='push');
+  const wins=graded.filter(b=>b.grade==='win').length;
+  const losses=graded.filter(b=>b.grade==='loss').length;
+  const pushes=graded.filter(b=>b.grade==='push').length;
+  const pending=all.filter(b=>!b.grade).length;
+  if(!graded.length&&!pending){el.style.display='none';return;}
+  el.style.display='';
+
+  const pl=graded.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+  const risk=calcRisk(graded);
+  const roi=risk?(pl/risk*100).toFixed(1)+'%':'—';
+  const wr=(wins+losses)?(wins/(wins+losses)*100).toFixed(1)+'%':'—';
+  const oddsArr=graded.filter(b=>b.odds).map(b=>b.odds);
+  const avgOdds=oddsArr.length?Math.round(oddsArr.reduce((a,b)=>a+b,0)/oddsArr.length):null;
+  const plCls=pl>0?'pos':pl<0?'neg':'neu';
+  const lbl={all:'All Time',month:'This Month',week:'This Week',day:'Today'}[periods[scope]];
+
+  const rows=[
+    ['Units P/L', `<span class="stat-val ${plCls}" style="font-size:18px">${graded.length?fmtPL(pl):'—'}</span>`],
+    ['Win Rate', `<span class="stat-val ${(wins+losses)&&wins/(wins+losses)>=.5?'pos':'neu'}" style="font-size:18px">${wr}</span>`],
+    ['ROI', `<span class="stat-val ${roi!=='—'&&parseFloat(roi)>=0?'pos':'neg'}" style="font-size:18px">${roi}</span>`],
+    ['Avg Odds', `<span class="stat-val neu" style="font-size:18px">${avgOdds?fmtOdds(avgOdds):'—'}</span>`],
+    ['Bets', `<span class="stat-val neu" style="font-size:18px">${all.length}</span>`],
+    ['Pending', `<span class="stat-val neu" style="font-size:18px">${pending}</span>`],
+  ];
+  if(pushes) rows.splice(1,0,['Pushes', `<span class="stat-val" style="font-size:18px;color:var(--yellow)">${pushes}</span>`]);
+
+  // Build copyable text
+  const copyText=`MLB ${cap(scope)} — ${lbl}\n${wins}-${losses}${pushes?' ('+pushes+'P)':''} ${graded.length?fmtPL(pl):''}\nWin Rate: ${wr} | ROI: ${roi} | Avg Odds: ${avgOdds?fmtOdds(avgOdds):'—'}`;
+
+  el.innerHTML=`<div class="summary-card">
+    <div class="summary-card-title">Summary — ${lbl}</div>
+    <div class="summary-record">${wins}-${losses}${pushes?`<span style="font-size:18px;color:var(--yellow);margin-left:8px">(${pushes}P)</span>`:''}</div>
+    <div class="summary-record-sub">MLB ${cap(scope)} Props</div>
+    ${rows.map(([label,val])=>`<div class="summary-row"><span class="summary-row-label">${label}</span>${val}</div>`).join('')}
+    <div class="summary-copy-row">
+      <button class="btn" onclick="copyText(this,'${encodeURIComponent(copyText)}')">COPY SUMMARY</button>
+    </div>
+  </div>`;
+}
+
+function copyText(btn, encoded){
+  navigator.clipboard.writeText(decodeURIComponent(encoded)).then(()=>{
+    btn.textContent='✓ COPIED'; setTimeout(()=>btn.textContent='COPY SUMMARY',1800);
+  });
 }
 
 function renderBets(scope){
@@ -789,11 +853,13 @@ function doGrade(scope,i,result){
 const MLB_KEYS={
   'hits':'hits','total bases':'totalBases','strikeouts':'strikeOuts',
   'home runs':'homeRuns','rbis':'rbi','runs':'runs','walks':'baseOnBalls',
-  'singles':'singles','doubles':'doubles','stolen bases':'stolenBases',
+  'singles':'hits','doubles':'doubles','stolen bases':'stolenBases',
   'pitcher ks':'strikeOuts','hits allowed':'hits','earned runs':'earnedRuns',
   'walks allowed':'baseOnBalls','outs recorded':'outs',
 };
-const PITCH_STATS=new Set(['pitcher ks','hits allowed','earned runs','walks allowed','outs recorded']);
+// strikeouts for batters = hitting group; for pitchers all the "allowed" stats + strikeouts context
+// We treat strikeouts as pitching since that's how you bet them (pitcher K props)
+const PITCH_STATS=new Set(['strikeouts','pitcher ks','hits allowed','earned runs','walks allowed','outs recorded']);
 
 async function findPlayer(name){
   const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').trim();
