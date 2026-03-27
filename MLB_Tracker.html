@@ -428,37 +428,64 @@ function normOdds(str){
 // PROPS parser
 function parsePropsSlate(text){
   const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
-  const bets=[]; let cur=null;
-  for(const line of lines){
+  const bets=[];
+
+  function isBook(w){ return !!(BOOK_MAP[w.toLowerCase()]||/^(dk|fd|pb|fliff|novig|nv|mgm|czr|espn|bet365|pin|bov|hard|circa|onyx)$/i.test(w)); }
+  function isOdds(w){ return /^[+-]\d{2,4}$/.test(w); }
+
+  function parseRest(rest){
+    // Normalize k shorthand
+    rest=rest.trim().replace(/\bk[''']?s\b/gi,'strikeouts').replace(/(?:^|\s)k(?=\s+(?:[A-Za-z]|[+-]\d))/g,' strikeouts');
+    const tokens=rest.split(/[\s,]+/).filter(Boolean);
+    // Find first token index that starts a BOOK+ODDS or ODDS+BOOK pair
+    let firstPairIdx=tokens.length;
+    for(let i=0;i<tokens.length;i++){
+      const cur=tokens[i],nxt=tokens[i+1]||'';
+      if((isOdds(cur)&&isBook(nxt))||(isBook(cur)&&isOdds(nxt))){ firstPairIdx=i; break; }
+    }
+    const statRaw=tokens.slice(0,firstPairIdx).join(' ').toLowerCase().replace(/[.,]+$/,'').trim();
+    const stat=STAT_MAP[statRaw]||statRaw||'unknown';
+    const bookTokens=tokens.slice(firstPairIdx);
+    const books=[];
+    for(let i=0;i<bookTokens.length;i++){
+      const cur=bookTokens[i],nxt=bookTokens[i+1]||'';
+      if(isOdds(cur)&&isBook(nxt)){ books.push({book:BOOK_MAP[nxt.toLowerCase()]||nxt,odds:parseInt(cur)}); i++; }
+      else if(isBook(cur)&&isOdds(nxt)){ books.push({book:BOOK_MAP[cur.toLowerCase()]||cur,odds:parseInt(nxt)}); i++; }
+    }
+    return {stat,books};
+  }
+
+  for(const rawLine of lines){
+    const line=rawLine.replace(/^\*+\s*/,'').trim();
+    if(!line) continue;
+    // Skip section headers (no parentheses)
+    if(!line.includes('(')&&/^[A-Za-z\s]+$/.test(line)) continue;
     if(/^(just\s+send|this\s+is\s+just|incase)/i.test(line)) continue;
-    // prop line: Player (Team) over/under X.X stat
-    const prop=line.match(/^(.+?)\s*\(([^)]+)\)\s*(over|under|o(?=\s)|u(?=\s)|\bu\b|\bo\b)\s*([\d.]+)\s+(.+)$/i);
+
+    const prop=line.match(/^(.+?)\s*\(([^)]+)\)\s*(over|under|u(?=[\s\d.])|o(?=[\s\d.]))\s*([\d.]+)\s+(.+)$/i);
     if(prop){
-      if(cur) bets.push(cur);
-      const ou=prop[3].toLowerCase();
-      const statRaw=prop[5].trim().toLowerCase();
-      cur={player:prop[1].trim(),team:prop[2].trim(),
-           ou:(ou==='o'?'over':ou==='u'?'under':ou),
-           line:parseFloat(prop[4]),
-           stat:STAT_MAP[statRaw]||statRaw,
-           book:null,odds:null};
+      const ouRaw=prop[3].toLowerCase();
+      const ou=ouRaw==='u'?'under':ouRaw==='o'?'over':ouRaw;
+      const {stat,books}=parseRest(prop[5]);
+      bets.push({
+        player:prop[1].trim(),team:prop[2].trim(),ou,
+        line:parseFloat(prop[4]),stat,
+        book:books[0]?.book||null,odds:books[0]?.odds??null
+      });
       continue;
     }
-    // book line
-    const book=line.match(/^([a-z0-9]+)\s+([+-]?\d{2,4})/i);
-    if(book&&cur){
-      const bk=BOOK_MAP[book[1].toLowerCase()]||book[1].toUpperCase();
-      const odds=normOdds(book[2]);
-      if(odds!==null){
-        if(!cur.book){cur.book=bk;cur.odds=odds;}
-        continue;
+
+    // Fallback: separate book line for previous bet
+    if(bets.length){
+      const last=bets[bets.length-1];
+      if(last.odds===null){
+        const igot=line.match(/i\s+got\s+([+-]?\d{2,4})/i);
+        if(igot){last.odds=normOdds(igot[1]); continue;}
+        const {books}=parseRest(line);
+        if(books.length){last.book=books[0].book;last.odds=books[0].odds;}
       }
     }
-    // "I got X"
-    const igot=line.match(/i\s+got\s+([+-]?\d{2,4})/i);
-    if(igot&&cur){ cur.odds=normOdds(igot[1]); continue; }
   }
-  if(cur) bets.push(cur);
   return bets;
 }
 
@@ -513,8 +540,8 @@ function previewParse(scope){
   cnt.textContent=parsed.length;
   if(scope==='props'){
     pills.innerHTML=parsed.map(b=>{
-      const ok=b.player&&b.stat&&b.odds!==null;
-      const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'?';
+      const ok=b.player&&b.stat&&b.stat!=='unknown'&&b.odds!==null;
+      const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'NO ODDS';
       return `<span class="parse-pill ${ok?'':'err'}">${b.player} ${b.ou} ${b.line} ${b.stat} ${o}</span>`;
     }).join('');
   } else {
