@@ -291,8 +291,8 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
       </label>
     </div>
     <div id="t-imgStatus" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:.06em"></div>
-    <textarea class="bet-input" id="t-slateInput" rows="6"
-      placeholder="KC @ ATL&#10;8.4   7.5   5.8%&#10;OVER +105&#10;&#10;CLE @ SEA&#10;7   7   4.0%&#10;UNDER -110"
+    <textarea class="bet-input" id="t-slateInput" rows="7"
+      placeholder="Paste from model output:&#10;&#10;9/9  KC @ ATL&#10;8.4  7.5  5.8%&#10;OVER +105&#10;&#10;8/9  CLE @ SEA&#10;7  7  4.0%&#10;UNDER -110"
       autocorrect="off" autocapitalize="off" spellcheck="false"
       oninput="previewParse('totals')"></textarea>
     <div class="parse-preview" id="t-parsePreview">
@@ -626,22 +626,18 @@ function parseTotalsSlate(text){
     const line=lines[i];
 
     // ── Single-line model row (tab or multi-space separated) ──
-    // e.g. "9/9   KC @ ATL   Cole Ragans vs Chris Sale · 7:15 PM   8.4   7.5   5.8%   OVER +105"
-    const singleRow=line.match(/^(\d+\/\d+)?\s*([A-Z]{1,4})\s*@\s*([A-Z]{1,4})\s+.+?\s+([\d.]+)\s+([\d.]+)\s+([\d.]+%)\s+(OVER|UNDER)\s*([+-]\d+)/i);
+    const singleRow=line.match(/^(\d+\/\d+)?\s*([A-Z]{2,5})\s*@\s*([A-Z]{2,5})\s+.+?\s+([\d.]+)\s+([\d.]+)\s+([\d.]+%)\s+(OVER|UNDER)\s*([+-]\d+)/i);
     if(singleRow){
       const modelGrade=singleRow[1]||null;
-      const away=singleRow[2].trim(), home=singleRow[3].trim();
+      const away=singleRow[2].toUpperCase(), home=singleRow[3].toUpperCase();
       const model=parseFloat(singleRow[4]), market=parseFloat(singleRow[5]);
-      const edge=singleRow[6];
-      const ou=singleRow[7].toLowerCase();
-      const odds=parseInt(singleRow[8]);
+      const edge=singleRow[6], ou=singleRow[7].toLowerCase(), odds=parseInt(singleRow[8]);
       bets.push({away,home,ou,line:market,odds,book:null,modelGrade,model,market,edge,date:null,grade:null,actual:null});
       i++; continue;
     }
 
-    // ── Multi-line model chunk ──
-    // Line i: "[grade] AWAY @ HOME"  e.g. "9/9  KC @ ATL" or just "KC @ ATL"
-    const gameLine=line.match(/^(\d+\/\d+)?\s*([A-Z]{1,4})\s*@\s*([A-Z]{1,4})/i);
+    // ── Multi-line model chunk: "[grade] AWAY @ HOME" ──
+    const gameLine=line.match(/^(\d+\/\d+)?\s*([A-Z]{2,5})\s*@\s*([A-Z]{2,5})\s*$/i);
     if(gameLine){
       const modelGrade=gameLine[1]||null;
       const away=gameLine[2].trim(), home=gameLine[3].trim();
@@ -653,8 +649,8 @@ function parseTotalsSlate(text){
         const next=lines[j];
         // Pitcher line: "Cole Ragans vs Chris Sale · 7:15 PM"
         if(/vs\s+\w/.test(next)&&!next.match(/^\d/)) { pitchers=next; j++; continue; }
-        // Numbers line: "8.4  7.5  5.8%"
-        const nums=next.match(/^([\d.]+)\s+([\d.]+)\s+([\d.]+%)/);
+        // Numbers line: "8.4  7.5  5.8%" — handle tabs too
+        const nums=next.replace(/\t/g,' ').match(/^([\d.]+)\s+([\d.]+)\s+([\d.]+%)/);
         if(nums){ model=parseFloat(nums[1]); market=parseFloat(nums[2]); edge=nums[3]; j++; continue; }
         // Direction + price line: "OVER +105" or "OVER\n+105"
         const dirPrice=next.match(/^(OVER|UNDER)\s*([+-]\d+)/i);
@@ -744,8 +740,17 @@ function previewParse(scope){
 
 function addSlate(scope){
   const inp=document.getElementById(`${scope[0]}-slateInput`).value;
+  if(!inp.trim()) return;
   const parsed=scope==='props'?parsePropsSlate(inp):parseTotalsSlate(inp);
-  if(!parsed.length) return;
+  if(!parsed.length){
+    const preview=document.getElementById(`${scope[0]}-parsePreview`);
+    const pills=document.getElementById(`${scope[0]}-parsePills`);
+    const cnt=document.getElementById(`${scope[0]}-parseCount`);
+    preview.style.display='block';
+    cnt.textContent='0';
+    pills.innerHTML=`<span class="parse-pill err">Nothing parsed — check format</span>`;
+    return;
+  }
   const date=document.getElementById(`${scope[0]}-betDate`).value;
   const newBets=parsed.map(b=>({
     id:Date.now()+Math.random(),
@@ -1330,7 +1335,6 @@ async function handleTotalsImage(e){
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': '',
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
