@@ -324,10 +324,56 @@ let periods = { props:'all', totals:'all' };
 let filters  = { props:null, totals:null };
 let activeTab = 'props';
 
+// ── Must be defined before DOMContentLoaded ───────────────────────────
+const STAT_MAP = {
+  'hits allowed':'hits allowed','hit allowed':'hits allowed',
+  'hit':'hits','hits':'hits',
+  'tb':'total bases','total base':'total bases','total bases':'total bases','base':'total bases','bases':'total bases',
+  'strikeout':'strikeouts','strikeouts':'strikeouts','k':'strikeouts','ks':'strikeouts',
+  'home run':'home runs','home runs':'home runs','hr':'home runs',
+  'rbi':'rbis','rbis':'rbis',
+  'run':'runs','runs':'runs',
+  'walk':'walks','walks':'walks','bb':'walks',
+  'walks allowed':'walks allowed','walk allowed':'walks allowed',
+  'single':'singles','singles':'singles',
+  'double':'doubles','doubles':'doubles',
+  'stolen base':'stolen bases','stolen bases':'stolen bases','sb':'stolen bases',
+  'pitcher k':'pitcher ks','pitcher ks':'pitcher ks','pitching k':'pitcher ks','pitching ks':'pitcher ks',
+  'earned run':'earned runs','earned runs':'earned runs','er':'earned runs',
+  'out':'outs recorded','outs':'outs recorded','outs recorded':'outs recorded',
+};
+
+const BOOK_MAP = {
+  'pb':'PrizePicks','prizepicks':'PrizePicks',
+  'dk':'DraftKings','draftkings':'DraftKings',
+  'fd':'FanDuel','fanduel':'FanDuel',
+  'espn':'ESPN','mgm':'BetMGM','betmgm':'BetMGM',
+  'czr':'Caesars','caesars':'Caesars',
+  'bet365':'Bet365','hard':'Hard Rock','hardrock':'Hard Rock',
+  'fliff':'Fliff','pin':'Pinnacle','pinnacle':'Pinnacle',
+  'novig':'Novig','nv':'Novig','bov':'Bovada',
+};
+
+function normOdds(str){
+  const n=parseInt((str||'').replace(/[^0-9\-+]/g,''));
+  if(isNaN(n)) return null;
+  return str.trim().startsWith('-') ? n : Math.abs(n);
+}
+
+function cleanStat(s){
+  if(!s) return s;
+  s = s.toLowerCase().replace(/[''']s$/, '').replace(/[''']s\b/g, '').trim();
+  s = s.replace(/\s*\([^)]+\)\s*$/, '').trim();
+  return STAT_MAP[s] || STAT_MAP[s.replace(/s$/,'')] || s;
+}
+
+function migrateBets(bets){
+  return (bets||[]).map(b=>{ if(b.stat) b.stat=cleanStat(b.stat); return b; });
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   try { propBets  = migrateBets(JSON.parse(localStorage.getItem('mlb_props')  || '[]')); } catch(e){propBets=[];}
   try { totalBets = migrateBets(JSON.parse(localStorage.getItem('mlb_totals') || '[]')); } catch(e){totalBets=[];}
-  // Save migrated data back
   saveBets('props'); saveBets('totals');
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('p-betDate').value = today;
@@ -410,73 +456,7 @@ function fmtOdds(o){ return o>0?'+'+o:''+o; }
 function fmtPct(w,l){ return (w+l)?((w/(w+l))*100).toFixed(1)+'%':'—'; }
 
 // ── Parsers ───────────────────────────────────────────────────────────
-const STAT_MAP = {
-  // hits — must check 'hits allowed' before 'hits'
-  'hits allowed':'hits allowed','hit allowed':'hits allowed',
-  'hit':'hits','hits':'hits',
-  // total bases
-  'tb':'total bases','total base':'total bases','total bases':'total bases','base':'total bases','bases':'total bases',
-  // strikeouts
-  'strikeout':'strikeouts','strikeouts':'strikeouts','k':'strikeouts','ks':'strikeouts',
-  // home runs
-  'home run':'home runs','home runs':'home runs','hr':'home runs',
-  // rbis
-  'rbi':'rbis','rbis':'rbis',
-  // runs
-  'run':'runs','runs':'runs',
-  // walks
-  'walk':'walks','walks':'walks','bb':'walks',
-  'walks allowed':'walks allowed','walk allowed':'walks allowed',
-  // singles / doubles
-  'single':'singles','singles':'singles',
-  'double':'doubles','doubles':'doubles',
-  // stolen bases
-  'stolen base':'stolen bases','stolen bases':'stolen bases','sb':'stolen bases',
-  // pitcher stats
-  'pitcher k':'pitcher ks','pitcher ks':'pitcher ks','pitching k':'pitcher ks','pitching ks':'pitcher ks',
-  // earned runs
-  'earned run':'earned runs','earned runs':'earned runs','er':'earned runs',
-  // outs
-  'out':'outs recorded','outs':'outs recorded','outs recorded':'outs recorded',
-};
-
-const BOOK_MAP = {
-  'pb':'PrizePicks','prizepicks':'PrizePicks',
-  'dk':'DraftKings','draftkings':'DraftKings',
-  'fd':'FanDuel','fanduel':'FanDuel',
-  'espn':'ESPN','mgm':'BetMGM','betmgm':'BetMGM',
-  'czr':'Caesars','caesars':'Caesars',
-  'bet365':'Bet365','hard':'Hard Rock','hardrock':'Hard Rock',
-  'fliff':'Fliff','pin':'Pinnacle','pinnacle':'Pinnacle',
-  'novig':'Novig','nv':'Novig','bov':'Bovada',
-};
-
-function normOdds(str){
-  const n=parseInt((str||'').replace(/[^0-9\-+]/g,''));
-  if(isNaN(n)) return null;
-  return str.trim().startsWith('-') ? n : Math.abs(n);
-}
-
-// Normalize a stored stat string — fixes legacy bad values
-function cleanStat(s){
-  if(!s) return s;
-  // Strip trailing possessive/plural artifacts: strikeouts's → strikeouts
-  s = s.toLowerCase().replace(/[''']s$/, '').replace(/[''']s\b/, '').trim();
-  // Strip any leaked team e.g. "sb (orioles)" → "sb"
-  s = s.replace(/\s*\([^)]+\)\s*$/, '').trim();
-  // Re-map through STAT_MAP
-  return STAT_MAP[s] || STAT_MAP[s.replace(/s$/,'')] || s;
-}
-
-// Migrate stored bets to fix bad stat values from older parser
-function migrateBets(bets){
-  return bets.map(b=>{
-    if(b.stat) b.stat = cleanStat(b.stat);
-    return b;
-  });
-}
-
-// PROPS parser
+// ── Parsers ───────────────────────────────────────────────────────────
 function parsePropsSlate(text){
   // Pre-process: normalize k shorthand glued to number
   const normalized = text.replace(/([\d.]+)\s*k[''']?s?\b/gi,'$1 strikeouts');
@@ -1129,45 +1109,104 @@ const MLB_KEYS={
   'pitcher ks':'strikeOuts','hits allowed':'hits','earned runs':'earnedRuns',
   'walks allowed':'baseOnBalls','outs recorded':'outs',
 };
-// strikeouts for batters = hitting group; for pitchers all the "allowed" stats + strikeouts context
-// We treat strikeouts as pitching since that's how you bet them (pitcher K props)
 const PITCH_STATS=new Set(['strikeouts','pitcher ks','hits allowed','earned runs','walks allowed','outs recorded']);
 
+// Cache player IDs we've looked up this session
+const playerIdCache = {};
+
 async function findPlayer(name){
+  if(playerIdCache[name]) return playerIdCache[name];
+
   const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').trim();
-  for(const endpoint of[
-    `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name)}&sportId=1`,
-    `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name.split(' ').pop())}&sportId=1`
-  ]){
-    try{
-      const r=await fetch(endpoint), d=await r.json();
-      if(d.people&&d.people.length){
-        const exact=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===norm(name));
-        if(exact) return exact;
-        const init=name[0].toLowerCase(), last=name.split(' ').pop();
-        const fuzzy=d.people.find(p=>norm(p.lastName)===norm(last)&&p.firstName&&p.firstName[0].toLowerCase()===init);
-        if(fuzzy) return fuzzy;
-        return d.people[0];
+  const normName=norm(name);
+  const parts=name.trim().split(/\s+/);
+  const last=parts[parts.length-1];
+  const first=parts[0];
+
+  // Strategy 1: people/search by full name
+  try{
+    const r=await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name)}&sportId=1&active=true`);
+    if(r.ok){
+      const d=await r.json();
+      if(d.people?.length){
+        const exact=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===normName);
+        const fuzzy=d.people.find(p=>norm(p.lastName)===norm(last)&&p.firstName?.[0]?.toLowerCase()===first[0].toLowerCase());
+        const found=exact||fuzzy||d.people[0];
+        if(found){ playerIdCache[name]=found; return found; }
       }
-    }catch(e){}
-  }
+    }
+  }catch(e){}
+
+  // Strategy 2: search by last name only
+  try{
+    const r=await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportId=1&active=true`);
+    if(r.ok){
+      const d=await r.json();
+      if(d.people?.length){
+        const exact=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===normName);
+        const fuzzy=d.people.find(p=>norm(p.lastName)===norm(last)&&p.firstName?.[0]?.toLowerCase()===first[0].toLowerCase());
+        const found=exact||fuzzy;
+        if(found){ playerIdCache[name]=found; return found; }
+      }
+    }
+  }catch(e){}
+
+  // Strategy 3: search without active filter (catches players on IL etc)
+  try{
+    const r=await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name)}&sportId=1`);
+    if(r.ok){
+      const d=await r.json();
+      if(d.people?.length){
+        const exact=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===normName);
+        const fuzzy=d.people.find(p=>norm(p.lastName)===norm(last)&&p.firstName?.[0]?.toLowerCase()===first[0].toLowerCase());
+        const found=exact||fuzzy||d.people[0];
+        if(found){ playerIdCache[name]=found; return found; }
+      }
+    }
+  }catch(e){}
+
   return null;
 }
 
-async function getPlayerStat(playerId, dateStr, stat){
+async function getPlayerStat(playerId, dateStr, rawStat){
+  const stat=cleanStat(rawStat);
   const isPitch=PITCH_STATS.has(stat);
-  const group=isPitch?'pitching':'hitting';
   const key=MLB_KEYS[stat];
-  if(!key) return null;
-  try{
-    const season=dateStr.substring(0,4);
-    const r=await fetch(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${group}&season=${season}&sportId=1`);
-    const d=await r.json();
-    if(!d.stats||!d.stats.length||!d.stats[0].splits) return null;
-    const split=d.stats[0].splits.find(s=>s.date===dateStr);
-    if(!split) return null;
-    return split.stat[key]??null;
-  }catch(e){return null;}
+  if(!key){ console.warn('No MLB key for stat:', stat); return null; }
+
+  // Try both groups — some players appear under unexpected groups
+  const groups=isPitch?['pitching','hitting']:['hitting','pitching'];
+
+  for(const group of groups){
+    try{
+      const season=dateStr.substring(0,4);
+      const url=`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${group}&season=${season}&sportId=1`;
+      const r=await fetch(url);
+      if(!r.ok) continue;
+      const d=await r.json();
+      const splits=d.stats?.[0]?.splits||[];
+      if(!splits.length) continue;
+
+      // Exact date
+      let split=splits.find(s=>s.date===dateStr);
+      if(split && split.stat[key]!==undefined) return split.stat[key];
+
+      // ±1 day for timezone edge cases
+      for(const delta of [-1,1]){
+        const adj=new Date(dateStr+'T12:00:00');
+        adj.setDate(adj.getDate()+delta);
+        const adjStr=adj.toISOString().split('T')[0];
+        split=splits.find(s=>s.date===adjStr);
+        if(split && split.stat[key]!==undefined){
+          console.log(`Found stat on adjacent date ${adjStr} for player ${playerId}`);
+          return split.stat[key];
+        }
+      }
+    }catch(e){ console.error('getPlayerStat error group='+group, e); }
+  }
+
+  console.warn(`No ${stat} found for player ${playerId} on ${dateStr}`);
+  return null;
 }
 
 // Totals: get game final score
@@ -1195,28 +1234,33 @@ async function getGameTotal(away, home, dateStr){
   return null;
 }
 
+async function gradeSingleProp(scope, i){
+  const bet=betsFor(scope)[i]; if(!bet) return false;
+  const stat=cleanStat(bet.stat);
+  const player=await findPlayer(bet.player);
+  if(!player){ console.warn('Player not found:',bet.player); return false; }
+  const actual=await getPlayerStat(player.id, bet.date, stat);
+  if(actual===null||actual===undefined){ console.warn('No stat:',bet.player, stat, bet.date); return false; }
+  const n=parseFloat(actual);
+  const result=n===bet.line?'push':(bet.ou==='over'?n>bet.line:n<bet.line)?'win':'loss';
+  doSetGrade(scope,i,result,n);
+  return true;
+}
+
 async function gradeBet(scope, i, btn){
-  const bets=betsFor(scope);
-  const bet=bets[i]; if(!bet) return;
-  btn.textContent='...';
+  const bet=betsFor(scope)[i]; if(!bet) return;
+  btn.textContent='...'; btn.disabled=true;
   try{
     if(scope==='props'){
-      if(!bet.player||!bet.stat){showManual(scope,i);btn.textContent='GRADE';return;}
-      const player=await findPlayer(bet.player);
-      if(!player){showManual(scope,i);btn.textContent='GRADE';return;}
-      const actual=await getPlayerStat(player.id,bet.date,bet.stat);
-      if(actual===null||actual===undefined){showManual(scope,i);btn.textContent='GRADE';return;}
-      const n=parseFloat(actual);
-      const result=n===bet.line?'push':(bet.ou==='over'?n>bet.line:n<bet.line)?'win':'loss';
-      doSetGrade(scope,i,result,n);
+      if(!bet.player||!bet.stat){ showManual(scope,i); }
+      else { const ok=await gradeSingleProp(scope,i); if(!ok) showManual(scope,i); }
     } else {
       const total=await getGameTotal(bet.away,bet.home,bet.date);
-      if(total===null){showManual(scope,i);btn.textContent='GRADE';return;}
-      const result=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss';
-      doSetGrade(scope,i,result,total);
+      if(total===null){ showManual(scope,i); }
+      else { const r=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss'; doSetGrade(scope,i,r,total); }
     }
-  }catch(e){showManual(scope,i);}
-  btn.textContent='GRADE';
+  }catch(e){ console.error('gradeBet:',e); showManual(scope,i); }
+  btn.textContent='GRADE'; btn.disabled=false;
 }
 
 function doSetGrade(scope,i,result,actual){
@@ -1229,28 +1273,25 @@ function doSetGrade(scope,i,result,actual){
 async function gradeAll(scope, btn){
   const bets=betsFor(scope);
   if(!bets.length) return;
-  btn.textContent='⏳ Grading...'; btn.disabled=true;
+  btn.disabled=true;
+  let done=0, total=bets.filter(b=>!b.grade).length;
   for(let i=0;i<bets.length;i++){
     if(bets[i].grade) continue;
+    btn.textContent=`⏳ ${++done}/${total}...`;
     const bet=bets[i];
     try{
       if(scope==='props'){
-        if(!bet.player||!bet.stat){showManual(scope,i);continue;}
-        const player=await findPlayer(bet.player);
-        if(!player){showManual(scope,i);continue;}
-        const actual=await getPlayerStat(player.id,bet.date,bet.stat);
-        if(actual===null||actual===undefined){showManual(scope,i);continue;}
-        const n=parseFloat(actual);
-        const result=n===bet.line?'push':(bet.ou==='over'?n>bet.line:n<bet.line)?'win':'loss';
-        doSetGrade(scope,i,result,n);
+        if(!bet.player||!bet.stat){ showManual(scope,i); continue; }
+        const ok=await gradeSingleProp(scope,i);
+        if(!ok) showManual(scope,i);
       } else {
-        const total=await getGameTotal(bet.away,bet.home,bet.date);
-        if(total===null){showManual(scope,i);continue;}
-        const result=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss';
-        doSetGrade(scope,i,result,total);
+        const tot=await getGameTotal(bet.away,bet.home,bet.date);
+        if(tot===null){ showManual(scope,i); continue; }
+        const r=tot===bet.line?'push':(bet.ou==='over'?tot>bet.line:tot<bet.line)?'win':'loss';
+        doSetGrade(scope,i,r,tot);
       }
-    }catch(e){showManual(scope,i);}
-    await new Promise(r=>setTimeout(r,350));
+    }catch(e){ showManual(scope,i); }
+    await new Promise(r=>setTimeout(r,300));
   }
   btn.textContent='⚡ GRADE ALL'; btn.disabled=false;
   render(scope);
