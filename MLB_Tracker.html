@@ -1272,9 +1272,16 @@ async function findPlayer(name){
 async function getGamesForDate(dateStr){
   if(gameIdCache[dateStr]) return gameIdCache[dateStr];
   try{
-    const d=await bdlGet(`/mlb/v1/games?dates[]=${dateStr}&per_page=25`);
-    gameIdCache[dateStr]=d.data||[];
-    return gameIdCache[dateStr];
+    // Also fetch next day in case late games are indexed there
+    const next = new Date(dateStr+'T12:00:00'); next.setDate(next.getDate()+1);
+    const nextStr = next.toISOString().split('T')[0];
+    const [d1, d2] = await Promise.all([
+      bdlGet(`/mlb/v1/games?dates[]=${dateStr}&per_page=25`).catch(()=>({data:[]})),
+      bdlGet(`/mlb/v1/games?dates[]=${nextStr}&per_page=25`).catch(()=>({data:[]})),
+    ]);
+    const games = [...(d1.data||[]), ...(d2.data||[])];
+    gameIdCache[dateStr]=games;
+    return games;
   }catch(e){
     console.warn('BDL games failed:',e.message);
     gameIdCache[dateStr]=[];
