@@ -6,823 +6,902 @@
 <title>MLB BET TRACKER</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#050505;--surface:#0e0e0e;--border:#1a1a1a;--border2:#222;
+  --green:#00e676;--green2:#00c853;--green-dim:#003d1a;
+  --red:#ff3d3d;--red-dim:#3d0000;--yellow:#ffd600;
+  --text:#f0f0f0;--muted:#555;--muted2:#333;
+  --purple:#9c27b0;--orange:#ff6d00;
+  --mono:'DM Mono',monospace;--display:'Barlow Condensed',sans-serif;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--mono);}
+.app{max-width:860px;margin:0 auto;padding:24px 16px 80px;}
 
-  :root {
-    --bg:       #050505;
-    --surface:  #0e0e0e;
-    --border:   #1a1a1a;
-    --border2:  #222;
-    --green:    #00e676;
-    --green2:   #00c853;
-    --green-dim:#003d1a;
-    --red:      #ff3d3d;
-    --red-dim:  #3d0000;
-    --yellow:   #ffd600;
-    --text:     #f0f0f0;
-    --muted:    #555;
-    --muted2:   #333;
-    --mono:     'DM Mono', monospace;
-    --display:  'Barlow Condensed', sans-serif;
-  }
+/* Header */
+.header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid var(--border2);padding-bottom:16px;}
+.header-title{font-family:var(--display);font-size:42px;font-weight:900;letter-spacing:.04em;line-height:1;color:var(--green);text-transform:uppercase;}
+.header-sub{font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:4px;}
+.header-actions{display:flex;gap:8px;align-items:center;}
 
-  html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--mono); }
+/* Tabs */
+.tab-bar{display:flex;gap:4px;margin-bottom:24px;}
+.tab{font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.08em;padding:8px 24px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.tab.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
 
-  .app { max-width: 780px; margin: 0 auto; padding: 24px 16px 80px; }
+/* Buttons */
+.btn{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.08em;border:1px solid var(--border2);background:var(--surface);color:var(--muted);padding:8px 14px;border-radius:6px;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.btn:hover{border-color:var(--green);color:var(--green);}
+.btn-green{background:var(--green);color:#000;border-color:var(--green);font-weight:700;}
+.btn-green:hover{background:var(--green2);border-color:var(--green2);color:#000;}
+.btn-danger{border-color:var(--red-dim);color:var(--red);}
+.btn-danger:hover{background:var(--red-dim);}
 
-  .header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; border-bottom: 1px solid var(--border2); padding-bottom: 16px; }
-  .header-title { font-family: var(--display); font-size: 42px; font-weight: 900; letter-spacing: 0.04em; line-height: 1; color: var(--green); text-transform: uppercase; }
-  .header-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
-  .header-actions { display: flex; gap: 8px; align-items: center; }
+/* Period tabs */
+.period-tabs{display:flex;gap:4px;margin-bottom:12px;}
+.period-tab{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.06em;padding:6px 14px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.period-tab.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
 
-  .btn { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; border: 1px solid var(--border2); background: var(--surface); color: var(--muted); padding: 8px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
-  .btn:hover { border-color: var(--green); color: var(--green); }
-  .btn-green { background: var(--green); color: #000; border-color: var(--green); font-weight: 700; }
-  .btn-green:hover { background: var(--green2); border-color: var(--green2); color: #000; }
-  .btn-danger { border-color: var(--red-dim); color: var(--red); }
-  .btn-danger:hover { background: var(--red-dim); }
+/* Stat cards */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;}
+.stats-grid-2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
+.stat-label{font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.stat-val{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:.02em;}
+.stat-val.pos{color:var(--green);}
+.stat-val.neg{color:var(--red);}
+.stat-val.neu{color:var(--muted);}
 
-  .dashboard { margin-bottom: 24px; }
-  .period-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-  .period-tab { font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
-  .period-tab.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+/* Breakdown table */
+.breakdown-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.breakdown-table{width:100%;border-collapse:collapse;font-size:11px;}
+.breakdown-table th{background:#0f0f1a;color:var(--muted);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:8px 10px;text-align:center;border-bottom:1px solid var(--border2);}
+.breakdown-table th.left{text-align:left;}
+.breakdown-table th.over-hdr{background:#1a0f00;color:var(--orange);}
+.breakdown-table th.under-hdr{background:#0f001a;color:var(--purple);}
+.breakdown-table td{padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);color:var(--text);}
+.breakdown-table td.left{text-align:left;font-weight:500;}
+.breakdown-table tr:last-child td{border-bottom:none;}
+.breakdown-table tr:hover td{background:#111;}
+.pos-val{color:var(--green);}
+.neg-val{color:var(--red);}
+.neu-val{color:var(--muted);}
 
-  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
-  .stats-grid-2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
-  .stat-label { font-size: 9px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
-  .stat-val { font-family: var(--display); font-size: 22px; font-weight: 800; letter-spacing: 0.02em; }
-  .stat-val.pos { color: var(--green); }
-  .stat-val.neg { color: var(--red); }
-  .stat-val.neu { color: var(--muted); }
+/* Input */
+.input-section{background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:16px;margin-bottom:20px;}
+.date-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.date-label{font-size:10px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;}
+.date-input{background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer;}
+.date-input:focus{border-color:var(--green);}
+.paste-label{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
+.bet-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text);font-family:var(--mono);font-size:12px;resize:none;outline:none;transition:border-color .15s;line-height:1.7;}
+.bet-input:focus{border-color:var(--green);}
+.bet-input::placeholder{color:var(--muted);}
+.add-row{display:flex;justify-content:flex-end;margin-top:8px;}
 
-  .breakdown { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 8px; }
-  .breakdown-title { font-size: 9px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
-  .tag-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
-  .tag-row:last-child { border-bottom: none; }
-  .tag-name { flex: 1; color: var(--green); font-weight: 500; }
-  .tag-wl { color: var(--text); min-width: 50px; }
-  .tag-pl { min-width: 70px; text-align: right; }
-  .tag-pl.pos { color: var(--green); }
-  .tag-pl.neg { color: var(--red); }
-  .tag-empty { color: var(--muted); font-size: 11px; text-align: center; padding: 8px; }
+/* Parse preview */
+.parse-preview{margin-top:10px;display:none;}
+.parse-preview-title{font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.parse-pill{display:inline-flex;align-items:center;gap:6px;font-size:10px;padding:3px 8px;border-radius:3px;background:var(--green-dim);color:var(--green);border:1px solid #005c1f;margin:2px 3px 2px 0;}
+.parse-pill.err{background:var(--red-dim);color:var(--red);border-color:#5c0000;}
 
-  .input-section { background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; padding: 16px; margin-bottom: 20px; }
-  .date-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .date-label { font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
-  .date-input { background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 7px 10px; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; cursor: pointer; }
-  .date-input:focus { border-color: var(--green); }
-
-  .paste-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
-  .bet-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 10px 12px; color: var(--text); font-family: var(--mono); font-size: 12px; font-weight: 500; resize: none; outline: none; transition: border-color 0.15s; line-height: 1.7; }
-  .bet-input:focus { border-color: var(--green); }
-  .bet-input::placeholder { color: var(--muted); }
-
-  .add-row { display: flex; justify-content: flex-end; margin-top: 8px; }
-
-  .parse-preview { margin-top: 10px; display: none; }
-  .parse-preview-title { font-size: 9px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
-  .parse-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; padding: 3px 8px; border-radius: 3px; background: var(--green-dim); color: var(--green); border: 1px solid #005c1f; margin: 2px 3px 2px 0; }
-  .parse-pill.err { background: var(--red-dim); color: var(--red); border-color: #5c0000; }
-
-  .bets-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .bets-title { font-family: var(--display); font-size: 16px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); }
-  .bets-count { font-size: 11px; color: var(--green); margin-left: 8px; font-weight: 500; }
-
-  .bet-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; transition: border-color 0.15s; }
-  .bet-item:hover { border-color: var(--border2); }
-  .bet-item.graded-win  { border-left: 3px solid var(--green); }
-  .bet-item.graded-loss { border-left: 3px solid var(--red); }
-  .bet-item.graded-push { border-left: 3px solid var(--yellow); }
-
-  .bet-text { font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--text); margin-bottom: 7px; }
-  .bet-meta { display: flex; gap: 5px; margin-bottom: 7px; flex-wrap: wrap; }
-  .stat-pill { font-size: 10px; padding: 2px 8px; border-radius: 3px; background: #0a1f0a; border: 1px solid #1a3a1a; color: #00c853; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; }
-  .bet-date-str { font-size: 10px; color: var(--muted); margin-bottom: 8px; }
-  .bet-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .bet-btn { font-family: var(--mono); font-size: 10px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.06em; }
-  .bet-btn:hover { border-color: var(--green); color: var(--green); }
-  .bet-btn.delete:hover { border-color: var(--red); color: var(--red); }
-
-  .grade-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; }
-  .grade-win  { background: #002910; border: 1px solid var(--green); color: var(--green); }
-  .grade-loss { background: var(--red-dim); border: 1px solid var(--red); color: var(--red); }
-  .grade-push { background: #2a2000; border: 1px solid var(--yellow); color: var(--yellow); }
-
-  .manual-grade-btns { display: inline-flex; gap: 4px; }
-  .mgb { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 4px; border: none; cursor: pointer; letter-spacing: 0.06em; }
-  .mgb-w { background: var(--green); color: #000; }
-  .mgb-l { background: var(--red); color: #fff; }
-  .mgb-p { background: var(--yellow); color: #000; }
-
-  .grade-all-btn { width: 100%; padding: 11px; border-radius: 8px; border: 1px solid #1a3a1a; background: #0a1a0a; color: var(--green); font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: 0.1em; cursor: pointer; text-transform: uppercase; transition: all 0.15s; margin-bottom: 16px; }
-  .grade-all-btn:hover { background: var(--green-dim); border-color: var(--green); }
-
-  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; border: 1px dashed var(--border2); border-radius: 8px; }
-
-  .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
-  .filter-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-right: 2px; }
-  .filter-tag { font-size: 10px; padding: 3px 10px; border-radius: 3px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; transition: all 0.12s; }
-  .filter-tag.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
-
-  .summary-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; padding: 14px; margin-bottom: 20px; }
-  .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .summary-label { font-size: 10px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
-  .summary-text { font-size: 14px; font-weight: 500; line-height: 1.8; }
-  .summary-text .line1 { color: var(--text); }
-  .summary-text .line2 { color: var(--green); font-weight: 700; }
-
-  #fileInput { display: none; }
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+/* Bets list */
+.bets-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.bets-title{font-family:var(--display);font-size:16px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
+.bets-count{font-size:11px;color:var(--green);margin-left:8px;}
+.bet-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;transition:border-color .15s;}
+.bet-item:hover{border-color:var(--border2);}
+.bet-item.graded-win{border-left:3px solid var(--green);}
+.bet-item.graded-loss{border-left:3px solid var(--red);}
+.bet-item.graded-push{border-left:3px solid var(--yellow);}
+.bet-text{font-size:13px;font-weight:500;line-height:1.5;color:var(--text);margin-bottom:7px;}
+.bet-meta{display:flex;gap:5px;margin-bottom:7px;flex-wrap:wrap;}
+.stat-pill{font-size:10px;padding:2px 8px;border-radius:3px;background:#0a1f0a;border:1px solid #1a3a1a;color:#00c853;letter-spacing:.07em;text-transform:uppercase;}
+.bet-date-str{font-size:10px;color:var(--muted);margin-bottom:8px;}
+.bet-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.bet-btn{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.06em;}
+.bet-btn:hover{border-color:var(--green);color:var(--green);}
+.bet-btn.delete:hover{border-color:var(--red);color:var(--red);}
+.grade-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.05em;}
+.grade-win{background:#002910;border:1px solid var(--green);color:var(--green);}
+.grade-loss{background:var(--red-dim);border:1px solid var(--red);color:var(--red);}
+.grade-push{background:#2a2000;border:1px solid var(--yellow);color:var(--yellow);}
+.manual-grade-btns{display:inline-flex;gap:4px;}
+.mgb{font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;border:none;cursor:pointer;letter-spacing:.06em;}
+.mgb-w{background:var(--green);color:#000;}
+.mgb-l{background:var(--red);color:#fff;}
+.mgb-p{background:var(--yellow);color:#000;}
+.grade-all-btn{width:100%;padding:11px;border-radius:8px;border:1px solid #1a3a1a;background:#0a1a0a;color:var(--green);font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.1em;cursor:pointer;text-transform:uppercase;transition:all .15s;margin-bottom:16px;}
+.grade-all-btn:hover{background:var(--green-dim);border-color:var(--green);}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase;border:1px dashed var(--border2);border-radius:8px;}
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filter-label{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
+.filter-tag{font-size:10px;padding:3px 10px;border-radius:3px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .12s;}
+.filter-tag.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.summary-box{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:20px;}
+.summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.summary-label{font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
+.summary-text .line1{color:var(--text);}
+.summary-text .line2{color:var(--green);font-weight:700;}
+#fileInput{display:none;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 </style>
 </head>
 <body>
 <div class="app">
 
-  <div class="header">
-    <div>
-      <div class="header-title">MLB TRACKER</div>
-      <div class="header-sub">Personal · MLB · 2025</div>
-    </div>
-    <div class="header-actions">
-      <button class="btn" onclick="loadFromFile()">↑ LOAD</button>
-      <button class="btn" onclick="saveToFile()">↓ SAVE</button>
-      <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)">
-    </div>
+<div class="header">
+  <div>
+    <div class="header-title">MLB TRACKER</div>
+    <div class="header-sub">Personal · MLB · 2025</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="loadFromFile()">↑ LOAD</button>
+    <button class="btn" onclick="saveToFile()">↓ SAVE</button>
+    <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)">
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('props',this)">Props</button>
+  <button class="tab" onclick="switchTab('totals',this)">Totals</button>
+</div>
+
+<!-- ═══ PROPS TAB ═══ -->
+<div id="tab-props">
+
+  <div class="period-tabs">
+    <button class="period-tab active" data-scope="props" onclick="setPeriod('props','all',this)">All Time</button>
+    <button class="period-tab" data-scope="props" onclick="setPeriod('props','month',this)">Month</button>
+    <button class="period-tab" data-scope="props" onclick="setPeriod('props','week',this)">Week</button>
+    <button class="period-tab" data-scope="props" onclick="setPeriod('props','day',this)">Today</button>
   </div>
 
-  <!-- Dashboard -->
-  <div class="dashboard">
-    <div class="period-tabs">
-      <button class="period-tab active" onclick="setPeriod('all',this)">All Time</button>
-      <button class="period-tab" onclick="setPeriod('month',this)">Month</button>
-      <button class="period-tab" onclick="setPeriod('week',this)">Week</button>
-      <button class="period-tab" onclick="setPeriod('day',this)">Today</button>
-    </div>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">W-L</div><div class="stat-val neu" id="dWL">—</div></div>
-      <div class="stat-card"><div class="stat-label">Units +/-</div><div class="stat-val neu" id="dPL">—</div></div>
-      <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-val neu" id="dWR">—</div></div>
-    </div>
-    <div class="stats-grid-2">
-      <div class="stat-card"><div class="stat-label">ROI</div><div class="stat-val neu" id="dROI">—</div></div>
-      <div class="stat-card"><div class="stat-label">Bets</div><div class="stat-val neu" id="dBets">—</div></div>
-      <div class="stat-card"><div class="stat-label">Avg Odds</div><div class="stat-val neu" id="dOdds">—</div></div>
-    </div>
-
-    <!-- Stat breakdown -->
-    <div class="breakdown" id="statBreakdown">
-      <div class="breakdown-title">By Stat</div>
-      <div class="tag-empty" id="statEmpty">No graded bets yet</div>
-    </div>
-
-    <!-- Book breakdown -->
-    <div class="breakdown" id="bookBreakdown">
-      <div class="breakdown-title">By Book</div>
-      <div class="tag-empty" id="bookEmpty">No graded bets yet</div>
-    </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">W-L</div><div class="stat-val neu" id="p-dWL">—</div></div>
+    <div class="stat-card"><div class="stat-label">Units +/-</div><div class="stat-val neu" id="p-dPL">—</div></div>
+    <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-val neu" id="p-dWR">—</div></div>
+  </div>
+  <div class="stats-grid-2">
+    <div class="stat-card"><div class="stat-label">ROI</div><div class="stat-val neu" id="p-dROI">—</div></div>
+    <div class="stat-card"><div class="stat-label">Bets</div><div class="stat-val neu" id="p-dBets">—</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Odds</div><div class="stat-val neu" id="p-dOdds">—</div></div>
   </div>
 
-  <!-- Summary -->
-  <div class="summary-box" id="summaryBox" style="display:none">
+  <!-- Market breakdown table -->
+  <div class="breakdown-wrap" id="p-breakdownWrap" style="display:none">
+    <table class="breakdown-table">
+      <thead>
+        <tr>
+          <th class="left" rowspan="2">Market</th>
+          <th rowspan="2">Total</th>
+          <th colspan="5" class="over-hdr">OVER</th>
+          <th colspan="5" class="under-hdr">UNDER</th>
+        </tr>
+        <tr>
+          <th class="over-hdr">Bets</th><th class="over-hdr">W</th><th class="over-hdr">L</th><th class="over-hdr">Win%</th><th class="over-hdr">ROI</th>
+          <th class="under-hdr">Bets</th><th class="under-hdr">W</th><th class="under-hdr">L</th><th class="under-hdr">Win%</th><th class="under-hdr">ROI</th>
+        </tr>
+      </thead>
+      <tbody id="p-breakdownBody"></tbody>
+    </table>
+  </div>
+
+  <div class="summary-box" id="p-summaryBox" style="display:none">
     <div class="summary-header">
       <div class="summary-label">Summary</div>
-      <button class="btn" id="copyBtn" onclick="copySummary()">COPY</button>
+      <button class="btn" id="p-copyBtn" onclick="copySummary('props')">COPY</button>
     </div>
-    <div class="summary-text" id="summaryText"></div>
+    <div class="summary-text" id="p-summaryText"></div>
   </div>
 
-  <!-- Input -->
   <div class="input-section">
     <div class="date-row">
       <span class="date-label">Date</span>
-      <input type="date" class="date-input" id="betDate">
+      <input type="date" class="date-input" id="p-betDate">
     </div>
     <div class="paste-label">Paste slate</div>
-    <textarea class="bet-input" id="slateInput" rows="8"
-      placeholder="Jakob Marsee (Miami) under .5 hits&#10;PB +160&#10;Freddie Freeman (dodgers) under .5 hits&#10;PB +197&#10;..."
+    <textarea class="bet-input" id="p-slateInput" rows="8"
+      placeholder="Jakob Marsee (Miami) under .5 hits&#10;PB +160&#10;Freddie Freeman (dodgers) under .5 hits&#10;PB +197&#10;Alejandro Kirk (Bluejays) under .5 hits&#10;PB +191"
       autocorrect="off" autocapitalize="off" spellcheck="false"
-      oninput="previewParse()"></textarea>
-    <div class="parse-preview" id="parsePreview">
-      <div class="parse-preview-title">Parsed — <span id="parseCount">0</span> bets</div>
-      <div id="parsePills"></div>
+      oninput="previewParse('props')"></textarea>
+    <div class="parse-preview" id="p-parsePreview">
+      <div class="parse-preview-title">Parsed — <span id="p-parseCount">0</span> bets</div>
+      <div id="p-parsePills"></div>
     </div>
     <div class="add-row">
-      <button class="btn btn-green" onclick="addSlate()">+ ADD ALL</button>
+      <button class="btn btn-green" onclick="addSlate('props')">+ ADD ALL</button>
     </div>
   </div>
 
-  <!-- Bets list -->
   <div class="bets-header">
-    <div>
-      <span class="bets-title">Bets</span>
-      <span class="bets-count" id="betsCount"></span>
+    <div><span class="bets-title">Bets</span><span class="bets-count" id="p-betsCount"></span></div>
+    <button class="btn btn-danger" onclick="clearAll('props')">CLEAR ALL</button>
+  </div>
+  <button class="grade-all-btn" onclick="gradeAll('props',this)">⚡ GRADE ALL</button>
+  <div class="filter-bar" id="p-filterBar"></div>
+  <div id="p-betsList"></div>
+</div>
+
+<!-- ═══ TOTALS TAB ═══ -->
+<div id="tab-totals" style="display:none">
+
+  <div class="period-tabs">
+    <button class="period-tab active" data-scope="totals" onclick="setPeriod('totals','all',this)">All Time</button>
+    <button class="period-tab" data-scope="totals" onclick="setPeriod('totals','month',this)">Month</button>
+    <button class="period-tab" data-scope="totals" onclick="setPeriod('totals','week',this)">Week</button>
+    <button class="period-tab" data-scope="totals" onclick="setPeriod('totals','day',this)">Today</button>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">W-L</div><div class="stat-val neu" id="t-dWL">—</div></div>
+    <div class="stat-card"><div class="stat-label">Units +/-</div><div class="stat-val neu" id="t-dPL">—</div></div>
+    <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-val neu" id="t-dWR">—</div></div>
+  </div>
+  <div class="stats-grid-2">
+    <div class="stat-card"><div class="stat-label">ROI</div><div class="stat-val neu" id="t-dROI">—</div></div>
+    <div class="stat-card"><div class="stat-label">Bets</div><div class="stat-val neu" id="t-dBets">—</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Odds</div><div class="stat-val neu" id="t-dOdds">—</div></div>
+  </div>
+
+  <!-- Over/Under breakdown table -->
+  <div class="breakdown-wrap" id="t-breakdownWrap" style="display:none">
+    <table class="breakdown-table">
+      <thead>
+        <tr>
+          <th class="left">Direction</th>
+          <th>Bets</th><th>W</th><th>L</th><th>Win%</th>
+          <th>Units Staked</th><th>Units Won</th><th>Net</th><th>ROI</th>
+        </tr>
+      </thead>
+      <tbody id="t-breakdownBody"></tbody>
+    </table>
+  </div>
+
+  <div class="summary-box" id="t-summaryBox" style="display:none">
+    <div class="summary-header">
+      <div class="summary-label">Summary</div>
+      <button class="btn" id="t-copyBtn" onclick="copySummary('totals')">COPY</button>
     </div>
-    <div>
-      <button class="btn btn-danger" onclick="clearAllBets()">CLEAR ALL</button>
+    <div class="summary-text" id="t-summaryText"></div>
+  </div>
+
+  <div class="input-section">
+    <div class="date-row">
+      <span class="date-label">Date</span>
+      <input type="date" class="date-input" id="t-betDate">
+    </div>
+    <div class="paste-label">Paste totals</div>
+    <textarea class="bet-input" id="t-slateInput" rows="6"
+      placeholder="Yankees vs Red Sox over 8.5 runs&#10;DK -115&#10;Dodgers vs Padres under 7.5&#10;FD +105"
+      autocorrect="off" autocapitalize="off" spellcheck="false"
+      oninput="previewParse('totals')"></textarea>
+    <div class="parse-preview" id="t-parsePreview">
+      <div class="parse-preview-title">Parsed — <span id="t-parseCount">0</span> bets</div>
+      <div id="t-parsePills"></div>
+    </div>
+    <div class="add-row">
+      <button class="btn btn-green" onclick="addSlate('totals')">+ ADD ALL</button>
     </div>
   </div>
 
-  <button class="grade-all-btn" onclick="gradeAll(this)">⚡ GRADE ALL</button>
-
-  <div class="filter-bar" id="filterBar"></div>
-
-  <div id="betsList"></div>
-
+  <div class="bets-header">
+    <div><span class="bets-title">Bets</span><span class="bets-count" id="t-betsCount"></span></div>
+    <button class="btn btn-danger" onclick="clearAll('totals')">CLEAR ALL</button>
+  </div>
+  <button class="grade-all-btn" onclick="gradeAll('totals',this)">⚡ GRADE ALL</button>
+  <div class="filter-bar" id="t-filterBar"></div>
+  <div id="t-betsList"></div>
 </div>
+
+</div><!-- .app -->
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────
-let bets = [];
-let activePeriod = 'all';
-let activeFilter = null;
+let propBets = [];
+let totalBets = [];
+let periods = { props:'all', totals:'all' };
+let filters  = { props:null, totals:null };
+let activeTab = 'props';
 
-// ── Init ──────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  loadFromStorage();
-  initDate();
-  render();
+  try { propBets  = JSON.parse(localStorage.getItem('mlb_props')  || '[]'); } catch(e){propBets=[];}
+  try { totalBets = JSON.parse(localStorage.getItem('mlb_totals') || '[]'); } catch(e){totalBets=[];}
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('p-betDate').value = today;
+  document.getElementById('t-betDate').value = today;
+  render('props');
+  render('totals');
 });
 
-function initDate() {
-  const el = document.getElementById('betDate');
-  const today = new Date().toISOString().split('T')[0];
-  el.value = today;
-  el.addEventListener('change', () => localStorage.setItem('mlb_date', el.value));
+function betsFor(scope){ return scope==='props' ? propBets : totalBets; }
+function saveBets(scope){
+  localStorage.setItem(scope==='props'?'mlb_props':'mlb_totals', JSON.stringify(betsFor(scope)));
 }
 
-// ── Storage ───────────────────────────────────────────────────────────
-function loadFromStorage() {
-  try { bets = JSON.parse(localStorage.getItem('mlb_bets') || '[]'); } catch(e) { bets = []; }
+// ── Tab switch ────────────────────────────────────────────────────────
+function switchTab(tab, btn){
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-props').style.display  = tab==='props'  ? '' : 'none';
+  document.getElementById('tab-totals').style.display = tab==='totals' ? '' : 'none';
 }
-function saveToStorage() {
-  localStorage.setItem('mlb_bets', JSON.stringify(bets));
-}
-
-// ── File IO ───────────────────────────────────────────────────────────
-function saveToFile() {
-  const blob = new Blob([JSON.stringify({ version:1, exported: new Date().toISOString(), bets }, null, 2)], { type:'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `mlb-tracker-${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-}
-function loadFromFile() { document.getElementById('fileInput').click(); }
-function handleFileLoad(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = evt => {
-    try {
-      const data = JSON.parse(evt.target.result);
-      if (data.bets) { bets = data.bets; saveToStorage(); render(); }
-    } catch(err) { alert('Invalid file'); }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-}
-
-// ── Slate Parser ──────────────────────────────────────────────────────
-// Handles format:
-//   Player Name (Team) over/under X.X stat
-//   BOOK +/-ODDS [optional: I got ODDS]
-//
-// Also handles inline format: Player (Team) u.5 hits PB +160
-
-const STAT_ALIASES = {
-  'hit': 'hits', 'hits': 'hits',
-  'tb': 'total bases', 'total base': 'total bases', 'total bases': 'total bases',
-  'k': 'strikeouts', 'ks': 'strikeouts', 'strikeout': 'strikeouts', 'strikeouts': 'strikeouts',
-  'hr': 'home runs', 'home run': 'home runs', 'home runs': 'home runs',
-  'rbi': 'rbis', 'rbis': 'rbis',
-  'run': 'runs', 'runs': 'runs',
-  'walk': 'walks', 'walks': 'walks', 'bb': 'walks',
-  'single': 'singles', 'singles': 'singles',
-  'double': 'doubles', 'doubles': 'doubles',
-  'stolen base': 'stolen bases', 'stolen bases': 'stolen bases', 'sb': 'stolen bases',
-  'pitch': 'pitching ks', 'pitching k': 'pitching ks', 'pitching ks': 'pitching ks',
-  'out': 'outs recorded', 'outs': 'outs recorded', 'outs recorded': 'outs recorded',
-  'er': 'earned runs', 'earned run': 'earned runs', 'earned runs': 'earned runs',
-};
-
-const BOOK_ALIASES = {
-  'pb': 'PrizePicks', 'prizepicks': 'PrizePicks',
-  'dk': 'DraftKings', 'draftkings': 'DraftKings',
-  'fd': 'FanDuel', 'fanduel': 'FanDuel',
-  'espn': 'ESPN', 'mgm': 'BetMGM', 'betmgm': 'BetMGM',
-  'czr': 'Caesars', 'caesars': 'Caesars',
-  'bet365': 'Bet365', 'hard': 'Hard Rock', 'hardrock': 'Hard Rock',
-  'fliff': 'Fliff', 'pin': 'Pinnacle', 'pinnacle': 'Pinnacle',
-  'novig': 'Novig', 'nv': 'Novig', 'bov': 'Bovada', 'bovada': 'Bovada',
-};
-
-function normalizeOdds(str) {
-  str = str.trim();
-  if (!str) return null;
-  const n = parseInt(str.replace(/[^0-9\-+]/g,''));
-  if (isNaN(n)) return null;
-  if (str.startsWith('-')) return n;
-  return Math.abs(n);
-}
-
-function parseSlateLine(line) {
-  line = line.trim();
-  // Try: "Player (Team) over/under X.X stat"
-  const propMatch = line.match(/^(.+?)\s*\(([^)]+)\)\s*(over|under|o|u)\s*([\d.]+)\s+(.+)$/i);
-  if (propMatch) {
-    const player = propMatch[1].trim();
-    const team = propMatch[2].trim();
-    const ouRaw = propMatch[3].toLowerCase();
-    const ou = (ouRaw === 'o') ? 'over' : (ouRaw === 'u') ? 'under' : ouRaw;
-    const line_ = parseFloat(propMatch[4]);
-    const statRaw = propMatch[5].trim().toLowerCase();
-    const stat = STAT_ALIASES[statRaw] || statRaw;
-    return { type: 'prop', player, team, ou, line: line_, stat };
-  }
-  // Try book line: "PB +160" or "DK +197"
-  const bookMatch = line.match(/^([a-z0-9]+)\s+([+-]?\d{2,4})(?:\s+.*)?$/i);
-  if (bookMatch) {
-    const bookKey = bookMatch[1].toLowerCase();
-    const book = BOOK_ALIASES[bookKey] || bookMatch[1].toUpperCase();
-    const odds = normalizeOdds(bookMatch[2]);
-    if (odds !== null) return { type: 'book', book, odds };
-  }
-  // "I got ODDS" line
-  const igotMatch = line.match(/i\s+got\s+([+-]?\d{2,4})/i);
-  if (igotMatch) {
-    const odds = normalizeOdds(igotMatch[1]);
-    if (odds !== null) return { type: 'igot', odds };
-  }
-  return null;
-}
-
-function parseSlate(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const parsed = [];
-  let current = null;
-
-  for (const line of lines) {
-    // Skip pure annotation lines
-    if (/^(just\s+send|this\s+is\s+just|incase)/i.test(line)) continue;
-
-    const result = parseSlateLine(line);
-    if (!result) continue;
-
-    if (result.type === 'prop') {
-      if (current) parsed.push(current);
-      current = { player: result.player, team: result.team, ou: result.ou, line: result.line, stat: result.stat, book: null, odds: null };
-    } else if (result.type === 'book' && current && !current.book) {
-      current.book = result.book;
-      current.odds = result.odds;
-    } else if (result.type === 'igot' && current) {
-      // "I got X" overrides the book odds
-      current.odds = result.odds;
-    } else if (result.type === 'book' && current && current.book) {
-      // Second book line = "I got" equivalent or just ignore
-    }
-  }
-  if (current) parsed.push(current);
-  return parsed;
-}
-
-function formatBetText(b) {
-  const ouStr = b.ou.charAt(0).toUpperCase() + b.ou.slice(1);
-  const oddsStr = b.odds !== null ? (b.odds > 0 ? `+${b.odds}` : `${b.odds}`) : '';
-  return `${b.player} (${b.team}) ${ouStr} ${b.line} ${b.stat}${b.book ? ' · ' + b.book : ''}${oddsStr ? ' ' + oddsStr : ''}`;
-}
-
-function previewParse() {
-  const text = document.getElementById('slateInput').value;
-  const parsed = parseSlate(text);
-  const preview = document.getElementById('parsePreview');
-  const pills = document.getElementById('parsePills');
-  const countEl = document.getElementById('parseCount');
-
-  if (!text.trim() || !parsed.length) { preview.style.display = 'none'; return; }
-  preview.style.display = 'block';
-  countEl.textContent = parsed.length;
-
-  pills.innerHTML = parsed.map(b => {
-    const ok = b.player && b.stat && b.odds !== null;
-    const oddsStr = b.odds !== null ? (b.odds > 0 ? `+${b.odds}` : `${b.odds}`) : '?';
-    return `<span class="parse-pill ${ok ? '' : 'err'}">${b.player} ${b.ou} ${b.line} ${b.stat} ${oddsStr}</span>`;
-  }).join('');
-}
-
-function addSlate() {
-  const text = document.getElementById('slateInput').value;
-  const parsed = parseSlate(text);
-  if (!parsed.length) return;
-  const date = document.getElementById('betDate').value;
-
-  const newBets = parsed.map(b => ({
-    id: Date.now() + Math.random(),
-    text: formatBetText(b),
-    player: b.player,
-    team: b.team,
-    ou: b.ou,
-    line: b.line,
-    stat: b.stat,
-    book: b.book,
-    odds: b.odds,
-    date,
-    grade: null,
-    actual: null,
-  }));
-
-  bets = [...newBets, ...bets];
-  saveToStorage();
-  document.getElementById('slateInput').value = '';
-  document.getElementById('parsePreview').style.display = 'none';
-  render();
-}
-
-// ── Units math ────────────────────────────────────────────────────────
-function calcPL(odds, result) {
-  if (result === 'push') return 0;
-  if (!odds) return result === 'win' ? 1 : -1;
-  if (odds > 0) return result === 'win' ? +(odds / 100).toFixed(3) : -1;
-  const risk = +(Math.abs(odds) / 100).toFixed(3);
-  return result === 'win' ? 1 : -risk;
-}
-function fmtPL(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + 'u'; }
-function fmtOdds(o) { return o > 0 ? '+' + o : '' + o; }
 
 // ── Period ────────────────────────────────────────────────────────────
-function setPeriod(p, btn) {
-  activePeriod = p;
-  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+function setPeriod(scope, p, btn){
+  periods[scope] = p;
+  document.querySelectorAll(`.period-tab[data-scope="${scope}"]`).forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  render();
+  render(scope);
 }
 
-function inPeriod(bet) {
-  if (activePeriod === 'all') return true;
-  const d = new Date(bet.date + 'T12:00:00');
-  const now = new Date();
-  if (activePeriod === 'day') return bet.date === now.toISOString().split('T')[0];
-  if (activePeriod === 'week') { const w = new Date(now); w.setDate(now.getDate()-7); return d >= w; }
-  if (activePeriod === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+function inPeriod(scope, bet){
+  const p = periods[scope];
+  if(p==='all') return true;
+  const d = new Date(bet.date+'T12:00:00'), now = new Date();
+  if(p==='day') return bet.date===now.toISOString().split('T')[0];
+  if(p==='week'){ const w=new Date(now); w.setDate(now.getDate()-7); return d>=w; }
+  if(p==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
   return true;
 }
 
-// ── Dashboard ─────────────────────────────────────────────────────────
-function updateDashboard() {
-  const filtered = bets.filter(b => inPeriod(b) && (!activeFilter || b.stat === activeFilter));
-  const graded = filtered.filter(b => b.grade === 'win' || b.grade === 'loss' || b.grade === 'push');
-  const wins = graded.filter(b => b.grade === 'win').length;
-  const losses = graded.filter(b => b.grade === 'loss').length;
-  const total = wins + losses;
-  const pl = graded.reduce((s, b) => s + calcPL(b.odds, b.grade), 0);
-  const risk = graded.reduce((s, b) => {
-    if (!b.odds) return s + 1;
-    return s + (b.odds < 0 ? Math.abs(b.odds)/100 : 1);
-  }, 0);
-  const roi = risk ? (pl/risk*100).toFixed(1)+'%' : '—';
-  const wr = total ? (wins/total*100).toFixed(1)+'%' : '—';
-  const oddsArr = graded.filter(b => b.odds).map(b => b.odds);
-  const avgOdds = oddsArr.length ? Math.round(oddsArr.reduce((a,b) => a+b,0)/oddsArr.length) : null;
-
-  const set = (id, val, cls) => {
-    const el = document.getElementById(id);
-    el.textContent = val;
-    el.className = 'stat-val ' + (cls || 'neu');
+// ── File IO ───────────────────────────────────────────────────────────
+function saveToFile(){
+  const blob = new Blob([JSON.stringify({version:1,exported:new Date().toISOString(),propBets,totalBets},null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`mlb-tracker-${new Date().toISOString().split('T')[0]}.json`; a.click();
+}
+function loadFromFile(){ document.getElementById('fileInput').click(); }
+function handleFileLoad(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=evt=>{
+    try{
+      const data=JSON.parse(evt.target.result);
+      if(data.propBets){ propBets=data.propBets; localStorage.setItem('mlb_props',JSON.stringify(propBets)); }
+      if(data.totalBets){ totalBets=data.totalBets; localStorage.setItem('mlb_totals',JSON.stringify(totalBets)); }
+      render('props'); render('totals');
+    }catch(err){alert('Invalid file');}
   };
-  set('dWL', total ? `${wins}-${losses}` : '—', total ? (wins >= losses ? 'pos' : 'neg') : 'neu');
-  const plCls = pl > 0 ? 'pos' : pl < 0 ? 'neg' : 'neu';
-  set('dPL', graded.length ? fmtPL(pl) : '—', plCls);
-  set('dWR', wr, total ? (wins/total >= 0.5 ? 'pos' : 'neg') : 'neu');
-  set('dROI', roi, roi !== '—' ? (parseFloat(roi) >= 0 ? 'pos' : 'neg') : 'neu');
-  set('dBets', filtered.length || '—', 'neu');
-  set('dOdds', avgOdds ? fmtOdds(avgOdds) : '—', avgOdds ? (avgOdds >= 0 ? 'pos' : 'neu') : 'neu');
-
-  updateStatBreakdown(filtered);
-  updateBookBreakdown(filtered);
-  updateSummary(wins, losses, pl);
+  reader.readAsText(file); e.target.value='';
 }
 
-function updateStatBreakdown(filtered) {
-  const el = document.getElementById('statBreakdown');
-  const empty = document.getElementById('statEmpty');
-  el.querySelectorAll('.tag-row').forEach(r => r.remove());
+// ── Unit math ─────────────────────────────────────────────────────────
+// Props: +odds stake 1u to win odds/100; -odds stake abs/100 to win 1u
+// Totals: +odds stake 1u; -odds stake abs/100 to win 1u (same)
+function calcStake(odds){
+  if(!odds) return 1;
+  return odds>0 ? 1 : +(Math.abs(odds)/100).toFixed(3);
+}
+function calcPayout(odds){
+  if(!odds) return 1;
+  return odds>0 ? +(odds/100).toFixed(3) : 1;
+}
+function calcPL(odds, result){
+  if(result==='push') return 0;
+  const stake=calcStake(odds), payout=calcPayout(odds);
+  return result==='win' ? payout : -stake;
+}
+function fmtPL(v){ return (v>=0?'+':'')+v.toFixed(2)+'u'; }
+function fmtOdds(o){ return o>0?'+'+o:''+o; }
+function fmtPct(w,l){ return (w+l)?((w/(w+l))*100).toFixed(1)+'%':'—'; }
 
-  const stats = {};
-  filtered.forEach(b => {
-    if (!b.stat || !b.grade || b.grade === 'push') return;
-    if (!stats[b.stat]) stats[b.stat] = { w:0, l:0, pl:0 };
-    if (b.grade === 'win') { stats[b.stat].w++; stats[b.stat].pl += calcPL(b.odds,'win'); }
-    else { stats[b.stat].l++; stats[b.stat].pl += calcPL(b.odds,'loss'); }
-  });
+// ── Parsers ───────────────────────────────────────────────────────────
+const STAT_MAP = {
+  'hit':'hits','hits':'hits',
+  'tb':'total bases','total base':'total bases','total bases':'total bases','bases':'total bases',
+  'k':'strikeouts','ks':'strikeouts','strikeout':'strikeouts','strikeouts':'strikeouts',
+  'hr':'home runs','home run':'home runs','home runs':'home runs',
+  'rbi':'rbis','rbis':'rbis',
+  'run':'runs','runs':'runs',
+  'walk':'walks','walks':'walks','bb':'walks',
+  'single':'singles','singles':'singles',
+  'double':'doubles','doubles':'doubles',
+  'stolen base':'stolen bases','stolen bases':'stolen bases','sb':'stolen bases',
+  'pitcher k':'pitcher ks','pitcher ks':'pitcher ks','pitching k':'pitcher ks','pitching ks':'pitcher ks',
+  'hit allowed':'hits allowed','hits allowed':'hits allowed',
+  'earned run':'earned runs','earned runs':'earned runs','er':'earned runs',
+  'walk allowed':'walks allowed','walks allowed':'walks allowed',
+  'out':'outs recorded','outs':'outs recorded','outs recorded':'outs recorded',
+};
 
-  const keys = Object.keys(stats);
-  if (!keys.length) { empty.style.display='block'; return; }
-  empty.style.display='none';
+const BOOK_MAP = {
+  'pb':'PrizePicks','prizepicks':'PrizePicks',
+  'dk':'DraftKings','draftkings':'DraftKings',
+  'fd':'FanDuel','fanduel':'FanDuel',
+  'espn':'ESPN','mgm':'BetMGM','betmgm':'BetMGM',
+  'czr':'Caesars','caesars':'Caesars',
+  'bet365':'Bet365','hard':'Hard Rock','hardrock':'Hard Rock',
+  'fliff':'Fliff','pin':'Pinnacle','pinnacle':'Pinnacle',
+  'novig':'Novig','nv':'Novig','bov':'Bovada',
+};
 
-  keys.sort((a,b) => (stats[b].w+stats[b].l) - (stats[a].w+stats[a].l)).forEach(stat => {
-    const d = stats[stat];
-    const row = document.createElement('div');
-    row.className = 'tag-row';
-    row.innerHTML = `<span class="tag-name">${stat}</span><span class="tag-wl">${d.w}-${d.l}</span><span class="tag-pl ${d.pl>=0?'pos':'neg'}">${fmtPL(d.pl)}</span>`;
-    el.appendChild(row);
-  });
+function normOdds(str){
+  const n=parseInt((str||'').replace(/[^0-9\-+]/g,''));
+  if(isNaN(n)) return null;
+  return str.trim().startsWith('-') ? n : Math.abs(n);
 }
 
-function updateBookBreakdown(filtered) {
-  const el = document.getElementById('bookBreakdown');
-  const empty = document.getElementById('bookEmpty');
-  el.querySelectorAll('.tag-row').forEach(r => r.remove());
-
-  const books = {};
-  filtered.forEach(b => {
-    if (!b.book || !b.grade || b.grade === 'push') return;
-    if (!books[b.book]) books[b.book] = { w:0, l:0, pl:0 };
-    if (b.grade === 'win') { books[b.book].w++; books[b.book].pl += calcPL(b.odds,'win'); }
-    else { books[b.book].l++; books[b.book].pl += calcPL(b.odds,'loss'); }
-  });
-
-  const keys = Object.keys(books);
-  if (!keys.length) { empty.style.display='block'; return; }
-  empty.style.display='none';
-
-  keys.sort().forEach(book => {
-    const d = books[book];
-    const row = document.createElement('div');
-    row.className = 'tag-row';
-    row.innerHTML = `<span class="tag-name">${book}</span><span class="tag-wl">${d.w}-${d.l}</span><span class="tag-pl ${d.pl>=0?'pos':'neg'}">${fmtPL(d.pl)}</span>`;
-    el.appendChild(row);
-  });
+// PROPS parser
+function parsePropsSlate(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const bets=[]; let cur=null;
+  for(const line of lines){
+    if(/^(just\s+send|this\s+is\s+just|incase)/i.test(line)) continue;
+    // prop line: Player (Team) over/under X.X stat
+    const prop=line.match(/^(.+?)\s*\(([^)]+)\)\s*(over|under|o(?=\s)|u(?=\s)|\bu\b|\bo\b)\s*([\d.]+)\s+(.+)$/i);
+    if(prop){
+      if(cur) bets.push(cur);
+      const ou=prop[3].toLowerCase();
+      const statRaw=prop[5].trim().toLowerCase();
+      cur={player:prop[1].trim(),team:prop[2].trim(),
+           ou:(ou==='o'?'over':ou==='u'?'under':ou),
+           line:parseFloat(prop[4]),
+           stat:STAT_MAP[statRaw]||statRaw,
+           book:null,odds:null};
+      continue;
+    }
+    // book line
+    const book=line.match(/^([a-z0-9]+)\s+([+-]?\d{2,4})/i);
+    if(book&&cur){
+      const bk=BOOK_MAP[book[1].toLowerCase()]||book[1].toUpperCase();
+      const odds=normOdds(book[2]);
+      if(odds!==null){
+        if(!cur.book){cur.book=bk;cur.odds=odds;}
+        continue;
+      }
+    }
+    // "I got X"
+    const igot=line.match(/i\s+got\s+([+-]?\d{2,4})/i);
+    if(igot&&cur){ cur.odds=normOdds(igot[1]); continue; }
+  }
+  if(cur) bets.push(cur);
+  return bets;
 }
 
-function updateSummary(wins, losses, pl) {
-  const box = document.getElementById('summaryBox');
-  const txt = document.getElementById('summaryText');
-  if (!(wins+losses)) { box.style.display='none'; return; }
+// TOTALS parser: "Team1 vs Team2 over/under X[.X] [runs/total]"  then book line
+function parseTotalsSlate(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const bets=[]; let cur=null;
+  for(const line of lines){
+    // total line
+    const tot=line.match(/^(.+?)\s+vs\.?\s+(.+?)\s+(over|under|o(?=[\s\d])|u(?=[\s\d]))\s*([\d.]+)(?:\s+(?:runs?|total|r))?$/i);
+    if(tot){
+      if(cur) bets.push(cur);
+      const ou=tot[3].toLowerCase();
+      cur={home:tot[2].trim(),away:tot[1].trim(),
+           ou:(ou==='o'?'over':ou==='u'?'under':ou),
+           line:parseFloat(tot[4]),
+           book:null,odds:null};
+      continue;
+    }
+    const book=line.match(/^([a-z0-9]+)\s+([+-]?\d{2,4})/i);
+    if(book&&cur){
+      const bk=BOOK_MAP[book[1].toLowerCase()]||book[1].toUpperCase();
+      const odds=normOdds(book[2]);
+      if(odds!==null&&!cur.book){cur.book=bk;cur.odds=odds; continue;}
+    }
+    const igot=line.match(/i\s+got\s+([+-]?\d{2,4})/i);
+    if(igot&&cur){ cur.odds=normOdds(igot[1]); continue; }
+  }
+  if(cur) bets.push(cur);
+  return bets;
+}
+
+function fmtPropText(b){
+  const ou=b.ou.charAt(0).toUpperCase()+b.ou.slice(1);
+  const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'';
+  return `${b.player} (${b.team}) ${ou} ${b.line} ${b.stat}${b.book?' · '+b.book:''}${o?' '+o:''}`;
+}
+function fmtTotalText(b){
+  const ou=b.ou.charAt(0).toUpperCase()+b.ou.slice(1);
+  const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'';
+  return `${b.away} vs ${b.home} ${ou} ${b.line}${b.book?' · '+b.book:''}${o?' '+o:''}`;
+}
+
+function previewParse(scope){
+  const inp=document.getElementById(`${scope[0]}-slateInput`).value;
+  const parsed=scope==='props'?parsePropsSlate(inp):parseTotalsSlate(inp);
+  const preview=document.getElementById(`${scope[0]}-parsePreview`);
+  const pills=document.getElementById(`${scope[0]}-parsePills`);
+  const cnt=document.getElementById(`${scope[0]}-parseCount`);
+  if(!inp.trim()||!parsed.length){preview.style.display='none';return;}
+  preview.style.display='block';
+  cnt.textContent=parsed.length;
+  if(scope==='props'){
+    pills.innerHTML=parsed.map(b=>{
+      const ok=b.player&&b.stat&&b.odds!==null;
+      const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'?';
+      return `<span class="parse-pill ${ok?'':'err'}">${b.player} ${b.ou} ${b.line} ${b.stat} ${o}</span>`;
+    }).join('');
+  } else {
+    pills.innerHTML=parsed.map(b=>{
+      const ok=b.home&&b.line&&b.odds!==null;
+      const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'?';
+      return `<span class="parse-pill ${ok?'':'err'}">${b.away} vs ${b.home} ${b.ou} ${b.line} ${o}</span>`;
+    }).join('');
+  }
+}
+
+function addSlate(scope){
+  const inp=document.getElementById(`${scope[0]}-slateInput`).value;
+  const parsed=scope==='props'?parsePropsSlate(inp):parseTotalsSlate(inp);
+  if(!parsed.length) return;
+  const date=document.getElementById(`${scope[0]}-betDate`).value;
+  const newBets=parsed.map(b=>({
+    id:Date.now()+Math.random(),
+    text:scope==='props'?fmtPropText(b):fmtTotalText(b),
+    ...(scope==='props'?{player:b.player,team:b.team,stat:b.stat}:{home:b.home,away:b.away}),
+    ou:b.ou,line:b.line,book:b.book,odds:b.odds,
+    date,grade:null,actual:null,
+  }));
+  if(scope==='props') propBets=[...newBets,...propBets];
+  else totalBets=[...newBets,...totalBets];
+  saveBets(scope);
+  document.getElementById(`${scope[0]}-slateInput`).value='';
+  document.getElementById(`${scope[0]}-parsePreview`).style.display='none';
+  render(scope);
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────
+function calcRisk(bets){ return bets.reduce((s,b)=>s+calcStake(b.odds),0); }
+
+function updateDash(scope){
+  const p=scope[0];
+  const all=betsFor(scope).filter(b=>inPeriod(scope,b)&&(!filters[scope]||(scope==='props'?b.stat:b.ou)===filters[scope]));
+  const graded=all.filter(b=>b.grade==='win'||b.grade==='loss'||b.grade==='push');
+  const wins=graded.filter(b=>b.grade==='win').length;
+  const losses=graded.filter(b=>b.grade==='loss').length;
+  const total=wins+losses;
+  const pl=graded.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+  const risk=calcRisk(graded);
+  const roi=risk?(pl/risk*100).toFixed(1)+'%':'—';
+  const wr=total?(wins/total*100).toFixed(1)+'%':'—';
+  const oddsArr=graded.filter(b=>b.odds).map(b=>b.odds);
+  const avg=oddsArr.length?Math.round(oddsArr.reduce((a,b)=>a+b,0)/oddsArr.length):null;
+
+  const set=(id,val,cls)=>{
+    const el=document.getElementById(id);
+    el.textContent=val; el.className='stat-val '+(cls||'neu');
+  };
+  set(`${p}-dWL`,total?`${wins}-${losses}`:'—',total?(wins>=losses?'pos':'neg'):'neu');
+  set(`${p}-dPL`,graded.length?fmtPL(pl):'—',pl>0?'pos':pl<0?'neg':'neu');
+  set(`${p}-dWR`,wr,total?(wins/total>=.5?'pos':'neg'):'neu');
+  set(`${p}-dROI`,roi,roi!=='—'?(parseFloat(roi)>=0?'pos':'neg'):'neu');
+  set(`${p}-dBets`,all.length||'—','neu');
+  set(`${p}-dOdds`,avg?fmtOdds(avg):'—','neu');
+
+  if(scope==='props') updatePropsBreakdown(all);
+  else updateTotalsBreakdown(all);
+  updateSummary(scope,wins,losses,pl);
+}
+
+function updatePropsBreakdown(filtered){
+  const wrap=document.getElementById('p-breakdownWrap');
+  const body=document.getElementById('p-breakdownBody');
+  const graded=filtered.filter(b=>b.grade&&b.grade!=='push');
+  if(!graded.length){wrap.style.display='none';return;}
+  wrap.style.display='';
+
+  // All stat markets that appear
+  const MARKETS=['hits','total bases','home runs','rbis','runs','walks','singles','doubles',
+                 'stolen bases','strikeouts','pitcher ks','hits allowed','earned runs','walks allowed','outs recorded'];
+  const extra=[...new Set(graded.map(b=>b.stat))].filter(s=>s&&!MARKETS.includes(s));
+  const markets=[...MARKETS,...extra];
+
+  body.innerHTML=markets.map(mkt=>{
+    const rows=graded.filter(b=>b.stat===mkt);
+    if(!rows.length) return '';
+    const ov=rows.filter(b=>b.ou==='over'), un=rows.filter(b=>b.ou==='under');
+    const ow=ov.filter(b=>b.grade==='win').length, ol=ov.filter(b=>b.grade==='loss').length;
+    const uw=un.filter(b=>b.grade==='win').length, ul=un.filter(b=>b.grade==='loss').length;
+    const opl=ov.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+    const upl=un.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+    const orisk=calcRisk(ov.filter(b=>b.grade)), urisk=calcRisk(un.filter(b=>b.grade));
+    const oroi=orisk?(opl/orisk*100).toFixed(1)+'%':'—';
+    const uroi=urisk?(upl/urisk*100).toFixed(1)+'%':'—';
+    const c=(v,cls)=>`<td class="${cls}">${v}</td>`;
+    return `<tr>
+      <td class="left">${cap(mkt)}</td>
+      <td>${rows.length}</td>
+      ${c(ov.length,'')}<td>${ow}</td><td>${ol}</td>
+      ${c(fmtPct(ow,ol),ow>=ol&&(ow+ol)>0?'pos-val':'neu-val')}
+      ${c(oroi,parseFloat(oroi)>=0?'pos-val':isNaN(parseFloat(oroi))?'neu-val':'neg-val')}
+      ${c(un.length,'')}<td>${uw}</td><td>${ul}</td>
+      ${c(fmtPct(uw,ul),uw>=ul&&(uw+ul)>0?'pos-val':'neu-val')}
+      ${c(uroi,parseFloat(uroi)>=0?'pos-val':isNaN(parseFloat(uroi))?'neu-val':'neg-val')}
+    </tr>`;
+  }).join('');
+}
+
+function updateTotalsBreakdown(filtered){
+  const wrap=document.getElementById('t-breakdownWrap');
+  const body=document.getElementById('t-breakdownBody');
+  const graded=filtered.filter(b=>b.grade&&b.grade!=='push');
+  if(!graded.length){wrap.style.display='none';return;}
+  wrap.style.display='';
+
+  body.innerHTML=['over','under'].map(dir=>{
+    const rows=graded.filter(b=>b.ou===dir);
+    if(!rows.length) return '';
+    const w=rows.filter(b=>b.grade==='win').length, l=rows.filter(b=>b.grade==='loss').length;
+    const pl=rows.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+    const staked=calcRisk(rows);
+    const won=rows.filter(b=>b.grade==='win').reduce((s,b)=>s+calcPayout(b.odds),0);
+    const roi=staked?(pl/staked*100).toFixed(1)+'%':'—';
+    const plCls=pl>0?'pos-val':pl<0?'neg-val':'neu-val';
+    return `<tr>
+      <td class="left" style="color:${dir==='over'?'var(--orange)':'var(--purple)'}">${cap(dir)}</td>
+      <td>${rows.length}</td><td>${w}</td><td>${l}</td>
+      <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
+      <td>${staked.toFixed(2)}u</td>
+      <td>${won.toFixed(2)}u</td>
+      <td class="${plCls}">${fmtPL(pl)}</td>
+      <td class="${plCls}">${roi}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateSummary(scope,wins,losses,pl){
+  const p=scope[0];
+  const box=document.getElementById(`${p}-summaryBox`);
+  const txt=document.getElementById(`${p}-summaryText`);
+  if(!(wins+losses)){box.style.display='none';return;}
   box.style.display='block';
-  const lbl = { all:'All Time', month:'This Month', week:'This Week', day:'Today' }[activePeriod];
-  txt.innerHTML = `<div class="line1">${lbl} ${wins}-${losses} ${fmtPL(pl)}</div><div class="line2">MLB Props</div>`;
+  const lbl={all:'All Time',month:'This Month',week:'This Week',day:'Today'}[periods[scope]];
+  txt.innerHTML=`<div class="line1">${lbl} ${wins}-${losses} ${fmtPL(pl)}</div><div class="line2">MLB ${cap(scope)}</div>`;
 }
 
-function copySummary() {
-  const txt = document.getElementById('summaryText');
-  const lines = [...txt.querySelectorAll('div')].map(d => d.textContent).join('\n');
-  navigator.clipboard.writeText(lines).then(() => {
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = '✓ COPIED';
-    setTimeout(() => btn.textContent = 'COPY', 1800);
+function copySummary(scope){
+  const txt=document.getElementById(`${scope[0]}-summaryText`);
+  const lines=[...txt.querySelectorAll('div')].map(d=>d.textContent).join('\n');
+  navigator.clipboard.writeText(lines).then(()=>{
+    const btn=document.getElementById(`${scope[0]}-copyBtn`);
+    btn.textContent='✓ COPIED'; setTimeout(()=>btn.textContent='COPY',1800);
   });
 }
 
 // ── Filter bar ────────────────────────────────────────────────────────
-function updateFilterBar() {
-  const stats = [...new Set(bets.map(b => b.stat).filter(Boolean))].sort();
-  const bar = document.getElementById('filterBar');
-  if (!stats.length) { bar.innerHTML = ''; return; }
-  bar.innerHTML = `<span class="filter-label">Filter:</span>` +
-    `<span class="filter-tag ${!activeFilter ? 'active' : ''}" onclick="setFilter(null)">All</span>` +
-    stats.map(s => `<span class="filter-tag ${activeFilter === s ? 'active' : ''}" onclick="setFilter('${s}')">${s}</span>`).join('');
+function updateFilterBar(scope){
+  const bar=document.getElementById(`${scope[0]}-filterBar`);
+  const keys=scope==='props'
+    ? [...new Set(betsFor(scope).map(b=>b.stat).filter(Boolean))].sort()
+    : ['over','under'];
+  if(!keys.length){bar.innerHTML='';return;}
+  bar.innerHTML=`<span class="filter-label">Filter:</span>`+
+    `<span class="filter-tag ${!filters[scope]?'active':''}" onclick="setFilter('${scope}',null)">All</span>`+
+    keys.map(k=>`<span class="filter-tag ${filters[scope]===k?'active':''}" onclick="setFilter('${scope}','${k}')">${k}</span>`).join('');
 }
 
-function setFilter(s) { activeFilter = s; render(); }
+function setFilter(scope,k){ filters[scope]=k; render(scope); }
 
 // ── Render ────────────────────────────────────────────────────────────
-function render() {
-  updateDashboard();
-  updateFilterBar();
-  renderBets();
+function render(scope){
+  updateDash(scope);
+  updateFilterBar(scope);
+  renderBets(scope);
 }
 
-function renderBets() {
-  const list = document.getElementById('betsList');
-  const count = document.getElementById('betsCount');
-  const filtered = bets.filter(b => !activeFilter || b.stat === activeFilter);
-  count.textContent = filtered.length ? `(${filtered.length})` : '';
+function renderBets(scope){
+  const p=scope[0];
+  const list=document.getElementById(`${p}-betsList`);
+  const count=document.getElementById(`${p}-betsCount`);
+  const all=betsFor(scope);
+  const filtered=all.filter(b=>!filters[scope]||(scope==='props'?b.stat:b.ou)===filters[scope]);
+  count.textContent=filtered.length?`(${filtered.length})`:'';
+  if(!filtered.length){list.innerHTML='<div class="empty">No bets yet — paste above</div>';return;}
 
-  if (!filtered.length) {
-    list.innerHTML = '<div class="empty">No bets yet — paste a slate above</div>';
-    return;
-  }
-
-  list.innerHTML = filtered.map((bet) => {
-    const realIdx = bets.indexOf(bet);
-    const gradeClass = bet.grade ? `graded-${bet.grade}` : '';
-    const badge = buildBadge(bet, realIdx);
-    const ouStr = bet.ou ? (bet.ou.charAt(0).toUpperCase() + bet.ou.slice(1)) : '';
-    const oddsStr = bet.odds !== null ? (bet.odds > 0 ? `+${bet.odds}` : `${bet.odds}`) : '';
-    const meta = [
-      bet.stat ? `<span class="stat-pill">${bet.stat}</span>` : '',
-      ouStr ? `<span class="stat-pill">${ouStr} ${bet.line}</span>` : '',
-      bet.book ? `<span class="stat-pill">${bet.book}</span>` : '',
-      oddsStr ? `<span class="stat-pill">${oddsStr}</span>` : '',
-    ].filter(Boolean).join('');
-
-    return `<div class="bet-item ${gradeClass}" id="bet-${realIdx}">
-      <div class="bet-text">${escHtml(bet.player)}${bet.team ? ' <span style="color:var(--muted);">(${escHtml(bet.team)})</span>' : ''}</div>
-      <div class="bet-meta">${meta}</div>
-      <div class="bet-date-str">${formatDate(bet.date)}</div>
+  list.innerHTML=filtered.map(bet=>{
+    const ri=all.indexOf(bet);
+    const gc=bet.grade?`graded-${bet.grade}`:'';
+    const badge=buildBadge(scope,bet,ri);
+    const ouStr=cap(bet.ou||'');
+    const oddsStr=bet.odds!==null?(bet.odds>0?'+'+bet.odds:''+bet.odds):'';
+    let mainText, metaPills;
+    if(scope==='props'){
+      mainText=`${esc(bet.player)} <span style="color:var(--muted)">(${esc(bet.team||'')})</span>`;
+      metaPills=[
+        bet.stat?`<span class="stat-pill">${esc(bet.stat)}</span>`:'',
+        ouStr?`<span class="stat-pill">${ouStr} ${bet.line}</span>`:'',
+        bet.book?`<span class="stat-pill">${esc(bet.book)}</span>`:'',
+        oddsStr?`<span class="stat-pill">${oddsStr}</span>`:'',
+      ].filter(Boolean).join('');
+    } else {
+      mainText=`${esc(bet.away||'')} <span style="color:var(--muted)">vs</span> ${esc(bet.home||'')}`;
+      metaPills=[
+        ouStr?`<span class="stat-pill">${ouStr} ${bet.line}</span>`:'',
+        bet.book?`<span class="stat-pill">${esc(bet.book)}</span>`:'',
+        oddsStr?`<span class="stat-pill">${oddsStr}</span>`:'',
+      ].filter(Boolean).join('');
+    }
+    return `<div class="bet-item ${gc}" id="${p}bet-${ri}">
+      <div class="bet-text">${mainText}</div>
+      <div class="bet-meta">${metaPills}</div>
+      <div class="bet-date-str">${fmtDate(bet.date)}</div>
       <div class="bet-actions">
-        <div id="badge-${realIdx}">${badge}</div>
-        <button class="bet-btn" onclick="gradeBet(${realIdx}, this)">GRADE</button>
-        <button class="bet-btn delete" onclick="deleteBet(${realIdx})">✕</button>
+        <div id="${p}badge-${ri}">${badge}</div>
+        <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">GRADE</button>
+        <button class="bet-btn delete" onclick="delBet('${scope}',${ri})">✕</button>
       </div>
     </div>`;
   }).join('');
 }
 
-function buildBadge(bet, i) {
-  if (!bet.grade) return '';
-  const pl = calcPL(bet.odds, bet.grade);
-  const icon = bet.grade === 'win' ? '✓' : bet.grade === 'loss' ? '✗' : '~';
-  const word = bet.grade === 'win' ? 'WIN' : bet.grade === 'loss' ? 'LOSS' : 'PUSH';
-  const actualStr = bet.actual !== null && bet.actual !== 'manual' ? ` (${bet.actual})` : '';
-  return `<span class="grade-badge grade-${bet.grade}">${icon} ${word} ${fmtPL(pl)}${actualStr}</span>`;
+function buildBadge(scope,bet,i){
+  if(!bet.grade) return '';
+  const pl=calcPL(bet.odds,bet.grade);
+  const icon=bet.grade==='win'?'✓':bet.grade==='loss'?'✗':'~';
+  const word=bet.grade==='win'?'WIN':bet.grade==='loss'?'LOSS':'PUSH';
+  const act=bet.actual!==null&&bet.actual!=='manual'?` (${bet.actual})`:'';
+  return `<span class="grade-badge grade-${bet.grade}">${icon} ${word} ${fmtPL(pl)}${act}</span>`;
 }
 
-function showManualBtns(i) {
-  const el = document.getElementById(`badge-${i}`);
-  if (!el) return;
-  el.innerHTML = `<div class="manual-grade-btns">
-    <button class="mgb mgb-w" onclick="manualGrade(${i},'win')">W</button>
-    <button class="mgb mgb-l" onclick="manualGrade(${i},'loss')">L</button>
-    <button class="mgb mgb-p" onclick="manualGrade(${i},'push')">P</button>
+function showManual(scope,i){
+  const p=scope[0];
+  const el=document.getElementById(`${p}badge-${i}`);
+  if(!el) return;
+  el.innerHTML=`<div class="manual-grade-btns">
+    <button class="mgb mgb-w" onclick="doGrade('${scope}',${i},'win')">W</button>
+    <button class="mgb mgb-l" onclick="doGrade('${scope}',${i},'loss')">L</button>
+    <button class="mgb mgb-p" onclick="doGrade('${scope}',${i},'push')">P</button>
   </div>`;
 }
 
-function manualGrade(i, result) { setGrade(i, result, 'manual'); }
-
-function setGrade(i, result, actual) {
-  const bet = bets[i];
-  if (!bet) return;
-  bet.grade = result;
-  bet.actual = actual;
-  saveToStorage();
-  render();
+function doGrade(scope,i,result){
+  const bets=betsFor(scope);
+  if(!bets[i]) return;
+  bets[i].grade=result; bets[i].actual='manual';
+  saveBets(scope); render(scope);
 }
 
-// ── MLB API Grading ───────────────────────────────────────────────────
-// Uses MLB Stats API (free, no key needed)
-// https://statsapi.mlb.com
-
-const MLB_STAT_KEYS = {
-  'hits': 'hits',
-  'total bases': 'totalBases',
-  'strikeouts': 'strikeOuts',
-  'home runs': 'homeRuns',
-  'rbis': 'rbi',
-  'runs': 'runs',
-  'walks': 'baseOnBalls',
-  'singles': 'singles',
-  'doubles': 'doubles',
-  'stolen bases': 'stolenBases',
-  'pitching ks': 'strikeOuts',
-  'outs recorded': 'outs',
-  'earned runs': 'earnedRuns',
+// ── MLB Stats API ─────────────────────────────────────────────────────
+const MLB_KEYS={
+  'hits':'hits','total bases':'totalBases','strikeouts':'strikeOuts',
+  'home runs':'homeRuns','rbis':'rbi','runs':'runs','walks':'baseOnBalls',
+  'singles':'singles','doubles':'doubles','stolen bases':'stolenBases',
+  'pitcher ks':'strikeOuts','hits allowed':'hits','earned runs':'earnedRuns',
+  'walks allowed':'baseOnBalls','outs recorded':'outs',
 };
+const PITCH_STATS=new Set(['pitcher ks','hits allowed','earned runs','walks allowed','outs recorded']);
 
-// Pitching stats require a different group
-const PITCHING_STATS = new Set(['pitching ks', 'outs recorded', 'earned runs']);
-
-async function findMLBPlayer(name) {
-  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').trim();
-  try {
-    const res = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name)}&sportId=1`);
-    const data = await res.json();
-    if (data.people && data.people.length) {
-      const exact = data.people.find(p => norm(`${p.firstName} ${p.lastName}`) === norm(name));
-      return exact || data.people[0];
-    }
-  } catch(e) {}
-
-  // Fallback: search by last name
-  try {
-    const parts = name.trim().split(' ');
-    const lastName = parts[parts.length - 1];
-    const res = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(lastName)}&sportId=1`);
-    const data = await res.json();
-    if (data.people && data.people.length) {
-      const norm_name = norm(name);
-      const match = data.people.find(p => norm(`${p.firstName} ${p.lastName}`) === norm_name);
-      if (match) return match;
-      // fuzzy: last name match + first initial
-      const firstInit = name[0].toLowerCase();
-      const fuzzy = data.people.find(p =>
-        norm(p.lastName) === norm(lastName) &&
-        p.firstName && p.firstName[0].toLowerCase() === firstInit
-      );
-      if (fuzzy) return fuzzy;
-      return data.people[0];
-    }
-  } catch(e) {}
+async function findPlayer(name){
+  const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').trim();
+  for(const endpoint of[
+    `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name)}&sportId=1`,
+    `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name.split(' ').pop())}&sportId=1`
+  ]){
+    try{
+      const r=await fetch(endpoint), d=await r.json();
+      if(d.people&&d.people.length){
+        const exact=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===norm(name));
+        if(exact) return exact;
+        const init=name[0].toLowerCase(), last=name.split(' ').pop();
+        const fuzzy=d.people.find(p=>norm(p.lastName)===norm(last)&&p.firstName&&p.firstName[0].toLowerCase()===init);
+        if(fuzzy) return fuzzy;
+        return d.people[0];
+      }
+    }catch(e){}
+  }
   return null;
 }
 
-async function getMLBGameId(playerId, dateStr) {
-  // Get schedule for the date to find games
-  try {
-    const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
-    const data = await res.json();
-    if (!data.dates || !data.dates.length) return null;
-    const games = data.dates[0].games || [];
-    // Return all game IDs for that date so we can search
-    return games.map(g => g.gamePk);
-  } catch(e) { return null; }
+async function getPlayerStat(playerId, dateStr, stat){
+  const isPitch=PITCH_STATS.has(stat);
+  const group=isPitch?'pitching':'hitting';
+  const key=MLB_KEYS[stat];
+  if(!key) return null;
+  try{
+    const season=dateStr.substring(0,4);
+    const r=await fetch(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${group}&season=${season}&sportId=1`);
+    const d=await r.json();
+    if(!d.stats||!d.stats.length||!d.stats[0].splits) return null;
+    const split=d.stats[0].splits.find(s=>s.date===dateStr);
+    if(!split) return null;
+    return split.stat[key]??null;
+  }catch(e){return null;}
 }
 
-async function getMLBStats(playerId, dateStr, stat) {
-  const isPitching = PITCHING_STATS.has(stat);
-  const group = isPitching ? 'pitching' : 'hitting';
-  const statKey = MLB_STAT_KEYS[stat];
-  if (!statKey) return null;
-
-  try {
-    // Get game log for the player around that date
-    const season = dateStr.substring(0,4);
-    const res = await fetch(
-      `https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${group}&season=${season}&sportId=1`
-    );
-    const data = await res.json();
-    if (!data.stats || !data.stats.length || !data.stats[0].splits) return null;
-
-    const splits = data.stats[0].splits;
-    // Find the game matching the date
-    const gameSplit = splits.find(s => s.date === dateStr);
-    if (!gameSplit) return null;
-
-    const val = gameSplit.stat[statKey];
-    return val !== undefined ? val : null;
-  } catch(e) { return null; }
+// Totals: get game final score
+async function getGameTotal(away, home, dateStr){
+  try{
+    const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
+    const d=await r.json();
+    if(!d.dates||!d.dates.length) return null;
+    const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
+    for(const game of (d.dates[0].games||[])){
+      const aN=norm(game.teams?.away?.team?.name||'');
+      const hN=norm(game.teams?.home?.team?.name||'');
+      const awayN=norm(away), homeN=norm(home);
+      const awayMatch=aN.includes(awayN)||awayN.includes(aN.substring(0,5));
+      const homeMatch=hN.includes(homeN)||homeN.includes(hN.substring(0,5));
+      if(awayMatch||homeMatch){
+        const ls=game.linescore;
+        if(ls&&ls.teams){
+          const ar=ls.teams.away?.runs, hr=ls.teams.home?.runs;
+          if(ar!==undefined&&hr!==undefined) return ar+hr;
+        }
+      }
+    }
+  }catch(e){}
+  return null;
 }
 
-async function gradeBet(i, btn) {
-  const bet = bets[i];
-  if (!bet) return;
-  if (!bet.player || !bet.stat) { showManualBtns(i); return; }
+async function gradeBet(scope, i, btn){
+  const bets=betsFor(scope);
+  const bet=bets[i]; if(!bet) return;
+  btn.textContent='...';
+  try{
+    if(scope==='props'){
+      if(!bet.player||!bet.stat){showManual(scope,i);btn.textContent='GRADE';return;}
+      const player=await findPlayer(bet.player);
+      if(!player){showManual(scope,i);btn.textContent='GRADE';return;}
+      const actual=await getPlayerStat(player.id,bet.date,bet.stat);
+      if(actual===null||actual===undefined){showManual(scope,i);btn.textContent='GRADE';return;}
+      const n=parseFloat(actual);
+      const result=n===bet.line?'push':(bet.ou==='over'?n>bet.line:n<bet.line)?'win':'loss';
+      doSetGrade(scope,i,result,n);
+    } else {
+      const total=await getGameTotal(bet.away,bet.home,bet.date);
+      if(total===null){showManual(scope,i);btn.textContent='GRADE';return;}
+      const result=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss';
+      doSetGrade(scope,i,result,total);
+    }
+  }catch(e){showManual(scope,i);}
+  btn.textContent='GRADE';
+}
 
-  btn.textContent = '...';
-  try {
-    const player = await findMLBPlayer(bet.player);
-    if (!player) { showManualBtns(i); btn.textContent = 'GRADE'; return; }
+function doSetGrade(scope,i,result,actual){
+  const bets=betsFor(scope);
+  if(!bets[i]) return;
+  bets[i].grade=result; bets[i].actual=actual;
+  saveBets(scope); render(scope);
+}
 
-    const actual = await getMLBStats(player.id, bet.date, bet.stat);
-    if (actual === null || actual === undefined) { showManualBtns(i); btn.textContent = 'GRADE'; return; }
-
-    const numActual = parseFloat(actual);
-    const result = numActual === bet.line ? 'push'
-      : (bet.ou === 'over' ? numActual > bet.line : numActual < bet.line) ? 'win' : 'loss';
-    setGrade(i, result, numActual);
-  } catch(e) {
-    showManualBtns(i);
+async function gradeAll(scope, btn){
+  const bets=betsFor(scope);
+  if(!bets.length) return;
+  btn.textContent='⏳ Grading...'; btn.disabled=true;
+  for(let i=0;i<bets.length;i++){
+    if(bets[i].grade) continue;
+    const bet=bets[i];
+    try{
+      if(scope==='props'){
+        if(!bet.player||!bet.stat){showManual(scope,i);continue;}
+        const player=await findPlayer(bet.player);
+        if(!player){showManual(scope,i);continue;}
+        const actual=await getPlayerStat(player.id,bet.date,bet.stat);
+        if(actual===null||actual===undefined){showManual(scope,i);continue;}
+        const n=parseFloat(actual);
+        const result=n===bet.line?'push':(bet.ou==='over'?n>bet.line:n<bet.line)?'win':'loss';
+        doSetGrade(scope,i,result,n);
+      } else {
+        const total=await getGameTotal(bet.away,bet.home,bet.date);
+        if(total===null){showManual(scope,i);continue;}
+        const result=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss';
+        doSetGrade(scope,i,result,total);
+      }
+    }catch(e){showManual(scope,i);}
+    await new Promise(r=>setTimeout(r,350));
   }
-  btn.textContent = 'GRADE';
-}
-
-async function gradeAll(btn) {
-  if (!bets.length) return;
-  btn.textContent = '⏳ Grading...';
-  btn.disabled = true;
-  for (let i = 0; i < bets.length; i++) {
-    if (bets[i].grade) continue;
-    const bet = bets[i];
-    if (!bet.player || !bet.stat) { showManualBtns(i); continue; }
-    try {
-      const player = await findMLBPlayer(bet.player);
-      if (!player) { showManualBtns(i); continue; }
-      const actual = await getMLBStats(player.id, bet.date, bet.stat);
-      if (actual === null || actual === undefined) { showManualBtns(i); continue; }
-      const numActual = parseFloat(actual);
-      const result = numActual === bet.line ? 'push'
-        : (bet.ou === 'over' ? numActual > bet.line : numActual < bet.line) ? 'win' : 'loss';
-      setGrade(i, result, numActual);
-    } catch(e) { showManualBtns(i); }
-    await new Promise(r => setTimeout(r, 400));
-  }
-  btn.textContent = '⚡ GRADE ALL';
-  btn.disabled = false;
-  render();
+  btn.textContent='⚡ GRADE ALL'; btn.disabled=false;
+  render(scope);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
-function deleteBet(i) { bets.splice(i,1); saveToStorage(); render(); }
-
-function clearAllBets() {
-  if (!confirm('Clear all bets?')) return;
-  bets = []; saveToStorage(); render();
-}
-
-function escHtml(s) {
-  if (!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function formatDate(d) {
-  if (!d) return '';
-  const today = new Date().toISOString().split('T')[0];
-  const yest = new Date(); yest.setDate(yest.getDate()-1);
-  const yStr = yest.toISOString().split('T')[0];
-  if (d === today) return 'Today';
-  if (d === yStr) return 'Yesterday';
-  return new Date(d+'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
+function clearAll(scope){ if(!confirm('Clear all bets?')) return; if(scope==='props') propBets=[]; else totalBets=[]; saveBets(scope); render(scope); }
+function cap(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(d){
+  if(!d) return '';
+  const today=new Date().toISOString().split('T')[0];
+  const yest=new Date(); yest.setDate(yest.getDate()-1);
+  if(d===today) return 'Today';
+  if(d===yest.toISOString().split('T')[0]) return 'Yesterday';
+  return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 }
 </script>
 </body>
