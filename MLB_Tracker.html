@@ -283,9 +283,16 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
       <span class="date-label">Date</span>
       <input type="date" class="date-input" id="t-betDate">
     </div>
-    <div class="paste-label">Paste totals</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div class="paste-label" style="margin-bottom:0">Paste totals or upload screenshot</div>
+      <label class="btn" style="cursor:pointer;margin:0">
+        📷 UPLOAD IMAGE
+        <input type="file" accept="image/*" style="display:none" onchange="handleTotalsImage(event)">
+      </label>
+    </div>
+    <div id="t-imgStatus" style="display:none;font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:.06em"></div>
     <textarea class="bet-input" id="t-slateInput" rows="6"
-      placeholder="Yankees vs Red Sox over 8.5 runs&#10;DK -115&#10;Dodgers vs Padres under 7.5&#10;FD +105"
+      placeholder="KC @ ATL&#10;8.4   7.5   5.8%&#10;OVER +105&#10;&#10;CLE @ SEA&#10;7   7   4.0%&#10;UNDER -110"
       autocorrect="off" autocapitalize="off" spellcheck="false"
       oninput="previewParse('totals')"></textarea>
     <div class="parse-preview" id="t-parsePreview">
@@ -402,20 +409,32 @@ function fmtPct(w,l){ return (w+l)?((w/(w+l))*100).toFixed(1)+'%':'—'; }
 
 // ── Parsers ───────────────────────────────────────────────────────────
 const STAT_MAP = {
+  // hits — must check 'hits allowed' before 'hits'
+  'hits allowed':'hits allowed','hit allowed':'hits allowed',
   'hit':'hits','hits':'hits',
-  'tb':'total bases','total base':'total bases','total bases':'total bases','bases':'total bases',
-  'k':'strikeouts','ks':'strikeouts','strikeout':'strikeouts','strikeouts':'strikeouts',
-  'hr':'home runs','home run':'home runs','home runs':'home runs',
+  // total bases
+  'tb':'total bases','total base':'total bases','total bases':'total bases','base':'total bases','bases':'total bases',
+  // strikeouts
+  'strikeout':'strikeouts','strikeouts':'strikeouts','k':'strikeouts','ks':'strikeouts',
+  // home runs
+  'home run':'home runs','home runs':'home runs','hr':'home runs',
+  // rbis
   'rbi':'rbis','rbis':'rbis',
+  // runs
   'run':'runs','runs':'runs',
+  // walks
   'walk':'walks','walks':'walks','bb':'walks',
+  'walks allowed':'walks allowed','walk allowed':'walks allowed',
+  // singles / doubles
   'single':'singles','singles':'singles',
   'double':'doubles','doubles':'doubles',
+  // stolen bases
   'stolen base':'stolen bases','stolen bases':'stolen bases','sb':'stolen bases',
+  // pitcher stats
   'pitcher k':'pitcher ks','pitcher ks':'pitcher ks','pitching k':'pitcher ks','pitching ks':'pitcher ks',
-  'hit allowed':'hits allowed','hits allowed':'hits allowed',
+  // earned runs
   'earned run':'earned runs','earned runs':'earned runs','er':'earned runs',
-  'walk allowed':'walks allowed','walks allowed':'walks allowed',
+  // outs
   'out':'outs recorded','outs':'outs recorded','outs recorded':'outs recorded',
 };
 
@@ -448,14 +467,30 @@ function parsePropsSlate(text){
 
   function parseRest(rest){
     rest = rest.trim();
+    // Strip any trailing parenthetical team that leaked in e.g. "SB (Orioles)"
+    rest = rest.replace(/\s*\([^)]+\)\s*$/, '').trim();
     const tokens = rest.split(/[\s,]+/).filter(Boolean);
     let firstPairIdx = tokens.length;
     for(let i=0;i<tokens.length;i++){
       const cur=tokens[i], nxt=tokens[i+1]||'';
       if((isOdds(cur)&&isBook(nxt))||(isBook(cur)&&isOdds(nxt))){ firstPairIdx=i; break; }
     }
-    const statRaw = tokens.slice(0,firstPairIdx).join(' ').toLowerCase().replace(/[.,]+$/,'').replace(/['']s$/,'').trim();
-    const stat = STAT_MAP[statRaw]||STAT_MAP[statRaw.replace(/s$/,'')]||statRaw||'unknown';
+    // Try longest possible stat match first (3-word, 2-word, 1-word)
+    const statTokens = tokens.slice(0,firstPairIdx);
+    let stat = 'unknown';
+    for(let len=Math.min(3,statTokens.length);len>=1;len--){
+      const candidate = statTokens.slice(0,len).join(' ').toLowerCase()
+        .replace(/[.,]+$/,'').replace(/[''']s$/,'').replace(/s$/,'').trim();
+      const full = statTokens.slice(0,len).join(' ').toLowerCase()
+        .replace(/[.,]+$/,'').replace(/[''']s$/,'').trim();
+      if(STAT_MAP[full]){ stat=STAT_MAP[full]; break; }
+      if(STAT_MAP[candidate]){ stat=STAT_MAP[candidate]; break; }
+    }
+    if(stat==='unknown'){
+      // fallback: join all stat tokens
+      const raw=statTokens.join(' ').toLowerCase().replace(/[.,]+$/,'').replace(/[''']s$/,'').trim();
+      stat=STAT_MAP[raw]||raw||'unknown';
+    }
     const bookTokens = tokens.slice(firstPairIdx);
     const books = [];
     for(let i=0;i<bookTokens.length;i++){
@@ -502,7 +537,9 @@ function parsePropsSlate(text){
     if(noTeamM){
       const ouRaw = noTeamM[2].toLowerCase();
       const ou = ouRaw==='u'?'under':ouRaw==='o'?'over':ouRaw;
-      const {stat, books} = parseRest(noTeamM[4]);
+      // Strip any trailing (Team) that got pulled into the rest
+      const restClean = noTeamM[4].replace(/\s*\([^)]+\)\s*$/, '').trim();
+      const {stat, books} = parseRest(restClean);
       const bet = {player:noTeamM[1].trim(), team:'', ou, line:parseFloat(noTeamM[3]), stat, book:books[0]?.book||null, odds:books[0]?.odds??null};
 
       // Look ahead for team and/or odds
@@ -849,16 +886,46 @@ function updateSummary(scope,wins,losses,pl){
   const p=scope[0];
   const box=document.getElementById(`${p}-summaryBox`);
   const txt=document.getElementById(`${p}-summaryText`);
-  if(!(wins+losses)){box.style.display='none';return;}
-  box.style.display='block';
   const lbl={all:'All Time',month:'This Month',week:'This Week',day:'Today'}[periods[scope]];
-  txt.innerHTML=`<div class="line1">${lbl} ${wins}-${losses} ${fmtPL(pl)}</div><div class="line2">MLB ${cap(scope)}</div>`;
+
+  if(scope==='props'){
+    // Build rundown of all graded bets in current period/filter
+    const all=betsFor(scope).filter(b=>inPeriod(scope,b)&&(!filters[scope]||b.stat===filters[scope]));
+    const graded=all.filter(b=>b.grade);
+    if(!graded.length){box.style.display='none';return;}
+    box.style.display='block';
+
+    const lines=graded.map(b=>{
+      const ouStr=cap(b.ou||'');
+      const statStr=cap(b.stat||'');
+      const actStr=b.actual!==null&&b.actual!=='manual'?` (${b.actual})`:'';
+      const result=b.grade==='win'?'Win':b.grade==='loss'?'Loss':'Push';
+      return `${b.player} ${ouStr} ${b.line} ${statStr}${actStr} ${result}`;
+    });
+
+    txt.innerHTML=`<div style="font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">${lbl} · ${wins}-${losses}</div>`+
+      lines.map(l=>{
+        const isWin=l.endsWith('Win'), isLoss=l.endsWith('Loss');
+        return `<div style="font-size:13px;font-weight:500;padding:3px 0;border-bottom:1px solid var(--border);color:${isWin?'var(--green)':isLoss?'var(--red)':'var(--yellow)'}">${l}</div>`;
+      }).join('');
+  } else {
+    if(!(wins+losses)){box.style.display='none';return;}
+    box.style.display='block';
+    txt.innerHTML=`<div class="line1">${lbl} ${wins}-${losses} ${fmtPL(pl)}</div><div class="line2">MLB Totals</div>`;
+  }
 }
 
 function copySummary(scope){
   const txt=document.getElementById(`${scope[0]}-summaryText`);
-  const lines=[...txt.querySelectorAll('div')].map(d=>d.textContent).join('\n');
-  navigator.clipboard.writeText(lines).then(()=>{
+  let text;
+  if(scope==='props'){
+    const lines=[...txt.querySelectorAll('div[style*="font-size:13px"]')].map(d=>d.textContent);
+    const header=txt.querySelector('div[style*="font-size:11px"]');
+    text=(header?header.textContent+'\n':'')+lines.join('\n');
+  } else {
+    text=[...txt.querySelectorAll('div')].map(d=>d.textContent).join('\n');
+  }
+  navigator.clipboard.writeText(text).then(()=>{
     const btn=document.getElementById(`${scope[0]}-copyBtn`);
     btn.textContent='✓ COPIED'; setTimeout(()=>btn.textContent='COPY',1800);
   });
@@ -1005,10 +1072,13 @@ function renderBets(scope){
 
 function buildBadge(scope,bet,i){
   if(!bet.grade) return '';
-  const pl=calcPL(bet.odds,bet.grade);
   const icon=bet.grade==='win'?'✓':bet.grade==='loss'?'✗':'~';
   const word=bet.grade==='win'?'WIN':bet.grade==='loss'?'LOSS':'PUSH';
   const act=bet.actual!==null&&bet.actual!=='manual'?` (${bet.actual})`:'';
+  if(scope==='props'){
+    return `<span class="grade-badge grade-${bet.grade}">${icon} ${word}${act}</span>`;
+  }
+  const pl=calcPL(bet.odds,bet.grade);
   return `<span class="grade-badge grade-${bet.grade}">${icon} ${word} ${fmtPL(pl)}${act}</span>`;
 }
 
@@ -1165,7 +1235,88 @@ async function gradeAll(scope, btn){
   render(scope);
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────
+// ── Image upload for totals ───────────────────────────────────────────
+async function handleTotalsImage(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+
+  const status = document.getElementById('t-imgStatus');
+  status.style.display = 'block';
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Reading image...';
+
+  try {
+    const base64 = await new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = ()=> res(r.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+
+    status.textContent = 'Extracting games...';
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: file.type||'image/png', data: base64 }
+            },
+            {
+              type: 'text',
+              text: `Extract every row from this MLB totals model table. For each game output EXACTLY this format with no extra text:
+
+AWAY @ HOME
+MODEL MARKET EDGE%
+DIRECTION ODDS
+
+Example:
+KC @ ATL
+8.4 7.5 5.8%
+OVER +105
+
+CLE @ SEA
+7 7 4.0%
+UNDER -110
+
+Include the grade (like 9/9, 8/9, 7/9) as a prefix on the first line if visible, e.g. "9/9 KC @ ATL".
+Only include rows where direction and odds are visible. Output nothing else.`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await resp.json();
+    const extracted = data.content?.find(c=>c.type==='text')?.text || '';
+
+    if(!extracted.trim()){
+      status.style.color = 'var(--red)';
+      status.textContent = 'Could not read table — try pasting manually';
+      return;
+    }
+
+    const ta = document.getElementById('t-slateInput');
+    ta.value = extracted.trim();
+    previewParse('totals');
+
+    status.style.color = 'var(--green)';
+    const count = (extracted.match(/^(OVER|UNDER)/gm)||[]).length;
+    status.textContent = `Extracted ${count} game${count!==1?'s':''} — review and click + ADD ALL`;
+
+  } catch(err) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'Error reading image — paste manually';
+    console.error(err);
+  }
+}
 function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
 function clearAll(scope){ if(!confirm('Clear all bets?')) return; if(scope==='props') propBets=[]; else totalBets=[]; saveBets(scope); render(scope); }
 function cap(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
