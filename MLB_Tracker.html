@@ -229,6 +229,14 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
     <div class="add-row">
       <button class="btn btn-green" onclick="addSlate('props')">+ ADD ALL</button>
     </div>
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="p-debugName" class="bet-input" style="flex:1;height:32px;font-size:11px" placeholder="Player name to test (e.g. Zac Gallen)">
+        <input type="date" id="p-debugDate" class="date-input" style="font-size:11px">
+        <button class="btn" onclick="debugBDL()" style="white-space:nowrap">🔍 TEST BDL</button>
+      </div>
+      <div id="p-debugOut" style="font-size:10px;color:var(--green);margin-top:6px;font-family:var(--mono);white-space:pre-wrap;display:none"></div>
+    </div>
   </div>
 
   <div class="bets-header">
@@ -1297,12 +1305,28 @@ async function getPlayerStat(player, dateStr, rawStat){
     }
   }
 
-  // MLB Stats API fallback
+  // MLB Stats API fallback — search by name to get correct statsapi id
   const mlbKey=MLB_STAT_KEYS[stat];
   if(!mlbKey){ console.warn('No MLB key for',stat); return null; }
   const isPitch=PITCH_STATS.has(stat);
   const groups=isPitch?['pitching','hitting']:['hitting','pitching'];
-  const mlbId=player.mlbId||player.id;
+
+  // Get the MLB statsapi player id
+  let mlbId = player._src==='mlb' ? player.id : null;
+  if(!mlbId){
+    try{
+      const fullName=`${player.first_name||''} ${player.last_name||''}`.trim()||player.full_name||'';
+      const r=await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(fullName)}&sportId=1`);
+      const d=await r.json();
+      if(d.people?.length){
+        const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
+        const match=d.people.find(p=>norm(`${p.firstName} ${p.lastName}`)===norm(fullName));
+        mlbId=(match||d.people[0])?.id;
+      }
+    }catch(e){ console.warn('MLB id lookup failed:',e.message); }
+  }
+  if(!mlbId){ console.warn('No MLB id for',player.first_name,player.last_name); return null; }
+
   for(const group of groups){
     try{
       const season=dateStr.substring(0,4);
@@ -1562,6 +1586,51 @@ function editStat(scope,i){
   const newStat = !isNaN(num)&&num>=1&&num<=opts.length ? opts[num-1] : choice.trim().toLowerCase();
   bet.stat=newStat;
   saveBets(scope); render(scope);
+}
+
+async function debugBDL(){
+  const name = document.getElementById('p-debugName').value.trim();
+  const date = document.getElementById('p-debugDate').value;
+  const out  = document.getElementById('p-debugOut');
+  if(!name||!date){ alert('Enter name and date'); return; }
+  out.style.display='block'; out.style.color='var(--muted)'; out.textContent='Searching...';
+
+  const log = lines => { out.textContent = lines.join('\n'); };
+  const msgs = [];
+  const add = s => { msgs.push(s); log(msgs); };
+
+  // 1. Player search
+  try{
+    const d = await bdlGet(`/mlb/v1/players?search=${encodeURIComponent(name)}&per_page=10`);
+    if(!d.data?.length){ add('❌ BDL player search returned 0 results'); }
+    else{
+      d.data.forEach(p=>add(`✓ Found: ${p.full_name||p.first_name+' '+p.last_name} (id:${p.id} active:${p.active})`));
+      const player = d.data[0];
+
+      // 2. Games for date
+      add('\nFetching games for '+date+'...');
+      const gd = await bdlGet(`/mlb/v1/games?dates[]=${date}&per_page=25`);
+      if(!gd.data?.length){ add('❌ No BDL games found for '+date); }
+      else{
+        add(`✓ ${gd.data.length} games found:`);
+        gd.data.forEach(g=>add(`  ${g.away_team?.abbreviation} @ ${g.home_team?.abbreviation} — status: ${g.status} — runs: ${g.away_team_data?.runs}/${g.home_team_data?.runs}`));
+
+        // 3. Stats
+        add('\nFetching stats for player '+player.id+'...');
+        const ids = gd.data.map(g=>g.id);
+        const params = 'player_ids[]='+player.id+'&'+ids.map(id=>`game_ids[]=${id}`).join('&');
+        const sd = await bdlGet(`/mlb/v1/stats?${params}&per_page=10`);
+        if(!sd.data?.length){ add('❌ No stats returned for this player on this date'); }
+        else{
+          add(`✓ Stats found:`);
+          sd.data.forEach(s=>add(`  hits:${s.hits} p_hits:${s.p_hits} p_k:${s.p_k} er:${s.er} stolen_bases:${s.stolen_bases} total_bases:${s.total_bases}`));
+        }
+      }
+    }
+  }catch(e){
+    add('❌ Error: '+e.message);
+  }
+  out.style.color='var(--text)';
 }
 
 function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
