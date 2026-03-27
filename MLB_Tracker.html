@@ -297,12 +297,19 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 
     <!-- Quick entry form — one row per game -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase">Quick entry or upload screenshot</div>
-      <label class="btn" style="cursor:pointer;margin:0;font-size:10px">
-        📷 UPLOAD SCREENSHOT
-        <input type="file" accept="image/*" style="display:none" onchange="handleTotalsImage(event)">
-      </label>
+      <div style="font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase">Quick entry</div>
+      <button class="btn" style="font-size:10px" onclick="toggleJsonImport()">⬇ IMPORT JSON</button>
     </div>
+
+    <!-- JSON import box — paste output from Claude chat -->
+    <div id="t-jsonImport" style="display:none;margin-bottom:10px">
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.08em;margin-bottom:5px">Paste JSON from Claude → <a href="#" onclick="window.open('https://claude.ai','_blank');return false;" style="color:var(--green)">open Claude</a> with your screenshot</div>
+      <textarea id="t-jsonInput" class="bet-input" rows="3" placeholder='[{"grade":"9/9","game":"KC @ ATL","market":7.5,"model":8.4,"edge":"5.8%","ou":"over","odds":105}]' style="font-size:11px"></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:5px">
+        <button class="btn btn-green" onclick="importFromJson()">LOAD ROWS</button>
+      </div>
+    </div>
+
     <div id="t-imgStatus" style="display:none;font-size:11px;margin-bottom:8px;letter-spacing:.06em"></div>
 
     <div style="display:grid;grid-template-columns:46px 1fr 48px 48px 48px 52px 52px 52px 28px;gap:4px;margin-bottom:5px;align-items:center">
@@ -1333,98 +1340,41 @@ async function gradeAll(scope, btn){
 }
 
 // ── Image upload for totals ───────────────────────────────────────────
-async function handleTotalsImage(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  e.target.value = '';
-
-  const status = document.getElementById('t-imgStatus');
-  status.style.display = 'block';
-  status.style.color = 'var(--muted)';
-  status.textContent = 'Reading image...';
-
-  try {
-    const base64 = await new Promise((res,rej)=>{
-      const r = new FileReader();
-      r.onload = ()=> res(r.result.split(',')[1]);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-
-    status.textContent = 'Extracting games...';
-
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: file.type||'image/png', data: base64 } },
-            { type: 'text', text: `Extract every row from this MLB totals model table. Output ONLY a JSON array, no other text. Each object must have these exact keys:
-"grade" (e.g. "9/9", "8/9", "7/9" — just the fraction you see, or "" if not visible),
-"game" (e.g. "KC @ ATL"),
-"market" (the market total number, e.g. 7.5),
-"model" (the model total number, e.g. 8.4),
-"edge" (edge percentage as string, e.g. "5.8%"),
-"ou" ("over" or "under"),
-"odds" (integer, e.g. 105 or -110)
-
-Example output:
-[{"grade":"9/9","game":"KC @ ATL","market":7.5,"model":8.4,"edge":"5.8%","ou":"over","odds":105},{"grade":"8/9","game":"CLE @ SEA","market":7,"model":7,"edge":"4.0%","ou":"under","odds":-110}]
-
-Only include rows where you can see a direction (over/under) and odds. Output only the JSON array.` }
-          ]
-        }]
-      })
-    });
-
-    if(!resp.ok){
-      const errBody = await resp.text();
-      throw new Error(`API ${resp.status}: ${errBody.substring(0,200)}`);
-    }
-
-    const data = await resp.json();
-    const raw = data.content?.find(c=>c.type==='text')?.text || '';
-    if(!raw.trim()) throw new Error('Empty response from API');
-
-    // Parse JSON — strip any markdown fences
-    const clean = raw.replace(/```json|```/g,'').trim();
-    const games = JSON.parse(clean);
-    if(!Array.isArray(games)||!games.length) throw new Error('No games found in image');
-
-    // Clear existing rows and populate from image
-    document.getElementById('t-rowsContainer').innerHTML='';
-    rowCount=0;
-    games.forEach(g => addTotalRow({
-      grade: g.grade||'',
-      game:  g.game||'',
-      market: g.market||'',
-      model:  g.model||'',
-      edge:   g.edge||'',
-      ou:     (g.ou||'over').toLowerCase(),
-      odds:   g.odds ? (g.odds>0?'+'+g.odds:''+g.odds) : '',
-    }));
-    // Add a couple blank rows at the end
-    addTotalRow(); addTotalRow();
-
-    status.style.color = 'var(--green)';
-    status.textContent = `✓ ${games.length} game${games.length!==1?'s':''} loaded — check and hit + ADD ALL`;
-
-  } catch(err) {
-    status.style.color = 'var(--red)';
-    status.textContent = 'Error: ' + (err.message||'unknown');
-    console.error(err);
-  }
-}
 // ── Totals row-entry form ─────────────────────────────────────────────
 let rowCount = 0;
+
+function toggleJsonImport(){
+  const el=document.getElementById('t-jsonImport');
+  el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function importFromJson(){
+  const raw=document.getElementById('t-jsonInput').value.trim();
+  const status=document.getElementById('t-imgStatus');
+  status.style.display='block';
+  try{
+    const games=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    if(!Array.isArray(games)||!games.length) throw new Error('No games found');
+    document.getElementById('t-rowsContainer').innerHTML='';
+    rowCount=0;
+    games.forEach(g=>addTotalRow({
+      grade:g.grade||'',game:g.game||'',
+      market:g.market||'',model:g.model||'',
+      edge:g.edge||'',
+      ou:(g.ou||'over').toLowerCase(),
+      odds:g.odds?(g.odds>0?'+'+g.odds:''+g.odds):'',
+      book:g.book||''
+    }));
+    addTotalRow(); addTotalRow();
+    document.getElementById('t-jsonInput').value='';
+    document.getElementById('t-jsonImport').style.display='none';
+    status.style.color='var(--green)';
+    status.textContent=`✓ ${games.length} game${games.length!==1?'s':''} loaded — hit + ADD ALL`;
+  }catch(err){
+    status.style.color='var(--red)';
+    status.textContent='Invalid JSON: '+err.message;
+  }
+}
 
 function addTotalRow(vals={}){
   rowCount++;
