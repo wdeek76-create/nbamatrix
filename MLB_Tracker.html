@@ -1426,11 +1426,11 @@ function addTotalRow(vals={}){
   div.className = 't-row';
   div.id = id;
   div.innerHTML = `
-    <input type="text" placeholder="9/9" value="${vals.grade||''}" style="text-align:center">
-    <input type="text" placeholder="KC @ ATL" value="${vals.game||''}">
+    <input type="text" placeholder="9" value="${vals.grade||''}" style="text-align:center" title="Grade (7, 8, or 9)">
+    <input type="text" placeholder="KC @ ATL" value="${vals.game||''}" onkeydown="handleRowKey(event,'${id}')">
     <input type="number" placeholder="7.5" step="0.5" value="${vals.market||''}">
     <input type="number" placeholder="8.4" step="0.1" value="${vals.model||''}">
-    <input type="text" placeholder="5.8%" value="${vals.edge||''}">
+    <input type="text" placeholder="5.8" value="${vals.edge||''}" title="Edge % (just the number)">
     <select><option value="over" ${(vals.ou||'over')==='over'?'selected':''}>Over</option><option value="under" ${vals.ou==='under'?'selected':''}>Under</option></select>
     <input type="text" placeholder="+105" value="${vals.odds||''}">
     <input type="text" placeholder="DK" value="${vals.book||''}">
@@ -1438,6 +1438,19 @@ function addTotalRow(vals={}){
   `;
   document.getElementById('t-rowsContainer').appendChild(div);
   if(!vals.game) div.querySelectorAll('input')[1].focus();
+}
+
+function handleRowKey(e, id){
+  if(e.key==='Enter'){
+    // Move to next row's game field, or add new row
+    const allRows=[...document.querySelectorAll('#t-rowsContainer .t-row')];
+    const idx=allRows.findIndex(r=>r.id===id);
+    if(idx<allRows.length-1){
+      allRows[idx+1].querySelectorAll('input')[1].focus();
+    } else {
+      addTotalRow();
+    }
+  }
 }
 
 function submitTotalRows(){
@@ -1452,10 +1465,11 @@ function submitTotalRows(){
     const game    = inputs[1].value.trim();
     const market  = parseFloat(inputs[2].value);
     const model   = parseFloat(inputs[3].value);
-    const edge    = inputs[4].value.trim();
+    const edgeRaw  = inputs[4].value.trim();
+    const edge = edgeRaw ? (edgeRaw.includes('%')?edgeRaw:edgeRaw+'%') : null;
     const ou      = sel.value;
-    const oddsRaw = inputs[6].value.trim();
-    const book    = inputs[7].value.trim();
+    const oddsRaw = inputs[5].value.trim(); // inputs[5] = odds (select skipped)
+    const book    = inputs[6].value.trim(); // inputs[6] = book
     if(!game||isNaN(market)) return;
     const gm = game.match(/^(.+?)\s*(?:@|vs\.?)\s*(.+)$/i);
     if(!gm) return;
@@ -1463,12 +1477,12 @@ function submitTotalRows(){
     const home = gm[2].trim().toUpperCase();
     const odds = oddsRaw ? (oddsRaw.startsWith('-')?-1:1)*Math.abs(parseInt(oddsRaw)) : null;
     const bookName = BOOK_MAP[book.toLowerCase()]||book||null;
-    const b = {away,home,ou,line:market,odds,book:bookName,modelGrade:grade||null,model:isNaN(model)?null:model,market,edge:edge||null,pitchers:null};
+    const b = {away,home,ou,line:market,odds,book:bookName,modelGrade:grade||null,model:isNaN(model)?null:model,market,edge,pitchers:null};
     newBets.push({
       id:Date.now()+Math.random(), text:fmtTotalText(b),
       away, home, ou, line:market, odds, book:bookName,
       modelGrade:grade||null, model:isNaN(model)?null:model,
-      market, edge:edge||null, pitchers:null,
+      market, edge, pitchers:null,
       date, grade:null, actual:null,
     });
   });
