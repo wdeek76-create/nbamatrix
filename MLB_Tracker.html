@@ -434,8 +434,7 @@ function parsePropsSlate(text){
   function isOdds(w){ return /^[+-]\d{2,4}$/.test(w); }
 
   function parseRest(rest){
-    // Normalize k shorthand
-    rest=rest.trim().replace(/\bk[''']?s\b/gi,'strikeouts').replace(/(?:^|\s)k(?=\s+(?:[A-Za-z]|[+-]\d))/g,' strikeouts');
+    rest=rest.trim();
     const tokens=rest.split(/[\s,]+/).filter(Boolean);
     // Find first token index that starts a BOOK+ODDS or ODDS+BOOK pair
     let firstPairIdx=tokens.length;
@@ -456,7 +455,9 @@ function parsePropsSlate(text){
   }
 
   for(const rawLine of lines){
-    const line=rawLine.replace(/^\*+\s*/,'').trim();
+    // Strip bullet, normalize k/k's glued to number: 6.5k's → 6.5 strikeouts
+    const line=rawLine.replace(/^\*+\s*/,'').trim()
+      .replace(/([\d.]+)\s*k[''']?s?\b/gi,'$1 strikeouts');
     if(!line) continue;
     // Skip section headers (no parentheses)
     if(!line.includes('(')&&/^[A-Za-z\s]+$/.test(line)) continue;
