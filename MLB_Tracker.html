@@ -388,20 +388,75 @@ function normOdds(str){
   return str.trim().startsWith('-') ? n : Math.abs(n);
 }
 
+// Stats that mean different things for pitchers vs batters
+const PITCHER_BATTER_STATS = {
+  'hits': 'hits allowed',
+  'strikeouts': 'pitcher ks',
+  'walks': 'walks allowed',
+};
+
+// Resolve ambiguous stats by checking if the player is a pitcher
+// Called at parse time and migration — uses the player's team/position if known
+function resolveStatForPlayer(stat, playerName){
+  if(!PITCHER_BATTER_STATS[stat]) return stat; // unambiguous stat, keep it
+  if(!playerName) return stat;
+  const norm = s => s.toLowerCase().replace(/[^a-z]/g,'');
+  const n = norm(playerName);
+  // Check against known pitcher list
+  for(const p of KNOWN_PITCHERS){
+    if(norm(p)===n) return PITCHER_BATTER_STATS[stat];
+  }
+  return stat;
+}
+
+// Comprehensive list of commonly bet MLB pitchers
+const KNOWN_PITCHERS = [
+  'Cade Cavalli','Christopher Sanchez','Matthew Boyd','Nick Pivetta',
+  'Hunter Brown','Jose Soriano','Zack Gallen','Framber Valdez',
+  'Cole Ragans','Chris Sale','Gavin Williams','George Kirby',
+  'Michael King','Ryne Nelson','Emmet Sheehan','Cam Schlittler',
+  'Robbie Ray','Luis Severino','Kevin Gausman','Kyle Freeland',
+  'Sandy Alcantara','Yusei Kikuchi','Mike Burrows','Logan Webb',
+  'Corbin Burnes','Zac Gallen','Dylan Cease','Gerrit Cole',
+  'Max Fried','Spencer Strider','Freddy Peralta','Shane Bieber',
+  'Pablo Lopez','Sonny Gray','Shota Imanaga','Justin Steele',
+  'Cristian Javier','Nestor Cortes','Clarke Schmidt','Carlos Rodon',
+  'Kodai Senga','Max Scherzer','Justin Verlander','Aaron Nola',
+  'Zack Wheeler','Ranger Suarez','Tarik Skubal','Eduardo Rodriguez',
+  'Jack Flaherty','Tyler Glasnow','Yoshinobu Yamamoto','Blake Snell',
+  'Ryan Helsley','Alexis Diaz','Edwin Diaz','Emmanuel Clase',
+  'Mason Miller','Felix Bautista','David Bednar','Ryan Pressly',
+  'Jordan Romano','Robert Suarez','Jhoan Duran','Camilo Doval',
+  'Kenley Jansen','Josh Hader','Devin Williams','Clay Holmes',
+  'Trevor Megill','Tanner Scott','Carlos Estevez','Paul Sewald',
+  'Jalen Beeks','Bryan Woo','Logan Gilbert','Luis Castillo',
+  'Bryce Miller','George Kirby','Marcus Stroman','Jameson Taillon',
+  'Reid Detmers','Griffin Canning','Patrick Sandoval','Jose Suarez',
+  'MacKenzie Gore','Joe Musgrove','Michael Wacha','Matt Waldron',
+  'Seth Lugo','Adrian Morejon','Julio Teheran','Erick Fedde',
+  'Trevor Williams','Adrian Houser','Alec Mills','Bailey Ober',
+  'Simeon Woods Richardson','Joe Ryan','Pablo Lopez','Chris Paddack',
+  'Daniel Lynch','Brady Singer','Cole Irvin','Seth Corry',
+];
+
 function cleanStat(s){
   if(!s) return s;
-  // Strip ALL variants of apostrophe+s (straight, curly, unicode)
   s = s.toLowerCase()
-    .replace(/[\u2018\u2019\u02bc\u0060'`'']/g, "'") // normalize all apostrophes to straight
-    .replace(/'s\b/g, '')   // strip 's
-    .replace(/s'$/g, 's')   // strip trailing apostrophe after s
+    .replace(/[\u2018\u2019\u02bc\u0060'`'']/g, "'")
+    .replace(/'s\b/g, '')
+    .replace(/s'$/g, 's')
     .trim();
   s = s.replace(/\s*\([^)]+\)\s*$/, '').trim();
   return STAT_MAP[s] || STAT_MAP[s.replace(/s$/,'')] || s;
 }
 
 function migrateBets(bets){
-  return (bets||[]).map(b=>{ if(b.stat) b.stat=cleanStat(b.stat); return b; });
+  return (bets||[]).map(b=>{
+    if(b.stat) b.stat = cleanStat(b.stat);
+    // Re-resolve ambiguous stats using player name
+    if(b.stat && b.player) b.stat = resolveStatForPlayer(b.stat, b.player);
+    return b;
+  });
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -564,21 +619,23 @@ function parsePropsSlate(text){
     if(inlineM){
       const ouRaw = inlineM[3].toLowerCase();
       const ou = ouRaw==='u'?'under':ouRaw==='o'?'over':ouRaw;
-      const {stat, books} = parseRest(inlineM[5]);
-      bets.push({player:inlineM[1].trim(), team:inlineM[2].trim(), ou, line:parseFloat(inlineM[4]), stat, book:books[0]?.book||null, odds:books[0]?.odds??null});
+      const {stat:rawStat, books} = parseRest(inlineM[5]);
+      const playerName = inlineM[1].trim();
+      const stat = resolveStatForPlayer(rawStat, playerName);
+      bets.push({player:playerName, team:inlineM[2].trim(), ou, line:parseFloat(inlineM[4]), stat, book:books[0]?.book||null, odds:books[0]?.odds??null});
       i++; continue;
     }
 
     // ── Format 2: Multi-line — "Player over/under X stat\n(Team)\nodds book" ──
-    // Check if this line looks like "Player over/under X stat" (no team yet)
     const noTeamM = line.match(PROP_NO_TEAM);
     if(noTeamM){
       const ouRaw = noTeamM[2].toLowerCase();
       const ou = ouRaw==='u'?'under':ouRaw==='o'?'over':ouRaw;
-      // Strip any trailing (Team) that got pulled into the rest
       const restClean = noTeamM[4].replace(/\s*\([^)]+\)\s*$/, '').trim();
-      const {stat, books} = parseRest(restClean);
-      const bet = {player:noTeamM[1].trim(), team:'', ou, line:parseFloat(noTeamM[3]), stat, book:books[0]?.book||null, odds:books[0]?.odds??null};
+      const {stat:rawStat2, books} = parseRest(restClean);
+      const playerName2 = noTeamM[1].trim();
+      const stat = resolveStatForPlayer(rawStat2, playerName2);
+      const bet = {player:playerName2, team:'', ou, line:parseFloat(noTeamM[3]), stat, book:books[0]?.book||null, odds:books[0]?.odds??null};
 
       // Look ahead for team and/or odds
       let j = i+1;
@@ -1107,6 +1164,7 @@ function renderBets(scope){
       <div class="bet-actions">
         <div id="${p}badge-${ri}">${badge}</div>
         <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">GRADE</button>
+        ${scope==='props'?`<button class="bet-btn" onclick="editStat('${scope}',${ri})">STAT</button>`:''}
         <button class="bet-btn delete" onclick="delBet('${scope}',${ri})">✕</button>
       </div>
     </div>`;
@@ -1304,8 +1362,15 @@ async function getGameTotal(away, home, dateStr){
   return null;
 }
 
+function betDatePast(dateStr){
+  // Returns true only if the bet date is strictly before today
+  const today=new Date().toISOString().split('T')[0];
+  return dateStr < today;
+}
+
 async function gradeSingleProp(scope, i, statusFn){
   const bet=betsFor(scope)[i]; if(!bet) return false;
+  if(!betDatePast(bet.date)){ console.log('Skipping - game not yet played:',bet.date); return false; }
   const stat=cleanStat(bet.stat);
   statusFn&&statusFn('finding '+bet.player+'...');
   const player=await findPlayer(bet.player);
@@ -1329,9 +1394,10 @@ async function gradeBet(scope, i, btn){
       if(!bet.player||!bet.stat){ showManual(scope,i); }
       else { const ok=await gradeSingleProp(scope,i,setStatus); if(!ok) showManual(scope,i); }
     } else {
+      if(!betDatePast(bet.date)){ btn.textContent=orig; btn.disabled=false; return; }
       setStatus('fetching...');
       const total=await getGameTotal(bet.away,bet.home,bet.date);
-      if(total===null){ showManual(scope,i); }
+      if(total===null||total==='PENDING'){ showManual(scope,i); }
       else { const r=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss'; doSetGrade(scope,i,r,total); }
     }
   }catch(e){ console.error('gradeBet error:',e.message); showManual(scope,i); }
@@ -1356,12 +1422,13 @@ async function gradeAll(scope, btn){
     btn.textContent=`⏳ ${++done}/${total}`;
     try{
       if(scope==='props'){
-        if(!bet.player||!bet.stat){ showManual(scope,i); continue; }
+        if(!bet.player||!bet.stat||!betDatePast(bet.date)){ continue; }
         const ok=await gradeSingleProp(scope,i, t=>{ btn.textContent=`⏳ ${done}/${total} ${t}`; });
         if(!ok) showManual(scope,i);
       } else {
+        if(!betDatePast(bet.date)) continue;
         const tot=await getGameTotal(bet.away,bet.home,bet.date);
-        if(tot===null){ console.warn('No total for',bet.away,bet.home,bet.date); showManual(scope,i); continue; }
+        if(tot===null||tot==='PENDING'){ showManual(scope,i); continue; }
         const r=tot===bet.line?'push':(bet.ou==='over'?tot>bet.line:tot<bet.line)?'win':'loss';
         doSetGrade(scope,i,r,tot);
       }
@@ -1483,6 +1550,18 @@ function submitTotalRows(){
   rowCount=0;
   for(let i=0;i<3;i++) addTotalRow();
   render('totals');
+}
+
+function editStat(scope,i){
+  const bet=betsFor(scope)[i]; if(!bet) return;
+  const opts=['hits','hits allowed','strikeouts','pitcher ks','earned runs','walks allowed','total bases','home runs','rbis','runs','walks','stolen bases','doubles','singles','outs recorded'];
+  const cur=cleanStat(bet.stat)||'';
+  const choice=prompt(`Edit stat for ${bet.player}:\n\n${opts.map((o,i)=>`${i+1}. ${o}`).join('\n')}\n\nCurrent: ${cur}\nEnter number or type stat name:`);
+  if(!choice) return;
+  const num=parseInt(choice);
+  const newStat = !isNaN(num)&&num>=1&&num<=opts.length ? opts[num-1] : choice.trim().toLowerCase();
+  bet.stat=newStat;
+  saveBets(scope); render(scope);
 }
 
 function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
