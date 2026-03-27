@@ -438,95 +438,224 @@ function normOdds(str){
 
 // PROPS parser
 function parsePropsSlate(text){
-  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
-  const bets=[];
+  // Pre-process: normalize k shorthand glued to number
+  const normalized = text.replace(/([\d.]+)\s*k[''']?s?\b/gi,'$1 strikeouts');
+  const lines = normalized.split('\n').map(l=>l.trim()).filter(Boolean);
+  const bets = [];
 
   function isBook(w){ return !!(BOOK_MAP[w.toLowerCase()]||/^(dk|fd|pb|fliff|novig|nv|mgm|czr|espn|bet365|pin|bov|hard|circa|onyx)$/i.test(w)); }
   function isOdds(w){ return /^[+-]\d{2,4}$/.test(w); }
 
   function parseRest(rest){
-    rest=rest.trim();
-    const tokens=rest.split(/[\s,]+/).filter(Boolean);
-    // Find first token index that starts a BOOK+ODDS or ODDS+BOOK pair
-    let firstPairIdx=tokens.length;
+    rest = rest.trim();
+    const tokens = rest.split(/[\s,]+/).filter(Boolean);
+    let firstPairIdx = tokens.length;
     for(let i=0;i<tokens.length;i++){
-      const cur=tokens[i],nxt=tokens[i+1]||'';
+      const cur=tokens[i], nxt=tokens[i+1]||'';
       if((isOdds(cur)&&isBook(nxt))||(isBook(cur)&&isOdds(nxt))){ firstPairIdx=i; break; }
     }
-    const statRaw=tokens.slice(0,firstPairIdx).join(' ').toLowerCase().replace(/[.,]+$/,'').replace(/['']s$/,'').trim();
-    const stat=STAT_MAP[statRaw]||STAT_MAP[statRaw.replace(/s$/,'')]||statRaw||'unknown';
-    const bookTokens=tokens.slice(firstPairIdx);
-    const books=[];
+    const statRaw = tokens.slice(0,firstPairIdx).join(' ').toLowerCase().replace(/[.,]+$/,'').replace(/['']s$/,'').trim();
+    const stat = STAT_MAP[statRaw]||STAT_MAP[statRaw.replace(/s$/,'')]||statRaw||'unknown';
+    const bookTokens = tokens.slice(firstPairIdx);
+    const books = [];
     for(let i=0;i<bookTokens.length;i++){
-      const cur=bookTokens[i],nxt=bookTokens[i+1]||'';
-      if(isOdds(cur)&&isBook(nxt)){ books.push({book:BOOK_MAP[nxt.toLowerCase()]||nxt,odds:parseInt(cur)}); i++; }
-      else if(isBook(cur)&&isOdds(nxt)){ books.push({book:BOOK_MAP[cur.toLowerCase()]||cur,odds:parseInt(nxt)}); i++; }
+      const cur=bookTokens[i], nxt=bookTokens[i+1]||'';
+      if(isOdds(cur)&&isBook(nxt)){ books.push({book:BOOK_MAP[nxt.toLowerCase()]||nxt, odds:parseInt(cur)}); i++; }
+      else if(isBook(cur)&&isOdds(nxt)){ books.push({book:BOOK_MAP[cur.toLowerCase()]||cur, odds:parseInt(nxt)}); i++; }
     }
-    return {stat,books};
+    return {stat, books};
   }
 
-  for(const rawLine of lines){
-    // Strip bullet, normalize k/k's glued to number: 6.5k's → 6.5 strikeouts
-    const line=rawLine.replace(/^\*+\s*/,'').trim()
-      .replace(/([\d.]+)\s*k[''']?s?\b/gi,'$1 strikeouts');
-    if(!line) continue;
-    // Skip section headers (no parentheses)
-    if(!line.includes('(')&&/^[A-Za-z\s]+$/.test(line)) continue;
-    if(/^(just\s+send|this\s+is\s+just|incase)/i.test(line)) continue;
+  // Prop line regex (inline format): Player (Team) over/under X stat ...
+  const PROP_INLINE = /^(.+?)\s*\(([^)]+)\)\s*(over|under|u(?=[\s\d.])|o(?=[\s\d.]))\s*([\d.]+)\s+(.+)$/i;
+  // Prop line without team: "Player over/under X stat ..."
+  const PROP_NO_TEAM = /^(.+?)\s+(over|under|u(?=[\s\d.])|o(?=[\s\d.]))\s+([\d.]+)\s+(.+)$/i;
+  // Team-only line: "(Mets)" or "Mets" standing alone
+  const TEAM_ONLY = /^\(([^)]+)\)$|^([A-Z][a-z]+(?: [A-Z][a-z]+)?)$/;
+  // Odds+book or book+odds standalone line
+  const ODDS_LINE = /^([+-]\d{2,4})\s+([a-z0-9]+)$|^([a-z0-9]+)\s+([+-]\d{2,4})$/i;
 
-    const prop=line.match(/^(.+?)\s*\(([^)]+)\)\s*(over|under|u(?=[\s\d.])|o(?=[\s\d.]))\s*([\d.]+)\s+(.+)$/i);
-    if(prop){
-      const ouRaw=prop[3].toLowerCase();
-      const ou=ouRaw==='u'?'under':ouRaw==='o'?'over':ouRaw;
-      const {stat,books}=parseRest(prop[5]);
-      bets.push({
-        player:prop[1].trim(),team:prop[2].trim(),ou,
-        line:parseFloat(prop[4]),stat,
-        book:books[0]?.book||null,odds:books[0]?.odds??null
-      });
-      continue;
+  let i = 0;
+  while(i < lines.length){
+    const rawLine = lines[i];
+    const line = rawLine.replace(/^\*+\s*/,'').trim();
+
+    // Skip noise
+    if(!line){ i++; continue; }
+    if(/^(just\s+send|this\s+is\s+just|incase|batx|overnight|edges|nice\s+\d)/i.test(line)){ i++; continue; }
+    // Skip pure section headers (letters/spaces only, no digits, no parens)
+    if(!line.includes('(')&&/^[A-Za-z ]+$/.test(line)&&!/(over|under)\s/i.test(line)){ i++; continue; }
+
+    // ── Format 1: Player (Team) over/under X stat [books] — all on one line ──
+    const inlineM = line.match(PROP_INLINE);
+    if(inlineM){
+      const ouRaw = inlineM[3].toLowerCase();
+      const ou = ouRaw==='u'?'under':ouRaw==='o'?'over':ouRaw;
+      const {stat, books} = parseRest(inlineM[5]);
+      bets.push({player:inlineM[1].trim(), team:inlineM[2].trim(), ou, line:parseFloat(inlineM[4]), stat, book:books[0]?.book||null, odds:books[0]?.odds??null});
+      i++; continue;
     }
 
-    // Fallback: separate book line for previous bet
+    // ── Format 2: Multi-line — "Player over/under X stat\n(Team)\nodds book" ──
+    // Check if this line looks like "Player over/under X stat" (no team yet)
+    const noTeamM = line.match(PROP_NO_TEAM);
+    if(noTeamM){
+      const ouRaw = noTeamM[2].toLowerCase();
+      const ou = ouRaw==='u'?'under':ouRaw==='o'?'over':ouRaw;
+      const {stat, books} = parseRest(noTeamM[4]);
+      const bet = {player:noTeamM[1].trim(), team:'', ou, line:parseFloat(noTeamM[3]), stat, book:books[0]?.book||null, odds:books[0]?.odds??null};
+
+      // Look ahead for team and/or odds
+      let j = i+1;
+      while(j < lines.length && j < i+4){
+        const next = lines[j].replace(/^\*+\s*/,'').trim();
+        // Team line: "(Mets)" 
+        const teamM = next.match(/^\(([^)]+)\)$/);
+        if(teamM&&!bet.team){ bet.team = teamM[1]; j++; continue; }
+        // Odds line: "-769 PB" or "PB -769" or bare "-769"
+        const tokens = next.split(/[\s,]+/).filter(Boolean);
+        const hasOdds = tokens.some(t=>isOdds(t));
+        const hasBook = tokens.some(t=>isBook(t));
+        if((hasOdds||hasBook)&&bet.odds===null){
+          const {books:bl} = parseRest(next);
+          // also try bare odds
+          if(bl.length){ bet.book=bl[0].book; bet.odds=bl[0].odds; j++; }
+          else {
+            // bare odds+book like "-769 PB"
+            if(tokens.length>=2&&isOdds(tokens[0])&&isBook(tokens[1])){ bet.odds=parseInt(tokens[0]); bet.book=BOOK_MAP[tokens[1].toLowerCase()]||tokens[1]; j++; }
+            else if(tokens.length>=2&&isBook(tokens[0])&&isOdds(tokens[1])){ bet.book=BOOK_MAP[tokens[0].toLowerCase()]||tokens[0]; bet.odds=parseInt(tokens[1]); j++; }
+            else if(tokens.length===1&&isOdds(tokens[0])){ bet.odds=parseInt(tokens[0]); j++; }
+            else break;
+          }
+          // check for comma-separated second book on same line
+          break;
+        }
+        break;
+      }
+      bets.push(bet);
+      i = j; continue;
+    }
+
+    // ── Fallback: orphan book/odds line attaches to last bet ──
     if(bets.length){
-      const last=bets[bets.length-1];
+      const last = bets[bets.length-1];
       if(last.odds===null){
+        const tokens = line.split(/[\s,]+/).filter(Boolean);
+        if(tokens.length>=2&&isOdds(tokens[0])&&isBook(tokens[1])){ last.odds=parseInt(tokens[0]); last.book=BOOK_MAP[tokens[1].toLowerCase()]||tokens[1]; i++; continue; }
+        if(tokens.length>=2&&isBook(tokens[0])&&isOdds(tokens[1])){ last.book=BOOK_MAP[tokens[0].toLowerCase()]||tokens[0]; last.odds=parseInt(tokens[1]); i++; continue; }
+        if(tokens.length===1&&isOdds(tokens[0])){ last.odds=parseInt(tokens[0]); i++; continue; }
         const igot=line.match(/i\s+got\s+([+-]?\d{2,4})/i);
-        if(igot){last.odds=normOdds(igot[1]); continue;}
-        const {books}=parseRest(line);
-        if(books.length){last.book=books[0].book;last.odds=books[0].odds;}
+        if(igot){ last.odds=normOdds(igot[1]); i++; continue; }
       }
     }
+    i++;
   }
   return bets;
 }
 
-// TOTALS parser: "Team1 vs Team2 over/under X[.X] [runs/total]"  then book line
+// TOTALS parser — handles both model output format and simple paste format
+// Model format: "KC @ ATL\nCole Ragans vs Chris Sale · 7:15 PM\n8.4\t7.5\t5.8%\tOVER\n+105"
+// Simple format: "KC vs ATL over 7.5\nDK -110"
+// Also handles copied table rows: "9/9  KC @ ATL  Cole Ragans...  8.4  7.5  5.8%  OVER +105"
 function parseTotalsSlate(text){
+  const bets=[];
+
+  // Normalize: strip grade badge prefix like "9/9" "8/9" "7/9" at line start
+  // Try to parse full-row format first: game  model  market  edge%  DIR/PRICE
+  // Each bet in the model output is multiple lines, so we chunk by game lines
+
+  // Detect if this looks like model output (contains @ and numbers)
   const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
-  const bets=[]; let cur=null;
-  for(const line of lines){
-    // total line
-    const tot=line.match(/^(.+?)\s+vs\.?\s+(.+?)\s+(over|under|o(?=[\s\d])|u(?=[\s\d]))\s*([\d.]+)(?:\s+(?:runs?|total|r))?$/i);
-    if(tot){
-      if(cur) bets.push(cur);
-      const ou=tot[3].toLowerCase();
-      cur={home:tot[2].trim(),away:tot[1].trim(),
-           ou:(ou==='o'?'over':ou==='u'?'under':ou),
-           line:parseFloat(tot[4]),
-           book:null,odds:null};
+
+  // Try single-line table row format (copied from screen):
+  // "9/9  KC @ ATL  Cole Ragans vs Chris Sale · 7:15 PM  8.4  7.5  5.8%  OVER  +105"
+  // or multiline chunk:
+  // Line1: [grade] AWAY @ HOME
+  // Line2: pitcher1 vs pitcher2 · time
+  // Line3: model  market  edge%
+  // Line4: DIR price  (or combined "OVER +105")
+
+  let i=0;
+  while(i<lines.length){
+    const line=lines[i];
+
+    // ── Single-line model row (tab or multi-space separated) ──
+    // e.g. "9/9   KC @ ATL   Cole Ragans vs Chris Sale · 7:15 PM   8.4   7.5   5.8%   OVER +105"
+    const singleRow=line.match(/^(\d+\/\d+)?\s*([A-Z]{1,4})\s*@\s*([A-Z]{1,4})\s+.+?\s+([\d.]+)\s+([\d.]+)\s+([\d.]+%)\s+(OVER|UNDER)\s*([+-]\d+)/i);
+    if(singleRow){
+      const modelGrade=singleRow[1]||null;
+      const away=singleRow[2].trim(), home=singleRow[3].trim();
+      const model=parseFloat(singleRow[4]), market=parseFloat(singleRow[5]);
+      const edge=singleRow[6];
+      const ou=singleRow[7].toLowerCase();
+      const odds=parseInt(singleRow[8]);
+      bets.push({away,home,ou,line:market,odds,book:null,modelGrade,model,market,edge,date:null,grade:null,actual:null});
+      i++; continue;
+    }
+
+    // ── Multi-line model chunk ──
+    // Line i: "[grade] AWAY @ HOME"  e.g. "9/9  KC @ ATL" or just "KC @ ATL"
+    const gameLine=line.match(/^(\d+\/\d+)?\s*([A-Z]{1,4})\s*@\s*([A-Z]{1,4})/i);
+    if(gameLine){
+      const modelGrade=gameLine[1]||null;
+      const away=gameLine[2].trim(), home=gameLine[3].trim();
+      let model=null, market=null, edge=null, ou=null, odds=null, pitchers='';
+
+      // Scan next few lines for data
+      let j=i+1;
+      while(j<lines.length && j<i+5){
+        const next=lines[j];
+        // Pitcher line: "Cole Ragans vs Chris Sale · 7:15 PM"
+        if(/vs\s+\w/.test(next)&&!next.match(/^\d/)) { pitchers=next; j++; continue; }
+        // Numbers line: "8.4  7.5  5.8%"
+        const nums=next.match(/^([\d.]+)\s+([\d.]+)\s+([\d.]+%)/);
+        if(nums){ model=parseFloat(nums[1]); market=parseFloat(nums[2]); edge=nums[3]; j++; continue; }
+        // Direction + price line: "OVER +105" or "OVER\n+105"
+        const dirPrice=next.match(/^(OVER|UNDER)\s*([+-]\d+)/i);
+        if(dirPrice){ ou=dirPrice[1].toLowerCase(); odds=parseInt(dirPrice[2]); j++; break; }
+        // Direction only line
+        const dirOnly=next.match(/^(OVER|UNDER)$/i);
+        if(dirOnly){ ou=dirOnly[1].toLowerCase();
+          // price might be next line
+          if(lines[j+1]&&/^[+-]\d+$/.test(lines[j+1])){ odds=parseInt(lines[j+1]); j+=2; } else j++;
+          break;
+        }
+        // Combined odds line "+105"
+        if(/^[+-]\d{2,4}$/.test(next)&&ou){ odds=parseInt(next); j++; break; }
+        j++;
+      }
+
+      if(away&&home&&ou){
+        bets.push({away,home,ou,line:market||0,odds,book:null,modelGrade,model,market,edge,pitchers,date:null,grade:null,actual:null});
+      }
+      i=j; continue;
+    }
+
+    // ── Simple format: "AWAY vs HOME over/under X.X" then book line ──
+    const simple=line.match(/^(.+?)\s+(?:vs\.?|@)\s+(.+?)\s+(over|under|o(?=[\s\d])|u(?=[\s\d]))\s*([\d.]+)/i);
+    if(simple){
+      const ou=simple[3].toLowerCase();
+      const cur={away:simple[1].trim(),home:simple[2].trim(),
+        ou:(ou==='o'?'over':ou==='u'?'under':ou),
+        line:parseFloat(simple[4]),odds:null,book:null,
+        modelGrade:null,model:null,market:null,edge:null,date:null,grade:null,actual:null};
+      // Check same line for book+odds
+      const rest=line.substring(line.indexOf(simple[4])+simple[4].length);
+      if(rest){
+        const bm=rest.match(/([a-z0-9]+)\s+([+-]\d{2,4})/i);
+        if(bm){ cur.book=BOOK_MAP[bm[1].toLowerCase()]||bm[1]; cur.odds=parseInt(bm[2]); }
+      }
+      bets.push(cur); i++;
+      // Check next line for book odds
+      if(bets[bets.length-1].odds===null&&lines[i]){
+        const bl=lines[i].match(/^([a-z0-9]+)\s+([+-]\d{2,4})/i);
+        if(bl){ bets[bets.length-1].book=BOOK_MAP[bl[1].toLowerCase()]||bl[1]; bets[bets.length-1].odds=parseInt(bl[2]); i++; }
+      }
       continue;
     }
-    const book=line.match(/^([a-z0-9]+)\s+([+-]?\d{2,4})/i);
-    if(book&&cur){
-      const bk=BOOK_MAP[book[1].toLowerCase()]||book[1].toUpperCase();
-      const odds=normOdds(book[2]);
-      if(odds!==null&&!cur.book){cur.book=bk;cur.odds=odds; continue;}
-    }
-    const igot=line.match(/i\s+got\s+([+-]?\d{2,4})/i);
-    if(igot&&cur){ cur.odds=normOdds(igot[1]); continue; }
+
+    i++;
   }
-  if(cur) bets.push(cur);
   return bets;
 }
 
@@ -538,7 +667,8 @@ function fmtPropText(b){
 function fmtTotalText(b){
   const ou=b.ou.charAt(0).toUpperCase()+b.ou.slice(1);
   const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'';
-  return `${b.away} vs ${b.home} ${ou} ${b.line}${b.book?' · '+b.book:''}${o?' '+o:''}`;
+  const g=b.modelGrade?` [${b.modelGrade}]`:'';
+  return `${b.away} @ ${b.home} ${ou} ${b.line}${g}${b.book?' · '+b.book:''}${o?' '+o:''}`;
 }
 
 function previewParse(scope){
@@ -559,8 +689,9 @@ function previewParse(scope){
   } else {
     pills.innerHTML=parsed.map(b=>{
       const ok=b.home&&b.line&&b.odds!==null;
-      const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'?';
-      return `<span class="parse-pill ${ok?'':'err'}">${b.away} vs ${b.home} ${b.ou} ${b.line} ${o}</span>`;
+      const o=b.odds!==null?(b.odds>0?'+'+b.odds:''+b.odds):'NO ODDS';
+      const g=b.modelGrade?`[${b.modelGrade}] `:'';
+      return `<span class="parse-pill ${ok?'':'err'}">${g}${b.away} @ ${b.home} ${b.ou} ${b.line} ${o}</span>`;
     }).join('');
   }
 }
@@ -573,7 +704,7 @@ function addSlate(scope){
   const newBets=parsed.map(b=>({
     id:Date.now()+Math.random(),
     text:scope==='props'?fmtPropText(b):fmtTotalText(b),
-    ...(scope==='props'?{player:b.player,team:b.team,stat:b.stat}:{home:b.home,away:b.away}),
+    ...(scope==='props'?{player:b.player,team:b.team,stat:b.stat}:{home:b.home,away:b.away,modelGrade:b.modelGrade||null,model:b.model||null,market:b.market||null,edge:b.edge||null,pitchers:b.pitchers||null}),
     ou:b.ou,line:b.line,book:b.book,odds:b.odds,
     date,grade:null,actual:null,
   }));
@@ -590,7 +721,14 @@ function calcRisk(bets){ return bets.reduce((s,b)=>s+calcStake(b.odds),0); }
 
 function updateDash(scope){
   const p=scope[0];
-  const all=betsFor(scope).filter(b=>inPeriod(scope,b)&&(!filters[scope]||(scope==='props'?b.stat:b.ou)===filters[scope]));
+  const all=betsFor(scope).filter(b=>{
+    if(!inPeriod(scope,b)) return false;
+    if(!filters[scope]) return true;
+    if(scope==='props') return b.stat===filters[scope];
+    if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
+    if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
+    return true;
+  });
   const graded=all.filter(b=>b.grade==='win'||b.grade==='loss'||b.grade==='push');
   const wins=graded.filter(b=>b.grade==='win').length;
   const losses=graded.filter(b=>b.grade==='loss').length;
@@ -663,7 +801,8 @@ function updateTotalsBreakdown(filtered){
   if(!graded.length){wrap.style.display='none';return;}
   wrap.style.display='';
 
-  body.innerHTML=['over','under'].map(dir=>{
+  // Over/Under split
+  const ouRows=['over','under'].map(dir=>{
     const rows=graded.filter(b=>b.ou===dir);
     if(!rows.length) return '';
     const w=rows.filter(b=>b.grade==='win').length, l=rows.filter(b=>b.grade==='loss').length;
@@ -676,12 +815,34 @@ function updateTotalsBreakdown(filtered){
       <td class="left" style="color:${dir==='over'?'var(--orange)':'var(--purple)'}">${cap(dir)}</td>
       <td>${rows.length}</td><td>${w}</td><td>${l}</td>
       <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
-      <td>${staked.toFixed(2)}u</td>
-      <td>${won.toFixed(2)}u</td>
+      <td>${staked.toFixed(2)}u</td><td>${won.toFixed(2)}u</td>
       <td class="${plCls}">${fmtPL(pl)}</td>
       <td class="${plCls}">${roi}</td>
     </tr>`;
   }).join('');
+
+  // Grade breakdown rows (7/9, 8/9, 9/9)
+  const grades=[...new Set(graded.map(b=>b.modelGrade).filter(Boolean))].sort();
+  const gradeRows=grades.map(g=>{
+    const rows=graded.filter(b=>b.modelGrade===g);
+    const w=rows.filter(b=>b.grade==='win').length, l=rows.filter(b=>b.grade==='loss').length;
+    const pl=rows.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+    const staked=calcRisk(rows);
+    const won=rows.filter(b=>b.grade==='win').reduce((s,b)=>s+calcPayout(b.odds),0);
+    const roi=staked?(pl/staked*100).toFixed(1)+'%':'—';
+    const plCls=pl>0?'pos-val':pl<0?'neg-val':'neu-val';
+    return `<tr>
+      <td class="left" style="color:var(--yellow)">Grade ${g}</td>
+      <td>${rows.length}</td><td>${w}</td><td>${l}</td>
+      <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
+      <td>${staked.toFixed(2)}u</td><td>${won.toFixed(2)}u</td>
+      <td class="${plCls}">${fmtPL(pl)}</td>
+      <td class="${plCls}">${roi}</td>
+    </tr>`;
+  }).join('');
+
+  const divider=grades.length?`<tr><td colspan="9" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Model Grade</td></tr>`:'';
+  body.innerHTML=ouRows+divider+gradeRows;
 }
 
 function updateSummary(scope,wins,losses,pl){
@@ -706,13 +867,20 @@ function copySummary(scope){
 // ── Filter bar ────────────────────────────────────────────────────────
 function updateFilterBar(scope){
   const bar=document.getElementById(`${scope[0]}-filterBar`);
-  const keys=scope==='props'
-    ? [...new Set(betsFor(scope).map(b=>b.stat).filter(Boolean))].sort()
-    : ['over','under'];
+  let keys;
+  if(scope==='props'){
+    keys=[...new Set(betsFor(scope).map(b=>b.stat).filter(Boolean))].sort();
+  } else {
+    const grades=[...new Set(betsFor(scope).map(b=>b.modelGrade).filter(Boolean))].sort();
+    keys=['over','under',...grades.map(g=>`grade:${g}`)];
+  }
   if(!keys.length){bar.innerHTML='';return;}
   bar.innerHTML=`<span class="filter-label">Filter:</span>`+
     `<span class="filter-tag ${!filters[scope]?'active':''}" onclick="setFilter('${scope}',null)">All</span>`+
-    keys.map(k=>`<span class="filter-tag ${filters[scope]===k?'active':''}" onclick="setFilter('${scope}','${k}')">${k}</span>`).join('');
+    keys.map(k=>{
+      const label=k.startsWith('grade:')?k.replace('grade:','Grade '):k;
+      return `<span class="filter-tag ${filters[scope]===k?'active':''}" onclick="setFilter('${scope}','${k}')">${label}</span>`;
+    }).join('');
 }
 
 function setFilter(scope,k){ filters[scope]=k; render(scope); }
@@ -782,7 +950,13 @@ function renderBets(scope){
   const list=document.getElementById(`${p}-betsList`);
   const count=document.getElementById(`${p}-betsCount`);
   const all=betsFor(scope);
-  const filtered=all.filter(b=>!filters[scope]||(scope==='props'?b.stat:b.ou)===filters[scope]);
+  const filtered=all.filter(b=>{
+    if(!filters[scope]) return true;
+    if(scope==='props') return b.stat===filters[scope];
+    if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
+    if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
+    return true;
+  });
   count.textContent=filtered.length?`(${filtered.length})`:'';
   if(!filtered.length){list.innerHTML='<div class="empty">No bets yet — paste above</div>';return;}
 
@@ -802,12 +976,19 @@ function renderBets(scope){
         oddsStr?`<span class="stat-pill">${oddsStr}</span>`:'',
       ].filter(Boolean).join('');
     } else {
-      mainText=`${esc(bet.away||'')} <span style="color:var(--muted)">vs</span> ${esc(bet.home||'')}`;
+      mainText=`${esc(bet.away||'')} <span style="color:var(--muted)">@</span> ${esc(bet.home||'')}`;
+      const gradePill=bet.modelGrade?`<span class="stat-pill" style="background:#1a1000;border-color:#3a2800;color:var(--yellow)">${bet.modelGrade}</span>`:'';
+      const edgePill=bet.edge?`<span class="stat-pill" style="background:#001a10;border-color:#003a20;color:#00e676">${bet.edge} edge</span>`:'';
+      const modelPill=(bet.model&&bet.market)?`<span class="stat-pill" style="color:var(--muted)">model ${bet.model} / mkt ${bet.market}</span>`:'';
       metaPills=[
+        gradePill,
         ouStr?`<span class="stat-pill">${ouStr} ${bet.line}</span>`:'',
-        bet.book?`<span class="stat-pill">${esc(bet.book)}</span>`:'',
         oddsStr?`<span class="stat-pill">${oddsStr}</span>`:'',
+        edgePill,
+        modelPill,
+        bet.book?`<span class="stat-pill">${esc(bet.book)}</span>`:'',
       ].filter(Boolean).join('');
+      if(bet.pitchers) mainText+=`<div style="font-size:10px;color:var(--muted);margin-top:3px">${esc(bet.pitchers)}</div>`;
     }
     return `<div class="bet-item ${gc}" id="${p}bet-${ri}">
       <div class="bet-text">${mainText}</div>
