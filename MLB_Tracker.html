@@ -1274,8 +1274,7 @@ function renderBets(scope){
         ${oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:''}
         ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
     } else {
-      cardMain=`<div class="bet-player">${esc(bet.away||'')} <span style="color:var(--text3);font-weight:400">@</span> ${esc(bet.home||'')}</div>
-        ${bet.pitchers?`<div class="bet-team">${esc(bet.pitchers)}</div>`:''}
+      cardMain=`<div class="bet-player">${esc(bet.away||'')} <span style="color:var(--text3);font-weight:400">@</span> ${esc(bet.home||'')}</div>${bet.pitchers?`<div class="bet-team">${esc(bet.pitchers)}</div>`:''}`;
       subline=`
         ${bet.modelGrade?`<span class="pill" style="background:var(--yellow-dim);color:var(--yellow);border:1px solid #ffc54230">${bet.modelGrade}</span>`:''}
         ${ouStr?`<span class="pill ${ouPillCls}">${ouStr} ${bet.line}</span>`:''}
