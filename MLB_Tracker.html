@@ -574,6 +574,16 @@ function calcPL(odds, result){
 }
 function fmtPL(v){ return (v>=0?'+':'')+v.toFixed(2)+'u'; }
 function fmtOdds(o){ return o>0?'+'+o:''+o; }
+
+// Average American odds via implied probability
+function avgAmericanOdds(oddsArr){
+  if(!oddsArr.length) return null;
+  const toImpl=o=>o>0?100/(o+100):((-o)/((-o)+100));
+  const avgImpl=oddsArr.reduce((s,o)=>s+toImpl(o),0)/oddsArr.length;
+  // Convert avg implied prob back to American
+  const o=avgImpl>=0.5?Math.round(-(avgImpl/(1-avgImpl))*100):Math.round(((1-avgImpl)/avgImpl)*100);
+  return o;
+}
 function fmtPct(w,l){ return (w+l)?((w/(w+l))*100).toFixed(1)+'%':'—'; }
 
 // ── Parsers ───────────────────────────────────────────────────────────
@@ -904,8 +914,8 @@ function updateDash(scope){
   const risk=calcRisk(graded);
   const roi=risk?(pl/risk*100).toFixed(1)+'%':'—';
   const wr=total?(wins/total*100).toFixed(1)+'%':'—';
-  const oddsArr=graded.filter(b=>b.odds).map(b=>b.odds);
-  const avg=oddsArr.length?Math.round(oddsArr.reduce((a,b)=>a+b,0)/oddsArr.length):null;
+  const oddsArr=all.filter(b=>b.odds!=null&&b.odds!==0).map(b=>b.odds);
+  const avg=oddsArr.length?avgAmericanOdds(oddsArr):null;
 
   const set=(id,val,cls)=>{
     const el=document.getElementById(id);
