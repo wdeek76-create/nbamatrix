@@ -4,140 +4,155 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MLB BET TRACKER</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#050505;--surface:#0e0e0e;--border:#1a1a1a;--border2:#222;
-  --green:#00e676;--green2:#00c853;--green-dim:#003d1a;
-  --red:#ff3d3d;--red-dim:#3d0000;--yellow:#ffd600;
-  --text:#f0f0f0;--muted:#555;--muted2:#333;
-  --purple:#9c27b0;--orange:#ff6d00;
-  --mono:'DM Mono',monospace;--display:'Barlow Condensed',sans-serif;
+  --bg:#08090a;--surface:#0f1012;--card:#13151a;--border:#1e2028;--border2:#252830;
+  --green:#00d97e;--green-dim:#00d97e18;--green-soft:#00d97e40;
+  --red:#ff4757;--red-dim:#ff475718;
+  --yellow:#ffc542;--yellow-dim:#ffc54218;
+  --blue:#3d8ef8;--blue-dim:#3d8ef818;
+  --text:#eef0f4;--text2:#9499a8;--text3:#4a4f5e;
+  --sans:'Geist',sans-serif;--mono:'Geist Mono',monospace;
 }
-html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--mono);}
-.app{max-width:860px;margin:0 auto;padding:24px 16px 80px;}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--sans);}
+.app{max-width:880px;margin:0 auto;padding:28px 20px 100px;}
 
 /* Header */
-.header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid var(--border2);padding-bottom:16px;}
-.header-title{font-family:var(--display);font-size:42px;font-weight:900;letter-spacing:.04em;line-height:1;color:var(--green);text-transform:uppercase;}
-.header-sub{font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:4px;}
-.header-actions{display:flex;gap:8px;align-items:center;}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;}
+.header-title{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
+.header-title span{color:var(--green);}
+.header-sub{font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono);}
+.header-actions{display:flex;gap:8px;}
 
 /* Tabs */
-.tab-bar{display:flex;gap:4px;margin-bottom:24px;}
-.tab{font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.08em;padding:8px 24px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase;}
-.tab.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.tab-bar{display:flex;gap:2px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;}
+.tab{font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:-.01em;padding:7px 20px;border-radius:7px;border:none;background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;flex:1;}
+.tab.active{background:var(--card);color:var(--text);box-shadow:0 1px 3px #0006;}
 
 /* Buttons */
-.btn{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.08em;border:1px solid var(--border2);background:var(--surface);color:var(--muted);padding:8px 14px;border-radius:6px;cursor:pointer;transition:all .15s;text-transform:uppercase;}
-.btn:hover{border-color:var(--green);color:var(--green);}
+.btn{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:-.01em;border:1px solid var(--border2);background:var(--surface);color:var(--text2);padding:7px 14px;border-radius:8px;cursor:pointer;transition:all .15s;}
+.btn:hover{border-color:var(--border2);color:var(--text);background:var(--card);}
 .btn-green{background:var(--green);color:#000;border-color:var(--green);font-weight:700;}
-.btn-green:hover{background:var(--green2);border-color:var(--green2);color:#000;}
+.btn-green:hover{opacity:.9;}
 .btn-danger{border-color:var(--red-dim);color:var(--red);}
 .btn-danger:hover{background:var(--red-dim);}
 
 /* Period tabs */
-.period-tabs{display:flex;gap:4px;margin-bottom:12px;}
-.period-tab{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.06em;padding:6px 14px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase;}
-.period-tab.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.period-tabs{display:flex;gap:6px;margin-bottom:16px;}
+.period-tab{font-family:var(--sans);font-size:12px;font-weight:600;padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.period-tab.active{background:var(--green-dim);border-color:var(--green-soft);color:var(--green);}
 
 /* Stat cards */
 .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;}
-.stats-grid-2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
-.stat-label{font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
-.stat-val{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:.02em;}
+.stats-grid-2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.stat-label{font-size:11px;font-weight:500;color:var(--text3);margin-bottom:6px;letter-spacing:.01em;}
+.stat-val{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.02em;}
 .stat-val.pos{color:var(--green);}
 .stat-val.neg{color:var(--red);}
-.stat-val.neu{color:var(--muted);}
+.stat-val.neu{color:var(--text2);}
 
 /* Breakdown table */
-.breakdown-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.breakdown-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;}
 .breakdown-table{width:100%;border-collapse:collapse;font-size:11px;}
-.breakdown-table th{background:#0f0f1a;color:var(--muted);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:8px 10px;text-align:center;border-bottom:1px solid var(--border2);}
+.breakdown-table th{background:var(--card);color:var(--text3);font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:9px 12px;text-align:center;border-bottom:1px solid var(--border);}
 .breakdown-table th.left{text-align:left;}
-.breakdown-table th.over-hdr{background:#1a0f00;color:var(--orange);}
-.breakdown-table th.under-hdr{background:#0f001a;color:var(--purple);}
-.breakdown-table td{padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);color:var(--text);}
-.breakdown-table td.left{text-align:left;font-weight:500;}
+.breakdown-table th.over-hdr{color:#f59e0b;}
+.breakdown-table th.under-hdr{color:#818cf8;}
+.breakdown-table td{padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;}
+.breakdown-table td.left{text-align:left;font-family:var(--sans);font-weight:600;font-size:12px;}
 .breakdown-table tr:last-child td{border-bottom:none;}
-.breakdown-table tr:hover td{background:#111;}
+.breakdown-table tr:hover td{background:#ffffff04;}
 .pos-val{color:var(--green);}
 .neg-val{color:var(--red);}
-.neu-val{color:var(--muted);}
+.neu-val{color:var(--text3);}
 
-/* Input */
-.input-section{background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:16px;margin-bottom:20px;}
-.date-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
-.date-label{font-size:10px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;}
-.date-input{background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer;}
+/* Input section */
+.input-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:24px;}
+.date-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.date-label{font-size:11px;font-weight:600;color:var(--text3);}
+.date-input{background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer;}
 .date-input:focus{border-color:var(--green);}
-.paste-label{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
-.bet-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text);font-family:var(--mono);font-size:12px;resize:none;outline:none;transition:border-color .15s;line-height:1.7;}
-.bet-input:focus{border-color:var(--green);}
-.bet-input::placeholder{color:var(--muted);}
-.add-row{display:flex;justify-content:flex-end;margin-top:8px;}
+.paste-label{font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;}
+.bet-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--mono);font-size:12px;resize:none;outline:none;transition:border-color .15s;line-height:1.7;}
+.bet-input:focus{border-color:var(--green-soft);}
+.bet-input::placeholder{color:var(--text3);}
+.add-row{display:flex;justify-content:flex-end;margin-top:10px;}
 
 /* Parse preview */
 .parse-preview{margin-top:10px;display:none;}
-.parse-preview-title{font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
-.parse-pill{display:inline-flex;align-items:center;gap:6px;font-size:10px;padding:3px 8px;border-radius:3px;background:var(--green-dim);color:var(--green);border:1px solid #005c1f;margin:2px 3px 2px 0;}
-.parse-pill.err{background:var(--red-dim);color:var(--red);border-color:#5c0000;}
+.parse-preview-title{font-size:10px;font-weight:600;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+.parse-pill{display:inline-flex;align-items:center;gap:6px;font-size:10px;padding:3px 10px;border-radius:20px;background:var(--green-dim);color:var(--green);border:1px solid var(--green-soft);margin:2px 3px 2px 0;font-family:var(--mono);}
+.parse-pill.err{background:var(--red-dim);color:var(--red);border-color:#ff475740;}
 
 /* Bets list */
-.bets-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.bets-title{font-family:var(--display);font-size:16px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
-.bets-count{font-size:11px;color:var(--green);margin-left:8px;}
-.bet-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;transition:border-color .15s;}
+.bets-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.bets-title{font-size:14px;font-weight:700;letter-spacing:-.01em;}
+.bets-count{font-size:12px;color:var(--text3);margin-left:6px;font-family:var(--mono);}
+
+/* BET CARD — Action/OJ/Pikkit style */
+.bet-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0;margin-bottom:8px;overflow:hidden;transition:border-color .15s;}
 .bet-item:hover{border-color:var(--border2);}
-.bet-item.graded-win{border-left:3px solid var(--green);}
-.bet-item.graded-loss{border-left:3px solid var(--red);}
-.bet-item.graded-push{border-left:3px solid var(--yellow);}
-.bet-text{font-size:13px;font-weight:500;line-height:1.5;color:var(--text);margin-bottom:7px;}
-.bet-meta{display:flex;gap:5px;margin-bottom:7px;flex-wrap:wrap;}
-.stat-pill{font-size:10px;padding:2px 8px;border-radius:3px;background:#0a1f0a;border:1px solid #1a3a1a;color:#00c853;letter-spacing:.07em;text-transform:uppercase;}
-.bet-date-str{font-size:10px;color:var(--muted);margin-bottom:8px;}
-.bet-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.bet-btn{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.06em;}
-.bet-btn:hover{border-color:var(--green);color:var(--green);}
-.bet-btn.delete:hover{border-color:var(--red);color:var(--red);}
-.grade-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.05em;}
-.grade-win{background:#002910;border:1px solid var(--green);color:var(--green);}
-.grade-loss{background:var(--red-dim);border:1px solid var(--red);color:var(--red);}
-.grade-push{background:#2a2000;border:1px solid var(--yellow);color:var(--yellow);}
+.bet-item.graded-win{border-color:#00d97e30;}
+.bet-item.graded-loss{border-color:#ff475730;}
+.bet-item.graded-push{border-color:#ffc54230;}
+.bet-card-top{display:flex;align-items:stretch;min-height:64px;}
+.bet-card-accent{width:4px;flex-shrink:0;background:var(--border2);}
+.bet-item.graded-win .bet-card-accent{background:var(--green);}
+.bet-item.graded-loss .bet-card-accent{background:var(--red);}
+.bet-item.graded-push .bet-card-accent{background:var(--yellow);}
+.bet-card-main{flex:1;padding:12px 14px;min-width:0;}
+.bet-card-right{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:12px 14px;gap:4px;flex-shrink:0;}
+.bet-player{font-size:14px;font-weight:700;letter-spacing:-.01em;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bet-team{font-size:12px;color:var(--text3);font-weight:500;}
+.bet-line-row{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap;}
+.pill{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;letter-spacing:.02em;font-family:var(--mono);}
+.pill-stat{background:#1e2028;color:var(--text2);}
+.pill-over{background:#f59e0b18;color:#f59e0b;border:1px solid #f59e0b30;}
+.pill-under{background:#818cf818;color:#818cf8;border:1px solid #818cf830;}
+.pill-odds{background:var(--card);color:var(--text2);border:1px solid var(--border2);}
+.pill-book{background:transparent;color:var(--text3);}
+.bet-date{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:6px;}
+.bet-card-bottom{display:flex;align-items:center;gap:6px;padding:8px 14px 10px 18px;border-top:1px solid var(--border);background:var(--bg);}
+.grade-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;font-family:var(--mono);}
+.grade-win{background:var(--green-dim);border:1px solid var(--green-soft);color:var(--green);}
+.grade-loss{background:var(--red-dim);border:1px solid #ff475740;color:var(--red);}
+.grade-push{background:var(--yellow-dim);border:1px solid #ffc54240;color:var(--yellow);}
+.bet-btn{font-family:var(--sans);font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;letter-spacing:-.01em;}
+.bet-btn:hover{color:var(--text);border-color:var(--border2);background:var(--card);}
+.bet-btn.delete:hover{border-color:#ff475740;color:var(--red);background:var(--red-dim);}
 .manual-grade-btns{display:inline-flex;gap:4px;}
-.mgb{font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;border:none;cursor:pointer;letter-spacing:.06em;}
+.mgb{font-family:var(--sans);font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;border:none;cursor:pointer;}
 .mgb-w{background:var(--green);color:#000;}
 .mgb-l{background:var(--red);color:#fff;}
 .mgb-p{background:var(--yellow);color:#000;}
-.grade-all-btn{width:100%;padding:11px;border-radius:8px;border:1px solid #1a3a1a;background:#0a1a0a;color:var(--green);font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.1em;cursor:pointer;text-transform:uppercase;transition:all .15s;margin-bottom:16px;}
-.grade-all-btn:hover{background:var(--green-dim);border-color:var(--green);}
-.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase;border:1px dashed var(--border2);border-radius:8px;}
+
+/* Right side of card — result display */
+.bet-result-num{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--text2);}
+.bet-result-num.win{color:var(--green);}
+.bet-result-num.loss{color:var(--red);}
+.bet-result-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
+
+.grade-all-btn{width:100%;padding:11px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:-.01em;cursor:pointer;transition:all .15s;margin-bottom:14px;}
+.grade-all-btn:hover{background:var(--green-dim);border-color:var(--green-soft);color:var(--green);}
+.empty{text-align:center;padding:48px 20px;color:var(--text3);font-size:12px;font-weight:500;border:1px dashed var(--border2);border-radius:12px;}
 .filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
-.filter-label{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
-.filter-tag{font-size:10px;padding:3px 10px;border-radius:3px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .12s;}
-.filter-tag.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
-.summary-box{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:20px;}
-.summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.summary-label{font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
+.filter-label{font-size:11px;font-weight:600;color:var(--text3);}
+.filter-tag{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all .12s;}
+.filter-tag.active{background:var(--green-dim);border-color:var(--green-soft);color:var(--green);}
+.summary-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;}
+.summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.summary-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
 .summary-text .line1{color:var(--text);}
 .summary-text .line2{color:var(--green);font-weight:700;}
-.summary-card{background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:20px 24px;}
-.summary-card-title{font-family:var(--display);font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-bottom:16px;}
-.summary-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
-.summary-row:last-child{border-bottom:none;}
-.summary-row-label{font-size:12px;color:var(--muted);letter-spacing:.06em;}
-.summary-row-val{font-family:var(--display);font-size:18px;font-weight:800;letter-spacing:.02em;}
-.summary-record{font-family:var(--display);font-size:36px;font-weight:900;letter-spacing:.02em;color:var(--green);text-align:center;padding:12px 0 4px;}
-.summary-record-sub{font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;text-align:center;margin-bottom:16px;}
-.summary-copy-row{display:flex;justify-content:flex-end;margin-top:14px;}
   .t-row{display:grid;grid-template-columns:46px 1fr 48px 48px 48px 52px 52px 52px 28px;gap:4px;margin-bottom:5px;align-items:center;}
-  .t-row input,.t-row select{background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:6px 7px;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;width:100%;}
-  .t-row input:focus,.t-row select:focus{border-color:var(--green);}
+  .t-row input,.t-row select{background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;width:100%;}
+  .t-row input:focus,.t-row select:focus{border-color:var(--green-soft);}
   .t-row select option{background:var(--surface);}
-  .t-row-del{background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:11px;padding:6px 4px;width:100%;}
-  .t-row-del:hover{border-color:var(--red);color:var(--red);}
+  .t-row-del{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:11px;padding:6px 4px;width:100%;}
+  .t-row-del:hover{border-color:#ff475740;color:var(--red);}
 #fileInput{display:none;}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
@@ -149,12 +164,12 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 
 <div class="header">
   <div>
-    <div class="header-title">MLB TRACKER</div>
-    <div class="header-sub">Personal · MLB · 2025</div>
+    <div class="header-title">MLB <span>Tracker</span></div>
+    <div class="header-sub">2026 Season</div>
   </div>
   <div class="header-actions">
-    <button class="btn" onclick="loadFromFile()">↑ LOAD</button>
-    <button class="btn" onclick="saveToFile()">↓ SAVE</button>
+    <button class="btn" onclick="loadFromFile()">↑ Load</button>
+    <button class="btn" onclick="saveToFile()">↓ Save</button>
     <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(event)">
   </div>
 </div>
@@ -279,8 +294,9 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
     <table class="breakdown-table">
       <thead>
         <tr>
-          <th class="left">Direction / Grade</th>
+          <th class="left">Segment</th>
           <th>Bets</th><th>W</th><th>L</th><th>Win%</th>
+          <th>O/U Split</th>
           <th>Staked</th><th>Net</th><th>ROI</th>
           <th>Avg Edge</th><th>Avg Model</th>
         </tr>
@@ -872,6 +888,7 @@ function updateDash(scope){
     if(scope==='props') return b.stat===filters[scope];
     if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
     if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
+    if(filters[scope].startsWith('line:')) return (b.market||b.line)===parseFloat(filters[scope].replace('line:',''));
     return true;
   });
   const graded=all.filter(b=>b.grade==='win'||b.grade==='loss'||b.grade==='push');
@@ -965,10 +982,15 @@ function updateTotalsBreakdown(filtered){
     const avgEdge=edgeArr.length?(edgeArr.reduce((a,b)=>a+b,0)/edgeArr.length).toFixed(1)+'%':'—';
     const modelArr=rows.filter(b=>b.model).map(b=>b.model);
     const avgModel=modelArr.length?(modelArr.reduce((a,b)=>a+b,0)/modelArr.length).toFixed(1):'—';
+    const ov=rows.filter(b=>b.ou==='over'), un=rows.filter(b=>b.ou==='under');
+    const ovW=ov.filter(b=>b.grade==='win').length, ovL=ov.filter(b=>b.grade==='loss').length;
+    const unW=un.filter(b=>b.grade==='win').length, unL=un.filter(b=>b.grade==='loss').length;
+    const ouStr=`<span style="color:var(--orange)">O ${ovW}-${ovL}</span> <span style="color:var(--muted)">/</span> <span style="color:var(--purple)">U ${unW}-${unL}</span>`;
     return `<tr>
       <td class="left" style="color:${color}">${label}</td>
       <td>${rows.length}</td><td>${w}</td><td>${l}</td>
       <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
+      <td style="font-size:10px;white-space:nowrap">${ouStr}</td>
       <td>${staked.toFixed(2)}u</td>
       <td class="${plCls}">${fmtPL(pl)}</td>
       <td class="${plCls}">${roi}</td>
@@ -982,11 +1004,37 @@ function updateTotalsBreakdown(filtered){
     buildRow('Under', graded.filter(b=>b.ou==='under'), 'var(--purple)'),
   ].join('');
 
+  // By model grade (7/9, 8/9, 9/9)
   const grades=[...new Set(graded.map(b=>b.modelGrade).filter(Boolean))].sort();
-  const divider=grades.length?`<tr><td colspan="10" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Model Grade</td></tr>`:'';
-  const gradeRows=grades.map(g=>buildRow(`Grade ${g}`, graded.filter(b=>b.modelGrade===g), 'var(--yellow)')).join('');
+  const gradeDiv=`<tr><td colspan="11" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Model Grade</td></tr>`;
+  const gradeRows=grades.length ? gradeDiv+grades.map(g=>buildRow(`Grade ${g}`, graded.filter(b=>b.modelGrade===g), 'var(--yellow)')).join('') : '';
 
-  body.innerHTML=ouRows+divider+gradeRows;
+  // By market total line (6.5, 7, 7.5, 8, 8.5, 9, 9.5+)
+  const lineBuckets = [6.5, 7, 7.5, 8, 8.5, 9, 9.5];
+  const lineDiv=`<tr><td colspan="11" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Market Line</td></tr>`;
+  const lineRows=lineDiv+lineBuckets.map(line=>{
+    const rows=graded.filter(b=>b.market===line||b.line===line);
+    return buildRow(`O/U ${line}`, rows, 'var(--text)');
+  }).join('');
+
+  // By edge tier
+  const edgeTiers = [
+    {label:'Edge 1–2%',  min:1,  max:3},
+    {label:'Edge 3–4%',  min:3,  max:5},
+    {label:'Edge 5–6%',  min:5,  max:7},
+    {label:'Edge 7–8%',  min:7,  max:9},
+    {label:'Edge 9%+',   min:9,  max:999},
+  ];
+  const edgeDiv=`<tr><td colspan="11" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Edge %</td></tr>`;
+  const edgeRows=edgeDiv+edgeTiers.map(t=>{
+    const rows=graded.filter(b=>{
+      const e=parseFloat(b.edge);
+      return !isNaN(e)&&e>=t.min&&e<t.max;
+    });
+    return buildRow(t.label, rows, 'var(--green)');
+  }).join('');
+
+  body.innerHTML=ouRows+gradeRows+lineRows+edgeRows;
 }
 
 function updateSummary(scope,wins,losses,pl){
@@ -1046,13 +1094,18 @@ function updateFilterBar(scope){
     keys=[...new Set(betsFor(scope).map(b=>cleanStat(b.stat)).filter(Boolean))].sort();
   } else {
     const grades=[...new Set(betsFor(scope).map(b=>b.modelGrade).filter(Boolean))].sort();
-    keys=['over','under',...grades.map(g=>`grade:${g}`)];
+    const lines=[...new Set(betsFor(scope).map(b=>b.market||b.line).filter(Boolean))].sort((a,b)=>a-b);
+    keys=[
+      'over','under',
+      ...grades.map(g=>`grade:${g}`),
+      ...lines.map(l=>`line:${l}`),
+    ];
   }
   if(!keys.length){bar.innerHTML='';return;}
   bar.innerHTML=`<span class="filter-label">Filter:</span>`+
     `<span class="filter-tag ${!filters[scope]?'active':''}" onclick="setFilter('${scope}',null)">All</span>`+
     keys.map(k=>{
-      const label=k.startsWith('grade:')?k.replace('grade:','Grade '):k;
+      const label=k.startsWith('grade:')?k.replace('grade:','Grade '):k.startsWith('line:')?`O/U ${k.replace('line:','')}`:k;
       return `<span class="filter-tag ${filters[scope]===k?'active':''}" onclick="setFilter('${scope}','${k}')">${label}</span>`;
     }).join('');
 }
@@ -1129,51 +1182,73 @@ function renderBets(scope){
     if(scope==='props') return b.stat===filters[scope];
     if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
     if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
+    if(filters[scope].startsWith('line:')) return (b.market||b.line)===parseFloat(filters[scope].replace('line:',''));
     return true;
   });
   count.textContent=filtered.length?`(${filtered.length})`:'';
-  if(!filtered.length){list.innerHTML='<div class="empty">No bets yet — paste above</div>';return;}
+  if(!filtered.length){list.innerHTML='<div class="empty">No bets yet</div>';return;}
 
   list.innerHTML=filtered.map(bet=>{
     const ri=all.indexOf(bet);
     const gc=bet.grade?`graded-${bet.grade}`:'';
-    const badge=buildBadge(scope,bet,ri);
     const ouStr=cap(bet.ou||'');
     const oddsStr=bet.odds!==null?(bet.odds>0?'+'+bet.odds:''+bet.odds):'';
-    let mainText, metaPills;
-    if(scope==='props'){
-      const displayStat = cleanStat(bet.stat||'');
-      mainText=`${esc(bet.player)} <span style="color:var(--muted)">(${esc(bet.team||'')})</span>`;
-      metaPills=[
-        displayStat?`<span class="stat-pill">${esc(displayStat)}</span>`:'',
-        ouStr?`<span class="stat-pill">${ouStr} ${bet.line}</span>`:'',
-        bet.book?`<span class="stat-pill">${esc(bet.book)}</span>`:'',
-        oddsStr?`<span class="stat-pill">${oddsStr}</span>`:'',
-      ].filter(Boolean).join('');
-    } else {
-      mainText=`${esc(bet.away||'')} <span style="color:var(--muted)">@</span> ${esc(bet.home||'')}`;
-      const gradePill=bet.modelGrade?`<span class="stat-pill" style="background:#1a1000;border-color:#3a2800;color:var(--yellow)">${bet.modelGrade}</span>`:'';
-      const edgePill=bet.edge?`<span class="stat-pill" style="background:#001a10;border-color:#003a20;color:var(--green)">${bet.edge} edge</span>`:'';
-      const modelPill=bet.model?`<span class="stat-pill" style="color:var(--muted)">model ${bet.model}${bet.market?' / mkt '+bet.market:''}</span>`:'';
-      metaPills=[
-        gradePill,
-        ouStr?`<span class="stat-pill">${ouStr} ${bet.line}</span>`:'',
-        oddsStr?`<span class="stat-pill">${oddsStr}</span>`:'',
-        edgePill,
-        modelPill,
-        bet.book?`<span class="stat-pill">${esc(bet.book)}</span>`:'',
-      ].filter(Boolean).join('');
-      if(bet.pitchers) mainText+=`<div style="font-size:10px;color:var(--muted);margin-top:3px">${esc(bet.pitchers)}</div>`;
+    const ouPillCls=bet.ou==='over'?'pill-over':'pill-under';
+
+    // Right side result display
+    let rightHtml='';
+    if(bet.grade){
+      if(scope==='props'){
+        const act=bet.actual!==null&&bet.actual!=='manual'?bet.actual:'';
+        const cls=bet.grade==='win'?'win':bet.grade==='loss'?'loss':'';
+        rightHtml=`<div class="bet-result-num ${cls}">${act!==''?act:'—'}</div><div class="bet-result-label">${bet.grade}</div>`;
+      } else {
+        const pl=calcPL(bet.odds,bet.grade);
+        const plStr=(pl>=0?'+':'')+pl.toFixed(2)+'u';
+        const act=bet.actual!==null&&bet.actual!=='manual'?` (${bet.actual})`:'';
+        const cls=bet.grade==='win'?'win':bet.grade==='loss'?'loss':'';
+        rightHtml=`<div class="bet-result-num ${cls}">${plStr}</div><div class="bet-result-label">${bet.grade}${act}</div>`;
+      }
     }
+
+    let cardMain='', subline='';
+    if(scope==='props'){
+      const displayStat=cap(cleanStat(bet.stat||''));
+      cardMain=`<div class="bet-player">${esc(bet.player)}</div><div class="bet-team">${esc(bet.team||'')}</div>`;
+      subline=`
+        ${displayStat?`<span class="pill pill-stat">${esc(displayStat)}</span>`:''}
+        ${ouStr?`<span class="pill ${ouPillCls}">${ouStr} ${bet.line}</span>`:''}
+        ${oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:''}
+        ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
+    } else {
+      cardMain=`<div class="bet-player">${esc(bet.away||'')} <span style="color:var(--text3);font-weight:400">@</span> ${esc(bet.home||'')}</div>
+        ${bet.pitchers?`<div class="bet-team">${esc(bet.pitchers)}</div>`:''}`;
+      subline=`
+        ${bet.modelGrade?`<span class="pill" style="background:var(--yellow-dim);color:var(--yellow);border:1px solid #ffc54230">${bet.modelGrade}</span>`:''}
+        ${ouStr?`<span class="pill ${ouPillCls}">${ouStr} ${bet.line}</span>`:''}
+        ${oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:''}
+        ${bet.edge?`<span class="pill" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-soft)">${bet.edge}</span>`:''}
+        ${bet.model?`<span class="pill pill-stat">M ${bet.model}</span>`:''}
+        ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
+    }
+
+    const badge=`<div id="${p}badge-${ri}">${buildBadge(scope,bet,ri)}</div>`;
+
     return `<div class="bet-item ${gc}" id="${p}bet-${ri}">
-      <div class="bet-text">${mainText}</div>
-      <div class="bet-meta">${metaPills}</div>
-      <div class="bet-date-str">${fmtDate(bet.date)}</div>
-      <div class="bet-actions">
-        <div id="${p}badge-${ri}">${badge}</div>
-        <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">GRADE</button>
-        ${bet.grade?`<button class="bet-btn" onclick="showManual('${scope}',${ri})">CHANGE</button>`:''}
-        ${scope==='props'?`<button class="bet-btn" onclick="editStat('${scope}',${ri})">STAT</button>`:''}
+      <div class="bet-card-top">
+        <div class="bet-card-accent"></div>
+        <div class="bet-card-main">
+          ${cardMain}
+          <div class="bet-line-row">${subline}</div>
+          <div class="bet-date">${fmtDate(bet.date)}</div>
+        </div>
+        ${rightHtml?`<div class="bet-card-right">${rightHtml}</div>`:''}
+      </div>
+      <div class="bet-card-bottom">
+        ${badge}
+        <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">Grade</button>
+        ${bet.grade?`<button class="bet-btn" onclick="showManual('${scope}',${ri})">Change</button>`:''}
+        ${scope==='props'?`<button class="bet-btn" onclick="editStat('${scope}',${ri})">Stat</button>`:''}
         <button class="bet-btn delete" onclick="delBet('${scope}',${ri})">✕</button>
       </div>
     </div>`;
@@ -1183,13 +1258,8 @@ function renderBets(scope){
 function buildBadge(scope,bet,i){
   if(!bet.grade) return '';
   const icon=bet.grade==='win'?'✓':bet.grade==='loss'?'✗':'~';
-  const word=bet.grade==='win'?'WIN':bet.grade==='loss'?'LOSS':'PUSH';
-  const act=bet.actual!==null&&bet.actual!=='manual'?` (${bet.actual})`:'';
-  if(scope==='props'){
-    return `<span class="grade-badge grade-${bet.grade}">${icon} ${word}${act}</span>`;
-  }
-  const pl=calcPL(bet.odds,bet.grade);
-  return `<span class="grade-badge grade-${bet.grade}">${icon} ${word} ${fmtPL(pl)}${act}</span>`;
+  const word=bet.grade==='win'?'Win':bet.grade==='loss'?'Loss':'Push';
+  return `<span class="grade-badge grade-${bet.grade}">${icon} ${word}</span>`;
 }
 
 function showManual(scope,i){
