@@ -468,12 +468,11 @@
   }
 
   // Baseline all-time record (pre-existing before auto-grader)
-  if (!localStorage.getItem('baseline_set')) {
-    localStorage.setItem('baseline_wins', '162');
-    localStorage.setItem('baseline_losses', '136');
-    localStorage.setItem('baseline_pl', '16.33');
-    localStorage.setItem('baseline_set', '1');
-  }
+  // Always update baseline to current correct values
+  localStorage.setItem('baseline_wins', '183');
+  localStorage.setItem('baseline_losses', '165');
+  localStorage.setItem('baseline_pl', '4.92');
+  localStorage.setItem('baseline_set', '1');
 
   initDate();
   renderNotes();
@@ -710,8 +709,17 @@
   }
 
   function deleteNote(i) {
+    // Remove grade from cache before deleting
+    const grades = loadGrades();
+    const key = gradeKey(i);
+    if (grades[key]) {
+      delete grades[key];
+      saveGrades(grades);
+    }
     plays.splice(i, 1);
     saveNotes();
+    updateTracker();
+    renderSummary();
     renderNotes();
   }
 
