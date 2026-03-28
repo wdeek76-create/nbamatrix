@@ -294,11 +294,21 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
     <table class="breakdown-table">
       <thead>
         <tr>
-          <th class="left">Segment</th>
-          <th>Bets</th><th>W</th><th>L</th><th>Win%</th>
-          <th>O/U Split</th>
-          <th>Staked</th><th>Net</th><th>ROI</th>
-          <th>Avg Edge</th><th>Avg Model</th>
+          <th class="left" rowspan="2">Segment</th>
+          <th rowspan="2">Bets</th>
+          <th rowspan="2">W</th>
+          <th rowspan="2">L</th>
+          <th rowspan="2">Win%</th>
+          <th rowspan="2">Net</th>
+          <th rowspan="2">ROI</th>
+          <th colspan="3" class="over-hdr">OVER</th>
+          <th colspan="3" class="under-hdr">UNDER</th>
+          <th rowspan="2">Avg Edge</th>
+          <th rowspan="2">Avg Model</th>
+        </tr>
+        <tr>
+          <th class="over-hdr">W-L</th><th class="over-hdr">Net</th><th class="over-hdr">ROI</th>
+          <th class="under-hdr">W-L</th><th class="under-hdr">Net</th><th class="under-hdr">ROI</th>
         </tr>
       </thead>
       <tbody id="t-breakdownBody"></tbody>
@@ -982,36 +992,52 @@ function updateTotalsBreakdown(filtered){
     const avgEdge=edgeArr.length?(edgeArr.reduce((a,b)=>a+b,0)/edgeArr.length).toFixed(1)+'%':'—';
     const modelArr=rows.filter(b=>b.model).map(b=>b.model);
     const avgModel=modelArr.length?(modelArr.reduce((a,b)=>a+b,0)/modelArr.length).toFixed(1):'—';
-    const ov=rows.filter(b=>b.ou==='over'), un=rows.filter(b=>b.ou==='under');
+
+    const ov=rows.filter(b=>b.ou==='over');
     const ovW=ov.filter(b=>b.grade==='win').length, ovL=ov.filter(b=>b.grade==='loss').length;
+    const ovPl=ov.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+    const ovStaked=calcRisk(ov);
+    const ovRoi=ovStaked?(ovPl/ovStaked*100).toFixed(1)+'%':'—';
+
+    const un=rows.filter(b=>b.ou==='under');
     const unW=un.filter(b=>b.grade==='win').length, unL=un.filter(b=>b.grade==='loss').length;
-    const ouStr=`<span style="color:var(--orange)">O ${ovW}-${ovL}</span> <span style="color:var(--muted)">/</span> <span style="color:var(--purple)">U ${unW}-${unL}</span>`;
+    const unPl=un.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+    const unStaked=calcRisk(un);
+    const unRoi=unStaked?(unPl/unStaked*100).toFixed(1)+'%':'—';
+
+    const rc=v=>parseFloat(v)>=0?'pos-val':isNaN(parseFloat(v))?'neu-val':'neg-val';
+    const pf=v=>(v>=0?'+':'')+v.toFixed(2)+'u';
+
     return `<tr>
       <td class="left" style="color:${color}">${label}</td>
       <td>${rows.length}</td><td>${w}</td><td>${l}</td>
       <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
-      <td style="font-size:10px;white-space:nowrap">${ouStr}</td>
-      <td>${staked.toFixed(2)}u</td>
-      <td class="${plCls}">${fmtPL(pl)}</td>
+      <td class="${plCls}">${pf(pl)}</td>
       <td class="${plCls}">${roi}</td>
+      <td style="color:#f59e0b">${ov.length?`${ovW}-${ovL}`:'—'}</td>
+      <td class="${rc(ovRoi)}">${ov.length?pf(ovPl):'—'}</td>
+      <td class="${rc(ovRoi)}">${ov.length?ovRoi:'—'}</td>
+      <td style="color:#818cf8">${un.length?`${unW}-${unL}`:'—'}</td>
+      <td class="${rc(unRoi)}">${un.length?pf(unPl):'—'}</td>
+      <td class="${rc(unRoi)}">${un.length?unRoi:'—'}</td>
       <td style="color:var(--green)">${avgEdge}</td>
-      <td style="color:var(--muted)">${avgModel}</td>
+      <td style="color:var(--text3)">${avgModel}</td>
     </tr>`;
   }
 
   const ouRows = [
-    buildRow('Over',  graded.filter(b=>b.ou==='over'),  'var(--orange)'),
-    buildRow('Under', graded.filter(b=>b.ou==='under'), 'var(--purple)'),
+    buildRow('Over',  graded.filter(b=>b.ou==='over'),  '#f59e0b'),
+    buildRow('Under', graded.filter(b=>b.ou==='under'), '#818cf8'),
   ].join('');
 
   // By model grade (7/9, 8/9, 9/9)
   const grades=[...new Set(graded.map(b=>b.modelGrade).filter(Boolean))].sort();
-  const gradeDiv=`<tr><td colspan="11" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Model Grade</td></tr>`;
+  const gradeDiv=`<tr><td colspan="15" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Model Grade</td></tr>`;
   const gradeRows=grades.length ? gradeDiv+grades.map(g=>buildRow(`Grade ${g}`, graded.filter(b=>b.modelGrade===g), 'var(--yellow)')).join('') : '';
 
   // By market total line (6.5, 7, 7.5, 8, 8.5, 9, 9.5+)
   const lineBuckets = [6.5, 7, 7.5, 8, 8.5, 9, 9.5];
-  const lineDiv=`<tr><td colspan="11" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Market Line</td></tr>`;
+  const lineDiv=`<tr><td colspan="15" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Market Line</td></tr>`;
   const lineRows=lineDiv+lineBuckets.map(line=>{
     const rows=graded.filter(b=>b.market===line||b.line===line);
     return buildRow(`O/U ${line}`, rows, 'var(--text)');
@@ -1025,7 +1051,7 @@ function updateTotalsBreakdown(filtered){
     {label:'Edge 7–8%',  min:7,  max:9},
     {label:'Edge 9%+',   min:9,  max:999},
   ];
-  const edgeDiv=`<tr><td colspan="11" style="background:#0a0a0a;font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:6px 10px;">By Edge %</td></tr>`;
+  const edgeDiv=`<tr><td colspan="15" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Edge %</td></tr>`;
   const edgeRows=edgeDiv+edgeTiers.map(t=>{
     const rows=graded.filter(b=>{
       const e=parseFloat(b.edge);
