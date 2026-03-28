@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -483,8 +483,9 @@ function cleanStat(s){
 function migrateBets(bets){
   return (bets||[]).map(b=>{
     if(b.stat) b.stat = cleanStat(b.stat);
-    // Re-resolve ambiguous stats using player name
     if(b.stat && b.player) b.stat = resolveStatForPlayer(b.stat, b.player);
+    // Default timeSlot for old totals bets
+    if(b.away && !b.timeSlot) b.timeSlot = 'night';
     return b;
   });
 }
@@ -1735,15 +1736,11 @@ function submitTotalRows(){
   const fresh = newBets.filter(b => !isDupTotal(b));
 
   if(dupes.length && !fresh.length){
-    const status = document.getElementById('t-imgStatus');
-    status.style.display='block'; status.style.color='var(--yellow)';
-    status.textContent = `⚠ All ${dupes.length} bet${dupes.length>1?'s':''} already exist for this date — nothing added`;
+    alert(`⚠ All ${dupes.length} bet${dupes.length>1?'s':''} already logged for this date — nothing added.`);
     return;
   }
   if(dupes.length){
-    const status = document.getElementById('t-imgStatus');
-    status.style.display='block'; status.style.color='var(--yellow)';
-    status.textContent = `⚠ Skipped ${dupes.length} duplicate${dupes.length>1?'s':''}, added ${fresh.length}`;
+    alert(`⚠ Skipped ${dupes.length} duplicate${dupes.length>1?'s':''}, added ${fresh.length} new bet${fresh.length>1?'s':''}.`);
   }
 
   totalBets=[...fresh,...totalBets];
