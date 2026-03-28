@@ -1172,6 +1172,7 @@ function renderBets(scope){
       <div class="bet-actions">
         <div id="${p}badge-${ri}">${badge}</div>
         <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">GRADE</button>
+        ${bet.grade?`<button class="bet-btn" onclick="showManual('${scope}',${ri})">CHANGE</button>`:''}
         ${scope==='props'?`<button class="bet-btn" onclick="editStat('${scope}',${ri})">STAT</button>`:''}
         <button class="bet-btn delete" onclick="delBet('${scope}',${ri})">✕</button>
       </div>
@@ -1269,22 +1270,23 @@ async function findPlayer(name){
   return null;
 }
 
-async function getGamesForDate(dateStr){
-  if(gameIdCache[dateStr]) return gameIdCache[dateStr];
+async function getGamesForDate(dateStr, includeNextDay=false){
+  const cacheKey = dateStr + (includeNextDay?'+1':'');
+  if(gameIdCache[cacheKey]) return gameIdCache[cacheKey];
   try{
-    // Also fetch next day in case late games are indexed there
-    const next = new Date(dateStr+'T12:00:00'); next.setDate(next.getDate()+1);
-    const nextStr = next.toISOString().split('T')[0];
-    const [d1, d2] = await Promise.all([
-      bdlGet(`/mlb/v1/games?dates[]=${dateStr}&per_page=25`).catch(()=>({data:[]})),
-      bdlGet(`/mlb/v1/games?dates[]=${nextStr}&per_page=25`).catch(()=>({data:[]})),
-    ]);
-    const games = [...(d1.data||[]), ...(d2.data||[])];
-    gameIdCache[dateStr]=games;
+    const fetches = [bdlGet(`/mlb/v1/games?dates[]=${dateStr}&per_page=25`).catch(()=>({data:[]}))];
+    if(includeNextDay){
+      const next = new Date(dateStr+'T12:00:00'); next.setDate(next.getDate()+1);
+      const nextStr = next.toISOString().split('T')[0];
+      fetches.push(bdlGet(`/mlb/v1/games?dates[]=${nextStr}&per_page=25`).catch(()=>({data:[]})));
+    }
+    const results = await Promise.all(fetches);
+    const games = results.flatMap(d=>d.data||[]);
+    gameIdCache[cacheKey]=games;
     return games;
   }catch(e){
     console.warn('BDL games failed:',e.message);
-    gameIdCache[dateStr]=[];
+    gameIdCache[cacheKey]=[];
     return [];
   }
 }
@@ -1297,7 +1299,7 @@ async function getPlayerStat(player, dateStr, rawStat){
     const key=BDL_STAT_KEYS[stat];
     if(key){
       try{
-        const games=await getGamesForDate(dateStr);
+        const games=await getGamesForDate(dateStr, true); // include next day for late games
         if(games.length){
           const ids=games.map(g=>g.id);
           const params='player_ids[]='+player.id+'&'+ids.map(id=>`game_ids[]=${id}`).join('&');
