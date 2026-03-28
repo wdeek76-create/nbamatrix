@@ -431,6 +431,8 @@
   function updateTracker() {
     const grades = loadGrades();
     const date = getPlaysDate();
+    // Only count grades on or after this cutoff — everything before is baked into baseline
+    const CUTOFF = localStorage.getItem('baseline_version') === 'v3' ? '2026-03-28' : '2000-01-01';
 
     let dayW = 0, dayL = 0, dayPL = 0;
     const baseW = parseInt(localStorage.getItem('baseline_wins') || '0');
@@ -439,6 +441,9 @@
     let allW = baseW, allL = baseL, allPL = basePL;
 
     for (const [key, g] of Object.entries(grades)) {
+      // key format: YYYY-MM-DD::play text
+      const gradeDate = key.split('::')[0];
+      if (gradeDate < CUTOFF) continue; // skip old grades already in baseline
       const pl = calcPL(g.odds, g.result);
       if (g.result === 'win') { allW++; } else if (g.result === 'loss') { allL++; }
       allPL += pl;
@@ -468,11 +473,14 @@
   }
 
   // Baseline all-time record (pre-existing before auto-grader)
-  // Always update baseline to current correct values
-  localStorage.setItem('baseline_wins', '183');
-  localStorage.setItem('baseline_losses', '165');
-  localStorage.setItem('baseline_pl', '4.92');
-  localStorage.setItem('baseline_set', '1');
+  // Versioned baseline — bump version to force a one-time reset
+  if (localStorage.getItem('baseline_version') !== 'v3') {
+    localStorage.setItem('baseline_wins', '183');
+    localStorage.setItem('baseline_losses', '165');
+    localStorage.setItem('baseline_pl', '4.92');
+    localStorage.setItem('baseline_set', '1');
+    localStorage.setItem('baseline_version', 'v3');
+  }
 
   initDate();
   renderNotes();
