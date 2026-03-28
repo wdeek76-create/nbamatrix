@@ -147,7 +147,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 .summary-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
 .summary-text .line1{color:var(--text);}
 .summary-text .line2{color:var(--green);font-weight:700;}
-  .t-row{display:grid;grid-template-columns:46px 1fr 48px 48px 48px 52px 52px 52px 28px;gap:4px;margin-bottom:5px;align-items:center;}
+  .t-row{display:grid;grid-template-columns:46px 1fr 48px 48px 48px 52px 52px 52px 62px 28px;gap:4px;margin-bottom:5px;align-items:center;}
   .t-row input,.t-row select{background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;width:100%;}
   .t-row input:focus,.t-row select:focus{border-color:var(--green-soft);}
   .t-row select option{background:var(--surface);}
@@ -341,15 +341,16 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 
     <div id="t-imgStatus" style="display:none;font-size:11px;margin-bottom:8px;letter-spacing:.06em"></div>
 
-    <div style="display:grid;grid-template-columns:46px 1fr 48px 48px 48px 52px 52px 52px 28px;gap:4px;margin-bottom:5px;align-items:center">
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Grade</span>
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Game</span>
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Mkt</span>
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Model</span>
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Edge%</span>
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">O/U</span>
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Odds</span>
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Book</span>
+    <div style="display:grid;grid-template-columns:46px 1fr 48px 48px 48px 52px 52px 52px 62px 28px;gap:4px;margin-bottom:5px;align-items:center">
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Grade</span>
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Game</span>
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Mkt</span>
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Model</span>
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Edge%</span>
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">O/U</span>
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Odds</span>
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Book</span>
+      <span style="font-size:9px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Time</span>
       <span></span>
     </div>
 
@@ -884,8 +885,26 @@ function addSlate(scope){
     ou:b.ou,line:b.line,book:b.book,odds:b.odds,
     date,grade:null,actual:null,
   }));
-  if(scope==='props') propBets=[...newBets,...propBets];
-  else totalBets=[...newBets,...totalBets];
+  if(!newBets.length) return;
+
+  // Deduplicate
+  const isDup = (b) => {
+    if(scope==='props'){
+      return propBets.some(e => e.date===date && e.player===b.player && e.stat===b.stat && e.ou===b.ou && e.line===b.line);
+    } else {
+      return totalBets.some(e => e.date===date && e.away===b.away && e.home===b.home && e.ou===b.ou && e.line===b.line);
+    }
+  };
+  const fresh=newBets.filter(b=>!isDup(b));
+  const dupeCount=newBets.length-fresh.length;
+  if(dupeCount>0 && !fresh.length){
+    alert(`⚠ All ${dupeCount} bet${dupeCount>1?'s':''} already logged for this date.`);
+    return;
+  }
+  if(dupeCount>0) alert(`⚠ Skipped ${dupeCount} duplicate${dupeCount>1?'s':''}. Added ${fresh.length} new.`);
+
+  if(scope==='props') propBets=[...fresh,...propBets];
+  else totalBets=[...fresh,...totalBets];
   saveBets(scope);
   document.getElementById(`${scope[0]}-slateInput`).value='';
   document.getElementById(`${scope[0]}-parsePreview`).style.display='none';
@@ -904,6 +923,7 @@ function updateDash(scope){
     if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
     if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
     if(filters[scope].startsWith('line:')) return (b.market||b.line)===parseFloat(filters[scope].replace('line:',''));
+    if(filters[scope].startsWith('slot:')){ const sv=filters[scope].replace('slot:',''); return (b.timeSlot||'night')===sv; }
     return true;
   });
   const graded=all.filter(b=>b.grade==='win'||b.grade==='loss'||b.grade==='push');
@@ -1060,7 +1080,15 @@ function updateTotalsBreakdown(filtered){
     return buildRow(t.label, rows, 'var(--green)');
   }).join('');
 
-  body.innerHTML=ouRows+gradeRows+lineRows+edgeRows;
+  // By time slot
+  const timeDiv=`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Time Slot</td></tr>`;
+  const timeRows=timeDiv+[
+    {label:'☀️ Day',    val:'day'},
+    {label:'🌆 Evening', val:'evening'},
+    {label:'🌙 Night',  val:'night'},
+  ].map(t=>buildRow(t.label, graded.filter(b=>b.timeSlot===t.val||(t.val==='night'&&!b.timeSlot)), 'var(--text)')).join('');
+
+  body.innerHTML=ouRows+gradeRows+lineRows+edgeRows+timeRows;
 }
 
 function updateSummary(scope,wins,losses,pl){
@@ -1125,13 +1153,14 @@ function updateFilterBar(scope){
       'over','under',
       ...grades.map(g=>`grade:${g}`),
       ...lines.map(l=>`line:${l}`),
+      'slot:day','slot:evening','slot:night',
     ];
   }
   if(!keys.length){bar.innerHTML='';return;}
   bar.innerHTML=`<span class="filter-label">Filter:</span>`+
     `<span class="filter-tag ${!filters[scope]?'active':''}" onclick="setFilter('${scope}',null)">All</span>`+
     keys.map(k=>{
-      const label=k.startsWith('grade:')?k.replace('grade:','Grade '):k.startsWith('line:')?`O/U ${k.replace('line:','')}`:k;
+      const label=k.startsWith('grade:')?k.replace('grade:','Grade '):k.startsWith('line:')?`O/U ${k.replace('line:','')}`:k.startsWith('slot:')?{day:'☀️ Day',evening:'🌆 Eve',night:'🌙 Night'}[k.replace('slot:','')]||k:k;
       return `<span class="filter-tag ${filters[scope]===k?'active':''}" onclick="setFilter('${scope}','${k}')">${label}</span>`;
     }).join('');
 }
@@ -1209,6 +1238,7 @@ function renderBets(scope){
     if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
     if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
     if(filters[scope].startsWith('line:')) return (b.market||b.line)===parseFloat(filters[scope].replace('line:',''));
+    if(filters[scope].startsWith('slot:')){ const sv=filters[scope].replace('slot:',''); return (b.timeSlot||'night')===sv; }
     return true;
   });
   count.textContent=filtered.length?`(${filtered.length})`:'';
@@ -1255,6 +1285,7 @@ function renderBets(scope){
         ${oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:''}
         ${bet.edge?`<span class="pill" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-soft)">${bet.edge}</span>`:''}
         ${bet.model?`<span class="pill pill-stat">M ${bet.model}</span>`:''}
+        ${bet.timeSlot?`<span class="pill pill-stat">${bet.timeSlot==='day'?'☀️ Day':bet.timeSlot==='evening'?'🌆 Eve':'🌙 Night'}</span>`:''}
         ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
     }
 
@@ -1592,7 +1623,8 @@ function importFromJson(){
       edge:g.edge||'',
       ou:(g.ou||'over').toLowerCase(),
       odds:g.odds?(g.odds>0?'+'+g.odds:''+g.odds):'',
-      book:g.book||''
+      book:g.book||'',
+      timeSlot:g.timeSlot||(g.time?timeSlotFromTime(g.time):'night'),
     }));
     addTotalRow(); addTotalRow();
     document.getElementById('t-jsonInput').value='';
@@ -1605,12 +1637,25 @@ function importFromJson(){
   }
 }
 
+function timeSlotFromTime(timeStr){
+  // Parse "7:15 PM" → slot. Day <4PM, Evening 4-7PM, Night 7PM+
+  if(!timeStr) return 'night';
+  const m=timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if(!m) return 'night';
+  let h=parseInt(m[1]); const pm=m[3].toUpperCase()==='PM';
+  if(pm&&h!==12) h+=12; if(!pm&&h===12) h=0;
+  if(h<16) return 'day';
+  if(h<19) return 'evening';
+  return 'night';
+}
+
 function addTotalRow(vals={}){
   rowCount++;
   const id = `trow-${rowCount}`;
   const div = document.createElement('div');
   div.className = 't-row';
   div.id = id;
+  const slot=vals.timeSlot||'night';
   div.innerHTML = `
     <input type="text" placeholder="9" value="${vals.grade||''}" style="text-align:center" title="Grade (7, 8, or 9)">
     <input type="text" placeholder="KC @ ATL" value="${vals.game||''}" onkeydown="handleRowKey(event,'${id}')">
@@ -1620,6 +1665,11 @@ function addTotalRow(vals={}){
     <select><option value="over" ${(vals.ou||'over')==='over'?'selected':''}>Over</option><option value="under" ${vals.ou==='under'?'selected':''}>Under</option></select>
     <input type="text" placeholder="+105" value="${vals.odds||''}">
     <input type="text" placeholder="DK" value="${vals.book||''}">
+    <select>
+      <option value="day" ${slot==='day'?'selected':''}>Day</option>
+      <option value="evening" ${slot==='evening'?'selected':''}>Eve</option>
+      <option value="night" ${slot==='night'?'selected':''}>Night</option>
+    </select>
     <button class="t-row-del" onclick="document.getElementById('${id}').remove()">✕</button>
   `;
   document.getElementById('t-rowsContainer').appendChild(div);
@@ -1646,16 +1696,17 @@ function submitTotalRows(){
   const newBets = [];
   rows.forEach(row => {
     const inputs = row.querySelectorAll('input');
-    const sel = row.querySelector('select');
+    const sels = row.querySelectorAll('select');
     const grade   = inputs[0].value.trim();
     const game    = inputs[1].value.trim();
     const market  = parseFloat(inputs[2].value);
     const model   = parseFloat(inputs[3].value);
     const edgeRaw  = inputs[4].value.trim();
     const edge = edgeRaw ? (edgeRaw.includes('%')?edgeRaw:edgeRaw+'%') : null;
-    const ou      = sel.value;
+    const ou      = sels[0].value;
     const oddsRaw = inputs[5].value.trim(); // inputs[5] = odds (select skipped)
     const book    = inputs[6].value.trim(); // inputs[6] = book
+    const timeSlot = sels[1]?.value || 'night';
     if(!game||isNaN(market)) return;
     const gm = game.match(/^(.+?)\s*(?:@|vs\.?)\s*(.+)$/i);
     if(!gm) return;
@@ -1668,12 +1719,34 @@ function submitTotalRows(){
       id:Date.now()+Math.random(), text:fmtTotalText(b),
       away, home, ou, line:market, odds, book:bookName,
       modelGrade:grade||null, model:isNaN(model)?null:model,
-      market, edge, pitchers:null,
+      market, edge, pitchers:null, timeSlot,
       date, grade:null, actual:null,
     });
   });
   if(!newBets.length) return;
-  totalBets=[...newBets,...totalBets];
+
+  // Deduplicate: skip any bet where same game+ou+line+date already exists
+  const isDupTotal = (b) => totalBets.some(e =>
+    e.date === b.date &&
+    e.away === b.away && e.home === b.home &&
+    e.ou === b.ou && e.line === b.line
+  );
+  const dupes = newBets.filter(b => isDupTotal(b));
+  const fresh = newBets.filter(b => !isDupTotal(b));
+
+  if(dupes.length && !fresh.length){
+    const status = document.getElementById('t-imgStatus');
+    status.style.display='block'; status.style.color='var(--yellow)';
+    status.textContent = `⚠ All ${dupes.length} bet${dupes.length>1?'s':''} already exist for this date — nothing added`;
+    return;
+  }
+  if(dupes.length){
+    const status = document.getElementById('t-imgStatus');
+    status.style.display='block'; status.style.color='var(--yellow)';
+    status.textContent = `⚠ Skipped ${dupes.length} duplicate${dupes.length>1?'s':''}, added ${fresh.length}`;
+  }
+
+  totalBets=[...fresh,...totalBets];
   saveBets('totals');
   document.getElementById('t-rowsContainer').innerHTML='';
   rowCount=0;
