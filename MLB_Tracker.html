@@ -57,12 +57,12 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 /* Breakdown table */
 .breakdown-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;}
 .breakdown-table{width:100%;border-collapse:collapse;font-size:11px;}
-.breakdown-table th{background:var(--card);color:var(--text3);font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:9px 12px;text-align:center;border-bottom:1px solid var(--border);}
+.breakdown-table th{background:var(--card);color:var(--text3);font-size:11px;font-weight:600;letter-spacing:-.01em;padding:10px 14px;text-align:center;border-bottom:1px solid var(--border);font-family:var(--sans);}
 .breakdown-table th.left{text-align:left;}
 .breakdown-table th.over-hdr{color:#f59e0b;}
 .breakdown-table th.under-hdr{color:#818cf8;}
-.breakdown-table td{padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;}
-.breakdown-table td.left{text-align:left;font-family:var(--sans);font-weight:600;font-size:12px;}
+.breakdown-table td{padding:10px 14px;text-align:center;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:13px;}
+.breakdown-table td.left{text-align:left;font-weight:700;font-size:13px;}
 .breakdown-table tr:last-child td{border-bottom:none;}
 .breakdown-table tr:hover td{background:#ffffff04;}
 .pos-val{color:var(--green);}
@@ -294,21 +294,16 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
     <table class="breakdown-table">
       <thead>
         <tr>
-          <th class="left" rowspan="2">Segment</th>
-          <th rowspan="2">Bets</th>
-          <th rowspan="2">W</th>
-          <th rowspan="2">L</th>
-          <th rowspan="2">Win%</th>
-          <th rowspan="2">Net</th>
-          <th rowspan="2">ROI</th>
-          <th colspan="3" class="over-hdr">OVER</th>
-          <th colspan="3" class="under-hdr">UNDER</th>
-          <th rowspan="2">Avg Edge</th>
-          <th rowspan="2">Avg Model</th>
-        </tr>
-        <tr>
-          <th class="over-hdr">W-L</th><th class="over-hdr">Net</th><th class="over-hdr">ROI</th>
-          <th class="under-hdr">W-L</th><th class="under-hdr">Net</th><th class="under-hdr">ROI</th>
+          <th class="left">Segment</th>
+          <th>Bets</th>
+          <th>Win%</th>
+          <th>Net</th>
+          <th>ROI</th>
+          <th class="over-hdr">O W-L</th>
+          <th class="over-hdr">O ROI</th>
+          <th class="under-hdr">U W-L</th>
+          <th class="under-hdr">U ROI</th>
+          <th>Avg Edge</th>
         </tr>
       </thead>
       <tbody id="t-breakdownBody"></tbody>
@@ -990,8 +985,6 @@ function updateTotalsBreakdown(filtered){
     const plCls=pl>0?'pos-val':pl<0?'neg-val':'neu-val';
     const edgeArr=rows.filter(b=>b.edge).map(b=>parseFloat(b.edge));
     const avgEdge=edgeArr.length?(edgeArr.reduce((a,b)=>a+b,0)/edgeArr.length).toFixed(1)+'%':'—';
-    const modelArr=rows.filter(b=>b.model).map(b=>b.model);
-    const avgModel=modelArr.length?(modelArr.reduce((a,b)=>a+b,0)/modelArr.length).toFixed(1):'—';
 
     const ov=rows.filter(b=>b.ou==='over');
     const ovW=ov.filter(b=>b.grade==='win').length, ovL=ov.filter(b=>b.grade==='loss').length;
@@ -1010,18 +1003,15 @@ function updateTotalsBreakdown(filtered){
 
     return `<tr>
       <td class="left" style="color:${color}">${label}</td>
-      <td>${rows.length}</td><td>${w}</td><td>${l}</td>
+      <td>${rows.length}</td>
       <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
       <td class="${plCls}">${pf(pl)}</td>
       <td class="${plCls}">${roi}</td>
       <td style="color:#f59e0b">${ov.length?`${ovW}-${ovL}`:'—'}</td>
-      <td class="${rc(ovRoi)}">${ov.length?pf(ovPl):'—'}</td>
       <td class="${rc(ovRoi)}">${ov.length?ovRoi:'—'}</td>
       <td style="color:#818cf8">${un.length?`${unW}-${unL}`:'—'}</td>
-      <td class="${rc(unRoi)}">${un.length?pf(unPl):'—'}</td>
       <td class="${rc(unRoi)}">${un.length?unRoi:'—'}</td>
       <td style="color:var(--green)">${avgEdge}</td>
-      <td style="color:var(--text3)">${avgModel}</td>
     </tr>`;
   }
 
@@ -1032,12 +1022,12 @@ function updateTotalsBreakdown(filtered){
 
   // By model grade (7/9, 8/9, 9/9)
   const grades=[...new Set(graded.map(b=>b.modelGrade).filter(Boolean))].sort();
-  const gradeDiv=`<tr><td colspan="15" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Model Grade</td></tr>`;
+  const gradeDiv=`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Model Grade</td></tr>`;
   const gradeRows=grades.length ? gradeDiv+grades.map(g=>buildRow(`Grade ${g}`, graded.filter(b=>b.modelGrade===g), 'var(--yellow)')).join('') : '';
 
   // By market total line (6.5, 7, 7.5, 8, 8.5, 9, 9.5+)
   const lineBuckets = [6.5, 7, 7.5, 8, 8.5, 9, 9.5];
-  const lineDiv=`<tr><td colspan="15" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Market Line</td></tr>`;
+  const lineDiv=`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Market Line</td></tr>`;
   const lineRows=lineDiv+lineBuckets.map(line=>{
     const rows=graded.filter(b=>b.market===line||b.line===line);
     return buildRow(`O/U ${line}`, rows, 'var(--text)');
@@ -1051,7 +1041,7 @@ function updateTotalsBreakdown(filtered){
     {label:'Edge 7–8%',  min:7,  max:9},
     {label:'Edge 9%+',   min:9,  max:999},
   ];
-  const edgeDiv=`<tr><td colspan="15" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Edge %</td></tr>`;
+  const edgeDiv=`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Edge %</td></tr>`;
   const edgeRows=edgeDiv+edgeTiers.map(t=>{
     const rows=graded.filter(b=>{
       const e=parseFloat(b.edge);
