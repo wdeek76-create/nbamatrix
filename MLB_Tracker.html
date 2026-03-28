@@ -424,29 +424,15 @@ const PITCHER_BATTER_STATS = {
   'walks': 'walks allowed',
 };
 
-// Resolve ambiguous stats by checking if the player is a pitcher
-// Called at parse time and migration — uses the player's team/position if known
-function resolveStatForPlayer(stat, playerName){
-  if(!PITCHER_BATTER_STATS[stat]) return stat; // unambiguous stat, keep it
-  if(!playerName) return stat;
-  const norm = s => s.toLowerCase().replace(/[^a-z]/g,'');
-  const n = norm(playerName);
-  // Check against known pitcher list
-  for(const p of KNOWN_PITCHERS){
-    if(norm(p)===n) return PITCHER_BATTER_STATS[stat];
-  }
-  return stat;
-}
-
 // Comprehensive list of commonly bet MLB pitchers
 const KNOWN_PITCHERS = [
   'Cade Cavalli','Christopher Sanchez','Matthew Boyd','Nick Pivetta',
-  'Hunter Brown','Jose Soriano','Zack Gallen','Framber Valdez',
+  'Hunter Brown','Jose Soriano','Zack Gallen','Zac Gallen','Framber Valdez',
   'Cole Ragans','Chris Sale','Gavin Williams','George Kirby',
   'Michael King','Ryne Nelson','Emmet Sheehan','Cam Schlittler',
   'Robbie Ray','Luis Severino','Kevin Gausman','Kyle Freeland',
   'Sandy Alcantara','Yusei Kikuchi','Mike Burrows','Logan Webb',
-  'Corbin Burnes','Zac Gallen','Dylan Cease','Gerrit Cole',
+  'Corbin Burnes','Dylan Cease','Gerrit Cole',
   'Max Fried','Spencer Strider','Freddy Peralta','Shane Bieber',
   'Pablo Lopez','Sonny Gray','Shota Imanaga','Justin Steele',
   'Cristian Javier','Nestor Cortes','Clarke Schmidt','Carlos Rodon',
@@ -459,14 +445,30 @@ const KNOWN_PITCHERS = [
   'Kenley Jansen','Josh Hader','Devin Williams','Clay Holmes',
   'Trevor Megill','Tanner Scott','Carlos Estevez','Paul Sewald',
   'Jalen Beeks','Bryan Woo','Logan Gilbert','Luis Castillo',
-  'Bryce Miller','George Kirby','Marcus Stroman','Jameson Taillon',
+  'Bryce Miller','Marcus Stroman','Jameson Taillon',
   'Reid Detmers','Griffin Canning','Patrick Sandoval','Jose Suarez',
   'MacKenzie Gore','Joe Musgrove','Michael Wacha','Matt Waldron',
-  'Seth Lugo','Adrian Morejon','Julio Teheran','Erick Fedde',
-  'Trevor Williams','Adrian Houser','Alec Mills','Bailey Ober',
-  'Simeon Woods Richardson','Joe Ryan','Pablo Lopez','Chris Paddack',
-  'Daniel Lynch','Brady Singer','Cole Irvin','Seth Corry',
+  'Seth Lugo','Adrian Morejon','Erick Fedde',
+  'Trevor Williams','Bailey Ober',
+  'Simeon Woods Richardson','Joe Ryan','Chris Paddack',
+  'Brady Singer','Jacob deGrom','Taj Bradley','Kyle Bradish',
+  'Brady Singer','Mitch Keller','David Peterson','Joe Boyle',
+  'Michael McGreevy','Sean Burke','Chad Patrick','Reid Detmers',
+  'Cristian Javier','Jeffrey Springs','Dylan Cease','Will Warren',
+  'Tyler Mahle','Randy Vasquez','Eduardo Rodriguez','Reynaldo Lopez',
 ];
+
+// Resolve ambiguous stats by checking if the player is a pitcher
+function resolveStatForPlayer(stat, playerName){
+  if(!PITCHER_BATTER_STATS[stat]) return stat;
+  if(!playerName) return stat;
+  const norm = s => s.toLowerCase().replace(/[^a-z]/g,'');
+  const n = norm(playerName);
+  for(const p of KNOWN_PITCHERS){
+    if(norm(p)===n) return PITCHER_BATTER_STATS[stat];
+  }
+  return stat;
+}
 
 function cleanStat(s){
   if(!s) return s;
@@ -483,8 +485,6 @@ function migrateBets(bets){
   return (bets||[]).map(b=>{
     if(b.stat) b.stat = cleanStat(b.stat);
     if(b.stat && b.player) b.stat = resolveStatForPlayer(b.stat, b.player);
-    // Default timeSlot for old totals bets
-    if(b.away && !b.timeSlot) b.timeSlot = 'night';
     return b;
   });
 }
@@ -923,7 +923,6 @@ function updateDash(scope){
     if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
     if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
     if(filters[scope].startsWith('line:')) return (b.market||b.line)===parseFloat(filters[scope].replace('line:',''));
-    if(filters[scope].startsWith('slot:')){ const sv=filters[scope].replace('slot:',''); return (b.timeSlot||'night')===sv; }
     return true;
   });
   const graded=all.filter(b=>b.grade==='win'||b.grade==='loss'||b.grade==='push');
@@ -1080,15 +1079,15 @@ function updateTotalsBreakdown(filtered){
     return buildRow(t.label, rows, 'var(--green)');
   }).join('');
 
-  // By time slot
-  const timeDiv=`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Time Slot</td></tr>`;
-  const timeRows=timeDiv+[
-    {label:'☀️ Day',    val:'day'},
-    {label:'🌆 Evening', val:'evening'},
-    {label:'🌙 Night',  val:'night'},
-  ].map(t=>buildRow(t.label, graded.filter(b=>b.timeSlot===t.val||(t.val==='night'&&!b.timeSlot)), 'var(--text)')).join('');
+  // By entry time — group by exact addedAt timestamp
+  const entryTimes=[...new Set(graded.map(b=>b.addedAt).filter(Boolean))].sort((a,b)=>{
+    const toMin=t=>{const m=t.match(/(\d+):(\d+)\s*(AM|PM)/i);if(!m)return 0;let h=parseInt(m[1]);const pm=m[3].toUpperCase()==='PM';if(pm&&h!==12)h+=12;if(!pm&&h===12)h=0;return h*60+parseInt(m[2]);};
+    return toMin(a)-toMin(b);
+  });
+  const timeDiv=entryTimes.length?`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Entry Time</td></tr>`:'';
+  const timeRows=entryTimes.map(t=>buildRow(t, graded.filter(b=>b.addedAt===t), 'var(--text2)')).join('');
 
-  body.innerHTML=ouRows+gradeRows+lineRows+edgeRows+timeRows;
+  body.innerHTML=ouRows+gradeRows+lineRows+edgeRows+timeDiv+timeRows;
 }
 
 function updateSummary(scope,wins,losses,pl){
@@ -1153,14 +1152,13 @@ function updateFilterBar(scope){
       'over','under',
       ...grades.map(g=>`grade:${g}`),
       ...lines.map(l=>`line:${l}`),
-      'slot:day','slot:evening','slot:night',
     ];
   }
   if(!keys.length){bar.innerHTML='';return;}
   bar.innerHTML=`<span class="filter-label">Filter:</span>`+
     `<span class="filter-tag ${!filters[scope]?'active':''}" onclick="setFilter('${scope}',null)">All</span>`+
     keys.map(k=>{
-      const label=k.startsWith('grade:')?k.replace('grade:','Grade '):k.startsWith('line:')?`O/U ${k.replace('line:','')}`:k.startsWith('slot:')?{day:'☀️ Day',evening:'🌆 Eve',night:'🌙 Night'}[k.replace('slot:','')]||k:k;
+      const label=k.startsWith('grade:')?`Grade ${k.replace('grade:','')}`:k.startsWith('line:')?`O/U ${k.replace('line:','')}`:cap(k);
       return `<span class="filter-tag ${filters[scope]===k?'active':''}" onclick="setFilter('${scope}','${k}')">${label}</span>`;
     }).join('');
 }
@@ -1238,7 +1236,6 @@ function renderBets(scope){
     if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
     if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
     if(filters[scope].startsWith('line:')) return (b.market||b.line)===parseFloat(filters[scope].replace('line:',''));
-    if(filters[scope].startsWith('slot:')){ const sv=filters[scope].replace('slot:',''); return (b.timeSlot||'night')===sv; }
     return true;
   });
   count.textContent=filtered.length?`(${filtered.length})`:'';
@@ -1278,7 +1275,7 @@ function renderBets(scope){
         ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
     } else {
       cardMain=`<div class="bet-player">${esc(bet.away||'')} <span style="color:var(--text3);font-weight:400">@</span> ${esc(bet.home||'')}</div>
-        ${bet.pitchers?`<div class="bet-team">${esc(bet.pitchers)}</div>`:''}`;
+        ${bet.pitchers?`<div class="bet-team">${esc(bet.pitchers)}</div>`:''}
       subline=`
         ${bet.modelGrade?`<span class="pill" style="background:var(--yellow-dim);color:var(--yellow);border:1px solid #ffc54230">${bet.modelGrade}</span>`:''}
         ${ouStr?`<span class="pill ${ouPillCls}">${ouStr} ${bet.line}</span>`:''}
@@ -1624,7 +1621,6 @@ function importFromJson(){
       ou:(g.ou||'over').toLowerCase(),
       odds:g.odds?(g.odds>0?'+'+g.odds:''+g.odds):'',
       book:g.book||'',
-      timeSlot:g.timeSlot||(g.time?timeSlotFromTime(g.time):'night'),
     }));
     addTotalRow(); addTotalRow();
     document.getElementById('t-jsonInput').value='';
