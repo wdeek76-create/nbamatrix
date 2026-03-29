@@ -88,7 +88,12 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 .parse-pill.err{background:var(--red-dim);color:var(--red);border-color:#ff475740;}
 
 /* Bets list */
-.bets-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.bets-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.search-bar{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;margin-bottom:10px;}
+.search-bar:focus{border-color:var(--green-soft);}
+.search-bar::placeholder{color:var(--text3);}
+.bet-date{font-size:11px;font-weight:700;color:var(--text2);font-family:var(--mono);margin-top:6px;}
+.total-card-date{font-size:11px;font-weight:700;color:var(--text2);margin-top:4px;font-family:var(--mono);}
 .bets-title{font-size:14px;font-weight:700;letter-spacing:-.01em;}
 .bets-count{font-size:12px;color:var(--text3);margin-left:6px;font-family:var(--mono);}
 
@@ -289,6 +294,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
     <div><span class="bets-title">Bets</span><span class="bets-count" id="p-betsCount"></span></div>
     <button class="btn btn-danger" onclick="clearAll('props')">CLEAR ALL</button>
   </div>
+  <input type="text" class="search-bar" id="p-search" placeholder="Search player, stat, team..." oninput="render('props')">
   <button class="grade-all-btn" onclick="gradeAll('props',this)">⚡ GRADE ALL</button>
   <div class="filter-bar" id="p-filterBar"></div>
   <div id="p-betsList"></div>
@@ -401,6 +407,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
       <button class="btn btn-danger" onclick="clearAll('totals')">CLEAR ALL</button>
     </div>
   </div>
+  <input type="text" class="search-bar" id="t-search" placeholder="Search game, team..." oninput="render('totals')">
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
     <button class="grade-all-btn" style="margin-bottom:0;flex:1" onclick="gradeAll('totals',this)">⚡ GRADE ALL</button>
     <div style="display:flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px 10px">
@@ -1290,12 +1297,25 @@ function renderBets(scope){
   const list=document.getElementById(`${p}-betsList`);
   const count=document.getElementById(`${p}-betsCount`);
   const all=betsFor(scope);
+  const searchQ=(document.getElementById(`${p}-search`)?.value||'').toLowerCase().trim();
+
   const filtered=all.filter(b=>{
-    if(!filters[scope]) return true;
-    if(scope==='props') return b.stat===filters[scope];
-    if(filters[scope]==='over'||filters[scope]==='under') return b.ou===filters[scope];
-    if(filters[scope].startsWith('grade:')) return b.modelGrade===filters[scope].replace('grade:','');
-    if(filters[scope].startsWith('line:')) return (b.market||b.line)===parseFloat(filters[scope].replace('line:',''));
+    // Filter tab
+    if(filters[scope]){
+      if(scope==='props'&&b.stat!==filters[scope]) return false;
+      if(scope==='totals'){
+        if(filters[scope]==='over'||filters[scope]==='under'){if(b.ou!==filters[scope])return false;}
+        else if(filters[scope].startsWith('grade:')&&b.modelGrade!==filters[scope].replace('grade:',''))return false;
+        else if(filters[scope].startsWith('line:')&&(b.market||b.line)!==parseFloat(filters[scope].replace('line:','')))return false;
+      }
+    }
+    // Search
+    if(searchQ){
+      const hay=scope==='props'
+        ?`${b.player} ${b.team} ${b.stat} ${b.book}`.toLowerCase()
+        :`${b.away} ${b.home} ${b.ou} ${b.modelGrade}`.toLowerCase();
+      if(!hay.includes(searchQ)) return false;
+    }
     return true;
   });
   count.textContent=filtered.length?`(${filtered.length})`:'';
@@ -1326,25 +1346,37 @@ function renderBets(scope){
 
     if(scope==='props'){
       const displayStat=cap(cleanStat(bet.stat||''));
-      cardMain=`<div class="bet-player">${esc(bet.player)}</div><div class="bet-team">${esc(bet.team||'')}</div>`;
-      subline=`
-        ${displayStat?`<span class="pill pill-stat">${esc(displayStat)}</span>`:''}
-        ${ouStr?`<span class="pill ${ouPillCls}">${ouStr} ${bet.line}</span>`:''}
-        ${oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:''}
-        ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
-
+      const pl=bet.grade?calcPL(bet.odds,bet.grade):null;
+      const plStr=pl!==null?(pl>=0?'+':'')+pl.toFixed(2)+'u':null;
+      const plCls=bet.grade==='win'?'win':bet.grade==='loss'?'loss':'';
       const badge=`<div id="${p}badge-${ri}">${buildBadge(scope,bet,ri)}</div>`;
-      return `<div class="bet-item ${gc}" id="${p}bet-${ri}">
-        <div class="bet-card-top">
-          <div class="bet-card-accent"></div>
-          <div class="bet-card-main">
-            ${cardMain}
-            <div class="bet-line-row">${subline}</div>
-            <div class="bet-date">${fmtDate(bet.date)}</div>
+      const resultBlock=plStr?`
+        <div class="total-card-result">
+          <div class="total-result-pl ${plCls}">${plStr}</div>
+          <div class="total-result-label">${bet.grade}${bet.actual!=null&&bet.actual!=='manual'?' ('+bet.actual+')':''}</div>
+        </div>`
+        :bet.grade?`<div class="total-card-result"><div class="total-result-label" style="font-size:13px;color:var(--text2)">${bet.actual!=null&&bet.actual!=='manual'?bet.actual:'—'}</div></div>`:'';
+      return `<div class="total-card ${gc}" id="${p}bet-${ri}">
+        <div class="total-card-body">
+          <div class="total-card-accent"></div>
+          <div class="total-card-info">
+            <div class="total-card-game">${esc(bet.player||'')}</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:4px">${esc(bet.team||'')}</div>
+            <div class="total-card-meta">
+              ${displayStat?`<span class="pill pill-stat">${esc(displayStat)}</span>`:''}
+              ${oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:''}
+              ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}
+            </div>
+            <div class="total-card-date">${fmtDate(bet.date)}</div>
           </div>
-          ${rightHtml?`<div class="bet-card-right">${rightHtml}</div>`:''}
+          <div class="total-card-dir">
+            <div class="total-dir-label ${bet.ou==='over'?'over':'under'}">${ouStr}</div>
+            <div class="total-dir-line">${bet.line}</div>
+            <div class="total-dir-odds">${oddsStr}</div>
+          </div>
+          ${resultBlock}
         </div>
-        <div class="bet-card-bottom">
+        <div class="total-card-actions">
           ${badge}
           <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">Grade</button>
           ${bet.grade?`<button class="bet-btn" onclick="showManual('${scope}',${ri})">Change</button>`:''}
