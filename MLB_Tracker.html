@@ -1567,34 +1567,49 @@ async function getGameTotal(away, home, dateStr){
   const awayN=norm(away), homeN=norm(home);
   const isFinal=s=>/final|complete/i.test(s||'');
 
-  function matchTeam(abbr, name, query){
-    const a=norm(abbr||''), n=norm(name||''), q=norm(query);
+  function matchTeam(abbr, teamName, query){
+    const a=norm(abbr||''), n=norm(teamName||''), q=norm(query);
     return a===q || n.includes(q) || (q.length>=3&&a.startsWith(q.substring(0,3)));
   }
 
-  // BDL
-  try{
-    const games=await getGamesForDate(dateStr);
+  function tryGames(games, label){
     for(const pass of [true,false]){
       for(const g of games){
         const aM=matchTeam(g.away_team?.abbreviation, g.away_team_name, awayN);
         const hM=matchTeam(g.home_team?.abbreviation, g.home_team_name, homeN);
         if(pass?(aM&&hM):(aM||hM)){
           if(!isFinal(g.status)){
-            console.warn('BDL game not final:',g.status,away,'@',home);
+            console.warn('Not final:',g.status,away,'@',home,label);
             return 'PENDING';
           }
           const ar=g.away_team_data?.runs, hr=g.home_team_data?.runs;
           if(ar!=null&&hr!=null){
-            console.log('BDL total:',away,'@',home,'=',ar+hr,'status:',g.status);
+            console.log('Total:',away,'@',home,'=',ar+hr,label);
             return ar+hr;
           }
         }
       }
     }
-  }catch(e){ console.warn('BDL total:',e.message); }
+    return null;
+  }
 
-  // MLB Stats API fallback
+  // BDL — exact date first
+  try{
+    const games=await getGamesForDate(dateStr);
+    const result=tryGames(games,'BDL:'+dateStr);
+    if(result!==null) return result;
+  }catch(e){ console.warn('BDL exact date error:',e.message); }
+
+  // BDL — next day only if nothing found on exact date (late finishers)
+  try{
+    const next=new Date(dateStr+'T12:00:00'); next.setDate(next.getDate()+1);
+    const nextStr=next.toISOString().split('T')[0];
+    const games=await getGamesForDate(nextStr);
+    const result=tryGames(games,'BDL:'+nextStr);
+    if(result!==null) return result;
+  }catch(e){ console.warn('BDL next day error:',e.message); }
+
+  // MLB Stats API fallback — exact date only
   try{
     const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
     const d=await r.json();
@@ -1604,20 +1619,13 @@ async function getGameTotal(away, home, dateStr){
         const aM=gA.includes(awayN)||(awayN.length>=3&&gA.startsWith(awayN.substring(0,3)));
         const hM=gH.includes(homeN)||(homeN.length>=3&&gH.startsWith(homeN.substring(0,3)));
         if(pass?(aM&&hM):(aM||hM)){
-          const status=game.status?.detailedState||'';
-          if(!isFinal(status)){
-            console.warn('MLB game not final:',status,away,'@',home);
-            return 'PENDING';
-          }
+          if(!/final|complete/i.test(game.status?.detailedState||'')) return 'PENDING';
           const ar=game.linescore?.teams?.away?.runs, hr=game.linescore?.teams?.home?.runs;
-          if(ar!=null&&hr!=null){
-            console.log('MLB total:',away,'@',home,'=',ar+hr);
-            return ar+hr;
-          }
+          if(ar!=null&&hr!=null) return ar+hr;
         }
       }
     }
-  }catch(e){ console.warn('MLB total:',e.message); }
+  }catch(e){ console.warn('MLB fallback error:',e.message); }
 
   return null;
 }
@@ -1895,46 +1903,79 @@ async function debugBDL(){
 async function regradeByDate(){
   const dateStr = document.getElementById('t-regradeDate').value;
   if(!dateStr){ alert('Pick a date first'); return; }
-
   const bets = totalBets.filter(b=>b.date===dateStr);
   if(!bets.length){ alert('No totals bets found for '+dateStr); return; }
 
-  // Clear BDL cache for this date so we get fresh data
+  // Clear cache so we get fresh data
   delete gameIdCache[dateStr];
-  delete gameIdCache[dateStr+'+1'];
+  const next=new Date(dateStr+'T12:00:00'); next.setDate(next.getDate()+1);
+  delete gameIdCache[next.toISOString().split('T')[0]];
 
   const btn = event.target;
-  btn.disabled=true; btn.textContent='Fetching...';
+  btn.disabled=true;
 
-  let fixed=0, failed=0;
+  // Fetch ground truth from MLB Stats API — most reliable for final scores
+  btn.textContent='Fetching scores...';
+  let mlbGames=[];
+  try{
+    const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
+    const d=await r.json();
+    mlbGames=(d.dates?.[0]?.games||[]).filter(g=>/final|complete/i.test(g.status?.detailedState||''));
+    console.log(`MLB Stats API: ${mlbGames.length} final games on ${dateStr}`);
+    mlbGames.forEach(g=>{
+      const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
+      console.log(`  ${g.teams?.away?.team?.name} @ ${g.teams?.home?.team?.name}: ${ar}-${hr} (total ${ar+hr})`);
+    });
+  }catch(e){ console.warn('MLB Stats fetch failed:',e.message); }
+
+  const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
+
+  function findScore(away, home){
+    // Try to match by team abbreviation/name — requires both teams to match
+    const awayN=norm(away), homeN=norm(home);
+    for(const g of mlbGames){
+      const gA=norm(g.teams?.away?.team?.name||'');
+      const gH=norm(g.teams?.home?.team?.name||'');
+      const aM=gA.includes(awayN)||(awayN.length>=2&&gA.includes(awayN.substring(0,3)));
+      const hM=gH.includes(homeN)||(homeN.length>=2&&gH.includes(homeN.substring(0,3)));
+      if(aM&&hM){
+        const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
+        if(ar!=null&&hr!=null) return {total:ar+hr, away:ar, home:hr};
+      }
+    }
+    return null;
+  }
+
+  let fixed=0, failed=[];
   for(let i=0;i<totalBets.length;i++){
     const bet=totalBets[i];
     if(bet.date!==dateStr) continue;
-    btn.textContent=`Fetching ${bet.away}@${bet.home}...`;
-    try{
-      const tot=await getGameTotal(bet.away,bet.home,dateStr);
-      if(tot!==null&&tot!=='PENDING'){
-        const r=tot===bet.line?'push':(bet.ou==='over'?tot>bet.line:tot<bet.line)?'win':'loss';
-        totalBets[i].grade=r;
-        totalBets[i].actual=tot;
-        console.log(`✓ ${bet.away}@${bet.home} total=${tot} → ${r}`);
-        fixed++;
-      } else {
-        console.warn(`✗ ${bet.away}@${bet.home} → ${tot}`);
-        failed++;
-      }
-    }catch(e){
-      console.error(`Error grading ${bet.away}@${bet.home}:`,e.message);
-      failed++;
+    btn.textContent=`Grading ${bet.away}@${bet.home}...`;
+
+    const score=findScore(bet.away, bet.home);
+    if(score){
+      const r=score.total===bet.line?'push':(bet.ou==='over'?score.total>bet.line:score.total<bet.line)?'win':'loss';
+      totalBets[i].grade=r;
+      totalBets[i].actual=score.total;
+      console.log(`✓ ${bet.away}@${bet.home} ${score.away}-${score.home} (${score.total}) → ${r}`);
+      fixed++;
+    } else {
+      console.warn(`✗ No score found for ${bet.away}@${bet.home} on ${dateStr}`);
+      failed.push(`${bet.away}@${bet.home}`);
     }
-    await new Promise(r=>setTimeout(r,300));
+    await new Promise(r=>setTimeout(r,100));
   }
 
   saveBets('totals');
   render('totals');
   btn.disabled=false;
   btn.textContent='🔄 RE-GRADE DATE';
-  alert(`Done: ${fixed} graded, ${failed} need manual`);
+
+  if(failed.length){
+    alert(`Graded ${fixed} bets.\n\nCouldn't find scores for:\n${failed.join('\n')}\n\nGrade these manually.`);
+  } else {
+    alert(`All ${fixed} bets re-graded from MLB Stats API ✓`);
+  }
 }
 
 function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
