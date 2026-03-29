@@ -1298,7 +1298,6 @@ function renderBets(scope){
         ${bet.edge?`<span class="pill" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-soft)">${bet.edge}</span>`:''}
         ${bet.model?`<span class="pill pill-stat">M ${bet.model}</span>`:''}
         ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
-      if(bet.addedAt) cardMain+=`<div class="bet-team" style="font-size:10px;margin-top:2px;opacity:.6">Added ${bet.addedAt}</div>`;
     }
 
     const badge=`<div id="${p}badge-${ri}">${buildBadge(scope,bet,ri)}</div>`;
@@ -1309,7 +1308,7 @@ function renderBets(scope){
         <div class="bet-card-main">
           ${cardMain}
           <div class="bet-line-row">${subline}</div>
-          <div class="bet-date">${fmtDate(bet.date)}</div>
+          <div class="bet-date">${scope==='totals'?`${bet.date}${bet.addedAt?' · logged '+bet.addedAt:''}`:fmtDate(bet.date)}</div>
         </div>
         ${rightHtml?`<div class="bet-card-right">${rightHtml}</div>`:''}
       </div>
