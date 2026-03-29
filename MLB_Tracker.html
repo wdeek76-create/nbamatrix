@@ -1822,22 +1822,35 @@ function submitTotalRows(){
   });
   if(!newBets.length) return;
 
-  // Deduplicate: skip any bet where same game+ou+line+date already exists
-  const isDupTotal = (b) => totalBets.some(e =>
-    e.date === b.date &&
-    e.away === b.away && e.home === b.home &&
-    e.ou === b.ou && e.line === b.line
-  );
-  const dupes = newBets.filter(b => isDupTotal(b));
-  const fresh = newBets.filter(b => !isDupTotal(b));
+  const gradeNum=g=>g?parseInt(g.split('/')[0])||0:0;
 
-  if(dupes.length && !fresh.length){
-    alert(`⚠ All ${dupes.length} bet${dupes.length>1?'s':''} already logged for this date — nothing added.`);
+  // Deduplicate: same game same date
+  // - skip if existing is 7/9+
+  // - replace if existing is <7/9 and new is 7/9+
+  const newBetsFiltered=[];
+  newBets.forEach(b=>{
+    const existing=totalBets.findIndex(e=>e.date===b.date&&e.away===b.away&&e.home===b.home);
+    if(existing===-1){
+      newBetsFiltered.push(b); // no duplicate, add it
+    } else {
+      const exGrade=gradeNum(totalBets[existing].modelGrade);
+      const newGrade=gradeNum(b.modelGrade);
+      if(exGrade<7&&newGrade>=7){
+        // Replace existing with upgraded bet
+        totalBets.splice(existing,1);
+        newBetsFiltered.push(b);
+        console.log(`Upgraded ${b.away}@${b.home} from grade ${exGrade} to ${newGrade}`);
+      } else {
+        console.log(`Skipping duplicate ${b.away}@${b.home} (existing grade ${exGrade})`);
+      }
+    }
+  });
+
+  if(!newBetsFiltered.length){
+    alert('All bets already logged for this date.');
     return;
   }
-  if(dupes.length){
-    alert(`⚠ Skipped ${dupes.length} duplicate${dupes.length>1?'s':''}, added ${fresh.length} new bet${fresh.length>1?'s':''}.`);
-  }
+  const fresh=newBetsFiltered;
 
   totalBets=[...fresh,...totalBets];
   saveBets('totals');
