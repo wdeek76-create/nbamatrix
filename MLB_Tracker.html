@@ -1110,13 +1110,13 @@ function updateSummary(scope,wins,losses,pl){
       const ouStr=cap(b.ou||'');
       const statStr=cap(cleanStat(b.stat||''));
       const actStr=b.actual!==null&&b.actual!=='manual'?` (${b.actual})`:'';
-      const result=b.grade==='win'?'Win':b.grade==='loss'?'Loss':'Push';
-      return `${b.player} ${ouStr} ${b.line} ${statStr}${actStr} ${result}`;
+      const result=b.grade==='win'?'WIN':b.grade==='loss'?'LOSS':'PUSH';
+      return {text:`${b.player} ${ouStr} ${b.line} ${statStr} = ${result}${actStr}`, grade:b.grade};
     });
     txt.innerHTML=`<div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">${dateLabel} · ${w}-${l}</div>`+
-      lines.map(l=>{
-        const isWin=l.endsWith('Win'), isLoss=l.endsWith('Loss');
-        return `<div style="font-size:13px;font-weight:500;padding:5px 0;border-bottom:1px solid var(--border);color:${isWin?'var(--green)':isLoss?'var(--red)':'var(--yellow)'}">${l}</div>`;
+      lines.map(({text,grade})=>{
+        const c=grade==='win'?'var(--green)':grade==='loss'?'var(--red)':'var(--yellow)';
+        return `<div style="font-size:13px;font-weight:500;padding:5px 0;border-bottom:1px solid var(--border);color:${c}">${text}</div>`;
       }).join('');
   } else {
     const graded=betsFor(scope).filter(b=>b.date===yestStr&&(b.grade==='win'||b.grade==='loss'||b.grade==='push'));
@@ -1127,14 +1127,14 @@ function updateSummary(scope,wins,losses,pl){
     const totalPl=graded.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
     const lines=graded.map(b=>{
       const ouStr=cap(b.ou||'');
-      const result=b.grade==='win'?'Win':b.grade==='loss'?'Loss':'Push';
+      const result=b.grade==='win'?'WIN':b.grade==='loss'?'LOSS':'PUSH';
       const actStr=b.actual!==null&&b.actual!=='manual'?` (${b.actual})`:'';
-      return `${b.away} @ ${b.home} ${ouStr} ${b.line}${actStr} ${result}`;
+      return {text:`${b.away} @ ${b.home} ${ouStr} ${b.line} = ${result}${actStr}`, grade:b.grade};
     });
     txt.innerHTML=`<div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">${dateLabel} · ${w}-${l} · ${fmtPL(totalPl)}</div>`+
-      lines.map(l=>{
-        const isWin=l.endsWith('Win'), isLoss=l.endsWith('Loss');
-        return `<div style="font-size:13px;font-weight:500;padding:5px 0;border-bottom:1px solid var(--border);color:${isWin?'var(--green)':isLoss?'var(--red)':'var(--yellow)'}">${l}</div>`;
+      lines.map(({text,grade})=>{
+        const c=grade==='win'?'var(--green)':grade==='loss'?'var(--red)':'var(--yellow)';
+        return `<div style="font-size:13px;font-weight:500;padding:5px 0;border-bottom:1px solid var(--border);color:${c}">${text}</div>`;
       }).join('');
   }
 }
