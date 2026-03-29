@@ -1094,32 +1094,48 @@ function updateSummary(scope,wins,losses,pl){
   const p=scope[0];
   const box=document.getElementById(`${p}-summaryBox`);
   const txt=document.getElementById(`${p}-summaryText`);
-  const lbl={all:'All Time',month:'This Month',week:'This Week',day:'Today'}[periods[scope]];
+
+  // Summary always shows yesterday's graded bets
+  const yest=new Date(); yest.setDate(yest.getDate()-1);
+  const yestStr=yest.toISOString().split('T')[0];
+  const dateLabel=yest.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 
   if(scope==='props'){
-    // Build rundown of all graded bets in current period/filter
-    const all=betsFor(scope).filter(b=>inPeriod(scope,b)&&(!filters[scope]||b.stat===filters[scope]));
-    const graded=all.filter(b=>b.grade);
+    const graded=betsFor(scope).filter(b=>b.date===yestStr&&b.grade);
     if(!graded.length){box.style.display='none';return;}
     box.style.display='block';
-
+    const w=graded.filter(b=>b.grade==='win').length;
+    const l=graded.filter(b=>b.grade==='loss').length;
     const lines=graded.map(b=>{
       const ouStr=cap(b.ou||'');
-      const statStr = cap(cleanStat(b.stat||''));
+      const statStr=cap(cleanStat(b.stat||''));
       const actStr=b.actual!==null&&b.actual!=='manual'?` (${b.actual})`:'';
       const result=b.grade==='win'?'Win':b.grade==='loss'?'Loss':'Push';
       return `${b.player} ${ouStr} ${b.line} ${statStr}${actStr} ${result}`;
     });
-
-    txt.innerHTML=`<div style="font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">${lbl} · ${wins}-${losses}</div>`+
+    txt.innerHTML=`<div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">${dateLabel} · ${w}-${l}</div>`+
       lines.map(l=>{
         const isWin=l.endsWith('Win'), isLoss=l.endsWith('Loss');
-        return `<div style="font-size:13px;font-weight:500;padding:3px 0;border-bottom:1px solid var(--border);color:${isWin?'var(--green)':isLoss?'var(--red)':'var(--yellow)'}">${l}</div>`;
+        return `<div style="font-size:13px;font-weight:500;padding:5px 0;border-bottom:1px solid var(--border);color:${isWin?'var(--green)':isLoss?'var(--red)':'var(--yellow)'}">${l}</div>`;
       }).join('');
   } else {
-    if(!(wins+losses)){box.style.display='none';return;}
+    const graded=betsFor(scope).filter(b=>b.date===yestStr&&(b.grade==='win'||b.grade==='loss'||b.grade==='push'));
+    if(!graded.length){box.style.display='none';return;}
     box.style.display='block';
-    txt.innerHTML=`<div class="line1">${lbl} ${wins}-${losses} ${fmtPL(pl)}</div><div class="line2">MLB Totals</div>`;
+    const w=graded.filter(b=>b.grade==='win').length;
+    const l=graded.filter(b=>b.grade==='loss').length;
+    const totalPl=graded.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
+    const lines=graded.map(b=>{
+      const ouStr=cap(b.ou||'');
+      const result=b.grade==='win'?'Win':b.grade==='loss'?'Loss':'Push';
+      const actStr=b.actual!==null&&b.actual!=='manual'?` (${b.actual})`:'';
+      return `${b.away} @ ${b.home} ${ouStr} ${b.line}${actStr} ${result}`;
+    });
+    txt.innerHTML=`<div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">${dateLabel} · ${w}-${l} · ${fmtPL(totalPl)}</div>`+
+      lines.map(l=>{
+        const isWin=l.endsWith('Win'), isLoss=l.endsWith('Loss');
+        return `<div style="font-size:13px;font-weight:500;padding:5px 0;border-bottom:1px solid var(--border);color:${isWin?'var(--green)':isLoss?'var(--red)':'var(--yellow)'}">${l}</div>`;
+      }).join('');
   }
 }
 
@@ -1548,13 +1564,18 @@ async function gradeBet(scope, i, btn){
   try{
     if(scope==='props'){
       if(!bet.player||!bet.stat){ showManual(scope,i); }
+      else if(!betDatePast(bet.date)){ showManual(scope,i); }
       else { const ok=await gradeSingleProp(scope,i,setStatus); if(!ok) showManual(scope,i); }
     } else {
-      if(!betDatePast(bet.date)){ btn.textContent=orig; btn.disabled=false; return; }
-      setStatus('fetching...');
-      const total=await getGameTotal(bet.away,bet.home,bet.date);
-      if(total===null||total==='PENDING'){ showManual(scope,i); }
-      else { const r=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss'; doSetGrade(scope,i,r,total); }
+      if(!betDatePast(bet.date)){
+        // Today's game — go straight to manual
+        showManual(scope,i);
+      } else {
+        setStatus('fetching...');
+        const total=await getGameTotal(bet.away,bet.home,bet.date);
+        if(total===null||total==='PENDING'){ showManual(scope,i); }
+        else { const r=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss'; doSetGrade(scope,i,r,total); }
+      }
     }
   }catch(e){ console.error('gradeBet error:',e.message); showManual(scope,i); }
   btn.textContent=orig; btn.disabled=false;
