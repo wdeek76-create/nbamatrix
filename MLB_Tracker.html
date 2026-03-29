@@ -1765,14 +1765,22 @@ function importFromJson(){
     if(!Array.isArray(games)||!games.length) throw new Error('No games found');
     document.getElementById('t-rowsContainer').innerHTML='';
     rowCount=0;
-    games.forEach(g=>addTotalRow({
-      grade:g.grade||'',game:g.game||'',
-      market:g.market||'',model:g.model||'',
-      edge:g.edge||'',
-      ou:(g.ou||'over').toLowerCase(),
-      odds:g.odds?(g.odds>0?'+'+g.odds:''+g.odds):'',
-      book:g.book||'',
-    }));
+    games.forEach(g=>{
+      // Support both old format and new format
+      const market = g.market_line ?? g.market ?? '';
+      const model  = g.model_total ?? g.model ?? '';
+      const edge   = g.edge_pct!=null ? g.edge_pct+'%' : (g.edge||'');
+      const ou     = (g.direction||g.ou||'over').toLowerCase();
+      const odds   = g.price ?? g.odds;
+      const oddsStr= odds!=null?(odds>0?'+'+odds:''+odds):'';
+      addTotalRow({
+        grade: g.grade||'',
+        game:  g.game||'',
+        market, model, edge, ou,
+        odds: oddsStr,
+        book: g.book||'',
+      });
+    });
     addTotalRow(); addTotalRow();
     document.getElementById('t-jsonInput').value='';
     document.getElementById('t-jsonImport').style.display='none';
