@@ -133,6 +133,34 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 .bet-result-num{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--text2);}
 .bet-result-num.win{color:var(--green);}
 .bet-result-num.loss{color:var(--red);}
+
+/* Totals card — bigger cleaner Pikkit-style */
+.total-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .15s;}
+.total-card:hover{border-color:var(--border2);}
+.total-card.graded-win{border-color:#00d97e40;}
+.total-card.graded-loss{border-color:#ff475740;}
+.total-card.graded-push{border-color:#ffc54240;}
+.total-card-body{display:flex;align-items:center;padding:14px 16px;gap:14px;}
+.total-card-accent{width:4px;border-radius:2px;align-self:stretch;flex-shrink:0;background:var(--border2);}
+.total-card.graded-win .total-card-accent{background:var(--green);}
+.total-card.graded-loss .total-card-accent{background:var(--red);}
+.total-card.graded-push .total-card-accent{background:var(--yellow);}
+.total-card-info{flex:1;min-width:0;}
+.total-card-game{font-size:17px;font-weight:700;letter-spacing:-.02em;color:var(--text);margin-bottom:4px;}
+.total-card-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;}
+.total-card-date{font-size:11px;color:var(--text3);margin-top:3px;font-family:var(--mono);}
+.total-card-dir{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;}
+.total-dir-label{font-size:13px;font-weight:800;letter-spacing:.04em;}
+.total-dir-label.over{color:#f59e0b;}
+.total-dir-label.under{color:#818cf8;}
+.total-dir-line{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--text);font-family:var(--mono);}
+.total-dir-odds{font-size:12px;color:var(--text3);font-family:var(--mono);}
+.total-card-result{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:64px;padding-left:14px;border-left:1px solid var(--border);}
+.total-result-pl{font-size:18px;font-weight:700;font-family:var(--mono);}
+.total-result-pl.win{color:var(--green);}
+.total-result-pl.loss{color:var(--red);}
+.total-result-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+.total-card-actions{display:flex;align-items:center;gap:6px;padding:8px 16px 10px;border-top:1px solid var(--border);background:var(--bg);}
 .bet-result-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
 
 .grade-all-btn{width:100%;padding:11px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:-.01em;cursor:pointer;transition:all .15s;margin-bottom:14px;}
@@ -221,7 +249,10 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 
   <div class="summary-box" id="p-summaryBox" style="display:none">
     <div class="summary-header">
-      <div class="summary-label">Summary</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="summary-label">Summary</div>
+        <input type="date" id="p-summaryDate" class="date-input" style="font-size:11px;padding:4px 8px" onchange="render('props')">
+      </div>
       <button class="btn" id="p-copyBtn" onclick="copySummary('props')">COPY</button>
     </div>
     <div class="summary-text" id="p-summaryText"></div>
@@ -312,7 +343,10 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 
   <div class="summary-box" id="t-summaryBox" style="display:none">
     <div class="summary-header">
-      <div class="summary-label">Summary</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="summary-label">Summary</div>
+        <input type="date" id="t-summaryDate" class="date-input" style="font-size:11px;padding:4px 8px" onchange="render('totals')">
+      </div>
       <button class="btn" id="t-copyBtn" onclick="copySummary('totals')">COPY</button>
     </div>
     <div class="summary-text" id="t-summaryText"></div>
@@ -1094,14 +1128,16 @@ function updateSummary(scope,wins,losses,pl){
   const p=scope[0];
   const box=document.getElementById(`${p}-summaryBox`);
   const txt=document.getElementById(`${p}-summaryText`);
-
-  // Summary always shows yesterday's graded bets
-  const yest=new Date(); yest.setDate(yest.getDate()-1);
-  const yestStr=yest.toISOString().split('T')[0];
-  const dateLabel=yest.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const picker=document.getElementById(`${p}-summaryDate`);
+  if(!picker.value){
+    const yest=new Date(); yest.setDate(yest.getDate()-1);
+    picker.value=yest.toISOString().split('T')[0];
+  }
+  const dateStr=picker.value;
+  const dateLabel=new Date(dateStr+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 
   if(scope==='props'){
-    const graded=betsFor(scope).filter(b=>b.date===yestStr&&b.grade);
+    const graded=betsFor(scope).filter(b=>b.date===dateStr&&b.grade);
     if(!graded.length){box.style.display='none';return;}
     box.style.display='block';
     const w=graded.filter(b=>b.grade==='win').length;
@@ -1119,7 +1155,7 @@ function updateSummary(scope,wins,losses,pl){
         return `<div style="font-size:13px;font-weight:500;padding:5px 0;border-bottom:1px solid var(--border);color:${c}">${text}</div>`;
       }).join('');
   } else {
-    const graded=betsFor(scope).filter(b=>b.date===yestStr&&(b.grade==='win'||b.grade==='loss'||b.grade==='push'));
+    const graded=betsFor(scope).filter(b=>b.date===dateStr&&(b.grade==='win'||b.grade==='loss'||b.grade==='push'));
     if(!graded.length){box.style.display='none';return;}
     box.style.display='block';
     const w=graded.filter(b=>b.grade==='win').length;
@@ -1280,7 +1316,6 @@ function renderBets(scope){
       }
     }
 
-    let cardMain='', subline='';
     if(scope==='props'){
       const displayStat=cap(cleanStat(bet.stat||''));
       cardMain=`<div class="bet-player">${esc(bet.player)}</div><div class="bet-team">${esc(bet.team||'')}</div>`;
@@ -1289,37 +1324,64 @@ function renderBets(scope){
         ${ouStr?`<span class="pill ${ouPillCls}">${ouStr} ${bet.line}</span>`:''}
         ${oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:''}
         ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
-    } else {
-      cardMain=`<div class="bet-player">${esc(bet.away||'')} <span style="color:var(--text3);font-weight:400">@</span> ${esc(bet.home||'')}</div>${bet.pitchers?`<div class="bet-team">${esc(bet.pitchers)}</div>`:''}`;
-      subline=`
-        ${bet.modelGrade?`<span class="pill" style="background:var(--yellow-dim);color:var(--yellow);border:1px solid #ffc54230">${bet.modelGrade}</span>`:''}
-        ${ouStr?`<span class="pill ${ouPillCls}">${ouStr} ${bet.line}</span>`:''}
-        ${oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:''}
-        ${bet.edge?`<span class="pill" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-soft)">${bet.edge}</span>`:''}
-        ${bet.model?`<span class="pill pill-stat">M ${bet.model}</span>`:''}
-        ${bet.book?`<span class="pill pill-book">${esc(bet.book)}</span>`:''}`;
-    }
 
-    const badge=`<div id="${p}badge-${ri}">${buildBadge(scope,bet,ri)}</div>`;
-
-    return `<div class="bet-item ${gc}" id="${p}bet-${ri}">
-      <div class="bet-card-top">
-        <div class="bet-card-accent"></div>
-        <div class="bet-card-main">
-          ${cardMain}
-          <div class="bet-line-row">${subline}</div>
-          <div class="bet-date">${scope==='totals'?`${bet.date}${bet.addedAt?' · logged '+bet.addedAt:''}`:fmtDate(bet.date)}</div>
+      const badge=`<div id="${p}badge-${ri}">${buildBadge(scope,bet,ri)}</div>`;
+      return `<div class="bet-item ${gc}" id="${p}bet-${ri}">
+        <div class="bet-card-top">
+          <div class="bet-card-accent"></div>
+          <div class="bet-card-main">
+            ${cardMain}
+            <div class="bet-line-row">${subline}</div>
+            <div class="bet-date">${fmtDate(bet.date)}</div>
+          </div>
+          ${rightHtml?`<div class="bet-card-right">${rightHtml}</div>`:''}
         </div>
-        ${rightHtml?`<div class="bet-card-right">${rightHtml}</div>`:''}
-      </div>
-      <div class="bet-card-bottom">
-        ${badge}
-        <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">Grade</button>
-        ${bet.grade?`<button class="bet-btn" onclick="showManual('${scope}',${ri})">Change</button>`:''}
-        ${scope==='props'?`<button class="bet-btn" onclick="editStat('${scope}',${ri})">Stat</button>`:''}
-        <button class="bet-btn delete" onclick="delBet('${scope}',${ri})">✕</button>
-      </div>
-    </div>`;
+        <div class="bet-card-bottom">
+          ${badge}
+          <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">Grade</button>
+          ${bet.grade?`<button class="bet-btn" onclick="showManual('${scope}',${ri})">Change</button>`:''}
+          <button class="bet-btn" onclick="editStat('${scope}',${ri})">Stat</button>
+          <button class="bet-btn delete" onclick="delBet('${scope}',${ri})">✕</button>
+        </div>
+      </div>`;
+    } else {
+      // Totals — clean Pikkit-style card
+      const pl=bet.grade?calcPL(bet.odds,bet.grade):null;
+      const plStr=pl!==null?(pl>=0?'+':'')+pl.toFixed(2)+'u':null;
+      const plCls=bet.grade==='win'?'win':bet.grade==='loss'?'loss':'';
+      const gradePill=bet.modelGrade?`<span class="pill" style="background:var(--yellow-dim);color:var(--yellow);border:1px solid #ffc54230">${bet.modelGrade}</span>`:'';
+      const edgePill=bet.edge?`<span class="pill" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-soft)">${bet.edge}</span>`:'';
+      const modelPill=bet.model?`<span class="pill pill-stat">Model ${bet.model}</span>`:'';
+      const oddsPill=oddsStr?`<span class="pill pill-odds">${oddsStr}</span>`:'';
+      const badge=`<div id="${p}badge-${ri}">${buildBadge(scope,bet,ri)}</div>`;
+      const resultBlock=plStr?`
+        <div class="total-card-result">
+          <div class="total-result-pl ${plCls}">${plStr}</div>
+          <div class="total-result-label">${bet.grade}${bet.actual!=null&&bet.actual!=='manual'?' ('+bet.actual+')':''}</div>
+        </div>`:'';
+      return `<div class="total-card ${gc}" id="${p}bet-${ri}">
+        <div class="total-card-body">
+          <div class="total-card-accent"></div>
+          <div class="total-card-info">
+            <div class="total-card-game">${esc(bet.away||'')} @ ${esc(bet.home||'')}</div>
+            <div class="total-card-meta">${gradePill}${edgePill}${modelPill}${oddsPill}</div>
+            <div class="total-card-date">${bet.date}${bet.addedAt?' · '+bet.addedAt:''}</div>
+          </div>
+          <div class="total-card-dir">
+            <div class="total-dir-label ${bet.ou||''}">${ouStr}</div>
+            <div class="total-dir-line">${bet.line}</div>
+            <div class="total-dir-odds">${oddsStr}</div>
+          </div>
+          ${resultBlock}
+        </div>
+        <div class="total-card-actions">
+          ${badge}
+          <button class="bet-btn" onclick="gradeBet('${scope}',${ri},this)">Grade</button>
+          ${bet.grade?`<button class="bet-btn" onclick="showManual('${scope}',${ri})">Change</button>`:''}
+          <button class="bet-btn delete" onclick="delBet('${scope}',${ri})">✕</button>
+        </div>
+      </div>`;
+    }
   }).join('');
 }
 
