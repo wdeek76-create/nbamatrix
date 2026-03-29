@@ -397,9 +397,17 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 
   <div class="bets-header">
     <div><span class="bets-title">Bets</span><span class="bets-count" id="t-betsCount"></span></div>
-    <button class="btn btn-danger" onclick="clearAll('totals')">CLEAR ALL</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-danger" onclick="clearAll('totals')">CLEAR ALL</button>
+    </div>
   </div>
-  <button class="grade-all-btn" onclick="gradeAll('totals',this)">⚡ GRADE ALL</button>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+    <button class="grade-all-btn" style="margin-bottom:0;flex:1" onclick="gradeAll('totals',this)">⚡ GRADE ALL</button>
+    <div style="display:flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px 10px">
+      <input type="date" id="t-regradeDate" class="date-input" style="font-size:11px;padding:4px 8px;border:none;background:transparent">
+      <button class="btn" style="white-space:nowrap" onclick="regradeByDate()">🔄 RE-GRADE DATE</button>
+    </div>
+  </div>
   <div class="filter-bar" id="t-filterBar"></div>
   <div id="t-betsList"></div>
   <div id="t-summary" style="display:none;margin-top:24px;"></div>
@@ -1557,19 +1565,30 @@ async function getPlayerStat(player, dateStr, rawStat){
 async function getGameTotal(away, home, dateStr){
   const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
   const awayN=norm(away), homeN=norm(home);
+  const isFinal=s=>/final|complete/i.test(s||'');
+
+  function matchTeam(abbr, name, query){
+    const a=norm(abbr||''), n=norm(name||''), q=norm(query);
+    return a===q || n.includes(q) || (q.length>=3&&a.startsWith(q.substring(0,3)));
+  }
 
   // BDL
   try{
     const games=await getGamesForDate(dateStr);
-    for(const pass of [true,false]){ // pass1=both match, pass2=either match
+    for(const pass of [true,false]){
       for(const g of games){
-        const gA=norm(g.away_team?.abbreviation||''), gH=norm(g.home_team?.abbreviation||'');
-        const gAN=norm(g.away_team_name||''), gHN=norm(g.home_team_name||'');
-        const aM=gA===awayN||gAN.includes(awayN)||awayN.includes(gA.substring(0,2));
-        const hM=gH===homeN||gHN.includes(homeN)||homeN.includes(gH.substring(0,2));
+        const aM=matchTeam(g.away_team?.abbreviation, g.away_team_name, awayN);
+        const hM=matchTeam(g.home_team?.abbreviation, g.home_team_name, homeN);
         if(pass?(aM&&hM):(aM||hM)){
+          if(!isFinal(g.status)){
+            console.warn('BDL game not final:',g.status,away,'@',home);
+            return 'PENDING';
+          }
           const ar=g.away_team_data?.runs, hr=g.home_team_data?.runs;
-          if(ar!=null&&hr!=null) return ar+hr;
+          if(ar!=null&&hr!=null){
+            console.log('BDL total:',away,'@',home,'=',ar+hr,'status:',g.status);
+            return ar+hr;
+          }
         }
       }
     }
@@ -1582,11 +1601,19 @@ async function getGameTotal(away, home, dateStr){
     for(const pass of [true,false]){
       for(const game of (d.dates?.[0]?.games||[])){
         const gA=norm(game.teams?.away?.team?.name||''), gH=norm(game.teams?.home?.team?.name||'');
-        const aM=gA.includes(awayN)||awayN.includes(gA.substring(0,3));
-        const hM=gH.includes(homeN)||homeN.includes(gH.substring(0,3));
+        const aM=gA.includes(awayN)||(awayN.length>=3&&gA.startsWith(awayN.substring(0,3)));
+        const hM=gH.includes(homeN)||(homeN.length>=3&&gH.startsWith(homeN.substring(0,3)));
         if(pass?(aM&&hM):(aM||hM)){
+          const status=game.status?.detailedState||'';
+          if(!isFinal(status)){
+            console.warn('MLB game not final:',status,away,'@',home);
+            return 'PENDING';
+          }
           const ar=game.linescore?.teams?.away?.runs, hr=game.linescore?.teams?.home?.runs;
-          if(ar!=null&&hr!=null) return ar+hr;
+          if(ar!=null&&hr!=null){
+            console.log('MLB total:',away,'@',home,'=',ar+hr);
+            return ar+hr;
+          }
         }
       }
     }
@@ -1841,12 +1868,11 @@ async function debugBDL(){
       const player = d.data[0];
 
       // 2. Games for date
-      add('\nFetching games for '+date+'...');
+      add('\nAll games for '+date+':');
       const gd = await bdlGet(`/mlb/v1/games?dates[]=${date}&per_page=25`);
       if(!gd.data?.length){ add('❌ No BDL games found for '+date); }
       else{
-        add(`✓ ${gd.data.length} games found:`);
-        gd.data.forEach(g=>add(`  ${g.away_team?.abbreviation} @ ${g.home_team?.abbreviation} — status: ${g.status} — runs: ${g.away_team_data?.runs}/${g.home_team_data?.runs}`));
+        gd.data.forEach(g=>add(`  ${g.away_team?.abbreviation} @ ${g.home_team?.abbreviation} | status: ${g.status} | runs: ${g.away_team_data?.runs ?? '?'}–${g.home_team_data?.runs ?? '?'} | total: ${g.away_team_data?.runs!=null&&g.home_team_data?.runs!=null?(g.away_team_data.runs+g.home_team_data.runs):'?'}`));
 
         // 3. Stats
         add('\nFetching stats for player '+player.id+'...');
@@ -1864,6 +1890,51 @@ async function debugBDL(){
     add('❌ Error: '+e.message);
   }
   out.style.color='var(--text)';
+}
+
+async function regradeByDate(){
+  const dateStr = document.getElementById('t-regradeDate').value;
+  if(!dateStr){ alert('Pick a date first'); return; }
+
+  const bets = totalBets.filter(b=>b.date===dateStr);
+  if(!bets.length){ alert('No totals bets found for '+dateStr); return; }
+
+  // Clear BDL cache for this date so we get fresh data
+  delete gameIdCache[dateStr];
+  delete gameIdCache[dateStr+'+1'];
+
+  const btn = event.target;
+  btn.disabled=true; btn.textContent='Fetching...';
+
+  let fixed=0, failed=0;
+  for(let i=0;i<totalBets.length;i++){
+    const bet=totalBets[i];
+    if(bet.date!==dateStr) continue;
+    btn.textContent=`Fetching ${bet.away}@${bet.home}...`;
+    try{
+      const tot=await getGameTotal(bet.away,bet.home,dateStr);
+      if(tot!==null&&tot!=='PENDING'){
+        const r=tot===bet.line?'push':(bet.ou==='over'?tot>bet.line:tot<bet.line)?'win':'loss';
+        totalBets[i].grade=r;
+        totalBets[i].actual=tot;
+        console.log(`✓ ${bet.away}@${bet.home} total=${tot} → ${r}`);
+        fixed++;
+      } else {
+        console.warn(`✗ ${bet.away}@${bet.home} → ${tot}`);
+        failed++;
+      }
+    }catch(e){
+      console.error(`Error grading ${bet.away}@${bet.home}:`,e.message);
+      failed++;
+    }
+    await new Promise(r=>setTimeout(r,300));
+  }
+
+  saveBets('totals');
+  render('totals');
+  btn.disabled=false;
+  btn.textContent='🔄 RE-GRADE DATE';
+  alert(`Done: ${fixed} graded, ${failed} need manual`);
 }
 
 function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
