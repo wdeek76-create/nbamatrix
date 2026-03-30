@@ -295,7 +295,12 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
     <button class="btn btn-danger" onclick="clearAll('props')">CLEAR ALL</button>
   </div>
   <input type="text" class="search-bar" id="p-search" placeholder="Search player, stat, team..." oninput="render('props')">
-  <button class="grade-all-btn" onclick="gradeAll('props',this)">⚡ GRADE ALL</button>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+    <select id="p-gradeDate" class="date-input" style="flex:1;font-size:12px;padding:8px 10px" onchange="populateGradeDates('props')">
+      <option value="">Select date to grade...</option>
+    </select>
+    <button class="grade-all-btn" style="margin-bottom:0;flex:1" onclick="gradeAllForDate('props',this)">⚡ GRADE DATE</button>
+  </div>
   <div class="filter-bar" id="p-filterBar"></div>
   <div id="p-betsList"></div>
   <div id="p-summary" style="display:none;margin-top:24px;"></div>
@@ -409,11 +414,10 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
   </div>
   <input type="text" class="search-bar" id="t-search" placeholder="Search game, team..." oninput="render('totals')">
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-    <button class="grade-all-btn" style="margin-bottom:0;flex:1" onclick="gradeAll('totals',this)">⚡ GRADE ALL</button>
-    <div style="display:flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px 10px">
-      <input type="date" id="t-regradeDate" class="date-input" style="font-size:11px;padding:4px 8px;border:none;background:transparent">
-      <button class="btn" style="white-space:nowrap" onclick="regradeByDate()">🔄 RE-GRADE DATE</button>
-    </div>
+    <select id="t-gradeDate" class="date-input" style="flex:1;font-size:12px;padding:8px 10px" onchange="populateGradeDates('totals')">
+      <option value="">Select date to grade...</option>
+    </select>
+    <button class="grade-all-btn" style="margin-bottom:0;flex:1" onclick="gradeAllForDate('totals',this)">⚡ GRADE DATE</button>
   </div>
   <div class="filter-bar" id="t-filterBar"></div>
   <div id="t-betsList"></div>
@@ -1238,6 +1242,7 @@ function render(scope){
   updateFilterBar(scope);
   renderBets(scope);
   renderSummary(scope);
+  populateGradeDates(scope);
 }
 
 function renderSummary(scope){
@@ -1956,106 +1961,98 @@ async function debugBDL(){
   out.style.color='var(--text)';
 }
 
-async function regradeByDate(){
-  const dateStr = document.getElementById('t-regradeDate').value;
-  if(!dateStr){ alert('Pick a date first'); return; }
-  const bets = totalBets.filter(b=>b.date===dateStr);
-  if(!bets.length){ alert('No totals bets found for '+dateStr); return; }
+function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
 
-  // Clear cache so we get fresh data
-  delete gameIdCache[dateStr];
-  const next=new Date(dateStr+'T12:00:00'); next.setDate(next.getDate()+1);
-  delete gameIdCache[next.toISOString().split('T')[0]];
+function regradeByDate(){ gradeAllForDate('totals', {disabled:false,textContent:''}); }
 
-  const btn = event.target;
-  btn.disabled=true;
-
-  // Fetch ground truth from MLB Stats API — most reliable for final scores
-  btn.textContent='Fetching scores...';
-  let mlbGames=[];
-  try{
-    const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore,team`);
-    const d=await r.json();
-    mlbGames=(d.dates?.[0]?.games||[]).filter(g=>/final|complete/i.test(g.status?.detailedState||''));
-    console.log(`MLB Stats API: ${mlbGames.length} final games on ${dateStr}`);
-    mlbGames.forEach(g=>{
-      const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-      const aa=g.teams?.away?.team?.abbreviation, ha=g.teams?.home?.team?.abbreviation;
-      console.log(`  [${aa}] ${g.teams?.away?.team?.name} @ [${ha}] ${g.teams?.home?.team?.name}: ${ar}-${hr} (total ${(ar!=null&&hr!=null)?ar+hr:'?'})`);
-    });
-  }catch(e){ console.warn('MLB Stats fetch failed:',e.message); }
-
-  const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
-
-  const norm2=s=>s.toLowerCase().replace(/[^a-z]/g,'');
-  const ABBR2={
-    'kc':'kc','kcr':'kc','atl':'atl','cle':'cle','sea':'sea','det':'det',
-    'sd':'sd','sdp':'sd','az':'ari','ari':'ari','lad':'lad','la':'lad',
-    'nyy':'nyy','sf':'sf','sfg':'sf','ath':'oak','oak':'oak','tor':'tor',
-    'col':'col','mia':'mia','laa':'laa','hou':'hou','nym':'nym','phi':'phi',
-    'mil':'mil','stl':'stl','chc':'chc','cws':'cws','min':'min','tex':'tex',
-    'bos':'bos','tb':'tb','tbr':'tb','bal':'bal','was':'wsh','wsh':'wsh',
-    'pit':'pit','cin':'cin',
-  };
-  const toA=s=>ABBR2[norm2(s)]||norm2(s);
-
-  function findScore(away, home){
-    const awayA=toA(away), homeA=toA(home);
-    const awayN=norm2(away), homeN=norm2(home);
-    // Pass 1: exact abbreviation match
-    for(const g of mlbGames){
-      const gA=toA(g.teams?.away?.team?.abbreviation||'');
-      const gH=toA(g.teams?.home?.team?.abbreviation||'');
-      if(gA===awayA&&gH===homeA){
-        const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-        if(ar!=null&&hr!=null) return {total:ar+hr, away:ar, home:hr};
-      }
-    }
-    // Pass 2: name contains
-    for(const g of mlbGames){
-      const gA=norm2(g.teams?.away?.team?.name||'');
-      const gH=norm2(g.teams?.home?.team?.name||'');
-      if(gA.includes(awayN)&&gH.includes(homeN)){
-        const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-        if(ar!=null&&hr!=null) return {total:ar+hr, away:ar, home:hr};
-      }
-    }
-    return null;
-  }
-
-  let fixed=0, failed=[];
-  for(let i=0;i<totalBets.length;i++){
-    const bet=totalBets[i];
-    if(bet.date!==dateStr) continue;
-    btn.textContent=`Grading ${bet.away}@${bet.home}...`;
-
-    const score=findScore(bet.away, bet.home);
-    if(score){
-      const r=score.total===bet.line?'push':(bet.ou==='over'?score.total>bet.line:score.total<bet.line)?'win':'loss';
-      totalBets[i].grade=r;
-      totalBets[i].actual=score.total;
-      console.log(`✓ ${bet.away}@${bet.home} ${score.away}-${score.home} (${score.total}) → ${r}`);
-      fixed++;
-    } else {
-      console.warn(`✗ No score found for ${bet.away}@${bet.home} on ${dateStr}`);
-      failed.push(`${bet.away}@${bet.home}`);
-    }
-    await new Promise(r=>setTimeout(r,100));
-  }
-
-  saveBets('totals');
-  render('totals');
-  btn.disabled=false;
-  btn.textContent='🔄 RE-GRADE DATE';
-
-  if(failed.length){
-    alert(`Graded ${fixed} bets.\n\nCouldn't find scores for:\n${failed.join('\n')}\n\nGrade these manually.`);
-  } else {
-    alert(`All ${fixed} bets re-graded from MLB Stats API ✓`);
-  }
+function populateGradeDates(scope){
+  const sel=document.getElementById(`${scope[0]}-gradeDate`);
+  if(!sel) return;
+  const current=sel.value;
+  const bets=betsFor(scope);
+  // Get all unique dates that have at least one ungraded bet, sorted descending
+  const dates=[...new Set(bets.filter(b=>!b.grade&&betDatePast(b.date)).map(b=>b.date))].sort().reverse();
+  sel.innerHTML='<option value="">Select date to grade...</option>'+
+    dates.map(d=>`<option value="${d}" ${d===current?'selected':''}>${d}</option>`).join('');
 }
 
-function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
+async function gradeAllForDate(scope, btn){
+  const sel=document.getElementById(`${scope[0]}-gradeDate`);
+  const dateStr=sel?.value;
+  if(!dateStr){ alert('Select a date first'); return; }
+
+  const bets=betsFor(scope);
+  const toGrade=bets.filter(b=>b.date===dateStr&&!b.grade);
+  if(!toGrade.length){ alert('No ungraded bets for '+dateStr); return; }
+
+  btn.disabled=true;
+  let done=0;
+
+  if(scope==='totals'){
+    // Use MLB Stats API for accuracy
+    btn.textContent='Fetching scores...';
+    let mlbGames=[];
+    try{
+      const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
+      const d=await r.json();
+      mlbGames=(d.dates?.[0]?.games||[]).filter(g=>/final|complete/i.test(g.status?.detailedState||''));
+    }catch(e){ console.warn('MLB fetch error:',e.message); }
+
+    const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
+    const ABBR={'kc':'kc','kcr':'kc','atl':'atl','cle':'cle','sea':'sea','det':'det','sd':'sd','sdp':'sd','az':'ari','ari':'ari','lad':'lad','la':'lad','nyy':'nyy','sf':'sf','sfg':'sf','ath':'oak','oak':'oak','tor':'tor','col':'col','mia':'mia','laa':'laa','hou':'hou','nym':'nym','phi':'phi','mil':'mil','stl':'stl','chc':'chc','cws':'cws','min':'min','tex':'tex','bos':'bos','tb':'tb','tbr':'tb','bal':'bal','was':'wsh','wsh':'wsh','pit':'pit','cin':'cin'};
+    const toA=s=>ABBR[norm(s)]||norm(s);
+
+    const failed=[];
+    for(let i=0;i<bets.length;i++){
+      const bet=bets[i];
+      if(bet.date!==dateStr||bet.grade) continue;
+      btn.textContent=`Grading ${bet.away}@${bet.home}...`;
+      const awayA=toA(bet.away), homeA=toA(bet.home);
+      let found=null;
+      // Pass 1: abbreviation
+      for(const g of mlbGames){
+        if(toA(g.teams?.away?.team?.abbreviation||'')===awayA&&toA(g.teams?.home?.team?.abbreviation||'')===homeA){
+          const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
+          if(ar!=null&&hr!=null){ found=ar+hr; break; }
+        }
+      }
+      // Pass 2: name contains
+      if(found===null){
+        const awayN=norm(bet.away), homeN=norm(bet.home);
+        for(const g of mlbGames){
+          if(norm(g.teams?.away?.team?.name||'').includes(awayN)&&norm(g.teams?.home?.team?.name||'').includes(homeN)){
+            const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
+            if(ar!=null&&hr!=null){ found=ar+hr; break; }
+          }
+        }
+      }
+      if(found!==null){
+        const r=found===bet.line?'push':(bet.ou==='over'?found>bet.line:found<bet.line)?'win':'loss';
+        bets[i].grade=r; bets[i].actual=found; done++;
+      } else {
+        failed.push(`${bet.away}@${bet.home}`);
+      }
+      await new Promise(r=>setTimeout(r,50));
+    }
+    saveBets(scope); render(scope);
+    btn.disabled=false; btn.textContent='⚡ GRADE DATE';
+    if(failed.length) alert(`Graded ${done}. Couldn't find:\n${failed.join('\n')}\nGrade manually.`);
+    else alert(`All ${done} bets graded ✓`);
+
+  } else {
+    // Props — use existing BDL grading
+    const total=toGrade.length;
+    for(let i=0;i<bets.length;i++){
+      if(bets[i].date!==dateStr||bets[i].grade) continue;
+      btn.textContent=`⏳ ${++done}/${total}`;
+      const ok=await gradeSingleProp(scope,i,t=>{btn.textContent=`⏳ ${done}/${total} ${t}`;});
+      if(!ok) showManual(scope,i);
+      await new Promise(r=>setTimeout(r,400));
+    }
+    btn.disabled=false; btn.textContent='⚡ GRADE DATE';
+    render(scope);
+  }
+}
 function clearAll(scope){ if(!confirm('Clear all bets?')) return; if(scope==='props') propBets=[]; else totalBets=[]; saveBets(scope); render(scope); }
 function cap(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
