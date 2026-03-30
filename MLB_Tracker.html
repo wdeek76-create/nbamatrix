@@ -134,7 +134,24 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 .mgb-l{background:var(--red);color:#fff;}
 .mgb-p{background:var(--yellow);color:#000;}
 
-/* Right side of card — result display */
+/* P&L Calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.cal-dow{text-align:center;font-size:10px;font-weight:600;color:var(--text3);padding:4px 0;text-transform:uppercase;letter-spacing:.05em;}
+.cal-day{border-radius:9px;padding:6px 4px;min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+.cal-day.empty{background:transparent;}
+.cal-day.no-bets{background:var(--surface);border:1px solid var(--border);}
+.cal-day.today{outline:2px solid var(--green-soft);}
+.cal-day.win{background:#00d97e22;border:1px solid #00d97e40;}
+.cal-day.loss{background:#ff475722;border:1px solid #ff475740;}
+.cal-day.push{background:var(--surface);border:1px solid #ffc54240;}
+.cal-num{font-size:12px;font-weight:700;color:var(--text2);}
+.cal-record{font-size:9px;font-weight:600;color:var(--text3);font-family:var(--mono);}
+.cal-pl{font-size:13px;font-weight:800;font-family:var(--mono);}
+.cal-pl.pos{color:var(--green);}
+.cal-pl.neg{color:var(--red);}
+.cal-pl.zero{color:var(--text3);}
+.cal-day.profit .cal-day-rec{color:#00d97e99;}
+.cal-day.loss .cal-day-rec{color:#ff475799;}
 .bet-result-num{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--text2);}
 .bet-result-num.win{color:var(--green);}
 .bet-result-num.loss{color:var(--red);}
@@ -170,6 +187,23 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 
 .grade-all-btn{width:100%;padding:11px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:-.01em;cursor:pointer;transition:all .15s;margin-bottom:14px;}
 .grade-all-btn:hover{background:var(--green-dim);border-color:var(--green-soft);color:var(--green);}
+
+/* P&L Calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-dow{text-align:center;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;padding:4px 0;letter-spacing:.06em;}
+.cal-day{border-radius:8px;padding:6px 5px;min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:default;}
+.cal-day.empty{background:transparent;}
+.cal-day.no-bets{background:var(--surface);border:1px solid var(--border);}
+.cal-day.win{background:#00d97e22;border:1px solid #00d97e40;}
+.cal-day.loss{background:#ff475722;border:1px solid #ff475740;}
+.cal-day.push{background:#ffc54222;border:1px solid #ffc54240;}
+.cal-day.today{outline:2px solid var(--green-soft);}
+.cal-num{font-size:11px;font-weight:600;color:var(--text3);}
+.cal-record{font-size:11px;font-weight:700;color:var(--text2);}
+.cal-pl{font-size:12px;font-weight:800;font-family:var(--mono);}
+.cal-pl.pos{color:var(--green);}
+.cal-pl.neg{color:var(--red);}
+.cal-pl.zero{color:var(--text3);}
 .empty{text-align:center;padding:48px 20px;color:var(--text3);font-size:12px;font-weight:500;border:1px dashed var(--border2);border-radius:12px;}
 .filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
 .filter-label{font-size:11px;font-weight:600;color:var(--text3);}
@@ -350,6 +384,18 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
       </thead>
       <tbody id="t-breakdownBody"></tbody>
     </table>
+  </div>
+
+  <div id="t-calendarWrap" style="display:none;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="calNav(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text2);padding:3px 10px;cursor:pointer;font-size:14px">‹</button>
+        <span id="t-calTitle" style="font-size:14px;font-weight:700;letter-spacing:-.01em;min-width:90px;text-align:center"></span>
+        <button onclick="calNav(1)" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text2);padding:3px 10px;cursor:pointer;font-size:14px">›</button>
+      </div>
+      <span id="t-calMonthPL" style="font-size:13px;font-weight:700;font-family:var(--mono)"></span>
+    </div>
+    <div id="t-calGrid"></div>
   </div>
 
   <div class="summary-box" id="t-summaryBox" style="display:none">
@@ -1243,6 +1289,7 @@ function render(scope){
   renderBets(scope);
   renderSummary(scope);
   populateGradeDates(scope);
+  if(scope==='totals') renderCalendar();
 }
 
 function renderSummary(scope){
@@ -1961,7 +2008,78 @@ async function debugBDL(){
   out.style.color='var(--text)';
 }
 
+
 function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
+
+// ── P&L Calendar ──────────────────────────────────────────────────────
+let calYear=new Date().getFullYear(), calMonth=new Date().getMonth();
+
+function calNav(dir){
+  calMonth+=dir;
+  if(calMonth>11){calMonth=0;calYear++;}
+  if(calMonth<0){calMonth=11;calYear--;}
+  renderCalendar();
+}
+
+function renderCalendar(){
+  const wrap=document.getElementById('t-calendarWrap');
+  const grid=document.getElementById('t-calGrid');
+  const title=document.getElementById('t-calTitle');
+  const monPL=document.getElementById('t-calMonthPL');
+  if(!wrap||!grid) return;
+
+  const graded=totalBets.filter(b=>b.grade==='win'||b.grade==='loss'||b.grade==='push');
+  if(!graded.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+
+  // Build date→stats map
+  const byDate={};
+  graded.forEach(b=>{
+    if(!byDate[b.date]) byDate[b.date]={w:0,l:0,p:0,pl:0};
+    const d=byDate[b.date];
+    if(b.grade==='win')d.w++; else if(b.grade==='loss')d.l++; else d.p++;
+    d.pl+=calcPL(b.odds,b.grade);
+  });
+
+  const monthName=new Date(calYear,calMonth,1).toLocaleString('en-US',{month:'short'});
+  title.textContent=`${monthName} ${calYear}`;
+
+  // Month P&L
+  let monthPl=0;
+  Object.entries(byDate).forEach(([d,s])=>{
+    const dt=new Date(d+'T12:00:00');
+    if(dt.getFullYear()===calYear&&dt.getMonth()===calMonth) monthPl+=s.pl;
+  });
+  const plCls=monthPl>0?'pos':monthPl<0?'neg':'zero';
+  monPL.innerHTML=`Month: <span style="color:var(--${monthPl>0?'green':monthPl<0?'red':'text3'})">${monthPl>=0?'+':''}${monthPl.toFixed(2)}u</span>`;
+
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const todayStr=new Date().toISOString().split('T')[0];
+
+  const dows=['S','M','T','W','T','F','S'].map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  let cells='';
+  for(let i=0;i<firstDay;i++) cells+=`<div class="cal-day empty"></div>`;
+  for(let day=1;day<=daysInMonth;day++){
+    const mm=String(calMonth+1).padStart(2,'0'), dd=String(day).padStart(2,'0');
+    const dateStr=`${calYear}-${mm}-${dd}`;
+    const s=byDate[dateStr];
+    const isToday=dateStr===todayStr;
+    if(!s){
+      cells+=`<div class="cal-day no-bets ${isToday?'today':''}"><span class="cal-num">${day}</span></div>`;
+    } else {
+      const cls=s.w>s.l?'win':s.l>s.w?'loss':'push';
+      const plSign=s.pl>=0?'+':'';
+      const plCls2=s.pl>0?'pos':s.pl<0?'neg':'zero';
+      cells+=`<div class="cal-day ${cls} ${isToday?'today':''}">
+        <span class="cal-num">${day}</span>
+        <span class="cal-record">${s.w}-${s.l}${s.p?'-'+s.p:''}</span>
+        <span class="cal-pl ${plCls2}">${plSign}${s.pl.toFixed(2)}u</span>
+      </div>`;
+    }
+  }
+  grid.innerHTML=`<div class="cal-grid">${dows}${cells}</div>`;
+}
 
 function regradeByDate(){ gradeAllForDate('totals', {disabled:false,textContent:''}); }
 
