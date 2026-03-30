@@ -330,8 +330,8 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
   </div>
   <input type="text" class="search-bar" id="p-search" placeholder="Search player, stat, team..." oninput="render('props')">
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-    <select id="p-gradeDate" class="date-input" style="flex:1;font-size:12px;padding:8px 10px" onchange="populateGradeDates('props')">
-      <option value="">Select date to grade...</option>
+    <select id="p-gradeDate" class="date-input" style="flex:1;font-size:12px;padding:8px 10px">
+      <option value="">Select date...</option>
     </select>
     <button class="grade-all-btn" style="margin-bottom:0;flex:1" onclick="gradeAllForDate('props',this)">⚡ GRADE DATE</button>
   </div>
@@ -386,7 +386,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
     </table>
   </div>
 
-  <div id="t-calendarWrap" style="display:none;margin-bottom:20px">
+  <div id="t-calendarWrap" style="margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:8px">
         <button onclick="calNav(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text2);padding:3px 10px;cursor:pointer;font-size:14px">‹</button>
@@ -460,8 +460,8 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
   </div>
   <input type="text" class="search-bar" id="t-search" placeholder="Search game, team..." oninput="render('totals')">
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-    <select id="t-gradeDate" class="date-input" style="flex:1;font-size:12px;padding:8px 10px" onchange="populateGradeDates('totals')">
-      <option value="">Select date to grade...</option>
+    <select id="t-gradeDate" class="date-input" style="flex:1;font-size:12px;padding:8px 10px">
+      <option value="">Select date...</option>
     </select>
     <button class="grade-all-btn" style="margin-bottom:0;flex:1" onclick="gradeAllForDate('totals',this)">⚡ GRADE DATE</button>
   </div>
@@ -2088,9 +2088,10 @@ function populateGradeDates(scope){
   if(!sel) return;
   const current=sel.value;
   const bets=betsFor(scope);
-  // Get all unique dates that have at least one ungraded bet, sorted descending
-  const dates=[...new Set(bets.filter(b=>!b.grade&&betDatePast(b.date)).map(b=>b.date))].sort().reverse();
-  sel.innerHTML='<option value="">Select date to grade...</option>'+
+  // All dates with ungraded bets (past only - can't grade future)
+  const today=new Date().toISOString().split('T')[0];
+  const dates=[...new Set(bets.filter(b=>!b.grade&&b.date<=today).map(b=>b.date))].sort().reverse();
+  sel.innerHTML='<option value="">Select date...</option>'+
     dates.map(d=>`<option value="${d}" ${d===current?'selected':''}>${d}</option>`).join('');
 }
 
