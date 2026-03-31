@@ -232,8 +232,7 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
     <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Grade date</span>
     <select id="gradeDate" class="tk" style="min-width:120px"><option value="">Pick date...</option></select>
     <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);color:var(--blue)">▶ Grade</button>
-    <button class="screenshot-btn" onclick="alert(JSON.stringify(tracker.slice(0,3).map(t=>({game:t.game,tm:t.tm,rawGame:t.rawGame,date:t.date,market:t.market})),null,2))">🔍 Debug</button>
-    <button class="screenshot-btn" onclick="fetchAndShowGames()">🔍 API Games</button>
+    <button class="screenshot-btn" id="regradeBtn" onclick="regrade()">↺ Re-grade</button>
     <span id="gradeStatus" style="font-size:12px;color:var(--muted)"></span>
   </div>
   <div id="trackerSection"></div>
@@ -1210,6 +1209,23 @@ function gameToTeams(str) {
   return [];
 }
 
+async function regrade(){
+  const sel = document.getElementById('gradeDate');
+  const selectedDate = sel?.value;
+  const statusEl = document.getElementById('gradeStatus');
+  const setStatus = s => { if(statusEl) statusEl.textContent = s; };
+  if(!selectedDate){ setStatus('Pick a date first'); return; }
+  if(!confirm('This will clear all results for '+selectedDate+' and re-grade. Continue?')) return;
+  // Clear results for that date
+  tracker.filter(t=>t.date===selectedDate).forEach(t=>{ t.result=''; delete t.finalTotal; });
+  localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
+  setStatus('Cleared — re-grading...');
+  renderTracker();
+  populateGradeDates();
+  // Now run grade
+  document.getElementById('autoGradeBtn').click();
+}
+
 async function autoGrade(){
   const sel = document.getElementById('gradeDate');
   const selectedDate = sel?.value;
@@ -1258,10 +1274,19 @@ async function autoGrade(){
       const line = parseFloat(t.line)||0;
       const homeAbbr = teamAbbr(g,'home');
 
-      // figure out if this bet's team is home
-      function isHomeTeam(tmStr) {
-        const a = toAbbr((tmStr||'').split(/[/@]/)[0]||tmStr||'');
+      // figure out if the BET'S TEAM is home
+      // For ML/RL: t.dir is the team abbr (e.g. "WSH"), compare directly to homeAbbr
+      // For TT/HTT: t.team is the full team name, use homeAbbr from API
+      function isTeamHome(teamAbbr) {
+        const a = toAbbr(teamAbbr||'');
         return a===homeAbbr || MLB_API_ABBR[a]===homeAbbr;
+      }
+      // For TT: split game string away/home and check which side team is on
+      function isHomeTeam(tmStr) {
+        // tmStr is game like "PHI/WSH" = away/home, so [1] is home
+        const parts = (tmStr||'').toUpperCase().split(/[/@]/);
+        const homePart = toAbbr(parts[1]||'');
+        return homePart===homeAbbr || MLB_API_ABBR[homePart]===homeAbbr;
       }
 
       // get F5 inning splits
@@ -1280,7 +1305,11 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='TT'){
         if(!isFinal) continue;
-        const runs = isHomeTeam(t.rawGame||t.tm) ? score('home') : score('away');
+        // t.team is full team name — check if it matches home team name
+        const teamName=(g.teams?.home?.team?.name||'').toUpperCase();
+        const betTeam=(t.team||t.dir||'').toUpperCase();
+        const ttIsHome = teamName.includes(betTeam.split(' ').pop()) || isHomeTeam(t.rawGame||t.tm);
+        const runs = ttIsHome ? score('home') : score('away');
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
       } else if(mkt==='1HTOTAL'||mkt==='F5TOTAL'){
@@ -1290,17 +1319,20 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='1HTT'||mkt==='F5TT'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const isH=isHomeTeam(t.rawGame||t.tm||t.game);
+        const teamName=(g.teams?.home?.team?.name||'').toUpperCase();
+        const betTeam=(t.team||'').toUpperCase();
+        const isH = betTeam ? teamName.includes(betTeam.split(' ').pop()) : isHomeTeam(t.rawGame||t.tm||t.game);
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
       } else if(mkt==='1HML'||mkt==='F5ML'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const isH=isHomeTeam(t.rawGame||t.tm||t.game);
+        // t.dir is the picked team abbr (e.g. "WSH", "NYY")
+        const isH=isTeamHome(t.dir);
         result=h===a?'P':(isH?h>a:a>h)?'W':'L';
       } else if(mkt==='1HRL'||mkt==='F5RL'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const isH=isHomeTeam(t.rawGame||t.tm||t.game);
+        const isH=isTeamHome(t.dir);
         const diff=(isH?h-a:a-h)+line;
         result=diff>0?'W':diff<0?'L':'P';
       }
