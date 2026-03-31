@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arb Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #000;
+    --surface: #1c1c1e;
+    --surface2: #2c2c2e;
+    --border: #3a3a3c;
+    --text: #fff;
+    --muted: #8e8e93;
+    --cyan: #0ab4ff;
+    --cyan-dim: rgba(10,180,255,0.15);
+    --cyan-border: rgba(10,180,255,0.4);
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px 48px;
+  }
+  .container { width: 100%; max-width: 420px; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .header-badge {
+    width: 36px; height: 36px;
+    background: var(--cyan);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: #000;
+    flex-shrink: 0;
+  }
+  .header-title { font-size: 18px; font-weight: 600; }
+  .header-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  /* Section label */
+  .section-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 14px 16px 6px;
+  }
+
+  /* Odds row */
+  .odds-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 8px 16px 16px;
+  }
+  .sign-btn {
+    width: 52px; height: 52px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px 0 0 10px;
+    font-size: 24px; font-weight: 600;
+    color: var(--cyan);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    border-right: none;
+  }
+  .odds-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 0 10px 10px 0;
+    padding: 0 16px;
+    height: 52px;
+    font-family: inherit;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    outline: none;
+    width: 100%;
+  }
+  .odds-input::placeholder { color: #444; }
+  .odds-input:focus { border-color: var(--cyan); }
+  .odds-input:focus + .sign-btn { border-color: var(--cyan); }
+
+  /* Threshold */
+  .thresh-row {
+    display: flex;
+    gap: 0;
+    padding: 8px 16px 16px;
+  }
+  .tb {
+    flex: 1;
+    padding: 10px 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-right: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    text-align: center;
+  }
+  .tb:first-child { border-radius: 10px 0 0 10px; }
+  .tb:last-child { border-radius: 0 10px 10px 0; border-right: 1px solid var(--border); }
+  .tb.on {
+    background: var(--cyan-dim);
+    border-color: var(--cyan-border);
+    color: var(--cyan);
+    font-weight: 600;
+  }
+
+  /* Result */
+  .result-card {
+    background: var(--surface);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    display: none;
+  }
+
+  .offering-box {
+    margin: 0 16px 0;
+    background: var(--cyan-dim);
+    border: 1px solid var(--cyan-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    gap: 24px;
+  }
+  .offering-col { flex: 1; }
+  .offering-lbl { font-size: 11px; color: var(--cyan); font-weight: 500; margin-bottom: 4px; letter-spacing: 0.01em; }
+  .offering-val { font-size: 16px; font-weight: 700; color: #fff; }
+
+  .post-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 16px;
+  }
+  .post-lbl { font-size: 13px; color: var(--muted); }
+  .post-val {
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: -1px;
+  }
+
+  .divider { height: 1px; background: var(--border); margin: 0 16px; }
+
+  .arb-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 16px;
+  }
+  .arb-lbl { font-size: 13px; color: var(--muted); }
+  .arb-val { font-size: 15px; font-weight: 600; color: var(--cyan); }
+
+  .hint { font-size: 13px; color: var(--muted); text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-badge">A</div>
+    <div>
+      <div class="header-title">Arb Calculator</div>
+      <div class="header-sub">Find your exchange post price</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Market odds</div>
+    <div class="odds-row">
+      <button class="sign-btn" id="signBtn" onclick="toggleSign()">+</button>
+      <input class="odds-input" id="oi" type="tel" placeholder="140" autocomplete="off" />
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Min arb threshold</div>
+    <div class="thresh-row">
+      <button class="tb on" id="t1">1%</button>
+      <button class="tb" id="t2">2%</button>
+      <button class="tb" id="t3">3%</button>
+      <button class="tb" id="t4">4%</button>
+      <button class="tb" id="t5">5%</button>
+    </div>
+  </div>
+
+  <div class="result-card" id="res">
+    <div class="section-label">Order slip</div>
+
+    <div class="offering-box" id="offeringBox">
+      <div style="margin-bottom:10px;">
+        <div class="offering-lbl">You're offering:</div>
+        <div class="offering-val" style="font-size:22px;font-weight:700;" id="post">—</div>
+      </div>
+      <div style="border-top:1px solid rgba(10,180,255,0.2);padding-top:10px;">
+        <div class="offering-lbl">If filled:</div>
+        <div class="offering-val" id="filledSide">—</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="arb-row">
+      <div class="arb-lbl">Guaranteed arb if filled</div>
+      <div class="arb-val" id="arbPct">—</div>
+    </div>
+  </div>
+
+  <p class="hint" id="mh">Enter odds above to see your post price</p>
+
+</div>
+
+<script>
+var thresh = 1;
+var sign = 1;
+
+document.getElementById('t1').addEventListener('click', function() { setThresh(1); });
+document.getElementById('t2').addEventListener('click', function() { setThresh(2); });
+document.getElementById('t3').addEventListener('click', function() { setThresh(3); });
+document.getElementById('t4').addEventListener('click', function() { setThresh(4); });
+document.getElementById('t5').addEventListener('click', function() { setThresh(5); });
+document.getElementById('oi').addEventListener('input', go);
+
+function toggleSign() {
+  sign = sign * -1;
+  document.getElementById('signBtn').textContent = sign > 0 ? '+' : '-';
+  document.getElementById('signBtn').style.color = sign > 0 ? 'var(--cyan)' : '#ff6b6b';
+  go();
+}
+
+function setThresh(n) {
+  thresh = n;
+  for (var i = 1; i <= 5; i++) {
+    document.getElementById('t' + i).className = (i === n) ? 'tb on' : 'tb';
+  }
+  go();
+}
+
+function toImplied(o) {
+  if (o > 0) return 100 / (o + 100);
+  return Math.abs(o) / (Math.abs(o) + 100);
+}
+
+function go() {
+  var raw = document.getElementById('oi').value.trim();
+  var res = document.getElementById('res');
+  var mh = document.getElementById('mh');
+
+  if (!raw) { res.style.display = 'none'; mh.style.display = 'block'; return; }
+  var num = parseInt(raw, 10);
+  if (isNaN(num) || num < 100) { res.style.display = 'none'; mh.style.display = 'block'; return; }
+
+  var o = num * sign;
+  var myImp = toImplied(o);
+  var otherImp = (1 - thresh / 100) - myImp;
+
+  if (otherImp <= 0 || otherImp >= 1) { res.style.display = 'none'; mh.style.display = 'block'; return; }
+
+  // Convert otherImp to american
+  var otherAmerican;
+  if (otherImp < 0.5) {
+    otherAmerican = Math.round(100 / otherImp - 100);
+  } else {
+    otherAmerican = Math.round(-otherImp / (1 - otherImp) * 100);
+  }
+
+  // What you post: opposite sign of what bettor sees
+  var postLine;
+  if (o > 0) {
+    // You have a + line, other side is -, you post that minus
+    postLine = otherAmerican < 0 ? String(otherAmerican) : '-' + otherAmerican;
+  } else {
+    // You have a - line, other side is +, you post that plus
+    postLine = '+' + Math.abs(otherAmerican);
+  }
+
+  // Offering / if filled labels
+  var bookSide = (o > 0 ? '+' : '') + o;
+  var filledSide = o > 0 ? postLine.replace('-','+') : postLine.replace('+','-');
+  // simpler: bettor on exchange gets opposite of postLine
+  var bettorSide = postLine.charAt(0) === '-' ? '+' + postLine.slice(1) : '-' + postLine.slice(1);
+
+  mh.style.display = 'none';
+  res.style.display = 'block';
+
+  document.getElementById('post').textContent = postLine;
+  var bettorGets = postLine.charAt(0) === '-' ? '+' + postLine.slice(1) : '-' + postLine.slice(1);
+  document.getElementById('post').textContent = postLine;
+  document.getElementById('filledSide').textContent = bettorGets;
+  document.getElementById('arbPct').textContent = '+' + thresh + '%';
+}
+</script>
+</body>
+</html>
