@@ -731,23 +731,27 @@ function copySummary() {
 }
 
 function showSummary() {
-  // get all unique dates + filter options
   const allDates = [...new Set(tracker.map(t=>t.date).filter(Boolean))].sort().reverse();
   const modal = document.createElement('div');
   modal.className = 'summary-modal';
   modal.id = 'summaryModal';
   modal.onclick = e => { if(e.target===modal) closeSummary(); };
 
-  modal.innerHTML = `<div class="summary-box">
+  modal.innerHTML = `<div class="summary-box" style="max-width:620px">
     <div class="summary-title">
       <span>📋 Summary</span>
       <button onclick="closeSummary()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">✕</button>
     </div>
     <div class="summary-filters">
+      <label>Mode:</label>
+      <select id="sumMode" onchange="buildSummary()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;padding:4px 8px;outline:none">
+        <option value="simple">Simple (daily breakdown)</option>
+        <option value="full">Full (every bet)</option>
+      </select>
       <label>Filter:</label>
       <select id="sumFilter" onchange="buildSummary()">
         <option value="all">All bets</option>
-        <option value="open">Open / Pending</option>
+        <option value="open">Pending only</option>
         <option value="settled">Settled only</option>
         <option value="date">By date →</option>
       </select>
@@ -769,7 +773,23 @@ function showSummary() {
   buildSummary();
 }
 
+function mktStat(bets, label) {
+  const s = bets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+  if(!s.length && !bets.filter(t=>!t.result||t.result==='').length) return '';
+  const w=s.filter(t=>t.result==='W').length, l=s.filter(t=>t.result==='L').length, p=s.filter(t=>t.result==='P').length;
+  const units=s.reduce((a,t)=>a+unitPnl(t),0);
+  const avgRoi=s.length?(s.reduce((a,t)=>a+(t.roi||0),0)/s.length).toFixed(1):null;
+  const pend=bets.filter(t=>!t.result||t.result==='').length;
+  let line=`  ${label.padEnd(18)} `;
+  if(s.length) line+=`${w}W-${l}L${p?'-'+p+'P':''} · ${(units>=0?'+':'')+units.toFixed(2)}u`;
+  else line+=`—`;
+  if(avgRoi) line+=` · avg ROI ${avgRoi}%`;
+  if(pend) line+=` (${pend} pending)`;
+  return line;
+}
+
 function buildSummary() {
+  const mode = document.getElementById('sumMode')?.value||'simple';
   const filter = document.getElementById('sumFilter')?.value||'all';
   const dateVal = document.getElementById('sumDate')?.value||'';
   let bets = [...tracker];
@@ -779,47 +799,75 @@ function buildSummary() {
 
   if (!bets.length) { document.getElementById('summaryText').textContent='No bets match this filter.'; return; }
 
-  // group by date
   const byDate = {};
-  for (const t of bets) {
-    const d = t.date||'Unknown';
-    if (!byDate[d]) byDate[d] = [];
-    byDate[d].push(t);
-  }
+  for (const t of bets) { const d=t.date||'Unknown'; if(!byDate[d]) byDate[d]=[]; byDate[d].push(t); }
 
   const settled = bets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
-  const wins = bets.filter(t=>t.result==='W').length;
-  const losses = bets.filter(t=>t.result==='L').length;
-  const totalRoi = settled.reduce((s,t)=>s+unitPnl(t),0);
+  const wins=settled.filter(t=>t.result==='W').length, losses=settled.filter(t=>t.result==='L').length;
+  const totalUnits=settled.reduce((s,t)=>s+unitPnl(t),0);
+  const pending=bets.filter(t=>!t.result||t.result==='').length;
 
-  let text = `BAT X EV TRACKER — SUMMARY\n`;
-  text += `${'='.repeat(36)}\n`;
-  if (settled.length) text += `Record: ${wins}W-${losses}L · Units: ${(totalRoi>=0?'+':'')+totalRoi.toFixed(2)}u\n`;
-  text += `Bets: ${bets.length}${bets.length!==settled.length?' ('+( bets.length-settled.length)+' pending)':''}\n\n`;
+  if(mode==='simple') {
+    // ── SIMPLE MODE ──
+    const MKTS = [
+      {key:'TOTAL',   label:'Game Totals'},
+      {key:'TT',      label:'Team Totals'},
+      {key:'1HTOTAL', label:'1H Totals'},
+      {key:'1HTT',    label:'1H Team Totals'},
+      {key:'1HML',    label:'1H Moneylines'},
+      {key:'1HRL',    label:'1H Run Lines'},
+      {key:'NRFI',    label:'NRFI/YRFI'},
+    ];
+    let text = 'BAT X EV TRACKER\n'+'='.repeat(32)+'\n';
+    if(settled.length) text+=`Overall: ${wins}W-${losses}L · ${(totalUnits>=0?'+':'')+totalUnits.toFixed(2)}u${pending?' ('+pending+' pending)':''}\n\n`;
+    else text+=`${bets.length} bets (${pending} pending)\n\n`;
 
-  for (const [date, dayBets] of Object.entries(byDate).sort()) {
-    const daySettled = dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
-    const dayW = dayBets.filter(t=>t.result==='W').length;
-    const dayL = dayBets.filter(t=>t.result==='L').length;
-    const dayRoi = daySettled.reduce((s,t)=>s+unitPnl(t),0);
-    text += `📅 ${date}`;
-    if (daySettled.length) text += ` · ${dayW}W-${dayL}L · ${(dayRoi>=0?'+':'')+dayRoi.toFixed(2)}u`;
-    text += '\n';
-    for (const t of dayBets) {
-      const res = t.result==='W'?'✓ W':t.result==='L'?'✗ L':t.result==='P'?'— P':'⏳';
-      const pnl = t.result?` (${(unitPnl(t)>=0?'+':'')+unitPnl(t).toFixed(2)}u)`:'';
-      text += `  ${res} ${t.game}`;
-      text += ` [${t.marketLabel||MKT_LABELS[t.market]||t.market||'?'}]`;
-      text += ` · ${t.book} ${fmtOdds(t.odds)}`;
-      if (t.fairPrice!=null) text += ` · Fair ${fmtOdds(t.fairPrice)}`;
-      if (t.proj!=null) text += ` · Proj ${t.proj}`;
-      if (t.roi!=null) text += ` · ROI +${t.roi.toFixed(1)}%`;
-      text += pnl+'\n';
+    for(const [date, dayBets] of Object.entries(byDate).sort()) {
+      const ds=dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+      const dw=ds.filter(t=>t.result==='W').length, dl=ds.filter(t=>t.result==='L').length;
+      const du=ds.reduce((s,t)=>s+unitPnl(t),0);
+      const dp=dayBets.filter(t=>!t.result||t.result==='').length;
+      text+=`📅 ${date}`;
+      if(ds.length) text+=` · ${dw}W-${dl}L · ${(du>=0?'+':'')+du.toFixed(2)}u`;
+      if(dp) text+=` (${dp} pending)`;
+      text+='\n';
+
+      for(const {key,label} of MKTS) {
+        const mb=dayBets.filter(t=>t.market===key);
+        if(!mb.length) continue;
+        const line=mktStat(mb,label);
+        if(line) text+=line+'\n';
+      }
+      text+='\n';
     }
-    text += '\n';
+    document.getElementById('summaryText').textContent=text.trim();
+    return;
   }
 
-  document.getElementById('summaryText').textContent = text.trim();
+  // ── FULL MODE ──
+  let text = `BAT X EV TRACKER — FULL SUMMARY\n${'='.repeat(36)}\n`;
+  if(settled.length) text+=`Record: ${wins}W-${losses}L · Units: ${(totalUnits>=0?'+':'')+totalUnits.toFixed(2)}u\n`;
+  text+=`Bets: ${bets.length}${pending?' ('+pending+' pending)':''}\n\n`;
+
+  for(const [date, dayBets] of Object.entries(byDate).sort()) {
+    const ds=dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+    const dw=ds.filter(t=>t.result==='W').length, dl=ds.filter(t=>t.result==='L').length;
+    const du=ds.reduce((s,t)=>s+unitPnl(t),0);
+    text+=`📅 ${date}`;
+    if(ds.length) text+=` · ${dw}W-${dl}L · ${(du>=0?'+':'')+du.toFixed(2)}u`;
+    text+='\n';
+    for(const t of dayBets) {
+      const res=t.result==='W'?'✓ W':t.result==='L'?'✗ L':t.result==='P'?'— P':'⏳';
+      const pnl=t.result?` (${(unitPnl(t)>=0?'+':'')+unitPnl(t).toFixed(2)}u)`:'';
+      text+=`  ${res} ${t.game} [${MKT_LABELS[t.market]||t.market||'?'}] · ${t.book} ${fmtOdds(t.odds)}`;
+      if(t.fairPrice!=null) text+=` · Fair ${fmtOdds(t.fairPrice)}`;
+      if(t.proj!=null) text+=` · Proj ${t.proj}`;
+      if(t.roi!=null) text+=` · ROI +${t.roi.toFixed(1)}%`;
+      text+=pnl+'\n';
+    }
+    text+='\n';
+  }
+  document.getElementById('summaryText').textContent=text.trim();
 }
 
 function copySummary() {
