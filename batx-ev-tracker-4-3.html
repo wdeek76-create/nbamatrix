@@ -105,9 +105,9 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
 .tab-btn{font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;}
 .tab-btn.active{background:var(--surface2);color:var(--text);border-color:rgba(255,255,255,0.2);}
 .tracker-clear{font-size:12px;font-weight:600;padding:4px 12px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:6px;color:var(--red);cursor:pointer;}
-.track-head{display:grid;grid-template-columns:2fr 80px 70px 60px 70px 60px 60px 70px 90px 36px;padding:8px 14px;background:var(--surface2);}
+.track-head{display:grid;grid-template-columns:2fr 80px 70px 60px 70px 60px 60px 50px 70px 36px;padding:8px 14px;background:var(--surface2);}
 .track-head span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;}
-.track-row{display:grid;grid-template-columns:2fr 80px 70px 60px 70px 60px 60px 70px 90px 36px;padding:9px 14px;border-top:1px solid var(--border);align-items:center;cursor:pointer;}
+.track-row{display:grid;grid-template-columns:2fr 80px 70px 60px 70px 60px 60px 50px 70px 36px;padding:9px 14px;border-top:1px solid var(--border);align-items:center;cursor:pointer;}
 .track-row:hover{background:var(--surface2);}
 .tv{font-size:12px;}
 .result-sel{background:var(--surface3);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:11px;padding:2px 4px;}
@@ -428,10 +428,15 @@ function runFilter() {
   for (const p of plays) {
     const best = p.books.reduce((a,b)=>b.roi!=null&&(a===null||(b.roi??-99)>(a.roi??-99))?b:a, null);
     if (!best) continue;
-    // For TT/F5TT/1HTT use team name, otherwise use game
-    const gameLabel = (p.mktType==='TT'||p.mktType==='F5TT'||p.mktType==='1HTT')
-      ? (p.team||p.tm)+' '+p.dir+(p.line!=null?' '+p.line:'')
-      : p.tm+' '+p.dir+(p.line!=null?' '+p.line:'');
+    // Build clean game label per market type
+    const isMLMkt2 = p.mktType==='1HML'||p.mktType==='F5ML'||p.mktType==='ML';
+    const isRLMkt2 = p.mktType==='1HRL'||p.mktType==='F5RL'||p.mktType==='RL';
+    const isTTMkt2 = p.mktType==='TT'||p.mktType==='F5TT'||p.mktType==='1HTT';
+    let gameLabel;
+    if(isTTMkt2) gameLabel = (p.team||p.tm)+' '+p.dir+(p.line!=null?' '+p.line:'');
+    else if(isMLMkt2) gameLabel = p.tm+' '+p.dir+' ML';
+    else if(isRLMkt2) gameLabel = p.tm+' '+p.dir+(p.line!=null?' '+p.line:'')+' RL';
+    else gameLabel = p.tm+' '+p.dir+(p.line!=null?' '+p.line:'');
     // skip if already tracked for this date+game+market
     if (tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType)) continue;
     const entry = {
@@ -869,7 +874,7 @@ function renderTracker(){
   }
 
   const mktRows=breakdown(t=>t.market||'?',t=>MKT_LABELS[t.market]||t.market||'?',settled);
-  const dirRows=breakdown(t=>t.dir||'?',t=>t.dir||'?',settled);
+  const dirRows=breakdown(t=>(t.dir==='OVER'||t.dir==='UNDER')?t.dir:'OTHER',t=>(t.dir==='OVER'||t.dir==='UNDER')?t.dir:'Other (ML/RL)',settled);
   const roiRows=breakdown(t=>{const r=t.roi||0;return r<5?'a<5%':r<10?'b5-10%':'c10%+';},(_,k)=>k.slice(1),settled);
   const bookRows=breakdown(t=>t.book||'?',t=>t.book||'?',settled);
 
@@ -1019,9 +1024,11 @@ function renderTracker(){
   } else if(trackerTab==='calendar') {
     html += renderCalendarHTML();
   } else {
-    html+=`<div class="track-head"><span>Play</span><span>Market</span><span>Book</span><span>Odds</span><span>Fair</span><span>Proj</span><span>ROI</span><span>Result</span><span></span></div>`;
+    html+=`<div class="track-head"><span>Play</span><span>Market</span><span>Book</span><span>Odds</span><span>Fair</span><span>Proj</span><span>ROI</span><span>Final</span><span>Result</span><span></span></div>`;
     for(const t of tracker){
-      html+=`<div class="track-row"><div class="tv">${t.game}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date}${t.time?' · '+t.time:''}</span></div><div class="tv" style="font-size:11px;color:var(--muted)">${MKT_LABELS[t.market]||t.market||'—'}</div><div class="tv">${t.book||'—'}</div><div class="tv">${t.odds!=null?fmtOdds(t.odds):'—'}</div><div class="tv amber">${t.fairPrice!=null?fmtOdds(t.fairPrice):'—'}</div><div class="tv">${t.proj??'—'}</div><div class="tv">${t.roi!=null?'+'+t.roi.toFixed(1)+'%':'—'}</div><div class="tv" onclick="event.stopPropagation()"><select class="result-sel" onchange="updateResult(${t.id},this.value)"><option value="" ${t.result?'':'selected'}>Pending</option><option value="W" ${t.result==='W'?'selected':''}>Win ✓</option><option value="L" ${t.result==='L'?'selected':''}>Loss ✗</option><option value="P" ${t.result==='P'?'selected':''}>Push —</option></select></div><div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteTrack(${t.id})">✕</button></div></div>`;
+      const resColor=t.result==='W'?'var(--green)':t.result==='L'?'var(--red)':t.result==='P'?'var(--muted)':'var(--hint)';
+      const resLabel=t.result==='W'?'WIN ✓':t.result==='L'?'LOSS ✗':t.result==='P'?'PUSH —':'Pending';
+      html+=`<div class="track-row"><div class="tv">${t.game}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date}${t.time?' · '+t.time:''}</span></div><div class="tv" style="font-size:11px;color:var(--muted)">${MKT_LABELS[t.market]||t.market||'—'}</div><div class="tv">${t.book||'—'}</div><div class="tv">${t.odds!=null?fmtOdds(t.odds):'—'}</div><div class="tv amber">${t.fairPrice!=null?fmtOdds(t.fairPrice):'—'}</div><div class="tv">${t.proj??'—'}</div><div class="tv">${t.roi!=null?'+'+t.roi.toFixed(1)+'%':'—'}</div><div class="tv" style="font-size:11px;font-weight:700;color:var(--muted)">${t.finalTotal!=null?t.finalTotal:'—'}</div><div class="tv" onclick="event.stopPropagation()"><span style="font-size:11px;font-weight:700;color:${resColor}">${resLabel}</span></div><div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteTrack(${t.id})">✕</button></div></div>`;
     }
     html+=`<div class="manual-add">
       <div class="manual-add-title">+ Add manually</div>
