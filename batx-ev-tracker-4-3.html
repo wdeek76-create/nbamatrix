@@ -875,7 +875,7 @@ function renderTracker(){
       </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <select id="gradeDate" class="tk" style="min-width:100px"><option value="">Pick date...</option></select>
+      <select id="gradeDate" class="tk" style="min-width:100px">${(()=>{const pd=[...new Set(tracker.filter(t=>!t.result||t.result==='').map(t=>t.date).filter(Boolean))].sort();return'<option value="">Pick date...</option>'+pd.map(d=>`<option value="${d}">${d} (${tracker.filter(t=>t.date===d&&(!t.result||t.result==='')).length})</option>`).join('');})()}</select>
       <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade date</button>
       <button class="screenshot-btn" onclick="showSummary()">📋 Summary</button>
       <button class="screenshot-btn" onclick="exportTracker()">⬇ Export</button>
