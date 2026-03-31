@@ -780,7 +780,10 @@ function mktStat(bets, label) {
   const l=s.filter(t=>t.result==='L').length;
   const p=s.filter(t=>t.result==='P').length;
   const units=s.reduce((a,t)=>a+unitPnl(t),0);
-  const avgRoi=s.length?(s.reduce((a,t)=>a+(t.roi||0),0)/s.length).toFixed(1):null;
+  const wBets=s.filter(t=>t.result==='W');
+  const lBets=s.filter(t=>t.result==='L');
+  const avgWinRoi=wBets.length?(wBets.reduce((a,t)=>a+(t.roi||0),0)/wBets.length).toFixed(1):null;
+  const avgLossRoi=lBets.length?-(lBets.reduce((a,t)=>a+(t.roi||0),0)/lBets.length).toFixed(1):null;
   const pend=bets.filter(t=>!t.result||t.result==='').length;
   const pad=18;
   let line='  '+label.padEnd(pad);
@@ -788,7 +791,7 @@ function mktStat(bets, label) {
     line+=`${w}W-${l}L`;
     if(p) line+=`-${p}P`;
     line+=`  ${(units>=0?'+':'')+units.toFixed(2)}u`;
-    if(avgRoi) line+=`  ROI ${avgRoi}%`;
+    if(avgWinRoi) line+=`  ROI +${avgWinRoi}%`;
   } else {
     line+='pending';
   }
