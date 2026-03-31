@@ -1337,16 +1337,11 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='TT'){
         if(!isFinal) continue;
-        // Use rawGame "AWAY/HOME" to determine side
-        const rawG = (t.rawGame||t.tm||'').toUpperCase();
-        const gParts = rawG.split(/[/@]/);
-        const awayAbbr = (gParts[0]||'').replace(/[^A-Z]/g,'');
-        const homeAbbr2 = (gParts[1]||'').replace(/[^A-Z]/g,'');
-        // homeAbbr (from API) already set above
-        // if homeAbbr2 matches homeAbbr -> bet team is home if t.team abbr matches homeAbbr2
-        // Simpler: just check which side of rawGame the bet team abbr is on
-        const betAbbr = toAbbr(t.team||t.dir||'');
-        const ttIsHome = homeAbbr2===betAbbr || MLB_API_ABBR[homeAbbr2]===betAbbr || homeAbbr2===toAbbr(betAbbr);
+        // rawGame is AWAY/HOME e.g. "PHI/WSH" -> away=PHI, home=WSH
+        const rawGparts = (t.rawGame||t.tm||'').toUpperCase().split(/[/@]/);
+        const rawHome = toAbbr(rawGparts[1]||'');
+        const betAbbr = toAbbr(t.team||'');
+        const ttIsHome = rawHome===betAbbr;
         const runs = ttIsHome ? score('home') : score('away');
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
@@ -1357,12 +1352,10 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='1HTT'||mkt==='F5TT'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const rawG2 = (t.rawGame||t.tm||'').toUpperCase();
-        const gParts2 = rawG2.split(/[/@]/);
-        const awayAbbr2 = (gParts2[0]||'').replace(/[^A-Z]/g,'');
-        const homeAbbr3 = (gParts2[1]||'').replace(/[^A-Z]/g,'');
-        const betAbbr2 = toAbbr(t.team||t.dir||'');
-        const isH = homeAbbr3===betAbbr2 || MLB_API_ABBR[homeAbbr3]===betAbbr2 || homeAbbr3===toAbbr(betAbbr2);
+        const rawG2 = (t.rawGame||t.tm||'').toUpperCase().split(/[/@]/);
+        const rawHome2 = toAbbr(rawG2[1]||'');
+        const betAbbr2 = toAbbr(t.team||'');
+        const isH = rawHome2===betAbbr2;
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
