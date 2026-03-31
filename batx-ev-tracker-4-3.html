@@ -232,6 +232,7 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
     <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Grade date</span>
     <select id="gradeDate" class="tk" style="min-width:120px"><option value="">Pick date...</option></select>
     <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);color:var(--blue)">▶ Grade</button>
+    <select id="regradeDate" class="tk" style="min-width:120px"><option value="">Re-grade date...</option></select>
     <button class="screenshot-btn" id="regradeBtn" onclick="regrade()">↺ Re-grade</button>
     <span id="gradeStatus" style="font-size:12px;color:var(--muted)"></span>
   </div>
@@ -1180,12 +1181,20 @@ async function fetchAndShowGames(){
 
 function populateGradeDates() {
   const sel = document.getElementById('gradeDate');
-  if (!sel) return;
-  const pending = tracker.filter(t=>!t.result||t.result==='');
-  const dates = [...new Set(pending.map(t=>t.date).filter(Boolean))].sort();
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Pick date...</option>' +
-    dates.map(d=>'<option value="'+d+'"'+(d===cur?' selected':'')+'>'+d+' ('+pending.filter(t=>t.date===d).length+' pending)</option>').join('');
+  if (sel) {
+    const pending = tracker.filter(t=>!t.result||t.result==='');
+    const dates = [...new Set(pending.map(t=>t.date).filter(Boolean))].sort();
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Pick date...</option>' +
+      dates.map(d=>'<option value="'+d+'"'+(d===cur?' selected':'')+'>'+d+' ('+pending.filter(t=>t.date===d).length+' pending)</option>').join('');
+  }
+  const rsel = document.getElementById('regradeDate');
+  if (rsel) {
+    const allDates = [...new Set(tracker.map(t=>t.date).filter(Boolean))].sort();
+    const cur = rsel.value;
+    rsel.innerHTML = '<option value="">Re-grade date...</option>' +
+      allDates.map(d=>'<option value="'+d+'"'+(d===cur?' selected':'')+'>'+d+' ('+tracker.filter(t=>t.date===d).length+' bets)</option>').join('');
+  }
 }
 
 // Extract both team abbrs from various formats
@@ -1210,7 +1219,7 @@ function gameToTeams(str) {
 }
 
 async function regrade(){
-  const sel = document.getElementById('gradeDate');
+  const sel = document.getElementById('regradeDate');
   const selectedDate = sel?.value;
   const statusEl = document.getElementById('gradeStatus');
   const setStatus = s => { if(statusEl) statusEl.textContent = s; };
@@ -1223,7 +1232,15 @@ async function regrade(){
   renderTracker();
   populateGradeDates();
   // Now run grade
-  document.getElementById('autoGradeBtn').click();
+  // manually trigger autoGrade with the regraded date selected in gradeDate
+  const gradesel = document.getElementById('gradeDate');
+  if(gradesel) {
+    // temporarily set gradeDate to the regrade date
+    const opt = document.createElement('option');
+    opt.value = selectedDate; opt.selected = true;
+    gradesel.innerHTML = '<option value="'+selectedDate+'" selected>'+selectedDate+'</option>';
+  }
+  await autoGrade();
 }
 
 async function autoGrade(){
