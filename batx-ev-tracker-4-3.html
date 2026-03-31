@@ -575,6 +575,7 @@ function filterBetLog() {
 
 function deleteTrack(id){tracker=tracker.filter(t=>t.id!==id);localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();}
 function updateResult(id,val){const t=tracker.find(x=>x.id===id);if(t){t.result=val;localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();}}
+function clearPending(){if(confirm('Clear all pending bets?')){tracker=tracker.filter(t=>t.result&&t.result!=='');localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();populateGradeDates();}}
 function clearTracker(){if(confirm('Clear all?')){tracker=[];localStorage.setItem('batxEvTracker','[]');renderTracker();}}
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
 function calNav(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}else if(calMonth<0){calMonth=11;calYear--;}renderTracker();}
@@ -864,7 +865,7 @@ function buildSummary() {
   }
 
   // ── FULL MODE ──
-  let text = 'BAT X EV TRACKER — FULL\n'+'\n';
+  let text = 'BAT X EV TRACKER — FULL\n\n';
   if(settled.length) text+='Record  '+wins+'W-'+losses+'L  '+(totalUnits>=0?'+':'')+totalUnits.toFixed(2)+'u\n';
   text+=`Bets: ${bets.length}${pending?' ('+pending+' pending)':''}\n\n`;
 
@@ -872,17 +873,38 @@ function buildSummary() {
     const ds=dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
     const dw=ds.filter(t=>t.result==='W').length, dl=ds.filter(t=>t.result==='L').length;
     const du=ds.reduce((s,t)=>s+unitPnl(t),0);
-      text+=date;
+    const dp=dayBets.filter(t=>!t.result||t.result==='');
+    text+=date;
     if(ds.length) text+='  '+dw+'W-'+dl+'L  '+(du>=0?'+':'')+du.toFixed(2)+'u';
     text+='\n';
-    for(const t of dayBets) {
-      const res=t.result==='W'?'W ':t.result==='L'?'L ':t.result==='P'?'P ':'  ';
-      const pnl=t.result?` (${(unitPnl(t)>=0?'+':'')+unitPnl(t).toFixed(2)}u)`:'';
-      text+=`  ${res}${t.game} [${MKT_LABELS[t.market]||t.market||'?'}] · ${t.book} ${fmtOdds(t.odds)}`;
-      if(t.fairPrice!=null) text+=` · Fair ${fmtOdds(t.fairPrice)}`;
-      if(t.proj!=null) text+=` · Proj ${t.proj}`;
-      if(t.roi!=null) text+=` · ROI +${t.roi.toFixed(1)}%`;
-      text+=pnl+'\n';
+
+    if(filter==='open') {
+      // Group pending bets by game
+      const byGame={};
+      for(const t of dp) {
+        const g=t.tm||t.game||'?';
+        if(!byGame[g]) byGame[g]=[];
+        byGame[g].push(t);
+      }
+      for(const [game, gameBets] of Object.entries(byGame).sort()) {
+        text+='  '+game+'\n';
+        for(const t of gameBets.sort((a,b)=>(b.roi||0)-(a.roi||0))) {
+          text+='    '+t.game.replace(game,'').trim()+' ['+( MKT_LABELS[t.market]||t.market||'?')+'] '+t.book+' '+fmtOdds(t.odds);
+          if(t.fairPrice!=null) text+=' Fair '+fmtOdds(t.fairPrice);
+          if(t.roi!=null) text+=' ROI +'+t.roi.toFixed(1)+'%';
+          text+='\n';
+        }
+      }
+    } else {
+      for(const t of dayBets) {
+        const res=t.result==='W'?'W ':t.result==='L'?'L ':t.result==='P'?'P ':'  ';
+        const pnl=t.result?` (${(unitPnl(t)>=0?'+':'')+unitPnl(t).toFixed(2)}u)`:'';
+        text+=`  ${res}${t.game} [${MKT_LABELS[t.market]||t.market||'?'}] · ${t.book} ${fmtOdds(t.odds)}`;
+        if(t.fairPrice!=null) text+=` · Fair ${fmtOdds(t.fairPrice)}`;
+        if(t.proj!=null) text+=` · Proj ${t.proj}`;
+        if(t.roi!=null) text+=` · ROI +${t.roi.toFixed(1)}%`;
+        text+=pnl+'\n';
+      }
     }
     text+='\n';
   }
@@ -960,6 +982,7 @@ function renderTracker(){
       <button class="screenshot-btn" onclick="showSummary()">📋 Summary</button>
       <button class="screenshot-btn" onclick="exportTracker()">⬇ Export</button>
       <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
+      <button class="tracker-clear" onclick="clearPending()">Clear pending</button>
       <button class="tracker-clear" onclick="clearTracker()">Clear all</button>
     </div>
   </div>`;
