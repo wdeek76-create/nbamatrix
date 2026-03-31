@@ -1063,15 +1063,25 @@ function populateGradeDates() {
     dates.map(d=>'<option value="'+d+'"'+(d===cur?' selected':'')+'>'+d+' ('+pending.filter(t=>t.date===d).length+' pending)</option>').join('');
 }
 
-// Extract both team abbrs from a game string like "PHI/WSH", "WSH@PHI", "MIL/TB"
+// Extract both team abbrs from various formats
 function gameToTeams(str) {
   if (!str) return [];
-  str = str.toUpperCase().trim();
-  // Remove trailing bet info like "UNDER 4.5" or "WSH" team pick
-  str = str.replace(/\s+(OVER|UNDER|YES|NO)\s+[\d.]+.*/i, '').replace(/\s+[A-Z]{2,3}$/,'').trim();
-  // Split on / or @
-  const parts = str.split(/[/@]/).map(s => s.replace(/[^A-Z]/g,'').trim()).filter(s=>s.length>=2&&s.length<=4);
-  return parts.map(p => MLB_API_ABBR[p] || p).filter(Boolean);
+  const u = str.toUpperCase().trim();
+  // Format 1: "AAA/BBB" or "AAA@BBB" - direct split
+  const slashAt = u.match(/^([A-Z]{2,4})[/@]([A-Z]{2,4})/);
+  if (slashAt) {
+    const t1 = MLB_API_ABBR[slashAt[1]]||slashAt[1];
+    const t2 = MLB_API_ABBR[slashAt[2]]||slashAt[2];
+    return [t1,t2];
+  }
+  // Format 2: "AAA/BBB BBB UNDER 4.5" - game prefix then team
+  const withSuffix = u.match(/([A-Z]{2,4})[/@]([A-Z]{2,4})\s/);
+  if (withSuffix) {
+    const t1 = MLB_API_ABBR[withSuffix[1]]||withSuffix[1];
+    const t2 = MLB_API_ABBR[withSuffix[2]]||withSuffix[2];
+    return [t1,t2];
+  }
+  return [];
 }
 
 async function autoGrade(){
@@ -1102,6 +1112,7 @@ async function autoGrade(){
 
     for(const t of pending){
       // Try to get both team abbrs from rawGame, tm, or game label
+      // t.tm is the game string (e.g. ATL/ATH), t.game is the display label
       const src = t.rawGame || t.tm || t.game || '';
       const teams = gameToTeams(src);
       if(teams.length < 2) continue;
