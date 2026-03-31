@@ -260,7 +260,7 @@ const TEAMS = {
   'MIA':'MIA','MARLINS':'MIA','MIL':'MIL','BREWERS':'MIL',
   'MIN':'MIN','TWINS':'MIN','NYM':'NYM','METS':'NYM',
   'NYY':'NYY','YANKEES':'NYY','ATH':'ATH','OAK':'ATH','ATHLETICS':'ATH',
-  'PHI':'PHI','PHILLIES':'PHI','PIT':'PIT','PIRATES':'PIT',
+  'PHI':'PHI','PHILLIES':'PHI','PHILADELPHIA':'PHI','PIT':'PIT','PIRATES':'PIT','PITTSBURGH':'PIT',
   'SD':'SD','PADRES':'SD','SF':'SF','GIANTS':'SF',
   'SEA':'SEA','MARINERS':'SEA','STL':'STL','CARDINALS':'STL',
   'TB':'TB','RAYS':'TB','TEX':'TEX','RANGERS':'TEX',
@@ -1168,14 +1168,29 @@ function extractTeams(str){
 }
 
 async function fetchAndShowGames(){
-  const dateStr = parseDateMMDD('03/30');
+  const sel = document.getElementById('regradeDate');
+  const dateStr = parseDateMMDD(sel?.value||'03/30');
   try {
     let resp;
     try { resp = await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore'); }
     catch(e) { resp = await fetch('https://corsproxy.io/?url='+encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore')); }
     const data = await resp.json();
     const games = (data.dates?.[0]?.games)||[];
-    alert('Games ('+games.length+'):\n'+games.map(g=>teamAbbr(g,'away')+' @ '+teamAbbr(g,'home')+' | '+g.status?.detailedState).join('\n'));
+    let out = 'GAMES '+dateStr+' ('+games.length+'):\n\n';
+    for(const g of games) {
+      const hn=g.teams?.home?.team?.name||'?';
+      const an=g.teams?.away?.team?.name||'?';
+      const hs=g.teams?.home?.score;
+      const as_=g.teams?.away?.score;
+      const ls=g.linescore;
+      const inn=(ls?.innings||[]);
+      const f5h=inn.slice(0,5).reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0);
+      const f5a=inn.slice(0,5).reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0);
+      out+=an+' @ '+hn+'\n';
+      out+='  Final: '+an+' '+as_+' / '+hn+' '+hs+'\n';
+      out+='  F5: '+an+' '+f5a+' / '+hn+' '+f5h+'\n\n';
+    }
+    alert(out);
   } catch(e) { alert('Error: '+e.message); }
 }
 
@@ -1322,18 +1337,17 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='TT'){
         if(!isFinal) continue;
-        // Match t.team (full name) against API home AND away team names
-        const homeName=(g.teams?.home?.team?.name||'').toUpperCase();
-        const awayName=(g.teams?.away?.team?.name||'').toUpperCase();
-        const betTeam=(t.team||'').toUpperCase();
-        // Check last word of team name for matching (e.g. "Astros" in "Houston Astros")
-        const lastWord = betTeam.split(' ').pop();
-        const ttIsHome = homeName.includes(lastWord);
-        const ttIsAway = awayName.includes(lastWord);
-        let runs;
-        if(ttIsHome) runs = score('home');
-        else if(ttIsAway) runs = score('away');
-        else { console.log('TT team not matched:', betTeam, 'vs', homeName, awayName); continue; }
+        // Use rawGame "AWAY/HOME" to determine side
+        const rawG = (t.rawGame||t.tm||'').toUpperCase();
+        const gParts = rawG.split(/[/@]/);
+        const awayAbbr = (gParts[0]||'').replace(/[^A-Z]/g,'');
+        const homeAbbr2 = (gParts[1]||'').replace(/[^A-Z]/g,'');
+        // homeAbbr (from API) already set above
+        // if homeAbbr2 matches homeAbbr -> bet team is home if t.team abbr matches homeAbbr2
+        // Simpler: just check which side of rawGame the bet team abbr is on
+        const betAbbr = toAbbr(t.team||t.dir||'');
+        const ttIsHome = homeAbbr2===betAbbr || MLB_API_ABBR[homeAbbr2]===betAbbr || homeAbbr2===toAbbr(betAbbr);
+        const runs = ttIsHome ? score('home') : score('away');
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
       } else if(mkt==='1HTOTAL'||mkt==='F5TOTAL'){
@@ -1343,13 +1357,12 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='1HTT'||mkt==='F5TT'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const homeName2=(g.teams?.home?.team?.name||'').toUpperCase();
-        const awayName2=(g.teams?.away?.team?.name||'').toUpperCase();
-        const betTeam2=(t.team||'').toUpperCase();
-        const lastWord2 = betTeam2.split(' ').pop();
-        const isH = homeName2.includes(lastWord2);
-        const isA = awayName2.includes(lastWord2);
-        if(!isH && !isA) { console.log('1HTT not matched:', betTeam2); continue; }
+        const rawG2 = (t.rawGame||t.tm||'').toUpperCase();
+        const gParts2 = rawG2.split(/[/@]/);
+        const awayAbbr2 = (gParts2[0]||'').replace(/[^A-Z]/g,'');
+        const homeAbbr3 = (gParts2[1]||'').replace(/[^A-Z]/g,'');
+        const betAbbr2 = toAbbr(t.team||t.dir||'');
+        const isH = homeAbbr3===betAbbr2 || MLB_API_ABBR[homeAbbr3]===betAbbr2 || homeAbbr3===toAbbr(betAbbr2);
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
