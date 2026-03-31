@@ -1276,12 +1276,13 @@ async function regrade(){
   const setStatus = s => { if(statusEl) statusEl.textContent = s; };
   if(!selectedDate){ setStatus('Pick a date first'); return; }
   if(!confirm('Clear and re-grade '+selectedDate+'?')) return;
-  // Clear results for that date
-  tracker.filter(t=>t.date===selectedDate).forEach(t=>{ t.result=''; delete t.finalTotal; });
+  // Clear ALL results for that date (including W/L/P)
+  tracker.forEach(t=>{ if(t.date===selectedDate){ t.result=''; delete t.finalTotal; } });
   localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
-  setStatus('Cleared — fetching scores...');
+  setStatus('Cleared '+tracker.filter(t=>t.date===selectedDate).length+' bets — fetching scores...');
   // Grade directly without touching DOM
   await gradeDate(selectedDate, setStatus);
+  localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
   renderTracker();
   populateGradeDates();
 }
