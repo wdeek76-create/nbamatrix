@@ -1079,7 +1079,13 @@ async function autoGrade(){
   }
   let graded=0;
   try{
-    const resp=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
+    // Try direct first, fall back to CORS proxy
+    let resp;
+    try {
+      resp = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
+    } catch(corsErr) {
+      resp = await fetch(`https://corsproxy.io/?url=${encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore')}`);
+    }
     if(!resp.ok)throw new Error('API '+resp.status);
     const data=await resp.json();
     const games=(data.dates?.[0]?.games)||[];
