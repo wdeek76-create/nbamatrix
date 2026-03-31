@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1063,7 +1063,9 @@ async function fetchAndShowGames(){
     catch(e) { resp = await fetch('https://corsproxy.io/?url='+encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore')); }
     const data = await resp.json();
     const games = (data.dates?.[0]?.games)||[];
-    alert('Games from API ('+games.length+'):\n'+games.map(g=>g.teams?.away?.team?.abbreviation+' @ '+g.teams?.home?.team?.abbreviation+' | '+g.status?.detailedState).join('\n'));
+    // Show raw structure of first game to debug path
+    if(games.length) alert('First game raw:\n'+JSON.stringify(games[0], null, 2).slice(0,1000));
+    else alert('No games found. Top-level keys: '+Object.keys(data).join(', '));
   } catch(e) { alert('Error: '+e.message); }
 }
 
