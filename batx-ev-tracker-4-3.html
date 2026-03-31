@@ -868,9 +868,9 @@ function buildSummary() {
     if(ds.length) text+='  '+dw+'W-'+dl+'L  '+(du>=0?'+':'')+du.toFixed(2)+'u';
     text+='\n';
     for(const t of dayBets) {
-      const res=t.result==='W'?'W':t.result==='L'?'L':t.result==='P'?'P':'?';
+      const res=t.result==='W'?'W ':t.result==='L'?'L ':t.result==='P'?'P ':'  ';
       const pnl=t.result?` (${(unitPnl(t)>=0?'+':'')+unitPnl(t).toFixed(2)}u)`:'';
-      text+=`  ${res} ${t.game} [${MKT_LABELS[t.market]||t.market||'?'}] · ${t.book} ${fmtOdds(t.odds)}`;
+      text+=`  ${res}${t.game} [${MKT_LABELS[t.market]||t.market||'?'}] · ${t.book} ${fmtOdds(t.odds)}`;
       if(t.fairPrice!=null) text+=` · Fair ${fmtOdds(t.fairPrice)}`;
       if(t.proj!=null) text+=` · Proj ${t.proj}`;
       if(t.roi!=null) text+=` · ROI +${t.roi.toFixed(1)}%`;
