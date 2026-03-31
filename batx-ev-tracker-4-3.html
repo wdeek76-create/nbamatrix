@@ -428,7 +428,7 @@ function runFilter() {
     const entry = {
       id: Date.now()+autoSaved,
       date: p.date, time: p.time,
-      game: gameLabel, dir: p.dir, tm: p.tm,
+      game: gameLabel, rawGame: p.game||p.tm, dir: p.dir, tm: p.tm,
       market: p.mktType, marketLabel: p.market||p.mktType,
       book: best.book, odds: best.odds, line: p.line,
       proj: p.proj, roi: best.roi, fairPrice: best.fairPrice??null,
@@ -518,7 +518,7 @@ function savePlay(gi, btn) {
     : p.tm+' '+p.dir+(p.line!=null?' '+p.line:'');
   const entry = {
     id:Date.now(), date:p.date, time:p.time,
-    game:gameLabel, dir:p.dir, tm:p.tm,
+    game:gameLabel, rawGame:p.game||p.tm, dir:p.dir, tm:p.tm,
     market:p.mktType, marketLabel:p.market,
     book:bookName, odds:bc?.odds??null, line:p.line,
     proj:p.proj, roi:bc?.roi??null, fairPrice:bc?.fairPrice??null,
@@ -877,7 +877,6 @@ function renderTracker(){
     <div style="display:flex;gap:8px;align-items:center">
       <select id="gradeDate" class="tk" style="min-width:100px"><option value="">Pick date...</option></select>
       <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade date</button>
-      <button class="screenshot-btn" onclick="showSummaryExport()">📋 Summary</button>
       <button class="screenshot-btn" onclick="showSummary()">📋 Summary</button>
       <button class="screenshot-btn" onclick="exportTracker()">⬇ Export</button>
       <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
@@ -1073,7 +1072,7 @@ async function autoGrade(){
     const data=await resp.json();
     const games=(data.dates?.[0]?.games)||[];
     for(const t of pending){
-      const teams=extractTeams(t.tm||t.game||'');
+      const teams=extractTeams(t.rawGame||t.tm||t.game||'');
       if(teams.length<2)continue;
       const game=games.find(g=>{
         const ha=(g.teams?.home?.team?.abbreviation||'').toUpperCase();
