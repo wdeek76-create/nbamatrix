@@ -1004,16 +1004,18 @@ function renderTracker(){
       }, (t,k)=>k, bets.filter(t=>t.dir===dir));
     }
 
-    // Line buckets: o8.5, u9.0 etc
+    // Line buckets: O8.5, U9.0 etc — totals only, exclude ML/RL
+    const totalsMkts = ['TOTAL','TT','1HTOTAL','1HTT','NRFI'];
+    const settledTotals = settled.filter(t=>totalsMkts.includes(t.market) && (t.dir==='OVER'||t.dir==='UNDER') && t.line!=null && t.line>=3);
     const lineBucketRows = breakdown2(t=>{
-      const l=t.line; if(l==null) return 'z?';
-      const d=t.dir==='OVER'?'o':t.dir==='UNDER'?'u':'x';
+      const l=t.line;
+      const d=t.dir==='OVER'?'o':'u';
       return d+(l%1===0?l+'.0':String(l));
     }, (t,k)=>{
-      const l=t.line; if(l==null) return '?';
-      const d=t.dir==='OVER'?'O':t.dir==='UNDER'?'U':'';
+      const l=t.line;
+      const d=t.dir==='OVER'?'O':'U';
       return d+(l%1===0?l+'.0':String(l));
-    }, settled).sort((a,b)=>a.label.localeCompare(b.label));
+    }, settledTotals).sort((a,b)=>a.label.localeCompare(b.label));
 
     // Odds buckets
     const oddsBucketRows = breakdown2(t=>{
