@@ -1311,6 +1311,10 @@ async function gradeDate(selectedDate, setStatus){
         return matchH && matchA;
       });
       if(!g) continue;
+      // Show alert for PHI game to debug
+      if((t.team||t.game||'').includes('Phillies')||(t.game||'').includes('PHI')) {
+        alert('Game: '+t.game+'\nAPI home: '+g.teams?.home?.team?.name+' ('+g.teams?.home?.score+')\nAPI away: '+g.teams?.away?.team?.name+' ('+g.teams?.away?.score+')\nt.team: '+t.team+'\nttBetAbbr would be: '+toAbbr(t.team||''));
+      }
 
       const isFinal = (g.status?.detailedState||'').toLowerCase().includes('final');
       const ls = g.linescore;
@@ -1349,11 +1353,14 @@ async function gradeDate(selectedDate, setStatus){
         t.finalTotal=tot;
       } else if(mkt==='TT'){
         if(!isFinal) continue;
-        // Match bet team against API home/away names directly (most reliable)
-        const ttBetAbbr = toAbbr(t.team||'');
+        // Get bet team - from t.team (full name) or extract from game label
+        const ttTeamRaw = t.team || '';
+        const ttBetAbbr = toAbbr(ttTeamRaw);
         const ttHomeAbbr = teamAbbr(g,'home');
-        const ttHomeName = (g.teams?.home?.team?.name||'');
-        const ttIsHome = ttHomeAbbr===ttBetAbbr || toAbbr(ttHomeName)===ttBetAbbr;
+        const ttAwayAbbr = teamAbbr(g,'away');
+        const ttIsHome = ttHomeAbbr===ttBetAbbr;
+        // If no match found at all, log and skip
+        if(!ttIsHome && ttAwayAbbr!==ttBetAbbr) { console.warn('TT no match:', ttTeamRaw, ttBetAbbr, 'vs home:', ttHomeAbbr, 'away:', ttAwayAbbr); }
         const runs = ttIsHome ? score('home') : score('away');
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
@@ -1366,8 +1373,7 @@ async function gradeDate(selectedDate, setStatus){
         const {h,a,ok}=f5runs(); if(!ok) continue;
         const httBetAbbr = toAbbr(t.team||'');
         const httHomeAbbr = teamAbbr(g,'home');
-        const httHomeName = (g.teams?.home?.team?.name||'');
-        const isH = httHomeAbbr===httBetAbbr || toAbbr(httHomeName)===httBetAbbr;
+        const isH = httHomeAbbr===httBetAbbr;
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
