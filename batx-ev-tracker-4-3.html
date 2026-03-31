@@ -875,7 +875,7 @@ function renderTracker(){
       </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <select id="gradeDate" class="tk" style="min-width:100px">${(()=>{const pd=[...new Set(tracker.filter(t=>!t.result||t.result==='').map(t=>t.date).filter(Boolean))].sort();return'<option value="">Pick date...</option>'+pd.map(d=>`<option value="${d}">${d} (${tracker.filter(t=>t.date===d&&(!t.result||t.result==='')).length})</option>`).join('');})()}</select>
+      <select id="gradeDate" class="tk" style="min-width:100px"><option value="">Pick date...</option></select>
       <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade date</button>
       <button class="screenshot-btn" onclick="showSummary()">📋 Summary</button>
       <button class="screenshot-btn" onclick="exportTracker()">⬇ Export</button>
@@ -1033,7 +1033,7 @@ function renderTracker(){
   }
   html+='</div>';
   el.innerHTML=html;
-  setTimeout(populateGradeDates, 0);
+  populateGradeDates();
 }
 
 // AUTO-GRADE via MLB Stats API
@@ -1049,10 +1049,10 @@ function extractTeams(str){
 function populateGradeDates() {
   const sel = document.getElementById('gradeDate');
   if (!sel) return;
-  const pending = tracker.filter(t=>!t.result||t.result==='');
+  const pending = tracker.filter(t=>!t.result||t.result===''||t.result===undefined);
   const dates = [...new Set(pending.map(t=>t.date).filter(Boolean))].sort();
   const current = sel.value;
-  sel.innerHTML = '<option value="">Pick date...</option>' + dates.map(d=>`<option value="${d}" ${d===current?'selected':''}>${d} (${pending.filter(t=>t.date===d).length} pending)</option>`).join('');
+  sel.innerHTML = '<option value="">Pick date...</option>' + dates.map(d=>'<option value="'+d+'"'+(d===current?' selected':'')+'>'+d+' ('+pending.filter(t=>t.date===d).length+' pending)</option>').join('');
 }
 
 async function autoGrade(){
