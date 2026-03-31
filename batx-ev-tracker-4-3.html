@@ -739,7 +739,7 @@ function showSummary() {
 
   modal.innerHTML = `<div class="summary-box" style="max-width:620px">
     <div class="summary-title">
-      <span>📋 Summary</span>
+      <span style="font-size:14px;font-weight:700">Summary</span>
       <button onclick="closeSummary()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">✕</button>
     </div>
     <div class="summary-filters">
@@ -774,17 +774,25 @@ function showSummary() {
 }
 
 function mktStat(bets, label) {
+  if(!bets.length) return '';
   const s = bets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
-  if(!s.length && !bets.filter(t=>!t.result||t.result==='').length) return '';
-  const w=s.filter(t=>t.result==='W').length, l=s.filter(t=>t.result==='L').length, p=s.filter(t=>t.result==='P').length;
+  const w=s.filter(t=>t.result==='W').length;
+  const l=s.filter(t=>t.result==='L').length;
+  const p=s.filter(t=>t.result==='P').length;
   const units=s.reduce((a,t)=>a+unitPnl(t),0);
   const avgRoi=s.length?(s.reduce((a,t)=>a+(t.roi||0),0)/s.length).toFixed(1):null;
   const pend=bets.filter(t=>!t.result||t.result==='').length;
-  let line=`  ${label.padEnd(18)} `;
-  if(s.length) line+=`${w}W-${l}L${p?'-'+p+'P':''} · ${(units>=0?'+':'')+units.toFixed(2)}u`;
-  else line+=`—`;
-  if(avgRoi) line+=` · avg ROI ${avgRoi}%`;
-  if(pend) line+=` (${pend} pending)`;
+  const pad=18;
+  let line='  '+label.padEnd(pad);
+  if(s.length) {
+    line+=`${w}W-${l}L`;
+    if(p) line+=`-${p}P`;
+    line+=`  ${(units>=0?'+':'')+units.toFixed(2)}u`;
+    if(avgRoi) line+=`  ROI ${avgRoi}%`;
+  } else {
+    line+='pending';
+  }
+  if(pend && s.length) line+=`  (${pend} pending)`;
   return line;
 }
 
@@ -818,17 +826,17 @@ function buildSummary() {
       {key:'1HRL',    label:'1H Run Lines'},
       {key:'NRFI',    label:'NRFI/YRFI'},
     ];
-    let text = 'BAT X EV TRACKER\n'+'='.repeat(32)+'\n';
-    if(settled.length) text+=`Overall: ${wins}W-${losses}L · ${(totalUnits>=0?'+':'')+totalUnits.toFixed(2)}u${pending?' ('+pending+' pending)':''}\n\n`;
-    else text+=`${bets.length} bets (${pending} pending)\n\n`;
+    let text = 'BAT X EV TRACKER\n'+'\n';
+    if(settled.length) { const avgR=settled.length?(settled.reduce((a,t)=>a+(t.roi||0),0)/settled.length).toFixed(1):null; text+='Overall  '+wins+'W-'+losses+'L  '+(totalUnits>=0?'+':'')+totalUnits.toFixed(2)+'u'+(avgR?'  ROI '+avgR+'%':'')+(pending?'  ('+pending+' pending)':'')+"\n"+'='.repeat(36)+"\n\n"; }
+    else text+=bets.length+' bets ('+pending+' pending)\n\n';
 
     for(const [date, dayBets] of Object.entries(byDate).sort()) {
       const ds=dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
       const dw=ds.filter(t=>t.result==='W').length, dl=ds.filter(t=>t.result==='L').length;
       const du=ds.reduce((s,t)=>s+unitPnl(t),0);
       const dp=dayBets.filter(t=>!t.result||t.result==='').length;
-      text+=`📅 ${date}`;
-      if(ds.length) text+=` · ${dw}W-${dl}L · ${(du>=0?'+':'')+du.toFixed(2)}u`;
+      text+=date;
+    if(ds.length) text+='  '+dw+'W-'+dl+'L  '+(du>=0?'+':'')+du.toFixed(2)+'u';
       if(dp) text+=` (${dp} pending)`;
       text+='\n';
 
@@ -845,19 +853,19 @@ function buildSummary() {
   }
 
   // ── FULL MODE ──
-  let text = `BAT X EV TRACKER — FULL SUMMARY\n${'='.repeat(36)}\n`;
-  if(settled.length) text+=`Record: ${wins}W-${losses}L · Units: ${(totalUnits>=0?'+':'')+totalUnits.toFixed(2)}u\n`;
+  let text = 'BAT X EV TRACKER — FULL\n'+'\n';
+  if(settled.length) text+='Record  '+wins+'W-'+losses+'L  '+(totalUnits>=0?'+':'')+totalUnits.toFixed(2)+'u\n';
   text+=`Bets: ${bets.length}${pending?' ('+pending+' pending)':''}\n\n`;
 
   for(const [date, dayBets] of Object.entries(byDate).sort()) {
     const ds=dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
     const dw=ds.filter(t=>t.result==='W').length, dl=ds.filter(t=>t.result==='L').length;
     const du=ds.reduce((s,t)=>s+unitPnl(t),0);
-    text+=`📅 ${date}`;
-    if(ds.length) text+=` · ${dw}W-${dl}L · ${(du>=0?'+':'')+du.toFixed(2)}u`;
+      text+=date;
+    if(ds.length) text+='  '+dw+'W-'+dl+'L  '+(du>=0?'+':'')+du.toFixed(2)+'u';
     text+='\n';
     for(const t of dayBets) {
-      const res=t.result==='W'?'✓ W':t.result==='L'?'✗ L':t.result==='P'?'— P':'⏳';
+      const res=t.result==='W'?'W':t.result==='L'?'L':t.result==='P'?'P':'?';
       const pnl=t.result?` (${(unitPnl(t)>=0?'+':'')+unitPnl(t).toFixed(2)}u)`:'';
       text+=`  ${res} ${t.game} [${MKT_LABELS[t.market]||t.market||'?'}] · ${t.book} ${fmtOdds(t.odds)}`;
       if(t.fairPrice!=null) text+=` · Fair ${fmtOdds(t.fairPrice)}`;
@@ -934,7 +942,6 @@ function renderTracker(){
       <span style="font-size:15px;font-weight:700">Tracker</span>
       <div class="tab-row">
         <button class="tab-btn ${trackerTab==='dashboard'?'active':''}" onclick="setTab('dashboard')">Dashboard</button>
-        <button class="tab-btn ${trackerTab==='calendar'?'active':''}" onclick="setTab('calendar')">Calendar</button>
         <button class="tab-btn ${trackerTab==='log'?'active':''}" onclick="setTab('log')">Bet log (${tracker.length})</button>
       </div>
     </div>
