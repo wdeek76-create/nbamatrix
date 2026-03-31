@@ -1019,7 +1019,7 @@ function renderTracker(){
   } else {
     html+=`<div class="track-head"><span>Play</span><span>Market</span><span>Book</span><span>Odds</span><span>Fair</span><span>Proj</span><span>ROI</span><span>Result</span><span></span></div>`;
     for(const t of tracker){
-      html+=`<div class="track-row"><div class="tv">${t.game}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date}${t.tracked_at?' · '+t.tracked_at:''}</span></div><div class="tv" style="font-size:11px;color:var(--muted)">${MKT_LABELS[t.market]||t.market||'—'}</div><div class="tv">${t.book||'—'}</div><div class="tv">${t.odds!=null?fmtOdds(t.odds):'—'}</div><div class="tv amber">${t.fairPrice!=null?fmtOdds(t.fairPrice):'—'}</div><div class="tv">${t.proj??'—'}</div><div class="tv">${t.roi!=null?'+'+t.roi.toFixed(1)+'%':'—'}</div><div class="tv" onclick="event.stopPropagation()"><select class="result-sel" onchange="updateResult(${t.id},this.value)"><option value="" ${t.result?'':'selected'}>Pending</option><option value="W" ${t.result==='W'?'selected':''}>Win ✓</option><option value="L" ${t.result==='L'?'selected':''}>Loss ✗</option><option value="P" ${t.result==='P'?'selected':''}>Push —</option></select></div><div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteTrack(${t.id})">✕</button></div></div>`;
+      html+=`<div class="track-row"><div class="tv">${t.game}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date}${t.time?' · '+t.time:''}</span></div><div class="tv" style="font-size:11px;color:var(--muted)">${MKT_LABELS[t.market]||t.market||'—'}</div><div class="tv">${t.book||'—'}</div><div class="tv">${t.odds!=null?fmtOdds(t.odds):'—'}</div><div class="tv amber">${t.fairPrice!=null?fmtOdds(t.fairPrice):'—'}</div><div class="tv">${t.proj??'—'}</div><div class="tv">${t.roi!=null?'+'+t.roi.toFixed(1)+'%':'—'}</div><div class="tv" onclick="event.stopPropagation()"><select class="result-sel" onchange="updateResult(${t.id},this.value)"><option value="" ${t.result?'':'selected'}>Pending</option><option value="W" ${t.result==='W'?'selected':''}>Win ✓</option><option value="L" ${t.result==='L'?'selected':''}>Loss ✗</option><option value="P" ${t.result==='P'?'selected':''}>Push —</option></select></div><div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteTrack(${t.id})">✕</button></div></div>`;
     }
     html+=`<div class="manual-add">
       <div class="manual-add-title">+ Add manually</div>
@@ -1056,10 +1056,22 @@ function extractTeams(str){
 function populateGradeDates() {
   const sel = document.getElementById('gradeDate');
   if (!sel) return;
-  const pending = tracker.filter(t=>!t.result||t.result===''||t.result===undefined);
+  const pending = tracker.filter(t=>!t.result||t.result==='');
   const dates = [...new Set(pending.map(t=>t.date).filter(Boolean))].sort();
-  const current = sel.value;
-  sel.innerHTML = '<option value="">Pick date...</option>' + dates.map(d=>'<option value="'+d+'"'+(d===current?' selected':'')+'>'+d+' ('+pending.filter(t=>t.date===d).length+' pending)</option>').join('');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Pick date...</option>' +
+    dates.map(d=>'<option value="'+d+'"'+(d===cur?' selected':'')+'>'+d+' ('+pending.filter(t=>t.date===d).length+' pending)</option>').join('');
+}
+
+// Extract both team abbrs from a game string like "PHI/WSH", "WSH@PHI", "MIL/TB"
+function gameToTeams(str) {
+  if (!str) return [];
+  str = str.toUpperCase().trim();
+  // Remove trailing bet info like "UNDER 4.5" or "WSH" team pick
+  str = str.replace(/\s+(OVER|UNDER|YES|NO)\s+[\d.]+.*/i, '').replace(/\s+[A-Z]{2,3}$/,'').trim();
+  // Split on / or @
+  const parts = str.split(/[/@]/).map(s => s.replace(/[^A-Z]/g,'').trim()).filter(s=>s.length>=2&&s.length<=4);
+  return parts.map(p => MLB_API_ABBR[p] || p).filter(Boolean);
 }
 
 async function autoGrade(){
@@ -1070,124 +1082,100 @@ async function autoGrade(){
   const setStatus = s => { if(statusEl) statusEl.textContent = s; };
   if(!selectedDate){ setStatus('Pick a date first'); return; }
   if(btn){ btn.textContent='Grading...'; btn.disabled=true; }
-  setStatus('Fetching scores...');
-  const pending=tracker.filter(t=>(!t.result||t.result==='')&&t.date===selectedDate);
-  if(!pending.length){
-    setStatus('No pending bets for '+selectedDate);
-    if(btn){btn.textContent='▶ Grade';btn.disabled=false;}return;
-  }
-  const dateStr=parseDateMMDD(selectedDate);
-  if(!dateStr){
-    setStatus('Bad date format: '+selectedDate);
-    if(btn){btn.textContent='▶ Grade';btn.disabled=false;}return;
-  }
-  let graded=0;
-  try{
-    // Try direct first, fall back to CORS proxy
+  setStatus('Fetching...');
+
+  const pending = tracker.filter(t=>(!t.result||t.result==='') && t.date===selectedDate);
+  if(!pending.length){ setStatus('No pending bets for '+selectedDate); if(btn){btn.textContent='▶ Grade';btn.disabled=false;} return; }
+
+  const dateStr = parseDateMMDD(selectedDate);
+  if(!dateStr){ setStatus('Bad date: '+selectedDate); if(btn){btn.textContent='▶ Grade';btn.disabled=false;} return; }
+
+  let graded = 0;
+  try {
     let resp;
-    try {
-      resp = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
-    } catch(corsErr) {
-      resp = await fetch(`https://corsproxy.io/?url=${encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore')}`);
-    }
-    if(!resp.ok)throw new Error('API '+resp.status);
-    const data=await resp.json();
-    const games=(data.dates?.[0]?.games)||[];
-    if(!games.length){
-      setStatus('No games from API for '+dateStr);
-      if(btn){btn.textContent='▶ Grade';btn.disabled=false;}return;
-    }
+    try { resp = await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore'); }
+    catch(e) { resp = await fetch('https://corsproxy.io/?url='+encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore')); }
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    const games = (data.dates?.[0]?.games) || [];
+    if(!games.length){ setStatus('No games from API for '+dateStr); if(btn){btn.textContent='▶ Grade';btn.disabled=false;} return; }
+
     for(const t of pending){
-      const teams=extractTeams(t.rawGame||t.tm||t.game||'');
-      if(teams.length<2)continue;
-      const game=games.find(g=>{
-        const ha=(g.teams?.home?.team?.abbreviation||'').toUpperCase();
-        const aa=(g.teams?.away?.team?.abbreviation||'').toUpperCase();
-        return teams.some(x=>ha===x||MLB_API_ABBR[x]===ha)&&teams.some(x=>aa===x||MLB_API_ABBR[x]===aa);
+      // Try to get both team abbrs from rawGame, tm, or game label
+      const src = t.rawGame || t.tm || t.game || '';
+      const teams = gameToTeams(src);
+      if(teams.length < 2) continue;
+
+      const g = games.find(g=>{
+        const ha = (g.teams?.home?.team?.abbreviation||'').toUpperCase();
+        const aa = (g.teams?.away?.team?.abbreviation||'').toUpperCase();
+        return teams.some(x=>x===ha||MLB_API_ABBR[x]===ha) && teams.some(x=>x===aa||MLB_API_ABBR[x]===aa);
       });
-      if(!game)continue;
-      const status=(game.status?.detailedState||'').toLowerCase();
-      const isFinal=status.includes('final');
-      const ls=game.linescore;
-      const mkt=t.market||'TOTAL';
-      const line=parseFloat(t.line);
-      let result=null;
+      if(!g) continue;
+
+      const isFinal = (g.status?.detailedState||'').toLowerCase().includes('final');
+      const ls = g.linescore;
+      const mkt = t.market||'TOTAL';
+      const line = parseFloat(t.line)||0;
+      const homeAbbr = (g.teams?.home?.team?.abbreviation||'').toUpperCase();
+
+      // figure out if this bet's team is home
+      function isHomeTeam(tmStr) {
+        const a = toAbbr((tmStr||'').split(/[/@]/)[0]||tmStr||'');
+        return a===homeAbbr || MLB_API_ABBR[a]===homeAbbr;
+      }
+
+      // get F5 inning splits
+      function f5runs() {
+        const inn = (ls?.innings||[]).slice(0,5);
+        return { h: inn.reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0), a: inn.reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0), ok: inn.length>=5||isFinal };
+      }
+
+      let result = null;
+      const score = (team) => parseInt(team==='home'?g.teams?.home?.score:g.teams?.away?.score)||0;
+
       if(mkt==='TOTAL'){
-        if(!isFinal)continue;
-        const total=(parseInt(game.teams?.home?.score)||0)+(parseInt(game.teams?.away?.score)||0);
-        result=total>line?(t.dir==='OVER'?'W':'L'):total<line?(t.dir==='UNDER'?'W':'L'):'P';
-        t.finalTotal=total;
-      } else if(mkt==='F5TOTAL'){
-        if(!ls)continue;
-        const innings=ls.innings||[];
-        if(innings.length<5&&!isFinal)continue;
-        const tot=innings.slice(0,5).reduce((s,i)=>s+(parseInt(i.home?.runs)||0)+(parseInt(i.away?.runs)||0),0);
-        result=tot>line?(t.dir==='OVER'?'W':'L'):tot<line?(t.dir==='UNDER'?'W':'L'):'P';
+        if(!isFinal) continue;
+        const tot = score('home')+score('away');
+        result = tot>line?(t.dir==='OVER'?'W':'L'):tot<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=tot;
       } else if(mkt==='TT'){
-        if(!isFinal)continue;
-        const tmAbbr=toAbbr((t.tm||'').split('/')[0]||'');
-        const homeAbbr=(game.teams?.home?.team?.abbreviation||'').toUpperCase();
-        const isHome=homeAbbr===tmAbbr||MLB_API_ABBR[tmAbbr]===homeAbbr;
-        const runs=parseInt(isHome?game.teams?.home?.score:game.teams?.away?.score)||0;
+        if(!isFinal) continue;
+        const runs = isHomeTeam(t.rawGame||t.tm) ? score('home') : score('away');
+        result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
+        t.finalTotal=runs;
+      } else if(mkt==='1HTOTAL'||mkt==='F5TOTAL'){
+        const {h,a,ok}=f5runs(); if(!ok) continue;
+        const tot=h+a;
+        result=tot>line?(t.dir==='OVER'?'W':'L'):tot<line?(t.dir==='UNDER'?'W':'L'):'P';
+        t.finalTotal=tot;
+      } else if(mkt==='1HTT'||mkt==='F5TT'){
+        const {h,a,ok}=f5runs(); if(!ok) continue;
+        const isH=isHomeTeam(t.rawGame||t.tm||t.game);
+        const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
-      } else if(mkt==='F5TT'){
-        if(!ls)continue;
-        const innings=ls.innings||[];
-        if(innings.length<5&&!isFinal)continue;
-        const tmAbbr=toAbbr((t.tm||'').split('/')[0]||'');
-        const homeAbbr=(game.teams?.home?.team?.abbreviation||'').toUpperCase();
-        const isHome=homeAbbr===tmAbbr||MLB_API_ABBR[tmAbbr]===homeAbbr;
-        const runs=innings.slice(0,5).reduce((s,i)=>s+(parseInt(isHome?i.home?.runs:i.away?.runs)||0),0);
-        result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
-        t.finalTotal=runs;
-      } else if(mkt==='F5ML'){
-        if(!ls)continue;
-        const innings=ls.innings||[];
-        if(innings.length<5&&!isFinal)continue;
-        const f5=innings.slice(0,5);
-        const hF5=f5.reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0);
-        const aF5=f5.reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0);
-        const tmAbbr=toAbbr((t.tm||'').split('/')[0]||'');
-        const homeAbbr=(game.teams?.home?.team?.abbreviation||'').toUpperCase();
-        const isHome=homeAbbr===tmAbbr||MLB_API_ABBR[tmAbbr]===homeAbbr;
-        result=hF5===aF5?'P':(isHome?hF5>aF5:aF5>hF5)?'W':'L';
-      } else if(mkt==='1HRL'){
-        if(!ls)continue;
-        const innings=ls.innings||[];
-        if(innings.length<5&&!isFinal)continue;
-        const f5=innings.slice(0,5);
-        const hF5=f5.reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0);
-        const aF5=f5.reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0);
-        const tmAbbr=toAbbr((t.tm||'').split('/')[0]||'');
-        const homeAbbr=(game.teams?.home?.team?.abbreviation||'').toUpperCase();
-        const isHome=homeAbbr===tmAbbr||MLB_API_ABBR[tmAbbr]===homeAbbr;
-        const diff=(isHome?hF5-aF5:aF5-hF5)+(parseFloat(t.line)||0);
-        result=diff>0?'W':diff<0?'L':'P';
-      } else if(mkt==='F5RL'){
-        if(!ls)continue;
-        const innings=ls.innings||[];
-        if(innings.length<5&&!isFinal)continue;
-        const f5=innings.slice(0,5);
-        const hF5=f5.reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0);
-        const aF5=f5.reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0);
-        const tmAbbr=toAbbr((t.tm||'').split('/')[0]||'');
-        const homeAbbr=(game.teams?.home?.team?.abbreviation||'').toUpperCase();
-        const isHome=homeAbbr===tmAbbr||MLB_API_ABBR[tmAbbr]===homeAbbr;
-        const diff=(isHome?hF5-aF5:aF5-hF5)+(line||0);
+      } else if(mkt==='1HML'||mkt==='F5ML'){
+        const {h,a,ok}=f5runs(); if(!ok) continue;
+        const isH=isHomeTeam(t.rawGame||t.tm||t.game);
+        result=h===a?'P':(isH?h>a:a>h)?'W':'L';
+      } else if(mkt==='1HRL'||mkt==='F5RL'){
+        const {h,a,ok}=f5runs(); if(!ok) continue;
+        const isH=isHomeTeam(t.rawGame||t.tm||t.game);
+        const diff=(isH?h-a:a-h)+line;
         result=diff>0?'W':diff<0?'L':'P';
       }
-      if(result){t.result=result;graded++;}
+      if(result){ t.result=result; graded++; }
     }
-  }catch(e){
+  } catch(e) {
     setStatus('Error: '+e.message);
-    console.warn(e);
     if(btn){btn.textContent='▶ Grade';btn.disabled=false;}
+    return;
   }
+
   localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
-  if(btn){ btn.textContent = graded ? '✓ '+graded+' graded' : '0 graded'; btn.disabled=false; }
-  setStatus(graded ? graded+' bets graded!' : 'No bets graded — games may not be final yet');
+  if(btn){ btn.textContent = graded?'✓ '+graded+' graded':'0 graded'; btn.disabled=false; }
+  setStatus(graded ? graded+' bets graded!' : 'No matches found — check games are final');
   renderTracker();
   populateGradeDates();
 }
