@@ -1062,15 +1062,25 @@ async function autoGrade(){
   if(!selectedDate){alert('Pick a date to grade');return;}
   if(btn){btn.textContent='Grading...';btn.disabled=true;}
   const pending=tracker.filter(t=>(!t.result||t.result==='')&&t.date===selectedDate);
-  if(!pending.length){if(btn){btn.textContent='Grade date';btn.disabled=false;}return;}
+  if(!pending.length){
+    alert('No pending bets found for '+selectedDate);
+    if(btn){btn.textContent='Grade date';btn.disabled=false;}return;
+  }
   const dateStr=parseDateMMDD(selectedDate);
-  if(!dateStr){if(btn){btn.textContent='Grade date';btn.disabled=false;}return;}
+  if(!dateStr){
+    alert('Could not parse date: '+selectedDate);
+    if(btn){btn.textContent='Grade date';btn.disabled=false;}return;
+  }
   let graded=0;
   try{
     const resp=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
     if(!resp.ok)throw new Error('API '+resp.status);
     const data=await resp.json();
     const games=(data.dates?.[0]?.games)||[];
+    if(!games.length){
+      alert('No games found from MLB API for '+dateStr+'. Games may not be final yet.');
+      if(btn){btn.textContent='Grade date';btn.disabled=false;}return;
+    }
     for(const t of pending){
       const teams=extractTeams(t.rawGame||t.tm||t.game||'');
       if(teams.length<2)continue;
@@ -1154,12 +1164,15 @@ async function autoGrade(){
       }
       if(result){t.result=result;graded++;}
     }
-  }catch(e){console.warn(e);}
+  }catch(e){
+    alert('Error: '+e.message);
+    console.warn(e);
+  }
   localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
   renderTracker();
   populateGradeDates();
-  if(btn){btn.textContent=graded?'✓ '+graded+' graded':'Grade date';btn.disabled=false;}
-  setTimeout(()=>{if(btn)btn.textContent='Grade date';},3000);
+  if(btn){btn.textContent=graded?'✓ '+graded+' graded':'0 graded — check Bet Log';btn.disabled=false;}
+  setTimeout(()=>{if(btn)btn.textContent='Grade date';},4000);
 }
 
 renderTracker();
