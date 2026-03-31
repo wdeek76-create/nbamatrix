@@ -791,7 +791,7 @@ function mktStat(bets, label) {
     line+=`${w}W-${l}L`;
     if(p) line+=`-${p}P`;
     line+=`  ${(units>=0?'+':'')+units.toFixed(2)}u`;
-    if(avgWinRoi) line+=`  ROI +${avgWinRoi}%`;
+    if(w > l && avgWinRoi) line+=`  ROI +${avgWinRoi}%`;
   } else {
     line+='pending';
   }
@@ -830,7 +830,7 @@ function buildSummary() {
       {key:'NRFI',    label:'NRFI/YRFI'},
     ];
     let text = 'BAT X EV TRACKER\n'+'\n';
-    if(settled.length) { const avgR=settled.length?(settled.reduce((a,t)=>a+(t.roi||0),0)/settled.length).toFixed(1):null; text+='Overall  '+wins+'W-'+losses+'L  '+(totalUnits>=0?'+':'')+totalUnits.toFixed(2)+'u'+(avgR?'  ROI '+avgR+'%':'')+(pending?'  ('+pending+' pending)':'')+"\n"+'='.repeat(36)+"\n\n"; }
+    if(settled.length) { text+='Overall  '+wins+'W-'+losses+'L  '+(totalUnits>=0?'+':'')+totalUnits.toFixed(2)+'u'+(pending?'  ('+pending+' pending)':'')+"\n\n"; }
     else text+=bets.length+' bets ('+pending+' pending)\n\n';
 
     for(const [date, dayBets] of Object.entries(byDate).sort()) {
