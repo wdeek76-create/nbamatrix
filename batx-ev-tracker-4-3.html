@@ -227,6 +227,13 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
   <button class="run-btn" id="runBtn" onclick="runFilter()" disabled>Filter plays →</button>
   <div class="skipped" id="skipped"></div>
   <div id="results"></div>
+  <!-- Static grade controls - never rebuilt -->
+  <div id="gradeBar" style="display:none;margin-top:16px;padding:10px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Grade date</span>
+    <select id="gradeDate" class="tk" style="min-width:120px"><option value="">Pick date...</option></select>
+    <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);color:var(--blue)">▶ Grade</button>
+    <span id="gradeStatus" style="font-size:12px;color:var(--muted)"></span>
+  </div>
   <div id="trackerSection"></div>
 </div>
 
@@ -835,7 +842,9 @@ function addManual(){
 
 function renderTracker(){
   const el=document.getElementById('trackerSection');
-  if(!tracker.length){el.innerHTML='';return;}
+  const gradeBar=document.getElementById('gradeBar');
+  if(!tracker.length){el.innerHTML='';if(gradeBar)gradeBar.style.display='none';return;}
+  if(gradeBar)gradeBar.style.display='flex';
   const settled=tracker.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
   const wins=tracker.filter(t=>t.result==='W').length;
   const losses=tracker.filter(t=>t.result==='L').length;
@@ -875,8 +884,6 @@ function renderTracker(){
       </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <select id="gradeDate" class="tk" style="min-width:100px"><option value="">Pick date...</option></select>
-      <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade date</button>
       <button class="screenshot-btn" onclick="showSummary()">📋 Summary</button>
       <button class="screenshot-btn" onclick="exportTracker()">⬇ Export</button>
       <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
@@ -1058,24 +1065,21 @@ function populateGradeDates() {
 async function autoGrade(){
   const sel = document.getElementById('gradeDate');
   const selectedDate = sel?.value;
-  const btn=document.getElementById('autoGradeBtn');
-  // Debug: show what we have
-  const allDates=[...new Set(tracker.map(t=>t.date).filter(Boolean))];
-  const pendingAll=tracker.filter(t=>!t.result||t.result==='');
-  if(!selectedDate){
-    alert('Pick a date.\nAvailable dates in tracker: '+allDates.join(', ')+'\nTotal pending: '+pendingAll.length);
-    return;
-  }
-  if(btn){btn.textContent='Grading...';btn.disabled=true;}
+  const btn = document.getElementById('autoGradeBtn');
+  const statusEl = document.getElementById('gradeStatus');
+  const setStatus = s => { if(statusEl) statusEl.textContent = s; };
+  if(!selectedDate){ setStatus('Pick a date first'); return; }
+  if(btn){ btn.textContent='Grading...'; btn.disabled=true; }
+  setStatus('Fetching scores...');
   const pending=tracker.filter(t=>(!t.result||t.result==='')&&t.date===selectedDate);
   if(!pending.length){
-    alert('No pending bets found for '+selectedDate);
-    if(btn){btn.textContent='Grade date';btn.disabled=false;}return;
+    setStatus('No pending bets for '+selectedDate);
+    if(btn){btn.textContent='▶ Grade';btn.disabled=false;}return;
   }
   const dateStr=parseDateMMDD(selectedDate);
   if(!dateStr){
-    alert('Could not parse date: '+selectedDate);
-    if(btn){btn.textContent='Grade date';btn.disabled=false;}return;
+    setStatus('Bad date format: '+selectedDate);
+    if(btn){btn.textContent='▶ Grade';btn.disabled=false;}return;
   }
   let graded=0;
   try{
@@ -1090,8 +1094,8 @@ async function autoGrade(){
     const data=await resp.json();
     const games=(data.dates?.[0]?.games)||[];
     if(!games.length){
-      alert('No games found from MLB API for '+dateStr+'. Games may not be final yet.');
-      if(btn){btn.textContent='Grade date';btn.disabled=false;}return;
+      setStatus('No games from API for '+dateStr);
+      if(btn){btn.textContent='▶ Grade';btn.disabled=false;}return;
     }
     for(const t of pending){
       const teams=extractTeams(t.rawGame||t.tm||t.game||'');
@@ -1177,14 +1181,15 @@ async function autoGrade(){
       if(result){t.result=result;graded++;}
     }
   }catch(e){
-    alert('Error: '+e.message);
+    setStatus('Error: '+e.message);
     console.warn(e);
+    if(btn){btn.textContent='▶ Grade';btn.disabled=false;}
   }
-  localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
+  localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
+  if(btn){ btn.textContent = graded ? '✓ '+graded+' graded' : '0 graded'; btn.disabled=false; }
+  setStatus(graded ? graded+' bets graded!' : 'No bets graded — games may not be final yet');
   renderTracker();
   populateGradeDates();
-  if(btn){btn.textContent=graded?'✓ '+graded+' graded':'0 graded — check Bet Log';btn.disabled=false;}
-  setTimeout(()=>{if(btn)btn.textContent='Grade date';},4000);
 }
 
 renderTracker();
