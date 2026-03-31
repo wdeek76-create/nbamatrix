@@ -1322,8 +1322,8 @@ async function autoGrade(){
       // figure out if the BET'S TEAM is home
       // For ML/RL: t.dir is the team abbr (e.g. "WSH"), compare directly to homeAbbr
       // For TT/HTT: t.team is the full team name, use homeAbbr from API
-      function isTeamHome(teamAbbr) {
-        const a = toAbbr(teamAbbr||'');
+      function isTeamHome(teamAbbrStr) {
+        const a = toAbbr(teamAbbrStr||'');
         return a===homeAbbr || MLB_API_ABBR[a]===homeAbbr;
       }
       // For TT: split game string away/home and check which side team is on
@@ -1351,13 +1351,10 @@ async function autoGrade(){
       } else if(mkt==='TT'){
         if(!isFinal) continue;
         // Match bet team against API home/away names directly (most reliable)
-        const betAbbr = toAbbr(t.team||'');
-        const apiHomeName = (g.teams?.home?.team?.name||'').toUpperCase();
-        const apiAwayName = (g.teams?.away?.team?.name||'').toUpperCase();
-        const apiHomeAbbr = teamAbbr(g,'home');
-        const apiAwayAbbr = teamAbbr(g,'away');
-        // Check if bet team matches API home team
-        const ttIsHome = apiHomeAbbr===betAbbr || toAbbr(apiHomeName)===betAbbr;
+        const ttBetAbbr = toAbbr(t.team||'');
+        const ttHomeAbbr = teamAbbr(g,'home');
+        const ttHomeName = (g.teams?.home?.team?.name||'');
+        const ttIsHome = ttHomeAbbr===ttBetAbbr || toAbbr(ttHomeName)===ttBetAbbr;
         const runs = ttIsHome ? score('home') : score('away');
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
@@ -1368,10 +1365,10 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='1HTT'||mkt==='F5TT'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const betAbbr2 = toAbbr(t.team||'');
-        const apiHomeAbbr2 = teamAbbr(g,'home');
-        const apiHomeName2 = (g.teams?.home?.team?.name||'').toUpperCase();
-        const isH = apiHomeAbbr2===betAbbr2 || toAbbr(apiHomeName2)===betAbbr2;
+        const httBetAbbr = toAbbr(t.team||'');
+        const httHomeAbbr = teamAbbr(g,'home');
+        const httHomeName = (g.teams?.home?.team?.name||'');
+        const isH = httHomeAbbr===httBetAbbr || toAbbr(httHomeName)===httBetAbbr;
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
