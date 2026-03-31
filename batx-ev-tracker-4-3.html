@@ -565,6 +565,14 @@ function unitPnl(t) {
   if(o>0) return t.result==='W'?o/100:-1;
   return t.result==='W'?1:-(Math.abs(o)/100);
 }
+function filterBetLog() {
+  const q = (document.getElementById('betLogSearch')?.value||'').toLowerCase();
+  const rows = document.querySelectorAll('#betLogRows .track-row');
+  rows.forEach(row => {
+    row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
 function deleteTrack(id){tracker=tracker.filter(t=>t.id!==id);localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();}
 function updateResult(id,val){const t=tracker.find(x=>x.id===id);if(t){t.result=val;localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();}}
 function clearTracker(){if(confirm('Clear all?')){tracker=[];localStorage.setItem('batxEvTracker','[]');renderTracker();}}
@@ -1126,12 +1134,17 @@ function renderTracker(){
   } else if(trackerTab==='calendar') {
     html += renderCalendarHTML();
   } else {
+    html+=`<div style="padding:10px 14px 6px">
+      <input id="betLogSearch" type="text" placeholder="Search bets..." oninput="filterBetLog()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;padding:7px 10px;outline:none;">
+    </div>`;
     html+=`<div class="track-head"><span>Play</span><span>Market</span><span>Book</span><span>Odds</span><span>Fair</span><span>Proj</span><span>ROI</span><span>Final</span><span>Result</span><span></span></div>`;
+    html+=`<div id="betLogRows">`;
     for(const t of tracker){
       const resColor=t.result==='W'?'var(--green)':t.result==='L'?'var(--red)':t.result==='P'?'var(--muted)':'var(--hint)';
       const resLabel=t.result==='W'?'WIN ✓':t.result==='L'?'LOSS ✗':t.result==='P'?'PUSH —':'Pending';
       html+=`<div class="track-row"><div class="tv">${t.game}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date}${t.time?' · '+t.time:''}</span></div><div class="tv" style="font-size:11px;color:var(--muted)">${MKT_LABELS[t.market]||t.market||'—'}</div><div class="tv">${t.book||'—'}</div><div class="tv">${t.odds!=null?fmtOdds(t.odds):'—'}</div><div class="tv amber">${t.fairPrice!=null?fmtOdds(t.fairPrice):'—'}</div><div class="tv">${t.proj??'—'}</div><div class="tv">${t.roi!=null?'+'+t.roi.toFixed(1)+'%':'—'}</div><div class="tv" style="font-size:11px;font-weight:700;color:var(--muted)">${t.finalTotal!=null?t.finalTotal:'—'}</div><div class="tv" onclick="event.stopPropagation()"><span style="font-size:11px;font-weight:700;color:${resColor}">${resLabel}</span></div><div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteTrack(${t.id})">✕</button></div></div>`;
     }
+    html+=`</div>`;
     html+=`<div class="manual-add">
       <div class="manual-add-title">+ Add manually</div>
       <div class="manual-add-row">
@@ -1337,11 +1350,14 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='TT'){
         if(!isFinal) continue;
-        // rawGame is AWAY/HOME e.g. "PHI/WSH" -> away=PHI, home=WSH
-        const rawGparts = (t.rawGame||t.tm||'').toUpperCase().split(/[/@]/);
-        const rawHome = toAbbr(rawGparts[1]||'');
+        // Match bet team against API home/away names directly (most reliable)
         const betAbbr = toAbbr(t.team||'');
-        const ttIsHome = rawHome===betAbbr;
+        const apiHomeName = (g.teams?.home?.team?.name||'').toUpperCase();
+        const apiAwayName = (g.teams?.away?.team?.name||'').toUpperCase();
+        const apiHomeAbbr = teamAbbr(g,'home');
+        const apiAwayAbbr = teamAbbr(g,'away');
+        // Check if bet team matches API home team
+        const ttIsHome = apiHomeAbbr===betAbbr || toAbbr(apiHomeName)===betAbbr;
         const runs = ttIsHome ? score('home') : score('away');
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
@@ -1352,10 +1368,10 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='1HTT'||mkt==='F5TT'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const rawG2 = (t.rawGame||t.tm||'').toUpperCase().split(/[/@]/);
-        const rawHome2 = toAbbr(rawG2[1]||'');
         const betAbbr2 = toAbbr(t.team||'');
-        const isH = rawHome2===betAbbr2;
+        const apiHomeAbbr2 = teamAbbr(g,'home');
+        const apiHomeName2 = (g.teams?.home?.team?.name||'').toUpperCase();
+        const isH = apiHomeAbbr2===betAbbr2 || toAbbr(apiHomeName2)===betAbbr2;
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
