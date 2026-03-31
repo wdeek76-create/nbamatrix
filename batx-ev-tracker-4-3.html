@@ -1045,7 +1045,7 @@ function renderTracker(){
 }
 
 // AUTO-GRADE via MLB Stats API
-const MLB_API_ABBR={'ARI':'ARI','AZ':'ARI','ATL':'ATL','BAL':'BAL','BOS':'BOS','CHC':'CHC','CWS':'CWS','CIN':'CIN','CLE':'CLE','COL':'COL','DET':'DET','HOU':'HOU','KC':'KC','LAD':'LAD','LAA':'LAA','MIA':'MIA','MIL':'MIL','MIN':'MIN','NYM':'NYM','NYY':'NYY','ATH':'ATH','OAK':'ATH','PHI':'PHI','PIT':'PIT','SD':'SD','SF':'SF','SEA':'SEA','STL':'STL','TB':'TB','TEX':'TEX','TOR':'TOR','WSH':'WSH','WSN':'WSH'};
+const MLB_API_ABBR={'ARI':'ARI','AZ':'ARI','ATL':'ATL','BAL':'BAL','BOS':'BOS','CHC':'CHC','CWS':'CWS','CIN':'CIN','CLE':'CLE','COL':'COL','DET':'DET','HOU':'HOU','KC':'KC','KCR':'KC','LAD':'LAD','LAA':'LAA','ANA':'LAA','MIA':'MIA','FLA':'MIA','MIL':'MIL','MIN':'MIN','NYM':'NYM','NYY':'NYY','ATH':'ATH','OAK':'ATH','SAC':'ATH','PHI':'PHI','PIT':'PIT','SD':'SD','SDP':'SD','SF':'SF','SFG':'SF','SEA':'SEA','STL':'STL','TB':'TB','TBR':'TB','TEX':'TEX','TOR':'TOR','WSH':'WSH','WSN':'WSH','WAS':'WSH'};
 
 function parseDateMMDD(str){if(!str)return null;const m=str.match(/(\d{1,2})\/(\d{1,2})/);if(!m)return null;const now=new Date();let year=now.getFullYear();const month=parseInt(m[1]),day=parseInt(m[2]);if(month>now.getMonth()+1)year--;return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;}
 
@@ -1121,7 +1121,9 @@ async function autoGrade(){
       const g = games.find(g=>{
         const ha = (g.teams?.home?.team?.abbreviation||'').toUpperCase();
         const aa = (g.teams?.away?.team?.abbreviation||'').toUpperCase();
-        return teams.some(x=>x===ha||MLB_API_ABBR[x]===ha) && teams.some(x=>x===aa||MLB_API_ABBR[x]===aa);
+        const matchH = teams.some(x=>x===ha||MLB_API_ABBR[x]===ha||MLB_API_ABBR[ha]===x);
+        const matchA = teams.some(x=>x===aa||MLB_API_ABBR[x]===aa||MLB_API_ABBR[aa]===x);
+        return matchH && matchA;
       });
       if(!g) continue;
 
