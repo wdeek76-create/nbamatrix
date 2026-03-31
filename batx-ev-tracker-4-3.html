@@ -936,7 +936,19 @@ function renderTracker(){
 
     // all breakdowns
     const mktRows   = breakdown2(t=>t.market||'?', t=>MKT_LABELS[t.market]||t.market||'?', settled);
-    const dirRows   = breakdown2(t=>(t.dir==='OVER'||t.dir==='UNDER')?t.dir:'ML/RL', t=>(t.dir==='OVER'||t.dir==='UNDER')?t.dir:'ML / Run Line', settled);
+    const dirRows   = breakdown2(t=>{
+      if(t.dir==='OVER') return 'OVER';
+      if(t.dir==='UNDER') return 'UNDER';
+      if(t.market==='1HML'||t.market==='F5ML'||t.market==='ML') return 'ML';
+      if(t.market==='1HRL'||t.market==='F5RL'||t.market==='RL') return 'RL';
+      return 'OTHER';
+    }, t=>{
+      if(t.dir==='OVER') return 'OVER';
+      if(t.dir==='UNDER') return 'UNDER';
+      if(t.market==='1HML'||t.market==='F5ML'||t.market==='ML') return 'Moneyline';
+      if(t.market==='1HRL'||t.market==='F5RL'||t.market==='RL') return 'Run Line';
+      return 'Other';
+    }, settled);
     const lineRows  = breakdown2(t=>{
       const l=t.line; const d=t.dir==='OVER'?'o':'u';
       if(l==null) return 'z—';
@@ -992,12 +1004,37 @@ function renderTracker(){
       }, (t,k)=>k, bets.filter(t=>t.dir===dir));
     }
 
+    // Line buckets: o8.5, u9.0 etc
+    const lineBucketRows = breakdown2(t=>{
+      const l=t.line; if(l==null) return 'z?';
+      const d=t.dir==='OVER'?'o':t.dir==='UNDER'?'u':'x';
+      return d+(l%1===0?l+'.0':String(l));
+    }, (t,k)=>{
+      const l=t.line; if(l==null) return '?';
+      const d=t.dir==='OVER'?'O':t.dir==='UNDER'?'U':'';
+      return d+(l%1===0?l+'.0':String(l));
+    }, settled).sort((a,b)=>a.label.localeCompare(b.label));
+
+    // Odds buckets
+    const oddsBucketRows = breakdown2(t=>{
+      const o=t.odds; if(o==null) return 'z?';
+      if(o<=-200) return 'a-200 or worse';
+      if(o<=-150) return 'b-150 to -199';
+      if(o<=-120) return 'c-120 to -149';
+      if(o<=-100) return 'd-100 to -119';
+      if(o<=+110) return 'e+100 to +110';
+      if(o<=+130) return 'f+111 to +130';
+      return 'g+131 or better';
+    }, (_,k)=>k.slice(1), settled);
+
     html+='<div class="dash-section-title">Overall</div>';
     html+='<div class="bk-grid3">';
     html+=bkFull(mktRows,'By market type');
     html+=bkFull(dirRows,'By direction');
     html+=bkFull(bookRows,'By book');
     html+=bkFull(roiBucketRows,'By Bat X ROI bucket');
+    html+=bkFull(lineBucketRows,'By line (O/U)');
+    html+=bkFull(oddsBucketRows,'By odds bucket');
     html+='</div>';
 
     for(const {key, label} of MARKETS_TRACKED){
