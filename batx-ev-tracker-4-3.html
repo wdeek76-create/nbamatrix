@@ -910,12 +910,12 @@ function renderTracker(){
         const avgRoi=t>0?(r.totalRoi/t).toFixed(1):'—';
         h+=`<div class="bk-row2">
           <div class="bk-label">${r.label}</div>
-          <div class="bk-val g">${r.w}</div>
-          <div class="bk-val r">${r.l}</div>
-          <div class="bk-val m">${r.p}</div>
+          <div class="bk-val">${r.w}</div>
+          <div class="bk-val">${r.l}</div>
+          <div class="bk-val">${r.p}</div>
           <div class="bk-val">${wp}</div>
-          <div class="bk-val ${r.roi>=0?'pos':'neg'}">${(r.roi>=0?'+':'')+r.roi.toFixed(2)}u</div>
-          <div class="bk-val ${avgRoi!=='—'&&parseFloat(avgRoi)>=5?'amber':''}">${avgRoi!=='—'?'+'+avgRoi+'%':'—'}</div>
+          <div class="bk-val">${(r.roi>=0?'+':'')+r.roi.toFixed(2)}u</div>
+          <div class="bk-val">${avgRoi!=='—'?'+'+avgRoi+'%':'—'}</div>
         </div>`;
       }
       return h+'</div>';
@@ -936,7 +936,7 @@ function renderTracker(){
 
     // all breakdowns
     const mktRows   = breakdown2(t=>t.market||'?', t=>MKT_LABELS[t.market]||t.market||'?', settled);
-    const dirRows   = breakdown2(t=>t.dir||'?', t=>t.dir||'?', settled);
+    const dirRows   = breakdown2(t=>(t.dir==='OVER'||t.dir==='UNDER')?t.dir:'ML/RL', t=>(t.dir==='OVER'||t.dir==='UNDER')?t.dir:'ML / Run Line', settled);
     const lineRows  = breakdown2(t=>{
       const l=t.line; const d=t.dir==='OVER'?'o':'u';
       if(l==null) return 'z—';
@@ -967,10 +967,10 @@ function renderTracker(){
 
     html+='<div class="dash-stats">';
     html+=statCard('Record', wins+'W · '+losses+'L'+(pushes?' · '+pushes+'P':''), settled.length+' settled · '+pending+' pending','var(--text)');
-    html+=statCard('Win rate', settled.length?winRate+'%':'—', 'settled bets only', roi>=0?'var(--green)':'var(--red)');
-    html+=statCard('Units P&L', roiStr, 'win 1u minus / stake 1u plus', roi>=0?'var(--green)':'var(--red)');
+    html+=statCard('Win rate', settled.length?winRate+'%':'—', 'settled bets only', 'var(--text)');
+    html+=statCard('Units P&L', roiStr, 'win 1u minus / stake 1u plus', 'var(--text)');
     const avgROI = settled.length?(settled.reduce((s,t)=>s+(t.roi||0),0)/settled.length).toFixed(1):'—';
-    html+=statCard('Avg Bat X ROI', avgROI!=='—'?'+'+avgROI+'%':'—', 'avg across settled plays', 'var(--amber)');
+    html+=statCard('Avg Bat X ROI', avgROI!=='—'?'+'+avgROI+'%':'—', 'avg across settled plays', 'var(--text)');
     html+='</div>';
 
     // Per-market deep breakdowns
@@ -1007,14 +1007,19 @@ function renderTracker(){
       const isRL = key==='1HRL';
       html+=`<div class="dash-section-title">${label}</div>`;
       html+='<div class="bk-grid3">';
-      if(isML||isRL){
-        // ML/RL: breakdown by team/dir
-        const teamRows = breakdown2(t=>t.game+(t.dir?'|'+t.dir:''), t=>t.game+(t.dir?' '+t.dir:''), ms);
-        html+=bkFull(teamRows,`${label} — by play`);
+      if(isML){
+        // ML: just OVER/UNDER equivalent = win/loss by direction bucket
+        const dirB = breakdown2(t=>'dir', t=>'Results', ms);
+        html+=bkFull(breakdown2(t=>t.book||'?',t=>t.book||'?',ms),`${label} — by book`);
+      } else if(isRL){
+        // RL: by spread (+0.5 vs -0.5)
+        const rlRows = breakdown2(t=>{const l=t.line;return l!=null?(l>=0?'+'+l:String(l)):'?';},(t,k)=>k+' RL',ms);
+        html+=bkFull(rlRows,`${label} — by spread`);
         html+=bkFull(breakdown2(t=>t.book||'?',t=>t.book||'?',ms),`${label} — by book`);
       } else {
-        html+=bkFull(lineBreak(ms,'OVER'),`${label} — OVER by line`);
-        html+=bkFull(lineBreak(ms,'UNDER'),`${label} — UNDER by line`);
+        // Totals: OVER vs UNDER summary, then by line
+        const ouRows = breakdown2(t=>t.dir==='OVER'?'OVER':'UNDER', t=>t.dir==='OVER'?'OVER':'UNDER', ms);
+        html+=bkFull(ouRows,`${label} — OVER vs UNDER`);
         html+=bkFull(breakdown2(t=>t.book||'?',t=>t.book||'?',ms),`${label} — by book`);
       }
       html+='</div>';
