@@ -1322,11 +1322,18 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='TT'){
         if(!isFinal) continue;
-        // t.team is full team name — check if it matches home team name
-        const teamName=(g.teams?.home?.team?.name||'').toUpperCase();
-        const betTeam=(t.team||t.dir||'').toUpperCase();
-        const ttIsHome = teamName.includes(betTeam.split(' ').pop()) || isHomeTeam(t.rawGame||t.tm);
-        const runs = ttIsHome ? score('home') : score('away');
+        // Match t.team (full name) against API home AND away team names
+        const homeName=(g.teams?.home?.team?.name||'').toUpperCase();
+        const awayName=(g.teams?.away?.team?.name||'').toUpperCase();
+        const betTeam=(t.team||'').toUpperCase();
+        // Check last word of team name for matching (e.g. "Astros" in "Houston Astros")
+        const lastWord = betTeam.split(' ').pop();
+        const ttIsHome = homeName.includes(lastWord);
+        const ttIsAway = awayName.includes(lastWord);
+        let runs;
+        if(ttIsHome) runs = score('home');
+        else if(ttIsAway) runs = score('away');
+        else { console.log('TT team not matched:', betTeam, 'vs', homeName, awayName); continue; }
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
       } else if(mkt==='1HTOTAL'||mkt==='F5TOTAL'){
@@ -1336,9 +1343,13 @@ async function autoGrade(){
         t.finalTotal=tot;
       } else if(mkt==='1HTT'||mkt==='F5TT'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const teamName=(g.teams?.home?.team?.name||'').toUpperCase();
-        const betTeam=(t.team||'').toUpperCase();
-        const isH = betTeam ? teamName.includes(betTeam.split(' ').pop()) : isHomeTeam(t.rawGame||t.tm||t.game);
+        const homeName2=(g.teams?.home?.team?.name||'').toUpperCase();
+        const awayName2=(g.teams?.away?.team?.name||'').toUpperCase();
+        const betTeam2=(t.team||'').toUpperCase();
+        const lastWord2 = betTeam2.split(' ').pop();
+        const isH = homeName2.includes(lastWord2);
+        const isA = awayName2.includes(lastWord2);
+        if(!isH && !isA) { console.log('1HTT not matched:', betTeam2); continue; }
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
