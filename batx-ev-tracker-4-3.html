@@ -371,10 +371,24 @@ function runFilter() {
     const date = b.date||'';
     const time = b.time||'';
 
+    const isMLMkt = mktType==='1HML'||mktType==='F5ML'||mktType==='ML';
+    const isRLMkt = mktType==='1HRL'||mktType==='F5RL'||mktType==='RL';
     let line=null, odds=null;
-    if (dir==='OVER') { line=b.over_line??null; odds=b.over_odds??null; }
-    else if (dir==='UNDER') { line=b.under_line??null; odds=b.under_odds??null; }
-    else { odds=b.ml_odds??b.ml??null; }
+    if (isMLMkt) {
+      // ML: over_odds holds the ML odds from BatX parser
+      odds = b.over_odds??b.ml_odds??null;
+      line = null;
+    } else if (isRLMkt) {
+      // RL: over_line = spread, over_odds = spread odds
+      line = b.over_line??null;
+      odds = b.over_odds??null;
+    } else if (dir==='OVER') {
+      line=b.over_line??null; odds=b.over_odds??null;
+    } else if (dir==='UNDER') {
+      line=b.under_line??null; odds=b.under_odds??null;
+    } else {
+      odds=b.ml_odds??b.ml??null;
+    }
 
     if (minMargin>0 && proj!=null && line!=null) {
       const margin = dir==='OVER'?proj-line:dir==='UNDER'?line-proj:999;
@@ -456,9 +470,10 @@ function renderResults(plays) {
     for (const b of sortedBooks) bookOpts+=`<option value="${b.book}">${b.book} (${fmtOdds(b.odds)})</option>`;
     const gid='p'+gi;
 
-    // For TT/1HTT show team name, for ML/RL show team, otherwise show game
+    // For TT/1HTT/ML/RL show team name, otherwise show game
     const isTTMkt = p.mktType==='TT'||p.mktType==='1HTT';
-    const displayName = isTTMkt ? (p.team||p.tm) : p.tm;
+    const isMLRLMkt = p.mktType==='1HML'||p.mktType==='1HRL'||p.mktType==='F5ML'||p.mktType==='F5RL'||p.mktType==='ML'||p.mktType==='RL';
+    const displayName = (isTTMkt||isMLRLMkt) ? (p.team||p.tm) : p.tm;
 
     html+=`<div class="play-card${bestRoi>=10?' hot':''}">
       <div class="card-head" style="padding:10px 14px 8px">
