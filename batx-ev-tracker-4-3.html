@@ -1252,23 +1252,15 @@ async function regrade(){
   const statusEl = document.getElementById('gradeStatus');
   const setStatus = s => { if(statusEl) statusEl.textContent = s; };
   if(!selectedDate){ setStatus('Pick a date first'); return; }
-  if(!confirm('This will clear all results for '+selectedDate+' and re-grade. Continue?')) return;
+  if(!confirm('Clear and re-grade '+selectedDate+'?')) return;
   // Clear results for that date
   tracker.filter(t=>t.date===selectedDate).forEach(t=>{ t.result=''; delete t.finalTotal; });
   localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
-  setStatus('Cleared — re-grading...');
+  setStatus('Cleared — fetching scores...');
+  // Grade directly without touching DOM
+  await gradeDate(selectedDate, setStatus);
   renderTracker();
   populateGradeDates();
-  // Now run grade
-  // manually trigger autoGrade with the regraded date selected in gradeDate
-  const gradesel = document.getElementById('gradeDate');
-  if(gradesel) {
-    // temporarily set gradeDate to the regrade date
-    const opt = document.createElement('option');
-    opt.value = selectedDate; opt.selected = true;
-    gradesel.innerHTML = '<option value="'+selectedDate+'" selected>'+selectedDate+'</option>';
-  }
-  await autoGrade();
 }
 
 async function autoGrade(){
@@ -1280,9 +1272,16 @@ async function autoGrade(){
   if(!selectedDate){ setStatus('Pick a date first'); return; }
   if(btn){ btn.textContent='Grading...'; btn.disabled=true; }
   setStatus('Fetching...');
+  await gradeDate(selectedDate, setStatus);
+  localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
+  if(btn){ btn.textContent='▶ Grade'; btn.disabled=false; }
+  renderTracker();
+  populateGradeDates();
+}
 
+async function gradeDate(selectedDate, setStatus){
   const pending = tracker.filter(t=>(!t.result||t.result==='') && t.date===selectedDate);
-  if(!pending.length){ setStatus('No pending bets for '+selectedDate); if(btn){btn.textContent='▶ Grade';btn.disabled=false;} return; }
+  if(!pending.length){ setStatus('No pending bets for '+selectedDate); return; }
 
   const dateStr = parseDateMMDD(selectedDate);
   if(!dateStr){ setStatus('Bad date: '+selectedDate); if(btn){btn.textContent='▶ Grade';btn.disabled=false;} return; }
@@ -1392,10 +1391,7 @@ async function autoGrade(){
   }
 
   localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
-  if(btn){ btn.textContent = graded?'✓ '+graded+' graded':'0 graded'; btn.disabled=false; }
   setStatus(graded ? graded+' bets graded!' : 'No matches found — check games are final');
-  renderTracker();
-  populateGradeDates();
 }
 
 renderTracker();
