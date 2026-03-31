@@ -1059,7 +1059,13 @@ async function autoGrade(){
   const sel = document.getElementById('gradeDate');
   const selectedDate = sel?.value;
   const btn=document.getElementById('autoGradeBtn');
-  if(!selectedDate){alert('Pick a date to grade');return;}
+  // Debug: show what we have
+  const allDates=[...new Set(tracker.map(t=>t.date).filter(Boolean))];
+  const pendingAll=tracker.filter(t=>!t.result||t.result==='');
+  if(!selectedDate){
+    alert('Pick a date.\nAvailable dates in tracker: '+allDates.join(', ')+'\nTotal pending: '+pendingAll.length);
+    return;
+  }
   if(btn){btn.textContent='Grading...';btn.disabled=true;}
   const pending=tracker.filter(t=>(!t.result||t.result==='')&&t.date===selectedDate);
   if(!pending.length){
