@@ -1311,10 +1311,6 @@ async function gradeDate(selectedDate, setStatus){
         return matchH && matchA;
       });
       if(!g) continue;
-      // Show alert for PHI game to debug
-      if((t.team||t.game||'').includes('Phillies')||(t.game||'').includes('PHI')) {
-        alert('Game: '+t.game+'\nAPI home: '+g.teams?.home?.team?.name+' ('+g.teams?.home?.score+')\nAPI away: '+g.teams?.away?.team?.name+' ('+g.teams?.away?.score+')\nt.team: '+t.team+'\nttBetAbbr would be: '+toAbbr(t.team||''));
-      }
 
       const isFinal = (g.status?.detailedState||'').toLowerCase().includes('final');
       const ls = g.linescore;
@@ -1353,14 +1349,23 @@ async function gradeDate(selectedDate, setStatus){
         t.finalTotal=tot;
       } else if(mkt==='TT'){
         if(!isFinal) continue;
-        // Get bet team - from t.team (full name) or extract from game label
-        const ttTeamRaw = t.team || '';
-        const ttBetAbbr = toAbbr(ttTeamRaw);
         const ttHomeAbbr = teamAbbr(g,'home');
         const ttAwayAbbr = teamAbbr(g,'away');
-        const ttIsHome = ttHomeAbbr===ttBetAbbr;
-        // If no match found at all, log and skip
-        if(!ttIsHome && ttAwayAbbr!==ttBetAbbr) { console.warn('TT no match:', ttTeamRaw, ttBetAbbr, 'vs home:', ttHomeAbbr, 'away:', ttAwayAbbr); }
+        let ttIsHome;
+        if(t.team && t.team!=='undefined') {
+          // New entries: t.team is full name like "Philadelphia Phillies"
+          const ttBetAbbr = toAbbr(t.team);
+          ttIsHome = ttHomeAbbr===ttBetAbbr;
+        } else {
+          // Old entries: no t.team — use rawGame "AWAY/HOME" position
+          // game string like "PHI/WSH" = PHI away, WSH home
+          const rawParts = (t.rawGame||t.tm||'').toUpperCase().split(/[/@]/);
+          const rawAwayAbbr = toAbbr(rawParts[0]||'');
+          const rawHomeAbbr = toAbbr(rawParts[1]||'');
+          // game label like "Philadelphia Phillies UNDER 4.5" — extract abbr from it
+          const labelAbbr = toAbbr((t.game||'').split(' ')[0]||'');
+          ttIsHome = rawHomeAbbr===labelAbbr || ttHomeAbbr===labelAbbr;
+        }
         const runs = ttIsHome ? score('home') : score('away');
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
@@ -1371,9 +1376,16 @@ async function gradeDate(selectedDate, setStatus){
         t.finalTotal=tot;
       } else if(mkt==='1HTT'||mkt==='F5TT'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
-        const httBetAbbr = toAbbr(t.team||'');
         const httHomeAbbr = teamAbbr(g,'home');
-        const isH = httHomeAbbr===httBetAbbr;
+        let isH;
+        if(t.team && t.team!=='undefined') {
+          isH = httHomeAbbr===toAbbr(t.team);
+        } else {
+          const rawParts2 = (t.rawGame||t.tm||'').toUpperCase().split(/[/@]/);
+          const rawHomeAbbr2 = toAbbr(rawParts2[1]||'');
+          const labelAbbr2 = toAbbr((t.game||'').split(' ')[0]||'');
+          isH = rawHomeAbbr2===labelAbbr2 || httHomeAbbr===labelAbbr2;
+        }
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
