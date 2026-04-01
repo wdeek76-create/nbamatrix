@@ -1343,17 +1343,20 @@ async function gradeDate(selectedDate, setStatus){
     function f5runs(){ const inn=(ls?.innings||[]).slice(0,5); return {h:inn.reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0),a:inn.reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0),ok:inn.length>=5||isFinal}; }
     const score=(side)=>parseInt(side==='home'?g.teams?.home?.score:g.teams?.away?.score)||0;
     function betTeamIsHome(teamName){
-      // Match directly on team name first (most reliable since API returns full names)
+      const ba = toAbbr(teamName||'');
+      // Use rawGame string position: AWAY/HOME e.g. "SF/SD"
+      const rg = (t.rawGame||t.tm||'').toUpperCase().split(/[\/@]/);
+      const rgAway = toAbbr(rg[0]||'');
+      const rgHome = toAbbr(rg[1]||'');
+      if(rgHome===ba) return true;
+      if(rgAway===ba) return false;
+      // Final fallback: API name match
       const apiHomeName=(g.teams?.home?.team?.name||'').toLowerCase();
       const apiAwayName=(g.teams?.away?.team?.name||'').toLowerCase();
-      const bet=(teamName||'').toLowerCase();
+      const bet=(teamName||'').toLowerCase().trim();
       if(apiHomeName===bet) return true;
       if(apiAwayName===bet) return false;
-      // Fall back to abbreviation matching
-      const ba=toAbbr(teamName||'');
-      const mH=homeAbbr===ba||MLB_API_ABBR[ba]===homeAbbr;
-      const mA=awayAbbr===ba||MLB_API_ABBR[ba]===awayAbbr;
-      return mH&&!mA?true:!mH&&mA?false:homeAbbr===ba;
+      return homeAbbr===ba;
     }
     let result=null;
     if(mkt==='TOTAL'){
@@ -1397,6 +1400,12 @@ async function gradeDate(selectedDate, setStatus){
       const diff=(isH?h-a:a-h)+line;
       result=diff>0?'W':diff<0?'L':'P';
     }
+    if((t.team||'').includes('Padres')||(t.team||'').includes('Marlins')) {
+        const apiH=(g.teams?.home?.team?.name||'');
+        const apiA=(g.teams?.away?.team?.name||'');
+        const isHResult=betTeamIsHome(t.team||'');
+        alert('Bet: '+t.team+'\nAPI home: '+apiH+'\nAPI away: '+apiA+'\nbetTeamIsHome: '+isHResult+'\nhome score: '+score('home')+'\naway score: '+score('away')+'\nresult: '+result);
+      }
     if(result){ t.result=result; graded++; }
   }
   localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
