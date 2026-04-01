@@ -234,6 +234,7 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
     <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);color:var(--blue)">▶ Grade</button>
     <select id="regradeDate" class="tk" style="min-width:120px"><option value="">Re-grade date...</option></select>
     <button class="screenshot-btn" id="regradeBtn" onclick="regrade()">↺ Re-grade</button>
+    <button class="screenshot-btn" onclick="(async()=>{const d=parseDateMMDD(document.getElementById('regradeDate').value||'03/31');let r;try{r=await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d+'&hydrate=linescore');}catch(e){r=await fetch('https://corsproxy.io/?url='+encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d+'&hydrate=linescore'));}const data=await r.json();const games=(data.dates?.[0]?.games)||[];alert(games.map(g=>g.teams.away.team.name+' @ '+g.teams.home.team.name+' | away:'+g.teams.away.score+' home:'+g.teams.home.score).join('\n'));})()">🔍 API</button>
     <span id="gradeStatus" style="font-size:12px;color:var(--muted)"></span>
     <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
   </div>
@@ -1355,7 +1356,12 @@ async function gradeDate(selectedDate, setStatus){
       t.finalTotal=tot;
     } else if(mkt==='TT'){
       if(!isFinal) continue;
-      const isH=betTeamIsHome(t.team||'');
+      // Use rawGame "AWAY/HOME" position - don't trust API home/away
+      const rawParts=(t.rawGame||t.tm||'').toUpperCase().split(/[\/@]/);
+      const rawAway=toAbbr(rawParts[0]||'');
+      const rawHome=toAbbr(rawParts[1]||'');
+      const betAbbr=toAbbr(t.team||'');
+      const isH=rawHome===betAbbr;
       const runs=isH?score('home'):score('away');
       result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
       t.finalTotal=runs;
@@ -1366,7 +1372,11 @@ async function gradeDate(selectedDate, setStatus){
       t.finalTotal=tot;
     } else if(mkt==='1HTT'||mkt==='F5TT'){
       const {h,a,ok}=f5runs(); if(!ok) continue;
-      const isH=betTeamIsHome(t.team||'');
+      // Use rawGame "AWAY/HOME" position
+      const rawParts2=(t.rawGame||t.tm||'').toUpperCase().split(/[\/@]/);
+      const rawHome2=toAbbr(rawParts2[1]||'');
+      const betAbbr2=toAbbr(t.team||'');
+      const isH=rawHome2===betAbbr2;
       const runs=isH?h:a;
       result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
       t.finalTotal=runs;
