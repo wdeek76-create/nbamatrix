@@ -1420,9 +1420,6 @@ async function gradeDate(selectedDate, setStatus){
         const isHResult=betTeamIsHome(t.team||'');
         alert('Bet: '+t.team+'\nAPI home: '+apiH+'\nAPI away: '+apiA+'\nbetTeamIsHome: '+isHResult+'\nhome score: '+score('home')+'\naway score: '+score('away')+'\nresult: '+result);
       }
-    if((t.team||'').includes('San Diego')||(t.rawGame||'').includes('SD')){
-      alert('SD DEBUG:\nt.team='+t.team+'\nt.rawGame='+t.rawGame+'\nrgHome='+toAbbr((t.rawGame||'').toUpperCase().split(/[\/\@]/)[1]||'')+'\nba='+toAbbr(t.team||'')+'\nresult='+result+'\nfinalTotal='+t.finalTotal+'\nAPI home='+g.teams?.home?.team?.name+' score='+g.teams?.home?.score+'\nAPI away='+g.teams?.away?.team?.name+' score='+g.teams?.away?.score);
-    }
     if(result){ t.result=result; graded++; }
   }
   localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
