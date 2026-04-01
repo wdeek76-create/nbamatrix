@@ -1343,6 +1343,13 @@ async function gradeDate(selectedDate, setStatus){
     function f5runs(){ const inn=(ls?.innings||[]).slice(0,5); return {h:inn.reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0),a:inn.reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0),ok:inn.length>=5||isFinal}; }
     const score=(side)=>parseInt(side==='home'?g.teams?.home?.score:g.teams?.away?.score)||0;
     function betTeamIsHome(teamName){
+      // Match directly on team name first (most reliable since API returns full names)
+      const apiHomeName=(g.teams?.home?.team?.name||'').toLowerCase();
+      const apiAwayName=(g.teams?.away?.team?.name||'').toLowerCase();
+      const bet=(teamName||'').toLowerCase();
+      if(apiHomeName===bet) return true;
+      if(apiAwayName===bet) return false;
+      // Fall back to abbreviation matching
       const ba=toAbbr(teamName||'');
       const mH=homeAbbr===ba||MLB_API_ABBR[ba]===homeAbbr;
       const mA=awayAbbr===ba||MLB_API_ABBR[ba]===awayAbbr;
