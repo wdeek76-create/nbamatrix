@@ -235,6 +235,7 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
     <select id="regradeDate" class="tk" style="min-width:120px"><option value="">Re-grade date...</option></select>
     <button class="screenshot-btn" id="regradeBtn" onclick="regrade()">↺ Re-grade</button>
     <span id="gradeStatus" style="font-size:12px;color:var(--muted)"></span>
+    <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
   </div>
   <div id="trackerSection"></div>
 </div>
@@ -939,7 +940,8 @@ function addManual(){
 function renderTracker(){
   const el=document.getElementById('trackerSection');
   const gradeBar=document.getElementById('gradeBar');
-  if(!tracker.length){el.innerHTML='';if(gradeBar)gradeBar.style.display='none';return;}
+  if(gradeBar)gradeBar.style.display='flex';
+  if(!tracker.length){el.innerHTML='';return;}
   if(gradeBar)gradeBar.style.display='flex';
   const settled=tracker.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
   const wins=tracker.filter(t=>t.result==='W').length;
@@ -1193,8 +1195,8 @@ function renderTracker(){
 // AUTO-GRADE via MLB Stats API
 const MLB_API_ABBR={'ARI':'ARI','AZ':'ARI','ATL':'ATL','BAL':'BAL','BOS':'BOS','CHC':'CHC','CWS':'CWS','CIN':'CIN','CLE':'CLE','COL':'COL','DET':'DET','HOU':'HOU','KC':'KC','KCR':'KC','LAD':'LAD','LAA':'LAA','ANA':'LAA','MIA':'MIA','FLA':'MIA','MIL':'MIL','MIN':'MIN','NYM':'NYM','NYY':'NYY','ATH':'ATH','OAK':'ATH','SAC':'ATH','PHI':'PHI','PIT':'PIT','SD':'SD','SDP':'SD','SF':'SF','SFG':'SF','SEA':'SEA','STL':'STL','TB':'TB','TBR':'TB','TEX':'TEX','TOR':'TOR','WSH':'WSH','WSN':'WSH','WAS':'WSH'};
 // Map API team names to our abbreviations
-const MLB_NAME_ABBR={'Minnesota Twins':'MIN','Kansas City Royals':'KC','Baltimore Orioles':'BAL','Texas Rangers':'TEX','Atlanta Braves':'ATL','Oakland Athletics':'ATH','Sacramento Athletics':'ATH','Philadelphia Phillies':'PHI','Washington Nationals':'WSH','Pittsburgh Pirates':'PIT','New York Mets':'NYM','Colorado Rockies':'COL','Miami Marlins':'MIA','Boston Red Sox':'BOS','Cincinnati Reds':'CIN','Tampa Bay Rays':'TB','St. Louis Cardinals':'STL','Milwaukee Brewers':'MIL','Los Angeles Angels':'LAA','Chicago Cubs':'CHC','New York Yankees':'NYY','Seattle Mariners':'SEA','San Diego Padres':'SD','San Francisco Giants':'SF','Arizona Diamondbacks':'ARI','Detroit Tigers':'DET','Cleveland Guardians':'CLE','Los Angeles Dodgers':'LAD','Chicago White Sox':'CWS','Houston Astros':'HOU','Toronto Blue Jays':'TOR','Athletics':'ATH'};
-function teamAbbr(g, side) { const name=(g.teams?.[side]?.team?.name||''); return MLB_NAME_ABBR[name]||name.toUpperCase().slice(0,3); }
+const MLB_NAME_ABBR={'Minnesota Twins':'MIN','Kansas City Royals':'KC','Baltimore Orioles':'BAL','Texas Rangers':'TEX','Atlanta Braves':'ATL','Oakland Athletics':'ATH','Sacramento Athletics':'ATH','Philadelphia Phillies':'PHI','Washington Nationals':'WSH','Pittsburgh Pirates':'PIT','New York Mets':'NYM','Colorado Rockies':'COL','Miami Marlins':'MIA','Boston Red Sox':'BOS','Cincinnati Reds':'CIN','Tampa Bay Rays':'TB','St. Louis Cardinals':'STL','Milwaukee Brewers':'MIL','Los Angeles Angels':'LAA','Chicago Cubs':'CHC','New York Yankees':'NYY','Seattle Mariners':'SEA','San Diego Padres':'SD','San Francisco Giants':'SF','Arizona Diamondbacks':'ARI','Detroit Tigers':'DET','Cleveland Guardians':'CLE','Los Angeles Dodgers':'LAD','Chicago White Sox':'CWS','Houston Astros':'HOU','Toronto Blue Jays':'TOR','Athletics':'ATH','San Diego Padres':'SD','San Francisco Giants':'SF','Los Angeles Dodgers':'LAD','Los Angeles Angels':'LAA','New York Yankees':'NYY','New York Mets':'NYM','Chicago Cubs':'CHC','Chicago White Sox':'CWS','Tampa Bay Rays':'TB','Kansas City Royals':'KC','Minnesota Twins':'MIN'};
+function teamAbbr(g, side) { const name=(g.teams?.[side]?.team?.name||''); return MLB_NAME_ABBR[name]||toAbbr(name)||name.toUpperCase().slice(0,3); }
 
 function parseDateMMDD(str){if(!str)return null;const m=str.match(/(\d{1,2})\/(\d{1,2})/);if(!m)return null;const now=new Date();let year=now.getFullYear();const month=parseInt(m[1]),day=parseInt(m[2]);if(month>now.getMonth()+1)year--;return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;}
 
@@ -1375,21 +1377,11 @@ async function gradeDate(selectedDate, setStatus){
         if(!isFinal) continue;
         const ttHomeAbbr = teamAbbr(g,'home');
         const ttAwayAbbr = teamAbbr(g,'away');
-        let ttIsHome;
-        if(t.team && t.team!=='undefined') {
-          // New entries: t.team is full name like "Philadelphia Phillies"
-          const ttBetAbbr = toAbbr(t.team);
-          ttIsHome = ttHomeAbbr===ttBetAbbr;
-        } else {
-          // Old entries: no t.team — use rawGame "AWAY/HOME" position
-          // game string like "PHI/WSH" = PHI away, WSH home
-          const rawParts = (t.rawGame||t.tm||'').toUpperCase().split(/[/@]/);
-          const rawAwayAbbr = toAbbr(rawParts[0]||'');
-          const rawHomeAbbr = toAbbr(rawParts[1]||'');
-          // game label like "Philadelphia Phillies UNDER 4.5" — extract abbr from it
-          const labelAbbr = toAbbr((t.game||'').split(' ')[0]||'');
-          ttIsHome = rawHomeAbbr===labelAbbr || ttHomeAbbr===labelAbbr;
-        }
+        const ttBetAbbr = t.team && t.team!=='undefined' ? toAbbr(t.team) : toAbbr((t.game||'').split(' ')[0]||'');
+        // Check both home and away — use whichever matches
+        const ttMatchHome = ttHomeAbbr===ttBetAbbr || MLB_API_ABBR[ttBetAbbr]===ttHomeAbbr;
+        const ttMatchAway = ttAwayAbbr===ttBetAbbr || MLB_API_ABBR[ttBetAbbr]===ttAwayAbbr;
+        const ttIsHome = ttMatchHome && !ttMatchAway ? true : !ttMatchHome && ttMatchAway ? false : ttHomeAbbr===ttBetAbbr;
         const runs = ttIsHome ? score('home') : score('away');
         result = runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
@@ -1401,15 +1393,11 @@ async function gradeDate(selectedDate, setStatus){
       } else if(mkt==='1HTT'||mkt==='F5TT'){
         const {h,a,ok}=f5runs(); if(!ok) continue;
         const httHomeAbbr = teamAbbr(g,'home');
-        let isH;
-        if(t.team && t.team!=='undefined') {
-          isH = httHomeAbbr===toAbbr(t.team);
-        } else {
-          const rawParts2 = (t.rawGame||t.tm||'').toUpperCase().split(/[/@]/);
-          const rawHomeAbbr2 = toAbbr(rawParts2[1]||'');
-          const labelAbbr2 = toAbbr((t.game||'').split(' ')[0]||'');
-          isH = rawHomeAbbr2===labelAbbr2 || httHomeAbbr===labelAbbr2;
-        }
+        const httAwayAbbr = teamAbbr(g,'away');
+        const httBetAbbr = t.team && t.team!=='undefined' ? toAbbr(t.team) : toAbbr((t.game||'').split(' ')[0]||'');
+        const httMatchHome = httHomeAbbr===httBetAbbr || MLB_API_ABBR[httBetAbbr]===httHomeAbbr;
+        const httMatchAway = httAwayAbbr===httBetAbbr || MLB_API_ABBR[httBetAbbr]===httAwayAbbr;
+        const isH = httMatchHome && !httMatchAway ? true : !httMatchHome && httMatchAway ? false : httHomeAbbr===httBetAbbr;
         const runs=isH?h:a;
         result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
         t.finalTotal=runs;
