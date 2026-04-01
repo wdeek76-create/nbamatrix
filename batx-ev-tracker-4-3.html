@@ -588,41 +588,101 @@ function clearTracker(){if(confirm('Clear all?')){tracker=[];localStorage.setIte
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
 function calNav(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}else if(calMonth<0){calMonth=11;calYear--;}renderTracker();}
 
+function showCalDay(dateStr){
+  const dayBets=tracker.filter(t=>t.date===dateStr);
+  if(!dayBets.length) return;
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  const settled=dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+  const w=settled.filter(t=>t.result==='W').length, l=settled.filter(t=>t.result==='L').length;
+  const roi=settled.reduce((s,t)=>s+unitPnl(t),0);
+  let rows=dayBets.map(t=>{
+    const res=t.result==='W'?'WIN':t.result==='L'?'LOSS':t.result==='P'?'PUSH':'Pending';
+    const col=t.result==='W'?'var(--green)':t.result==='L'?'var(--red)':t.result==='P'?'var(--muted)':'var(--hint)';
+    const pnl=t.result?unitPnl(t):null;
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:13px;font-weight:600">${t.game}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${MKT_LABELS[t.market]||t.market} · ${t.book} · ${fmtOdds(t.odds)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;font-weight:700;color:${col}">${res}</div>
+        ${pnl!=null?`<div style="font-size:11px;font-weight:700;color:${pnl>=0?'var(--green)':'var(--red)'}">${(pnl>=0?'+':'')+pnl.toFixed(2)}u</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  modal.innerHTML=`<div style="background:var(--bg);border:1px solid var(--border2);border-radius:12px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:16px;font-weight:700">${dateStr} · ${w}W-${l}L · <span style="color:${roi>=0?'var(--green)':'var(--red)'}">${(roi>=0?'+':'')+roi.toFixed(2)}u</span></span>
+      <button onclick="this.closest('div[style]').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    </div>
+    ${rows}
+  </div>`;
+  document.body.appendChild(modal);
+}
+
 function renderCalendarHTML(){
-  const today=new Date();
   const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const byDate={};
-  for(const t of tracker){if(!t.date)continue;if(!byDate[t.date])byDate[t.date]=[];byDate[t.date].push(t);}
-  const monthBets=tracker.filter(t=>{if(!t.date)return false;const m=t.date.match(/(\d{1,2})\/(\d{1,2})/);return m&&parseInt(m[1])-1===calMonth;}).filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
-  const monthRoi=monthBets.reduce((s,t)=>s+unitPnl(t),0);
+  const today=new Date();
+  // Get all bets for this month
+  const monthBets=tracker.filter(t=>{
+    if(!t.date) return false;
+    const m=t.date.match(/(\d{1,2})\/(\d{1,2})/);
+    return m && parseInt(m[1])-1===calMonth && (new Date(calYear,calMonth,parseInt(m[2]))).getMonth()===calMonth;
+  });
+  const settled=monthBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+  const monthRoi=settled.reduce((s,t)=>s+unitPnl(t),0);
   const firstDay=new Date(calYear,calMonth,1).getDay();
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
-  let html=`<div class="cal-wrap"><div class="cal-header"><div class="cal-nav"><button onclick="calNav(-1)">‹</button><span class="cal-month">${monthNames[calMonth]} ${calYear}</span><button onclick="calNav(1)">›</button></div><div>Month: <span style="font-weight:700;color:${monthRoi>=0?'var(--green)':'var(--red)'}">${(monthRoi>=0?'+':'')+monthRoi.toFixed(2)}u</span></div></div><div class="cal-grid">`;
-  for(const d of ['S','M','T','W','T','F','S'])html+=`<div class="cal-dow">${d}</div>`;
-  for(let i=0;i<firstDay;i++)html+='<div class="cal-day" style="opacity:0.2"></div>';
+
+  let html=`<div style="padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="calNav(-1)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:28px;height:28px;cursor:pointer;font-size:14px">‹</button>
+        <span style="font-size:18px;font-weight:700">${monthNames[calMonth]} ${calYear}</span>
+        <button onclick="calNav(1)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:28px;height:28px;cursor:pointer;font-size:14px">›</button>
+      </div>
+      <div style="font-size:15px;font-weight:700">Month: <span style="color:${monthRoi>=0?'var(--green)':'var(--red)'}">${(monthRoi>=0?'+':'')+monthRoi.toFixed(2)}u</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">
+      ${['S','M','T','W','T','F','S'].map(d=>`<div style="text-align:center;font-size:11px;color:var(--muted);font-weight:600;padding:4px 0">${d}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">`;
+
+  // Empty cells before first day
+  for(let i=0;i<firstDay;i++){
+    html+=`<div style="min-height:80px;border-radius:8px;border:1px solid var(--border);background:var(--surface);opacity:0.3"></div>`;
+  }
+
   for(let day=1;day<=daysInMonth;day++){
     const dateStr=String(calMonth+1).padStart(2,'0')+'/'+String(day).padStart(2,'0');
-    const dayBets=byDate[dateStr]||[];
-    const settled=dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
-    const wins=dayBets.filter(t=>t.result==='W').length;
-    const losses=dayBets.filter(t=>t.result==='L').length;
-    const pushes=dayBets.filter(t=>t.result==='P').length;
-    const dayRoi=settled.reduce((s,t)=>s+unitPnl(t),0);
+    const dayBets=monthBets.filter(t=>t.date===dateStr);
+    const daySettled=dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+    const w=daySettled.filter(t=>t.result==='W').length;
+    const l=daySettled.filter(t=>t.result==='L').length;
+    const roi=daySettled.reduce((s,t)=>s+unitPnl(t),0);
     const isToday=day===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();
-    const hasBets=dayBets.length>0;
-    const allWin=settled.length>0&&wins===settled.length;
-    const allLoss=settled.length>0&&losses===settled.length;
-    html+=`<div class="cal-day${hasBets?' has-bets':''}${isToday?' today':''}${allWin?' win-day':allLoss?' loss-day':settled.length>0?' mixed-day':''}" ${hasBets?`onclick="openCalDay('${dateStr}')"`:''}><div class="cal-day-num">${day}</div>`;
+    const hasBets=daySettled.length>0;
+    let bg='var(--surface)', border='var(--border)';
     if(hasBets){
-      const record=[wins>0?wins+'W':'',losses>0?losses+'L':'',pushes>0?pushes+'P':''].filter(Boolean).join('-');
-      html+=`<div class="cal-record">${record||dayBets.length+' pending'}</div>`;
-      if(settled.length>0)html+=`<div class="cal-units" style="color:${dayRoi>=0?'var(--green)':'var(--red)'}">${(dayRoi>=0?'+':'')+dayRoi.toFixed(2)}u</div>`;
+      if(roi>0.05){ bg='rgba(74,222,128,0.08)'; border='rgba(74,222,128,0.3)'; }
+      else if(roi<-0.05){ bg='rgba(248,113,113,0.08)'; border='rgba(248,113,113,0.25)'; }
+      else { bg='rgba(180,160,60,0.12)'; border='rgba(180,160,60,0.3)'; }
     }
-    html+='</div>';
+    if(isToday) border='var(--green)';
+    html+=`<div style="min-height:80px;border-radius:8px;border:1px solid ${border};background:${bg};padding:8px;cursor:${hasBets?'pointer':'default'}" ${hasBets?`onclick="showCalDay('${dateStr}')"`:''}">
+      <div style="font-size:12px;color:${hasBets?'var(--text)':'var(--muted)'};font-weight:600">${day}</div>
+      ${hasBets?`
+        <div style="font-size:13px;font-weight:700;margin-top:4px">${w}-${l}</div>
+        <div style="font-size:12px;font-weight:700;color:${roi>=0?'var(--green)':'var(--red)'}">${(roi>=0?'+':'')+roi.toFixed(2)}u</div>
+      `:''}
+    </div>`;
   }
-  html+='</div></div>';
+  html+=`</div></div>`;
   return html;
 }
+
 
 function openCalDay(dateStr){
   const dayBets=tracker.filter(t=>t.date===dateStr);
@@ -984,6 +1044,7 @@ function renderTracker(){
       <span style="font-size:15px;font-weight:700">Tracker</span>
       <div class="tab-row">
         <button class="tab-btn ${trackerTab==='dashboard'?'active':''}" onclick="setTab('dashboard')">Dashboard</button>
+        <button class="tab-btn ${trackerTab==='calendar'?'active':''}" onclick="setTab('calendar')">Calendar</button>
         <button class="tab-btn ${trackerTab==='log'?'active':''}" onclick="setTab('log')">Bet log (${tracker.length})</button>
       </div>
     </div>
