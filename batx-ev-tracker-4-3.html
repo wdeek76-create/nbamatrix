@@ -1310,7 +1310,7 @@ async function gradeDate(selectedDate, setStatus){
   if(!pending.length){ setStatus('No pending bets for '+selectedDate); return; }
 
   const dateStr = parseDateMMDD(selectedDate);
-  if(!dateStr){ setStatus('Bad date: '+selectedDate); if(btn){btn.textContent='▶ Grade';btn.disabled=false;} return; }
+  if(!dateStr){ setStatus('Bad date: '+selectedDate); return; }
 
   let graded = 0;
   try {
