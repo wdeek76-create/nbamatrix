@@ -1380,12 +1380,7 @@ async function gradeDate(selectedDate, setStatus){
       t.finalTotal=tot;
     } else if(mkt==='TT'){
       if(!isFinal) continue;
-      // Use rawGame "AWAY/HOME" position - don't trust API home/away
-      const rawParts=(t.rawGame||t.tm||'').toUpperCase().split(/[\/@]/);
-      const rawAway=toAbbr(rawParts[0]||'');
-      const rawHome=toAbbr(rawParts[1]||'');
-      const betAbbr=toAbbr(t.team||'');
-      const isH=rawHome===betAbbr;
+      const isH=betTeamIsHome(t.team);
       const runs=isH?score('home'):score('away');
       result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
       t.finalTotal=runs;
@@ -1396,11 +1391,7 @@ async function gradeDate(selectedDate, setStatus){
       t.finalTotal=tot;
     } else if(mkt==='1HTT'||mkt==='F5TT'){
       const {h,a,ok}=f5runs(); if(!ok) continue;
-      // Use rawGame "AWAY/HOME" position
-      const rawParts2=(t.rawGame||t.tm||'').toUpperCase().split(/[\/@]/);
-      const rawHome2=toAbbr(rawParts2[1]||'');
-      const betAbbr2=toAbbr(t.team||'');
-      const isH=rawHome2===betAbbr2;
+      const isH=betTeamIsHome(t.team);
       const runs=isH?h:a;
       result=runs>line?(t.dir==='OVER'?'W':'L'):runs<line?(t.dir==='UNDER'?'W':'L'):'P';
       t.finalTotal=runs;
@@ -1414,12 +1405,6 @@ async function gradeDate(selectedDate, setStatus){
       const diff=(isH?h-a:a-h)+line;
       result=diff>0?'W':diff<0?'L':'P';
     }
-    if((t.team||'').includes('Padres')||(t.team||'').includes('Marlins')) {
-        const apiH=(g.teams?.home?.team?.name||'');
-        const apiA=(g.teams?.away?.team?.name||'');
-        const isHResult=betTeamIsHome(t.team||'');
-        alert('Bet: '+t.team+'\nAPI home: '+apiH+'\nAPI away: '+apiA+'\nbetTeamIsHome: '+isHResult+'\nhome score: '+score('home')+'\naway score: '+score('away')+'\nresult: '+result);
-      }
     if(result){ t.result=result; graded++; }
   }
   localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
