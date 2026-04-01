@@ -56,15 +56,17 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
 
 /* Breakdown table */
 .breakdown-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;}
-.breakdown-table{width:100%;border-collapse:collapse;font-size:11px;}
-.breakdown-table th{background:var(--card);color:var(--text3);font-size:11px;font-weight:600;letter-spacing:-.01em;padding:10px 14px;text-align:center;border-bottom:1px solid var(--border);font-family:var(--sans);}
+.breakdown-table{width:100%;border-collapse:collapse;font-size:12px;}
+.breakdown-table th{background:var(--card);color:var(--text3);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;text-align:right;border-bottom:1px solid var(--border);}
 .breakdown-table th.left{text-align:left;}
-.breakdown-table th.over-hdr{color:#f59e0b;}
-.breakdown-table th.under-hdr{color:#818cf8;}
-.breakdown-table td{padding:10px 14px;text-align:center;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:13px;}
-.breakdown-table td.left{text-align:left;font-weight:700;font-size:13px;}
+.breakdown-table td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:12px;}
+.breakdown-table td.seg{text-align:left;font-weight:600;font-size:12px;color:var(--text);font-family:var(--sans);}
 .breakdown-table tr:last-child td{border-bottom:none;}
-.breakdown-table tr:hover td{background:#ffffff04;}
+.breakdown-table tr:hover td{background:#ffffff05;}
+.breakdown-table .section-hdr td{background:var(--bg);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 12px;text-align:left;font-family:var(--sans);}
+.bdt-pos{color:var(--green)!important;}
+.bdt-neg{color:var(--red)!important;}
+.bdt-neu{color:var(--text3)!important;}
 .pos-val{color:var(--green);}
 .neg-val{color:var(--red);}
 .neu-val{color:var(--text3);}
@@ -372,13 +374,12 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
         <tr>
           <th class="left">Segment</th>
           <th>Bets</th>
+          <th>W-L</th>
           <th>Win%</th>
           <th>Net</th>
           <th>ROI</th>
-          <th class="over-hdr">O W-L</th>
-          <th class="over-hdr">O ROI</th>
-          <th class="under-hdr">U W-L</th>
-          <th class="under-hdr">U ROI</th>
+          <th>O W-L</th>
+          <th>U W-L</th>
           <th>Avg Edge</th>
         </tr>
       </thead>
@@ -1104,89 +1105,67 @@ function updateTotalsBreakdown(filtered){
   if(!graded.length){wrap.style.display='none';return;}
   wrap.style.display='';
 
-  function buildRow(label, rows, color){
+  function buildRow(label, rows){
     if(!rows.length) return '';
-    const w=rows.filter(b=>b.grade==='win').length, l=rows.filter(b=>b.grade==='loss').length;
+    const w=rows.filter(b=>b.grade==='win').length;
+    const l=rows.filter(b=>b.grade==='loss').length;
     const pl=rows.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
     const staked=calcRisk(rows);
     const roi=staked?(pl/staked*100).toFixed(1)+'%':'—';
-    const plCls=pl>0?'pos-val':pl<0?'neg-val':'neu-val';
+    const wr=fmtPct(w,l);
+    const plStr=(pl>=0?'+':'')+pl.toFixed(2)+'u';
+    const ov=rows.filter(b=>b.ou==='over');
+    const un=rows.filter(b=>b.ou==='under');
+    const ovW=ov.filter(b=>b.grade==='win').length, ovL=ov.filter(b=>b.grade==='loss').length;
+    const unW=un.filter(b=>b.grade==='win').length, unL=un.filter(b=>b.grade==='loss').length;
     const edgeArr=rows.filter(b=>b.edge).map(b=>parseFloat(b.edge));
     const avgEdge=edgeArr.length?(edgeArr.reduce((a,b)=>a+b,0)/edgeArr.length).toFixed(1)+'%':'—';
-
-    const ov=rows.filter(b=>b.ou==='over');
-    const ovW=ov.filter(b=>b.grade==='win').length, ovL=ov.filter(b=>b.grade==='loss').length;
-    const ovPl=ov.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
-    const ovStaked=calcRisk(ov);
-    const ovRoi=ovStaked?(ovPl/ovStaked*100).toFixed(1)+'%':'—';
-
-    const un=rows.filter(b=>b.ou==='under');
-    const unW=un.filter(b=>b.grade==='win').length, unL=un.filter(b=>b.grade==='loss').length;
-    const unPl=un.reduce((s,b)=>s+calcPL(b.odds,b.grade),0);
-    const unStaked=calcRisk(un);
-    const unRoi=unStaked?(unPl/unStaked*100).toFixed(1)+'%':'—';
-
-    const rc=v=>parseFloat(v)>=0?'pos-val':isNaN(parseFloat(v))?'neu-val':'neg-val';
-    const pf=v=>(v>=0?'+':'')+v.toFixed(2)+'u';
-
+    const plCls=pl>0?'bdt-pos':pl<0?'bdt-neg':'';
+    const roiCls=parseFloat(roi)>0?'bdt-pos':parseFloat(roi)<0?'bdt-neg':'';
     return `<tr>
-      <td class="left" style="color:${color}">${label}</td>
+      <td class="seg">${label}</td>
       <td>${rows.length}</td>
-      <td class="${w>=l&&(w+l)>0?'pos-val':'neu-val'}">${fmtPct(w,l)}</td>
-      <td class="${plCls}">${pf(pl)}</td>
-      <td class="${plCls}">${roi}</td>
-      <td style="color:#f59e0b">${ov.length?`${ovW}-${ovL}`:'—'}</td>
-      <td class="${rc(ovRoi)}">${ov.length?ovRoi:'—'}</td>
-      <td style="color:#818cf8">${un.length?`${unW}-${unL}`:'—'}</td>
-      <td class="${rc(unRoi)}">${un.length?unRoi:'—'}</td>
-      <td style="color:var(--green)">${avgEdge}</td>
+      <td>${w}-${l}</td>
+      <td>${wr}</td>
+      <td class="${plCls}">${plStr}</td>
+      <td class="${roiCls}">${roi}</td>
+      <td>${ov.length?`${ovW}-${ovL}`:'—'}</td>
+      <td>${un.length?`${unW}-${unL}`:'—'}</td>
+      <td>${avgEdge}</td>
     </tr>`;
   }
 
-  const ouRows = [
-    buildRow('Over',  graded.filter(b=>b.ou==='over'),  '#f59e0b'),
-    buildRow('Under', graded.filter(b=>b.ou==='under'), '#818cf8'),
-  ].join('');
+  function sectionHdr(label){
+    return `<tr class="section-hdr"><td colspan="9">${label}</td></tr>`;
+  }
 
-  // By model grade (7/9, 8/9, 9/9)
+  const ouRows=buildRow('Over', graded.filter(b=>b.ou==='over'))+buildRow('Under', graded.filter(b=>b.ou==='under'));
+
   const grades=[...new Set(graded.map(b=>b.modelGrade).filter(Boolean))].sort();
-  const gradeDiv=`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Model Grade</td></tr>`;
-  const gradeRows=grades.length ? gradeDiv+grades.map(g=>buildRow(`Grade ${g}`, graded.filter(b=>b.modelGrade===g), 'var(--yellow)')).join('') : '';
+  const gradeRows=grades.length?sectionHdr('By Grade')+grades.map(g=>buildRow(`Grade ${g}`, graded.filter(b=>b.modelGrade===g))).join(''):'';
 
-  // By market total line (6.5, 7, 7.5, 8, 8.5, 9, 9.5+)
-  const lineBuckets = [6.5, 7, 7.5, 8, 8.5, 9, 9.5];
-  const lineDiv=`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Market Line</td></tr>`;
-  const lineRows=lineDiv+lineBuckets.map(line=>{
+  const lineBuckets=[6.5,7,7.5,8,8.5,9,9.5];
+  const lineRows=sectionHdr('By Market Line')+lineBuckets.map(line=>{
     const rows=graded.filter(b=>b.market===line||b.line===line);
-    return buildRow(`O/U ${line}`, rows, 'var(--text)');
+    return buildRow(`O/U ${line}`, rows);
   }).join('');
 
-  // By edge tier
-  const edgeTiers = [
-    {label:'Edge 1–2%',  min:1,  max:3},
-    {label:'Edge 3–4%',  min:3,  max:5},
-    {label:'Edge 5–6%',  min:5,  max:7},
-    {label:'Edge 7–8%',  min:7,  max:9},
-    {label:'Edge 9%+',   min:9,  max:999},
+  const edgeTiers=[
+    {label:'Edge 1–2%',min:1,max:3},{label:'Edge 3–4%',min:3,max:5},
+    {label:'Edge 5–6%',min:5,max:7},{label:'Edge 7–8%',min:7,max:9},
+    {label:'Edge 9%+',min:9,max:999},
   ];
-  const edgeDiv=`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Edge %</td></tr>`;
-  const edgeRows=edgeDiv+edgeTiers.map(t=>{
-    const rows=graded.filter(b=>{
-      const e=parseFloat(b.edge);
-      return !isNaN(e)&&e>=t.min&&e<t.max;
-    });
-    return buildRow(t.label, rows, 'var(--green)');
-  }).join('');
+  const edgeRows=sectionHdr('By Edge %')+edgeTiers.map(t=>buildRow(t.label, graded.filter(b=>{
+    const e=parseFloat(b.edge); return !isNaN(e)&&e>=t.min&&e<t.max;
+  }))).join('');
 
-  // By entry time — group by exact addedAt timestamp
   const entryTimes=[...new Set(graded.map(b=>b.addedAt).filter(Boolean))].sort((a,b)=>{
     const toMin=t=>{const m=t.match(/(\d+):(\d+)\s*(AM|PM)/i);if(!m)return 0;let h=parseInt(m[1]);const pm=m[3].toUpperCase()==='PM';if(pm&&h!==12)h+=12;if(!pm&&h===12)h=0;return h*60+parseInt(m[2]);};
     return toMin(a)-toMin(b);
   });
-  const timeDiv=entryTimes.length?`<tr><td colspan="10" style="background:var(--card);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;">By Entry Time</td></tr>`:'';
-  const timeRows=entryTimes.map(t=>buildRow(t, graded.filter(b=>b.addedAt===t), 'var(--text2)')).join('');
+  const timeRows=entryTimes.length?sectionHdr('By Entry Time')+entryTimes.map(t=>buildRow(t, graded.filter(b=>b.addedAt===t))).join(''):'';
 
-  body.innerHTML=ouRows+gradeRows+lineRows+edgeRows+timeDiv+timeRows;
+  body.innerHTML=ouRows+gradeRows+lineRows+edgeRows+timeRows;
 }
 
 function updateSummary(scope,wins,losses,pl){
