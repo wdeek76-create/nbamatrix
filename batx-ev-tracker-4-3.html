@@ -441,10 +441,16 @@ function runFilter() {
     else gameLabel = p.tm+' '+p.dir+(p.line!=null?' '+p.line:'');
     // skip if already tracked for this date+game+market
     if (tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType)) continue;
+    const rawG2 = p.game||p.tm||'';
+    const gp2 = rawG2.toUpperCase().split(/[/@]/);
     const entry = {
       id: Date.now()+autoSaved,
       date: p.date, time: p.time,
-      game: gameLabel, rawGame: p.game||p.tm, dir: p.dir, tm: p.tm,
+      game: gameLabel, rawGame: rawG2,
+      awayTeam: (gp2[0]||'').replace(/[^A-Z]/g,''),
+      homeTeam: (gp2[1]||'').replace(/[^A-Z]/g,''),
+      team: p.team||null,
+      dir: p.dir, tm: p.tm,
       market: p.mktType, marketLabel: p.market||p.mktType,
       book: best.book, odds: best.odds, line: p.line,
       proj: p.proj, roi: best.roi, fairPrice: best.fairPrice??null,
@@ -1339,17 +1345,32 @@ async function gradeDate(selectedDate, setStatus){
     const line=parseFloat(t.line)||0;
     const homeAbbr=teamAbbr(g,'home');
     const awayAbbr=teamAbbr(g,'away');
-    function isTeamHome(abbrStr){ const a=toAbbr(abbrStr||''); return a===homeAbbr||MLB_API_ABBR[a]===homeAbbr; }
+    function isTeamHome(abbrStr){
+      // First try direct name match for ML/RL entries that store full name in t.team
+      const hn=(g.teams?.home?.team?.name||'');
+      const an=(g.teams?.away?.team?.name||'');
+      if(hn===abbrStr) return true;
+      if(an===abbrStr) return false;
+      const a=toAbbr(abbrStr||'');
+      return a===homeAbbr||MLB_API_ABBR[a]===homeAbbr;
+    }
     function f5runs(){ const inn=(ls?.innings||[]).slice(0,5); return {h:inn.reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0),a:inn.reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0),ok:inn.length>=5||isFinal}; }
     const score=(side)=>parseInt(side==='home'?g.teams?.home?.score:g.teams?.away?.score)||0;
     function betTeamIsHome(teamName){
-      const hn = (g.teams?.home?.team?.name||'');
-      const an = (g.teams?.away?.team?.name||'');
-      if(hn===teamName) return true;
-      if(an===teamName) return false;
-      // fallback abbr
-      const ba=toAbbr(teamName||'');
-      return ba===homeAbbr;
+      // If teamName undefined, extract from game label e.g. "San Diego Padres UNDER 3.5"
+      let tn = teamName;
+      if(!tn || tn==='undefined') {
+        tn = (t.game||'').replace(/\s+(OVER|UNDER|YES|NO)\s+[\d.]+.*/i,'').trim();
+      }
+      const hn=(g.teams?.home?.team?.name||'');
+      const an=(g.teams?.away?.team?.name||'');
+      if(hn===tn) return true;
+      if(an===tn) return false;
+      // abbr fallback
+      const ba=toAbbr(tn||'');
+      const mH=homeAbbr===ba||MLB_API_ABBR[ba]===homeAbbr;
+      const mA=awayAbbr===ba||MLB_API_ABBR[ba]===awayAbbr;
+      return mH&&!mA?true:!mH&&mA?false:homeAbbr===ba;
     }
     let result=null;
     if(mkt==='TOTAL'){
