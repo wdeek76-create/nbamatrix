@@ -121,9 +121,9 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
 .bk-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 16px;}
 .bk-grid3{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 16px;}
 .dash-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:16px 16px 8px;border-top:1px solid var(--border);}
-.bk-head2{display:grid;grid-template-columns:1fr 36px 36px 36px 55px 80px 80px;padding:6px 14px;background:var(--surface2);border-top:1px solid var(--border);}
+.bk-head2{display:grid;grid-template-columns:1fr 36px 36px 36px 55px 75px 75px 75px;padding:6px 14px;background:var(--surface2);border-top:1px solid var(--border);}
 .bk-head2 span{font-size:10px;color:var(--hint);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
-.bk-row2{display:grid;grid-template-columns:1fr 36px 36px 36px 55px 80px 80px;padding:8px 14px;border-top:1px solid var(--border);align-items:center;}
+.bk-row2{display:grid;grid-template-columns:1fr 36px 36px 36px 55px 75px 75px 75px;padding:8px 14px;border-top:1px solid var(--border);align-items:center;}
 .bk-row2:hover{background:var(--surface2);}
 .bk-val.m{color:var(--muted);}
 .bk-card{background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;}
@@ -1238,7 +1238,7 @@ function renderTracker(){
     function bkFull(rows, title, colspan3) {
       if(!rows.length) return '';
       let h=`<div class="bk-card"><div class="bk-title">${title}</div>
-        <div class="bk-head2"><span>Category</span><span>W</span><span>L</span><span>P</span><span>W%</span><span>Units P&L</span><span>Avg ROI%</span></div>`;
+        <div class="bk-head2"><span>Category</span><span>W</span><span>L</span><span>P</span><span>W%</span><span>Units P&L</span><span>BatX Edge</span><span>Actual ROI</span></div>`;
       for(const r of rows){
         const t=r.w+r.l+r.p;
         const wp=t>0?(r.w/t*100).toFixed(1)+'%':'—';
@@ -1251,20 +1251,35 @@ function renderTracker(){
           <div class="bk-val">${wp}</div>
           <div class="bk-val">${(r.roi>=0?'+':'')+r.roi.toFixed(2)}u</div>
           <div class="bk-val">${avgRoi!=='—'?'+'+avgRoi+'%':'—'}</div>
+          <div class="bk-val">${(()=>{const ar=actualRoi(r.bets||[]);return ar!=='—'?(parseFloat(ar)>=0?'+':'')+ar+'%':'—';})()}</div>
         </div>`;
       }
       return h+'</div>';
+    }
+
+    function actualRoi(bets) {
+      // Actual ROI = units won / units staked * 100
+      let staked=0, won=0;
+      for(const t of bets) {
+        if(t.result!=='W'&&t.result!=='L'&&t.result!=='P') continue;
+        const o=t.odds;
+        if(o==null) continue;
+        if(o>0){ staked+=1; won+=(t.result==='W'?o/100:t.result==='P'?0:-1); }
+        else { staked+=Math.abs(o)/100; won+=(t.result==='W'?1:t.result==='P'?0:-Math.abs(o)/100); }
+      }
+      return staked>0?(won/staked*100).toFixed(1):'—';
     }
 
     function breakdown2(groupFn, labelFn, bets) {
       const g={};
       for(const t of bets){
         const k=groupFn(t);
-        if(!g[k]) g[k]={label:labelFn(t,k),w:0,l:0,p:0,roi:0,totalRoi:0};
+        if(!g[k]) g[k]={label:labelFn(t,k),w:0,l:0,p:0,roi:0,totalRoi:0,bets:[]};
         if(t.result==='W'){g[k].w++;g[k].roi+=unitPnl(t);}
         else if(t.result==='L'){g[k].l++;g[k].roi+=unitPnl(t);}
         else if(t.result==='P') g[k].p++;
         g[k].totalRoi+=(t.roi||0);
+        g[k].bets.push(t);
       }
       return Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>v);
     }
