@@ -1774,11 +1774,9 @@ async function gradeDate(selectedDate, setStatus){
   setStatus(graded+' bets graded!');
 }
 
-
-
-let allRows = [];
-let currentMarket = 'all';
-let betFilter = 'all';
+let parserAllRows = [];
+let parserCurrentMarket = 'all';
+let parserBetFilter = 'all';
 
 // Market normalization — map raw EV Analytics market text to our tab keys
 const MARKET_MAP = {
@@ -1915,7 +1913,7 @@ function parseEV(text) {
 
 }
 
-function dedupe(rows) {
+function parserDedupe(rows) {
   const best = {};
   const times = {};
   rows.forEach(r => {
@@ -1937,60 +1935,67 @@ function dedupe(rows) {
   });
 }
 
-function visibleRows() {
+function parserVisibleRows() {
   const book = document.getElementById('bookFilter').value;
-  let rows = currentMarket === 'all' ? allRows : allRows.filter(r => r.market === currentMarket);
-  rows = rows.filter(r => (book === 'all' || r.book === book) && (betFilter === 'all' || r.suggested_bet === betFilter));
-  return dedupe(rows);
+  let rows = parserCurrentMarket === 'all' ? parserAllRows : parserAllRows.filter(r => r.market === parserCurrentMarket);
+  rows = rows.filter(r => (book === 'all' || r.book === book) && (parserBetFilter === 'all' || r.suggested_bet === betFilter));
+  return parserDedupe(rows);
 }
 
-function buildTabs() {
-  const presentMarkets = new Set(allRows.map(r => r.market));
+function parserBuildTabs() {
+  const presentMarkets = new Set(parserAllRows.map(r => r.market));
   const tabs = document.getElementById('marketTabs');
-  const allCount = dedupe(allRows).length;
-  let html = `<div class="market-tab active" data-market="all" onclick="setMarket('all',this)">All <span class="tab-count">${allCount}</span></div>`;
+  const allCount = parserDedupe(parserAllRows).length;
+  let html = `<div class="market-tab active" data-market="all" onclick="parserSetMarket('all',this)">All <span class="tab-count">${allCount}</span></div>`;
   TAB_ORDER.filter(m => m !== 'all' && presentMarkets.has(m)).forEach(m => {
-    const count = dedupe(allRows.filter(r => r.market === m)).length;
-    html += `<div class="market-tab" data-market="${m}" onclick="setMarket('${m}',this)">${m} <span class="tab-count">${count}</span></div>`;
+    const count = parserDedupe(parserAllRows.filter(r => r.market === m)).length;
+    html += `<div class="market-tab" data-market="${m}" onclick="parserSetMarket('${m}',this)">${m} <span class="tab-count">${count}</span></div>`;
   });
   tabs.innerHTML = html;
 }
 
-function parserFmtOdds(n) { return n == null ? '—' : n > 0 ? `+${n}` : `${n}`; }
+function _p_pfmtOdds(n) { return n == null ? '—' : n > 0 ? `+${n}` : `${n}`; }
 
-function renderCards(rows) {
-  const cv = document.getElementById('cardsView');
-  if (!rows.length) { cv.innerHTML = '<span>No rows match the current filters.</span>'; cv.className = 'output-scroll empty'; return; }
-  cv.className = 'output-scroll';
-  cv.innerHTML = rows.map(r => {
-    const isMLRL = ['F5 ML','1H ML','F5 RL','1H RL'].includes(r.market);
-    const dirCls = r.suggested_bet === 'UNDER' ? 'under' : r.suggested_bet === 'OVER' ? 'over' : 'ml';
-    const oddsStr = isMLRL
-      ? parserFmtOdds(r.over_odds)
-      : r.suggested_bet === 'UNDER' ? parserFmtOdds(r.under_odds) : parserFmtOdds(r.over_odds);
-    const metaStr = isMLRL
-      ? `ML: ${parserFmtOdds(r.over_odds)} · BAT X: ${r.batx_proj??'—'} · Fair: ${parserFmtOdds(r.fair_price)}`
-      : `O: ${r.over_line??'—'}(${parserFmtOdds(r.over_odds)}) · U: ${r.under_line??'—'}(${parserFmtOdds(r.under_odds)}) · BAT X: ${r.batx_proj??'—'} · Fair: ${parserFmtOdds(r.fair_price)}`;
-    return `<div class="game-card">
-      <div class="left-col">
-        <div class="book-pill">${r.book}</div>
-        <div class="market-pill">${r.market}</div>
+function parserRenderCards(rows) {
+  window._parsedPlays = rows.map((p,i)=>({...p,_id:String(i)}));
+  const out = document.getElementById('parserOutput');
+  if(!out) return;
+  const trackBtn = document.getElementById('trackSelectedBtn');
+  const selAllBtn = document.getElementById('selectAllBtn');
+  if(!rows.length){
+    out.innerHTML='<div style="color:var(--muted);padding:12px">No plays match current filters.</div>';
+    if(trackBtn) trackBtn.style.display='none';
+    if(selAllBtn) selAllBtn.style.display='none';
+    return;
+  }
+  if(trackBtn) trackBtn.style.display='inline-block';
+  if(selAllBtn) selAllBtn.style.display='inline-block';
+  out.innerHTML = rows.map((p,i)=>{
+    const best = p.books?.[0]||{};
+    const odds = best.odds ?? p.over_odds ?? p.under_odds;
+    const roi = best.roi ?? p.roi ?? 0;
+    const col = p.dir==='OVER'?'var(--green)':p.dir==='UNDER'?'#60a5fa':'var(--text)';
+    const label = (p.mktType==='TT'||p.mktType==='1HTT') ? (p.team||p.tm) : p.tm;
+    const already = tracker.find(t=>{
+      const gl = label+' '+p.dir+(p.line!=null?' '+p.line:'');
+      return t.game===gl && t.date===p.date && t.market===p.mktType;
+    });
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid ${already?'var(--border)':'var(--border2)'};background:var(--surface);margin-bottom:6px;opacity:${already?'0.5':'1'}">
+      <input type="checkbox" class="parser-check" value="${i}" ${already?'disabled title="Already tracked"':''} style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${label} <span style="color:${col}">${p.dir}</span>${p.line!=null?' '+p.line:''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.game} · ${p.market} · ${p.date} ${p.time||''}</div>
       </div>
-      <div class="game-info">
-        <div class="game-name">${r.game} <span style="color:#8892a4;font-size:0.67rem;font-weight:400">${r.time||''}</span></div>
-        ${r.team ? `<div class="game-team">${r.team}</div>` : ''}
-        <div class="game-meta">${metaStr}</div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:700">${_pfmtOdds(odds)}</div>
+        <div style="font-size:11px;color:var(--green);font-weight:600">+${roi.toFixed?roi.toFixed(1):roi}%</div>
       </div>
-      <div class="game-nums">
-        <div class="dir-badge ${dirCls}">${r.suggested_bet||'—'} ${oddsStr}</div>
-        <div class="roi-line">ROI: ${r.roi!=null?r.roi+'%':'—'}</div>
-        <div class="sub-line">Win: ${r.win_pct!=null?r.win_pct+'%':'—'}</div>
-      </div>
+      ${already?'<div style="font-size:10px;color:var(--muted);white-space:nowrap">✓ tracked</div>':''}
     </div>`;
   }).join('');
 }
 
-function hlJSON(str) {
+function parserHlJSON(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
       if (/^"/.test(m)) return m.endsWith(':') ? `<span class="jk">${m}</span>` : `<span class="js">${m}</span>`;
@@ -2000,97 +2005,77 @@ function hlJSON(str) {
 }
 
 function parserRenderAll() {
-  // Get text from parse tab textarea
-  const ta = document.getElementById('parserInput');
-  const text = ta ? ta.value : '';
-  if(!text.trim()){ 
-    const out=document.getElementById('parserOutput');
-    if(out) out.innerHTML='';
-    return; 
-  }
-  // Parse the raw gamesheet
-  allRows = parseEV(text);
-  // Apply market/bet filters from parse tab dropdowns
-  const mktF = (document.getElementById('parserMarketFilter')||{}).value||'all';
-  const betF = (document.getElementById('parserBetFilter')||{}).value||'all';
-  let rows = dedupe(allRows);
-  if(mktF!=='all') rows=rows.filter(r=>r.market===mktF);
-  if(betF!=='all') rows=rows.filter(r=>r.dir===betF);
-  renderCards(rows);
-  const st=document.getElementById('parserStatus');
-  if(st) st.textContent = rows.length ? rows.length+' plays found' : 'No plays found';
+  const rows = parserVisibleRows();
+  parserRenderCards(rows);
+  const st = document.getElementById('parserStatus');
+  if(st) st.textContent = rows.length + ' plays found';
 }
 
-function populateBooks() {
-  const books = ['all', ...new Set(allRows.map(r => r.book))];
+function parserPopulateBooks() {
+  const books = ['all', ...new Set(parserAllRows.map(r => r.book))];
   document.getElementById('bookFilter').innerHTML = books.map(b => `<option value="${b}">${b==='all'?'All':b}</option>`).join('');
 }
 
-function parse() {
-  const text = document.getElementById('inputArea').value;
+function parserParse() {
+  const ta = document.getElementById('parserInput'); const text = ta ? ta.value : '';
   if (!text.trim()) { parserSetStatus('Nothing to parse.', false); return; }
-  allRows = parseEV(text);
-  const badge = document.getElementById('parseBadge');
-  if (!allRows.length) {
-    document.getElementById('cardsView').innerHTML = `<div class="error-box">No rows found.\n\nMake sure you're pasting from the EV Analytics MLB Gamesheet.\nTry Ctrl+A → Ctrl+C on the full page.</div>`;
-    document.getElementById('cardsView').className = 'output-scroll';
-    badge.textContent = 'ERROR'; badge.className = 'badge err';
+  parserAllRows = parseEV(text);
+  if (!parserAllRows.length) {
+    const out=document.getElementById('parserOutput');
+    if(out) out.innerHTML='<div style="color:var(--red);padding:12px">No plays found. Make sure you paste the full EV Analytics gamesheet.</div>';
     parserSetStatus('No data found.', true); return;
   }
-  currentMarket = 'all';
-  populateBooks();
-  buildTabs();
+  parserCurrentMarket = 'all';
   parserRenderAll();
-  const total = dedupe(allRows).length;
-  const markets = new Set(allRows.map(r => r.market)).size;
-  badge.textContent = `${allRows.length} rows`; badge.className = 'badge ok';
-  document.getElementById('rowBadge').textContent = `${total} deduped`; document.getElementById('rowBadge').className = 'badge ok';
-  parserSetStatus(`✓ ${allRows.length} rows → ${total} best picks across ${markets} markets`, false);
+  const total = parserDedupe(parserAllRows).length;
+  const markets = new Set(parserAllRows.map(r => r.market)).size;
+  parserSetStatus('✓ '+total+' plays across '+markets+' markets', false);
 }
 
-function setMarket(m, btn) {
-  currentMarket = m;
+function parserSetMarket(m, btn) {
+  parserCurrentMarket = m;
   document.querySelectorAll('.market-tab').forEach(t => t.classList.toggle('active', t === btn));
   parserRenderAll();
 }
 
-function setBet(val, btn) {
-  betFilter = val;
+function parserSetBet(val, btn) {
+  parserBetFilter = val;
   document.querySelectorAll('[data-g="bet"]').forEach(b => b.classList.toggle('active', b === btn));
   parserRenderAll();
 }
 
-function setView(v) {
+function parserSetView(v) {
   document.getElementById('vtCards').classList.toggle('active', v === 'cards');
   document.getElementById('vtJSON').classList.toggle('active', v === 'json');
   document.getElementById('cardsView').classList.toggle('hidden', v !== 'cards');
   document.getElementById('jsonView').classList.toggle('visible', v === 'json');
 }
 
-function copyJSON(currentTab) {
-  const rows = currentTab ? visibleRows() : dedupe(allRows);
+function parserCopyJSON(currentTab) {
+  const rows = currentTab ? parserVisibleRows() : parserDedupe(parserAllRows);
   navigator.clipboard.writeText(JSON.stringify(rows, null, 2))
     .then(() => parserSetStatus(`✓ Copied ${rows.length} rows`, false));
 }
 
-function downloadJSON() {
-  const rows = visibleRows();
+function parserDownloadJSON() {
+  const rows = parserVisibleRows();
   const a = document.createElement('a');
-  const mkt = currentMarket === 'all' ? 'all' : currentMarket.replace(/ /g,'_').toLowerCase();
+  const mkt = parserCurrentMarket === 'all' ? 'all' : parserCurrentMarket.replace(/ /g,'_').toLowerCase();
   a.href = URL.createObjectURL(new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' }));
   a.download = `batx_${mkt}_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
 
 function parserClearAll() {
-  const ta=document.getElementById('parserInput');
-  if(ta) ta.value='';
-  const out=document.getElementById('parserOutput');
-  if(out) out.innerHTML='';
-  const st=document.getElementById('parserStatus');
-  if(st) st.textContent='';
-  ['trackSelectedBtn','selectAllBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-  allRows=[];
+  document.getElementById('inputArea').value = '';
+  parserAllRows = []; parserCurrentMarket = 'all';
+  document.getElementById('marketTabs').innerHTML = '';
+  document.getElementById('cardsView').innerHTML = 'Parsed rows will appear here…';
+  document.getElementById('cardsView').className = 'output-scroll empty';
+  document.getElementById('jsonView').innerHTML = '';
+  document.getElementById('parseBadge').textContent = '—'; document.getElementById('parseBadge').className = 'badge';
+  document.getElementById('rowBadge').textContent = '—'; document.getElementById('rowBadge').className = 'badge';
+  parserSetStatus('Cleared.', false); document.getElementById('statusRight').textContent = '';
 }
 
 function parserSetStatus(msg, isErr) {
@@ -2099,9 +2084,9 @@ function parserSetStatus(msg, isErr) {
 }
 
 let inputTimer;
-function onInput() { clearTimeout(inputTimer); inputTimer = setTimeout(parse, 600); }
+function parserOnInput() { clearTimeout(inputTimer); inputTimer = setTimeout(parserParse, 600); }
 
-function loadSample() {
+function parserLoadSample() {
   document.getElementById('inputArea').value =
 `Pinnacle\t03/30\t6:40 PM\tTeam Total\tPhiladelphia Phillies\tPHI\tWSH@PHI\t\t\t\t4.5 (-133)\t4.5 (+113)\t\t4.57\tUNDER\t-129\t56.3%\t$19.98\t20.0%\t
 Pinnacle\t03/30\t6:40 PM\tGame Total\tNationals / Phillies\tWSH/PHI\tWSH@PHI\t\t\t\t9.0 (-117)\t9.0 (+104)\t\t8.88\tUNDER\t-138\t58.0%\t$18.36\t18.4%\t
@@ -2112,10 +2097,10 @@ DraftKings\t03/30\t6:40 PM\t1H Moneyline\tWashington Nationals\tWSH\tWSH@PHI\t\t
 }
 
 
-function parserOnInput(){ clearTimeout(window._parserTimer); window._parserTimer=setTimeout(parserRenderAll,600); }
+function parserOnInput(){ clearTimeout(window._parserTimer); window._parserTimer=setTimeout(parserParse,400); }
 
 function selectAllParsed(){
-  document.querySelectorAll('.parser-check').forEach(cb=>cb.checked=true);
+  document.querySelectorAll('.parser-check:not(:disabled)').forEach(cb=>cb.checked=true);
 }
 
 function trackSelectedPlays(){
@@ -2127,9 +2112,8 @@ function trackSelectedPlays(){
     if(!p) continue;
     const rawG=p.game||p.tm||'';
     const gp=rawG.toUpperCase().split(/[/@]/);
-    const gameLabel=p.mktType==='TT'||p.mktType==='1HTT'?(p.team||p.tm)+' '+(p.dir)+(p.line!=null?' '+p.line:''):
-      p.mktType==='1HML'||p.mktType==='1HRL'?p.tm+' '+p.dir+(p.line!=null?' '+p.line:''):
-      p.tm+' '+(p.dir)+(p.line!=null?' '+p.line:'');
+    const label=(p.mktType==='TT'||p.mktType==='1HTT')?(p.team||p.tm):p.tm;
+    const gameLabel=label+' '+p.dir+(p.line!=null?' '+p.line:'');
     if(tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType)) continue;
     const best=p.books?.[0]||{};
     const entry={
@@ -2141,8 +2125,10 @@ function trackSelectedPlays(){
       team:p.team||null,
       dir:p.dir,tm:p.tm,
       market:p.mktType,marketLabel:p.market||p.mktType,
-      book:best.book||p.book||'',odds:best.odds||p.over_odds||p.under_odds,
-      line:p.line,proj:p.proj||p.batx_proj,roi:p.roi||best.roi,
+      book:best.book||p.book||'',
+      odds:best.odds||p.over_odds||p.under_odds,
+      line:p.line,proj:p.proj||p.batx_proj,
+      roi:best.roi||p.roi,
       fairPrice:p.fairPrice||p.fair_price||null,
       tracked_at:new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
       result:'',books:p.books||[]
@@ -2152,45 +2138,13 @@ function trackSelectedPlays(){
   }
   if(added){
     localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
-    parserSetStatus(added+' plays tracked!');
+    parserSetStatus(added+' plays added to tracker!');
     document.querySelectorAll('.parser-check').forEach(cb=>cb.checked=false);
     renderTracker();
+    setTab('dashboard');
   } else {
     parserSetStatus('All selected plays already tracked');
   }
-}
-
-// Patch renderCards to add checkboxes and store plays
-const _origRenderCards = renderCards;
-function renderCards(rows){
-  window._parsedPlays = rows.map((p,i)=>({...p,_id:String(i)}));
-  const out=document.getElementById('parserOutput');
-  if(!out) return _origRenderCards(rows);
-  if(!rows.length){out.innerHTML='<div style="color:var(--muted);font-size:13px;padding:20px 0">No plays found.</div>';
-    ['trackSelectedBtn','selectAllBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-    return;
-  }
-  ['trackSelectedBtn','selectAllBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='inline-block';});
-  out.innerHTML=rows.map((p,i)=>{
-    const alreadyTracked=tracker.find(t=>{
-      const gl=(p.mktType==='TT'||p.mktType==='1HTT')?(p.team||p.tm)+' '+p.dir+(p.line!=null?' '+p.line:''):p.tm+' '+p.dir+(p.line!=null?' '+p.line:'');
-      return t.game===gl&&t.date===p.date&&t.market===p.mktType;
-    });
-    const col=p.dir==='OVER'?'var(--green)':p.dir==='UNDER'?'var(--hint)':'var(--text)';
-    const best=p.books?.[0]||{};
-    return `<div class="parser-play-card" style="${alreadyTracked?'opacity:0.5':''}">
-      <input type="checkbox" class="parser-check" value="${i}" ${alreadyTracked?'disabled':''} style="width:16px;height:16px;accent-color:var(--green);cursor:pointer">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${p.team||p.tm} <span style="color:${col}">${p.dir}</span>${p.line!=null?' '+p.line:''}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.game} · ${p.market} · ${p.date} ${p.time}</div>
-      </div>
-      <div style="text-align:right;white-space:nowrap">
-        <div style="font-size:12px;font-weight:700">${parserFmtOdds(best.odds||p.over_odds||p.under_odds)}</div>
-        <div style="font-size:11px;color:var(--green)">+${(best.roi||p.roi||0).toFixed(1)}%</div>
-      </div>
-      ${alreadyTracked?'<div style="font-size:10px;color:var(--muted);white-space:nowrap">tracked</div>':''}
-    </div>`;
-  }).join('');
 }
 
 renderTracker();
