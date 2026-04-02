@@ -1007,8 +1007,16 @@ function exportXLSX(){
     const p=bets.filter(t=>t.result==='P').length;
     const units=bets.reduce((s,t)=>s+unitPnl(t),0);
     const tot=w+l+p;
-    const avgRoi=bets.length?(bets.reduce((s,t)=>s+(t.roi||0),0)/bets.length):0;
-    return {w,l,p,units,winPct:tot>0?w/tot*100:0,avgRoi,tot};
+    // Actual ROI = units won / total staked
+    // Stake per bet: if odds>0 stake 1u, if odds<0 stake abs(odds)/100
+    const staked=bets.reduce((s,t)=>{
+      if(!t.result||t.result==='') return s;
+      const o=t.odds;
+      if(o==null) return s+1;
+      return s+(o>0?1:Math.abs(o)/100);
+    },0);
+    const actualRoi=staked>0?(units/staked)*100:0;
+    return {w,l,p,units,winPct:tot>0?w/tot*100:0,avgRoi:actualRoi,tot};
   }
 
   // ── Sheet 1: Bet Log ──
@@ -1049,8 +1057,8 @@ function exportXLSX(){
   const ov=stats(settled);
   row('BAT X EV TRACKER','','','','OVERALL','','','');
   row('','','','','','','','');
-  row('','PROFIT','WINS','LOSSES','WIN %','AVG ROI','','');
-  row('ALL TIME',(ov.units>=0?'+':'')+ov.units.toFixed(2)+'u',ov.w,ov.l,ov.winPct.toFixed(1)+'%',ov.avgRoi.toFixed(1)+'%','','');
+  row('','PROFIT','WINS','LOSSES','WIN %','ROI%','','');
+  row('ALL TIME',(ov.units>=0?'+':'')+ov.units.toFixed(2)+'u',ov.w,ov.l,ov.winPct.toFixed(1)+'%',ov.actualRoi.toFixed(1)+'%','','');
   row(settled.length+' settled · '+pending+' pending','','','','','','','');
   blank();
 
@@ -1066,14 +1074,14 @@ function exportXLSX(){
       // ML: overall + by team side (fav vs dog) + by book
       // RL: overall + by spread (+0.5 vs -0.5) + by book
       const ov2=stats(ms);
-      row('','PROFIT','WINS','LOSSES','WIN %','AVG ROI','','');
-      row('Overall',(ov2.units>=0?'+':'')+ov2.units.toFixed(2)+'u',ov2.w,ov2.l,ov2.winPct.toFixed(1)+'%',ov2.avgRoi.toFixed(1)+'%','','');
+      row('','PROFIT','WINS','LOSSES','WIN %','ROI%','','');
+      row('Overall',(ov2.units>=0?'+':'')+ov2.units.toFixed(2)+'u',ov2.w,ov2.l,ov2.winPct.toFixed(1)+'%',ov2.actualRoi.toFixed(1)+'%','','');
       blank();
       if(isRL){
         // By spread
         const spreads=[...new Set(ms.filter(t=>t.line!=null).map(t=>t.line))].sort((a,b)=>a-b);
         if(spreads.length){
-          row('BY SPREAD','PROFIT','WINS','LOSSES','WIN %','','','');
+          row('BY SPREAD','PROFIT','WINS','LOSSES','WIN %','ACTUAL ROI','','');
           for(const sp of spreads){
             const ss=stats(ms.filter(t=>t.line===sp));
             if(!ss.tot) continue;
@@ -1086,18 +1094,18 @@ function exportXLSX(){
         const favs=ms.filter(t=>t.odds!=null&&t.odds<0);
         const dogs=ms.filter(t=>t.odds!=null&&t.odds>0);
         if(favs.length||dogs.length){
-          row('BY SIDE','PROFIT','WINS','LOSSES','WIN %','','','');
-          if(favs.length){const fs=stats(favs);row('Favorite (−)',(fs.units>=0?'+':'')+fs.units.toFixed(2)+'u',fs.w,fs.l,fs.winPct.toFixed(1)+'%','','','');}
-          if(dogs.length){const ds2=stats(dogs);row('Underdog (+)',(ds2.units>=0?'+':'')+ds2.units.toFixed(2)+'u',ds2.w,ds2.l,ds2.winPct.toFixed(1)+'%','','','');}
+          row('BY SIDE','PROFIT','WINS','LOSSES','WIN %','ACTUAL ROI','','');
+          if(favs.length){const fs=stats(favs);row('Favorite (−)',(fs.units>=0?'+':'')+fs.units.toFixed(2)+'u',fs.w,fs.l,fs.winPct.toFixed(1)+'%',fs.actualRoi.toFixed(1)+'%','','');}
+          if(dogs.length){const ds2=stats(dogs);row('Underdog (+)',(ds2.units>=0?'+':'')+ds2.units.toFixed(2)+'u',ds2.w,ds2.l,ds2.winPct.toFixed(1)+'%',ds2.actualRoi.toFixed(1)+'%','','');}
           blank();
         }
       }
       // By book
-      row('BY BOOK','PROFIT','WINS','LOSSES','WIN %','','','');
+      row('BY BOOK','PROFIT','WINS','LOSSES','WIN %','ACTUAL ROI','','');
       const books=[...new Set(ms.map(t=>t.book))].sort();
       for(const bk of books){
         const bs=stats(ms.filter(t=>t.book===bk));
-        row(bk,(bs.units>=0?'+':'')+bs.units.toFixed(2)+'u',bs.w,bs.l,bs.winPct.toFixed(1)+'%','','','');
+        row(bk,(bs.units>=0?'+':'')+bs.units.toFixed(2)+'u',bs.w,bs.l,bs.winPct.toFixed(1)+'%',bs.actualRoi.toFixed(1)+'%','','');
       }
     } else {
       const overs=ms.filter(t=>t.dir==='OVER');
