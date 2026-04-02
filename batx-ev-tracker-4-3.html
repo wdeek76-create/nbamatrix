@@ -184,6 +184,72 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
 .summary-filters select,.summary-filters input{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;padding:4px 8px;outline:none;}
 .summary-text{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;font-family:monospace;max-height:400px;overflow-y:auto;color:var(--text);}
 .summary-actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end;}
+
+/* Parser styles */
+
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1e2128; color: #e4e8f0; font-family: 'Syne', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 12px 20px; border-bottom: 1px solid #363c47; background: #272b33; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; color: #3dd6f5; }
+  header span { font-size: 0.67rem; color: #8892a4; font-family: 'JetBrains Mono', monospace; background: #1e2128; padding: 2px 8px; border-radius: 4px; border: 1px solid #363c47; }
+  .workspace { display: grid; grid-template-columns: 1fr 1fr; flex: 1; }
+  .pane { display: flex; flex-direction: column; border-right: 1px solid #363c47; }
+  .pane:last-child { border-right: none; }
+  .pane-header { display: flex; align-items: center; gap: 8px; padding: 8px 13px; background: #272b33; border-bottom: 1px solid #363c47; font-size: 0.67rem; font-family: 'JetBrains Mono', monospace; color: #8892a4; }
+  .badge { background: #1e2128; border: 1px solid #363c47; border-radius: 3px; padding: 1px 7px; font-size: 0.64rem; font-family: 'JetBrains Mono', monospace; }
+  .badge.ok { border-color: #5af0a0; color: #5af0a0; }
+  .badge.err { border-color: #f05c5c; color: #f05c5c; }
+  textarea { flex: 1; resize: none; background: #1e2128; color: #e4e8f0; font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; border: none; padding: 13px; outline: none; line-height: 1.7; min-height: 340px; }
+  textarea::placeholder { color: #8892a4; }
+  .hdr-btn { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; background: #1e2128; color: #e4e8f0; border: 1px solid #363c47; border-radius: 4px; padding: 3px 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .hdr-btn:hover { border-color: #3dd6f5; color: #3dd6f5; }
+  .hdr-btn.primary { background: #3dd6f5; color: #0b0e13; font-weight: 700; border: none; }
+  .hdr-btn.primary:hover { background: #6ee8fa; }
+  .hdr-btn.danger { border-color: #f05c5c; color: #f05c5c; }
+  .hdr-btn.danger:hover { background: #f05c5c; color: #fff; }
+  .market-tabs { display: flex; background: #1e2128; border-bottom: 1px solid #363c47; overflow-x: auto; flex-shrink: 0; scrollbar-width: thin; }
+  .market-tab { font-family: 'JetBrains Mono', monospace; font-size: 0.63rem; padding: 7px 11px; cursor: pointer; color: #8892a4; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; display: flex; align-items: center; gap: 4px; }
+  .market-tab:hover { color: #e4e8f0; }
+  .market-tab.active { color: #3dd6f5; border-bottom-color: #3dd6f5; }
+  .tab-count { background: #272b33; border-radius: 3px; padding: 0 5px; font-size: 0.57rem; color: #8892a4; }
+  .market-tab.active .tab-count { background: #1a2535; color: #3dd6f5; }
+  .view-tabs { display: flex; background: #272b33; border-bottom: 1px solid #363c47; }
+  .view-tab { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; padding: 6px 14px; cursor: pointer; color: #8892a4; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .view-tab.active { color: #5af0a0; border-bottom-color: #5af0a0; }
+  .filter-row { display: flex; gap: 6px; padding: 7px 13px; background: #272b33; border-bottom: 1px solid #363c47; align-items: center; flex-wrap: wrap; }
+  .filter-label { font-size: 0.62rem; color: #8892a4; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+  .filter-btn { font-family: 'JetBrains Mono', monospace; font-size: 0.64rem; background: #1e2128; color: #8892a4; border: 1px solid #363c47; border-radius: 4px; padding: 2px 8px; cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover, .filter-btn.active { border-color: #3dd6f5; color: #3dd6f5; background: #1a2535; }
+  .output-scroll { flex: 1; overflow-y: auto; padding: 9px; display: flex; flex-direction: column; gap: 5px; background: #1e2128; min-height: 300px; }
+  .output-scroll.empty { align-items: center; justify-content: center; color: #8892a4; font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; text-align: center; }
+  .output-scroll.hidden { display: none; }
+  .game-card { background: #272b33; border: 1px solid #363c47; border-radius: 7px; padding: 8px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 3px 10px; align-items: center; animation: slideIn 0.12s ease-out; }
+  @keyframes slideIn { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:none; } }
+  .game-card:hover { border-color: #4a5568; }
+  .left-col { display: flex; flex-direction: column; gap: 3px; }
+  .book-pill { font-family: 'JetBrains Mono', monospace; font-size: 0.64rem; font-weight: 600; background: #1a2535; border: 1px solid #3dd6f5; color: #3dd6f5; border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
+  .market-pill { font-family: 'JetBrains Mono', monospace; font-size: 0.57rem; background: #1e2535; border: 1px solid #4a5568; color: #8892a4; border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+  .game-info { min-width: 0; }
+  .game-name { font-size: 0.78rem; font-weight: 700; color: #e4e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .game-team { font-size: 0.69rem; color: #3dd6f5; font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .game-meta { font-size: 0.59rem; font-family: 'JetBrains Mono', monospace; color: #8892a4; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .game-nums { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .dir-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.67rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+  .dir-badge.over  { background: #1a2e20; color: #5af0a0; border: 1px solid #5af0a0; }
+  .dir-badge.under { background: #2e1e0a; color: #f5a05a; border: 1px solid #f5a05a; }
+  .dir-badge.home, .dir-badge.away, .dir-badge.ml { background: #1a1e35; color: #c5a5f5; border: 1px solid #c5a5f5; }
+  .roi-line { font-family: 'JetBrains Mono', monospace; font-size: 0.61rem; color: #5af0a0; }
+  .sub-line  { font-family: 'JetBrains Mono', monospace; font-size: 0.59rem; color: #8892a4; }
+  .json-view { flex: 1; overflow: auto; padding: 13px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; line-height: 1.7; background: #1e2128; white-space: pre-wrap; word-break: break-all; display: none; min-height: 300px; }
+  .json-view.visible { display: block; }
+  .jk { color: #3dd6f5; } .js { color: #c5a5f5; } .jn { color: #f5d76e; } .jb { color: #5af0a0; }
+  .status-bar { padding: 5px 18px; background: #272b33; border-top: 1px solid #363c47; display: flex; font-family: 'JetBrains Mono', monospace; font-size: 0.67rem; color: #8892a4; align-items: center; }
+  .ok { color: #5af0a0; } .err { color: #f05c5c; }
+  .error-box { background: #2e0f0f; border: 1px solid #f05c5c; border-radius: 6px; padding: 11px; color: #f05c5c; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; white-space: pre-wrap; margin: 10px; }
+
+.parser-play-card{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
+.parser-play-card:hover{border-color:var(--hint)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -240,6 +306,35 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
     <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
   </div>
   <div id="trackerSection"></div>
+<div id="parseTab" style="display:none;padding:16px">
+  <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+    <button class="screenshot-btn" onclick="parserRenderAll()">▶ Parse</button>
+    <button class="screenshot-btn" onclick="parserClearAll()">✕ Clear</button>
+    <span id="parserStatus" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+  <textarea id="parserInput" placeholder="Paste BatX EV Analytics gamesheet here..." 
+    oninput="parserOnInput()"
+    style="width:100%;height:180px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:10px;resize:vertical;font-family:monospace"></textarea>
+  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+    <select id="parserMarketFilter" onchange="parserRenderAll()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px">
+      <option value="all">All Markets</option>
+      <option value="Total">Game Total</option>
+      <option value="Team Total">Team Total</option>
+      <option value="1H Total">1H Total</option>
+      <option value="1H TT">1H Team Total</option>
+      <option value="1H ML">1H ML</option>
+      <option value="1H RL">1H RL</option>
+    </select>
+    <select id="parserBetFilter" onchange="parserRenderAll()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px">
+      <option value="all">All Bets</option>
+      <option value="OVER">Overs</option>
+      <option value="UNDER">Unders</option>
+    </select>
+    <button class="screenshot-btn" id="trackSelectedBtn" onclick="trackSelectedPlays()" style="display:none">✚ Track Selected</button>
+    <button class="screenshot-btn" onclick="selectAllParsed()" style="display:none" id="selectAllBtn">Select All</button>
+  </div>
+  <div id="parserOutput" style="margin-top:12px"></div>
+</div>
 </div>
 
 <script>
@@ -993,7 +1088,12 @@ function closeSummary() {
   if(m) m.remove();
 }
 
-function setTab(tab){trackerTab=tab;renderTracker();}
+function setTab(tab){
+  trackerTab=tab;
+  document.getElementById('parseTab').style.display=tab==='parse'?'block':'none';
+  document.getElementById('trackerSection').style.display=tab==='parse'?'none':'block';
+  if(tab!=='parse') renderTracker();
+}
 function exportXLSX(){
   try {
   if(!tracker.length){ alert('No bets to export'); return; }
@@ -1226,6 +1326,7 @@ function renderTracker(){
     <div style="display:flex;align-items:center;gap:12px">
       <span style="font-size:15px;font-weight:700">Tracker</span>
       <div class="tab-row">
+        <button class="tab-btn ${trackerTab==='parse'?'active':''}" onclick="setTab('parse')">＋ Parse</button>
         <button class="tab-btn ${trackerTab==='dashboard'?'active':''}" onclick="setTab('dashboard')">Dashboard</button>
         <button class="tab-btn ${trackerTab==='calendar'?'active':''}" onclick="setTab('calendar')">Calendar</button>
         <button class="tab-btn ${trackerTab==='log'?'active':''}" onclick="setTab('log')">Bet log (${tracker.length})</button>
@@ -1673,6 +1774,410 @@ async function gradeDate(selectedDate, setStatus){
   setStatus(graded+' bets graded!');
 }
 
+
+
+let allRows = [];
+let currentMarket = 'all';
+let betFilter = 'all';
+
+// Market normalization — map raw EV Analytics market text to our tab keys
+const MARKET_MAP = {
+  'game total':   'Game Total',
+  'team total':   'Team Total',
+  'f5 total':     'F5 Total',
+  'f5 tt':        'F5 TT',
+  'f5 ml':        'F5 ML',
+  'f5 rl':        'F5 RL',
+  '1h game total':'1H Total',
+  '1h total':     '1H Total',
+  '1h team total':'1H TT',
+  '1h tt':        '1H TT',
+  '1h moneyline': '1H ML',
+  '1h ml':        '1H ML',
+  '1h run line':  '1H RL',
+  '1h rl':        '1H RL',
+};
+
+// Tab display order
+const TAB_ORDER = ['all','Game Total','Team Total','F5 Total','F5 TT','F5 ML','F5 RL','1H Total','1H TT','1H ML','1H RL'];
+
+const BOOKS = ['Pinnacle','FanDuel','DraftKings','BetOnline','Fliff','BetMGM','Caesars',
+  'BetRivers','Bovada','Fanatics','TheScore','Bally Bet','Hard Rock','Circa Sports','Ace23','Kalshi'];
+
+function parseOdds(str) {
+  if (!str?.trim()) return {};
+  str = str.trim();
+  const m1 = str.match(/^([\d.]+)\s*\(([+-]\d+)\)$/);
+  if (m1) return { line: parseFloat(m1[1]), odds: parseInt(m1[2]) };
+  const m2 = str.match(/^([+-]\d+)$/);
+  if (m2) return { odds: parseInt(m2[1]) };
+  const m3 = str.match(/^([\d.]+)$/);
+  if (m3) return { line: parseFloat(m3[1]) };
+  return {};
+}
+
+function parseEV(text) {
+  const rows = [];
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    const parts = lines[i].split(/\t/);
+    if (parts.length < 10) continue;
+    const book = BOOKS.find(b => b.toLowerCase() === parts[0].trim().toLowerCase());
+    if (!book) continue;
+    const marketRaw = (parts[3] || '').trim();
+    const marketKey = MARKET_MAP[marketRaw.toLowerCase()];
+    if (!marketKey) continue;
+
+    const date     = (parts[1] || '').trim();
+    const time     = (parts[2] || '').trim();
+    const teamFull = (parts[4] || '').trim();
+    const gameRaw  = (parts[6] || '').trim();
+
+    // For ML/RL markets the column layout is slightly different
+    const isMLRL = marketKey === 'F5 ML' || marketKey === 'F5 RL' || marketKey === '1H ML' || marketKey === '1H RL';
+
+    let over = {}, under = {}, batx = null, suggested = null, fair = null, winPct = null, ev = null, roi = null;
+
+    if (isMLRL) {
+      const isRL = marketKey === 'F5 RL' || marketKey === '1H RL';
+      if (isRL) {
+        // RL: col 9 = spread field e.g. "+0.5 (-105)"
+        const spreadRaw = (parts[9] || '').trim();
+        const spreadMatch = spreadRaw.match(/^([+-][\d.]+)\s*\(([+-]\d+)\)$/);
+        if (spreadMatch) {
+          over = { line: parseFloat(spreadMatch[1]), odds: parseInt(spreadMatch[2]) };
+        }
+        batx      = parts[13] ? parseFloat(parts[13]) : null;
+        suggested = (parts[14] || '').trim() || null;
+        fair      = parts[15] ? parseInt(parts[15]) : null;
+        winPct    = parts[16] ? parseFloat(parts[16].replace('%','')) : null;
+        ev        = parts[17] ? parseFloat(parts[17].replace(/[$,]/g,'')) : null;
+        roi       = parts[18] ? parseFloat(parts[18].replace('%','')) : null;
+      } else {
+        // ML: col 12 = odds (e.g. "+130"), col 13 = batx proj, col 14 = suggested team, col 15 = fair, col 16 = win%, col 17 = ev, col 18 = roi
+        const mlOdds = (parts[12] || '').trim();
+        const mlMatch = mlOdds.match(/^([+-]\d+)$/);
+        if (mlMatch) over = { odds: parseInt(mlMatch[1]) };
+        batx      = parts[13] ? parseFloat(parts[13]) : null;
+        suggested = (parts[14] || '').trim() || null;
+        fair      = parts[15] ? parseInt(parts[15]) : null;
+        winPct    = parts[16] ? parseFloat(parts[16].replace('%','')) : null;
+        ev        = parts[17] ? parseFloat(parts[17].replace(/[$,]/g,'')) : null;
+        roi       = parts[18] ? parseFloat(parts[18].replace('%','')) : null;
+      }
+    } else {
+      over  = parseOdds(parts[10]);
+      under = parseOdds(parts[11]);
+      batx      = parts[13] ? parseFloat(parts[13]) : null;
+      suggested = (parts[14] || '').trim() || null;
+      fair      = parts[15] ? parseInt(parts[15]) : null;
+      winPct    = parts[16] ? parseFloat(parts[16].replace('%','')) : null;
+      ev        = parts[17] ? parseFloat(parts[17].replace(/[$,]/g,'')) : null;
+      roi       = parts[18] ? parseFloat(parts[18].replace('%','')) : null;
+    }
+
+    if (!gameRaw) continue;
+    const gp = gameRaw.split('@');
+    // ATH@ATL = ATH away, ATL home -> store as AWAY/HOME = ATH/ATL
+    const game = gp.length === 2 ? `${gp[0].trim()}/${gp[1].trim()}` : gameRaw.replace('@','/');
+    const isTT = ['Team Total','F5 TT','1H TT'].includes(marketKey);
+    const isML = ['F5 ML','1H ML'].includes(marketKey);
+    const isRL = ['F5 RL','1H RL'].includes(marketKey);
+
+    rows.push({
+      market: marketKey, game,
+      team: (isTT || isML || isRL) ? teamFull : null,
+      book, date, time,
+      over_line:  over.line  ?? null,
+      over_odds:  over.odds  ?? null,
+      under_line: under.line ?? null,
+      under_odds: under.odds ?? null,
+      batx_proj:  batx,
+      suggested_bet: suggested,
+      fair_price: fair,
+      win_pct:    winPct,
+      ev, roi
+    });
+  }
+  // Normalize times: all rows for the same game get the same time
+  const gameTimes = {};
+  rows.forEach(r => {
+    if (!r.game || !r.time) return;
+    if (!gameTimes[r.game]) gameTimes[r.game] = {};
+    gameTimes[r.game][r.time] = (gameTimes[r.game][r.time]||0) + 1;
+  });
+  const canonicalTime = {};
+  Object.entries(gameTimes).forEach(([game, times]) => {
+    canonicalTime[game] = Object.entries(times).sort((a,b)=>b[1]-a[1])[0][0];
+  });
+  const normalizedRows = rows.map(r => r.game && canonicalTime[r.game] ? {...r, time: canonicalTime[r.game]} : r);
+  return normalizedRows;
+
+}
+
+function dedupe(rows) {
+  const best = {};
+  const times = {};
+  rows.forEach(r => {
+    const key = r.team
+      ? `${r.market}|${r.team}|${r.suggested_bet}`
+      : `${r.market}|${r.game}|${r.suggested_bet}`;
+    // track most common time per key
+    if (!times[key]) times[key] = {};
+    if (r.time) times[key][r.time] = (times[key][r.time]||0) + 1;
+    if (!best[key] || (r.roi ?? -Infinity) > (best[key].roi ?? -Infinity)) best[key] = r;
+  });
+  // assign most common time to each winner
+  return Object.entries(best).map(([key, r]) => {
+    if (times[key]) {
+      const mostCommon = Object.entries(times[key]).sort((a,b)=>b[1]-a[1])[0];
+      if (mostCommon) r = {...r, time: mostCommon[0]};
+    }
+    return r;
+  });
+}
+
+function visibleRows() {
+  const book = document.getElementById('bookFilter').value;
+  let rows = currentMarket === 'all' ? allRows : allRows.filter(r => r.market === currentMarket);
+  rows = rows.filter(r => (book === 'all' || r.book === book) && (betFilter === 'all' || r.suggested_bet === betFilter));
+  return dedupe(rows);
+}
+
+function buildTabs() {
+  const presentMarkets = new Set(allRows.map(r => r.market));
+  const tabs = document.getElementById('marketTabs');
+  const allCount = dedupe(allRows).length;
+  let html = `<div class="market-tab active" data-market="all" onclick="setMarket('all',this)">All <span class="tab-count">${allCount}</span></div>`;
+  TAB_ORDER.filter(m => m !== 'all' && presentMarkets.has(m)).forEach(m => {
+    const count = dedupe(allRows.filter(r => r.market === m)).length;
+    html += `<div class="market-tab" data-market="${m}" onclick="setMarket('${m}',this)">${m} <span class="tab-count">${count}</span></div>`;
+  });
+  tabs.innerHTML = html;
+}
+
+function parserFmtOdds(n) { return n == null ? '—' : n > 0 ? `+${n}` : `${n}`; }
+
+function renderCards(rows) {
+  const cv = document.getElementById('cardsView');
+  if (!rows.length) { cv.innerHTML = '<span>No rows match the current filters.</span>'; cv.className = 'output-scroll empty'; return; }
+  cv.className = 'output-scroll';
+  cv.innerHTML = rows.map(r => {
+    const isMLRL = ['F5 ML','1H ML','F5 RL','1H RL'].includes(r.market);
+    const dirCls = r.suggested_bet === 'UNDER' ? 'under' : r.suggested_bet === 'OVER' ? 'over' : 'ml';
+    const oddsStr = isMLRL
+      ? parserFmtOdds(r.over_odds)
+      : r.suggested_bet === 'UNDER' ? parserFmtOdds(r.under_odds) : parserFmtOdds(r.over_odds);
+    const metaStr = isMLRL
+      ? `ML: ${parserFmtOdds(r.over_odds)} · BAT X: ${r.batx_proj??'—'} · Fair: ${parserFmtOdds(r.fair_price)}`
+      : `O: ${r.over_line??'—'}(${parserFmtOdds(r.over_odds)}) · U: ${r.under_line??'—'}(${parserFmtOdds(r.under_odds)}) · BAT X: ${r.batx_proj??'—'} · Fair: ${parserFmtOdds(r.fair_price)}`;
+    return `<div class="game-card">
+      <div class="left-col">
+        <div class="book-pill">${r.book}</div>
+        <div class="market-pill">${r.market}</div>
+      </div>
+      <div class="game-info">
+        <div class="game-name">${r.game} <span style="color:#8892a4;font-size:0.67rem;font-weight:400">${r.time||''}</span></div>
+        ${r.team ? `<div class="game-team">${r.team}</div>` : ''}
+        <div class="game-meta">${metaStr}</div>
+      </div>
+      <div class="game-nums">
+        <div class="dir-badge ${dirCls}">${r.suggested_bet||'—'} ${oddsStr}</div>
+        <div class="roi-line">ROI: ${r.roi!=null?r.roi+'%':'—'}</div>
+        <div class="sub-line">Win: ${r.win_pct!=null?r.win_pct+'%':'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function hlJSON(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
+      if (/^"/.test(m)) return m.endsWith(':') ? `<span class="jk">${m}</span>` : `<span class="js">${m}</span>`;
+      if (/true|false/.test(m)) return `<span class="jb">${m}</span>`;
+      return `<span class="jn">${m}</span>`;
+    });
+}
+
+function parserRenderAll() {
+  const rows = visibleRows();
+  renderCards(rows);
+  document.getElementById('jsonView').innerHTML = hlJSON(JSON.stringify(rows, null, 2));
+  document.getElementById('statusRight').textContent = `${rows.length} rows shown`;
+}
+
+function populateBooks() {
+  const books = ['all', ...new Set(allRows.map(r => r.book))];
+  document.getElementById('bookFilter').innerHTML = books.map(b => `<option value="${b}">${b==='all'?'All':b}</option>`).join('');
+}
+
+function parse() {
+  const text = document.getElementById('inputArea').value;
+  if (!text.trim()) { parserSetStatus('Nothing to parse.', false); return; }
+  allRows = parseEV(text);
+  const badge = document.getElementById('parseBadge');
+  if (!allRows.length) {
+    document.getElementById('cardsView').innerHTML = `<div class="error-box">No rows found.\n\nMake sure you're pasting from the EV Analytics MLB Gamesheet.\nTry Ctrl+A → Ctrl+C on the full page.</div>`;
+    document.getElementById('cardsView').className = 'output-scroll';
+    badge.textContent = 'ERROR'; badge.className = 'badge err';
+    parserSetStatus('No data found.', true); return;
+  }
+  currentMarket = 'all';
+  populateBooks();
+  buildTabs();
+  parserRenderAll();
+  const total = dedupe(allRows).length;
+  const markets = new Set(allRows.map(r => r.market)).size;
+  badge.textContent = `${allRows.length} rows`; badge.className = 'badge ok';
+  document.getElementById('rowBadge').textContent = `${total} deduped`; document.getElementById('rowBadge').className = 'badge ok';
+  parserSetStatus(`✓ ${allRows.length} rows → ${total} best picks across ${markets} markets`, false);
+}
+
+function setMarket(m, btn) {
+  currentMarket = m;
+  document.querySelectorAll('.market-tab').forEach(t => t.classList.toggle('active', t === btn));
+  parserRenderAll();
+}
+
+function setBet(val, btn) {
+  betFilter = val;
+  document.querySelectorAll('[data-g="bet"]').forEach(b => b.classList.toggle('active', b === btn));
+  parserRenderAll();
+}
+
+function setView(v) {
+  document.getElementById('vtCards').classList.toggle('active', v === 'cards');
+  document.getElementById('vtJSON').classList.toggle('active', v === 'json');
+  document.getElementById('cardsView').classList.toggle('hidden', v !== 'cards');
+  document.getElementById('jsonView').classList.toggle('visible', v === 'json');
+}
+
+function copyJSON(currentTab) {
+  const rows = currentTab ? visibleRows() : dedupe(allRows);
+  navigator.clipboard.writeText(JSON.stringify(rows, null, 2))
+    .then(() => parserSetStatus(`✓ Copied ${rows.length} rows`, false));
+}
+
+function downloadJSON() {
+  const rows = visibleRows();
+  const a = document.createElement('a');
+  const mkt = currentMarket === 'all' ? 'all' : currentMarket.replace(/ /g,'_').toLowerCase();
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' }));
+  a.download = `batx_${mkt}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function parserClearAll() {
+  document.getElementById('inputArea').value = '';
+  allRows = []; currentMarket = 'all';
+  document.getElementById('marketTabs').innerHTML = '';
+  document.getElementById('cardsView').innerHTML = 'Parsed rows will appear here…';
+  document.getElementById('cardsView').className = 'output-scroll empty';
+  document.getElementById('jsonView').innerHTML = '';
+  document.getElementById('parseBadge').textContent = '—'; document.getElementById('parseBadge').className = 'badge';
+  document.getElementById('rowBadge').textContent = '—'; document.getElementById('rowBadge').className = 'badge';
+  parserSetStatus('Cleared.', false); document.getElementById('statusRight').textContent = '';
+}
+
+function parserSetStatus(msg, isErr) {
+  const el = document.getElementById('statusLeft');
+  el.textContent = msg; el.className = isErr ? 'err' : 'ok';
+}
+
+let inputTimer;
+function onInput() { clearTimeout(inputTimer); inputTimer = setTimeout(parse, 600); }
+
+function loadSample() {
+  document.getElementById('inputArea').value =
+`Pinnacle\t03/30\t6:40 PM\tTeam Total\tPhiladelphia Phillies\tPHI\tWSH@PHI\t\t\t\t4.5 (-133)\t4.5 (+113)\t\t4.57\tUNDER\t-129\t56.3%\t$19.98\t20.0%\t
+Pinnacle\t03/30\t6:40 PM\tGame Total\tNationals / Phillies\tWSH/PHI\tWSH@PHI\t\t\t\t9.0 (-117)\t9.0 (+104)\t\t8.88\tUNDER\t-138\t58.0%\t$18.36\t18.4%\t
+BetOnline\t03/30\t6:40 PM\tGame Total\tNationals / Phillies\tWSH/PHI\tWSH@PHI\t\t\t\t9.0 (-117)\t9.0 (-103)\t\t8.88\tUNDER\t-138\t58.0%\t$14.78\t14.4%\t
+Pinnacle\t03/30\t7:45 PM\t1H Game Total\tMets / Cardinals\tNYM/STL\tNYM@STL\t\t\t\t5.0 (+101)\t5.0 (-116)\t\t4.87\tUNDER\t-156\t60.9%\t$15.63\t13.5%\t
+DraftKings\t03/30\t6:40 PM\t1H Moneyline\tWashington Nationals\tWSH\tWSH@PHI\t\t\t\t\t\t+130\t0.51\tWSH\t-102\t50.6%\t$16.36\t16.4%\t`;
+  parse();
+}
+
+
+function parserOnInput(){ clearTimeout(window._parserTimer); window._parserTimer=setTimeout(parserRenderAll,600); }
+
+function selectAllParsed(){
+  document.querySelectorAll('.parser-check').forEach(cb=>cb.checked=true);
+}
+
+function trackSelectedPlays(){
+  const checked=[...document.querySelectorAll('.parser-check:checked')];
+  if(!checked.length){alert('Select at least one play');return;}
+  let added=0;
+  for(const cb of checked){
+    const p=window._parsedPlays?.find(x=>x._id===cb.value);
+    if(!p) continue;
+    const rawG=p.game||p.tm||'';
+    const gp=rawG.toUpperCase().split(/[/@]/);
+    const gameLabel=p.mktType==='TT'||p.mktType==='1HTT'?(p.team||p.tm)+' '+(p.dir)+(p.line!=null?' '+p.line:''):
+      p.mktType==='1HML'||p.mktType==='1HRL'?p.tm+' '+p.dir+(p.line!=null?' '+p.line:''):
+      p.tm+' '+(p.dir)+(p.line!=null?' '+p.line:'');
+    if(tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType)) continue;
+    const best=p.books?.[0]||{};
+    const entry={
+      id:Date.now()+added,
+      date:p.date,time:p.time,
+      game:gameLabel,rawGame:rawG,
+      awayTeam:(gp[0]||'').replace(/[^A-Z]/g,''),
+      homeTeam:(gp[1]||'').replace(/[^A-Z]/g,''),
+      team:p.team||null,
+      dir:p.dir,tm:p.tm,
+      market:p.mktType,marketLabel:p.market||p.mktType,
+      book:best.book||p.book||'',odds:best.odds||p.over_odds||p.under_odds,
+      line:p.line,proj:p.proj||p.batx_proj,roi:p.roi||best.roi,
+      fairPrice:p.fairPrice||p.fair_price||null,
+      tracked_at:new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
+      result:'',books:p.books||[]
+    };
+    tracker.unshift(entry);
+    added++;
+  }
+  if(added){
+    localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
+    parserSetStatus(added+' plays tracked!');
+    document.querySelectorAll('.parser-check').forEach(cb=>cb.checked=false);
+    renderTracker();
+  } else {
+    parserSetStatus('All selected plays already tracked');
+  }
+}
+
+// Patch renderCards to add checkboxes and store plays
+const _origRenderCards = renderCards;
+function renderCards(rows){
+  window._parsedPlays = rows.map((p,i)=>({...p,_id:String(i)}));
+  const out=document.getElementById('parserOutput');
+  if(!out) return _origRenderCards(rows);
+  if(!rows.length){out.innerHTML='<div style="color:var(--muted);font-size:13px;padding:20px 0">No plays found.</div>';
+    ['trackSelectedBtn','selectAllBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+    return;
+  }
+  ['trackSelectedBtn','selectAllBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='inline-block';});
+  out.innerHTML=rows.map((p,i)=>{
+    const alreadyTracked=tracker.find(t=>{
+      const gl=(p.mktType==='TT'||p.mktType==='1HTT')?(p.team||p.tm)+' '+p.dir+(p.line!=null?' '+p.line:''):p.tm+' '+p.dir+(p.line!=null?' '+p.line:'');
+      return t.game===gl&&t.date===p.date&&t.market===p.mktType;
+    });
+    const col=p.dir==='OVER'?'var(--green)':p.dir==='UNDER'?'var(--hint)':'var(--text)';
+    const best=p.books?.[0]||{};
+    return `<div class="parser-play-card" style="${alreadyTracked?'opacity:0.5':''}">
+      <input type="checkbox" class="parser-check" value="${i}" ${alreadyTracked?'disabled':''} style="width:16px;height:16px;accent-color:var(--green);cursor:pointer">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${p.team||p.tm} <span style="color:${col}">${p.dir}</span>${p.line!=null?' '+p.line:''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.game} · ${p.market} · ${p.date} ${p.time}</div>
+      </div>
+      <div style="text-align:right;white-space:nowrap">
+        <div style="font-size:12px;font-weight:700">${parserFmtOdds(best.odds||p.over_odds||p.under_odds)}</div>
+        <div style="font-size:11px;color:var(--green)">+${(best.roi||p.roi||0).toFixed(1)}%</div>
+      </div>
+      ${alreadyTracked?'<div style="font-size:10px;color:var(--muted);white-space:nowrap">tracked</div>':''}
+    </div>`;
+  }).join('');
+}
 
 renderTracker();
 populateGradeDates();
