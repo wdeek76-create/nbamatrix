@@ -1741,46 +1741,58 @@ async function gradeDate(selectedDate, setStatus){
   setStatus(graded+' bets graded!');
 }
 
-let parserAllRows = [];
-let parserCurrentMarket = 'all';
-let parserBetFilter = 'all';
+function parserOnInput(){ clearTimeout(window._parserTimer); window._parserTimer=setTimeout(parserParse,300); }
 
-// Market normalization — map raw EV Analytics market text to our tab keys
-const MARKET_MAP = {
-  'game total':   'Game Total',
-  'team total':   'Team Total',
-  'f5 total':     'F5 Total',
-  'f5 tt':        'F5 TT',
-  'f5 ml':        'F5 ML',
-  'f5 rl':        'F5 RL',
-  '1h game total':'1H Total',
-  '1h total':     '1H Total',
-  '1h team total':'1H TT',
-  '1h tt':        '1H TT',
-  '1h moneyline': '1H ML',
-  '1h ml':        '1H ML',
-  '1h run line':  '1H RL',
-  '1h rl':        '1H RL',
-};
-
-// Tab display order
-const TAB_ORDER = ['all','Game Total','Team Total','F5 Total','F5 TT','F5 ML','F5 RL','1H Total','1H TT','1H ML','1H RL'];
-
-const BOOKS = ['Pinnacle','FanDuel','DraftKings','BetOnline','Fliff','BetMGM','Caesars',
-  'BetRivers','Bovada','Fanatics','TheScore','Bally Bet','Hard Rock','Circa Sports','Ace23','Kalshi'];
-
-function parseOdds(str) {
-  if (!str?.trim()) return {};
-  str = str.trim();
-  const m1 = str.match(/^([\d.]+)\s*\(([+-]\d+)\)$/);
-  if (m1) return { line: parseFloat(m1[1]), odds: parseInt(m1[2]) };
-  const m2 = str.match(/^([+-]\d+)$/);
-  if (m2) return { odds: parseInt(m2[1]) };
-  const m3 = str.match(/^([\d.]+)$/);
-  if (m3) return { line: parseFloat(m3[1]) };
-  return {};
+function selectAllParsed(){
+  document.querySelectorAll('.parser-check:not(:disabled)').forEach(cb=>cb.checked=true);
 }
 
+function trackSelectedPlays(){
+  const checked=[...document.querySelectorAll('.parser-check:checked')];
+  if(!checked.length){alert('Select at least one play');return;}
+  let added=0;
+  for(const cb of checked){
+    const p=window._parsedPlays?.find(x=>x._id===cb.value);
+    if(!p) continue;
+    const rawG=p.game||p.tm||'';
+    const gp=rawG.toUpperCase().split(/[/@]/);
+    const label=(p.mktType==='TT'||p.mktType==='1HTT')?(p.team||p.tm):p.tm;
+    const gameLabel=label+' '+p.dir+(p.line!=null?' '+p.line:'');
+    if(tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType)) continue;
+    const best=p.books?.[0]||{};
+    const entry={
+      id:Date.now()+added,
+      date:p.date,time:p.time,
+      game:gameLabel,rawGame:rawG,
+      awayTeam:(gp[0]||'').replace(/[^A-Z]/g,''),
+      homeTeam:(gp[1]||'').replace(/[^A-Z]/g,''),
+      team:p.team||null,
+      dir:p.dir,tm:p.tm,
+      market:p.mktType,marketLabel:p.market||p.mktType,
+      book:best.book||p.book||'',
+      odds:best.odds||p.over_odds||p.under_odds,
+      line:p.line,proj:p.proj||p.batx_proj,
+      roi:best.roi||p.roi,
+      fairPrice:p.fairPrice||p.fair_price||null,
+      tracked_at:new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
+      result:'',books:p.books||[]
+    };
+    tracker.unshift(entry);
+    added++;
+  }
+  if(added){
+    localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
+    parserSetStatus(added+' plays added to tracker!');
+    document.querySelectorAll('.parser-check').forEach(cb=>cb.checked=false);
+    renderTracker();
+    setTab('dashboard');
+  } else {
+    parserSetStatus('All selected plays already tracked');
+  }
+}
+
+
+// ── PARSE TAB ──
 function parseEV(text) {
   const rows = [];
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -1880,7 +1892,8 @@ function parseEV(text) {
 
 }
 
-function parserDedupe(rows) {
+
+function dedupe(rows) {
   const best = {};
   const times = {};
   rows.forEach(r => {
@@ -1902,172 +1915,78 @@ function parserDedupe(rows) {
   });
 }
 
-function parserVisibleRows() {
-  const book = document.getElementById('bookFilter').value;
-  let rows = parserCurrentMarket === 'all' ? parserAllRows : parserAllRows.filter(r => r.market === parserCurrentMarket);
-  rows = rows.filter(r => (book === 'all' || r.book === book) && (parserBetFilter === 'all' || r.suggested_bet === betFilter));
-  return parserDedupe(rows);
+
+let _parseAllRows = [];
+
+function parserOnInput(){
+  clearTimeout(window._parserTimer);
+  window._parserTimer = setTimeout(_runParse, 300);
 }
 
-function parserBuildTabs() {
-  const presentMarkets = new Set(parserAllRows.map(r => r.market));
-  const tabs = document.getElementById('marketTabs');
-  const allCount = parserDedupe(parserAllRows).length;
-  let html = `<div class="market-tab active" data-market="all" onclick="parserSetMarket('all',this)">All <span class="tab-count">${allCount}</span></div>`;
-  TAB_ORDER.filter(m => m !== 'all' && presentMarkets.has(m)).forEach(m => {
-    const count = parserDedupe(parserAllRows.filter(r => r.market === m)).length;
-    html += `<div class="market-tab" data-market="${m}" onclick="parserSetMarket('${m}',this)">${m} <span class="tab-count">${count}</span></div>`;
-  });
-  tabs.innerHTML = html;
+function _runParse(){
+  const ta = document.getElementById('parserInput');
+  if(!ta || !ta.value.trim()) return;
+  _parseAllRows = parseEV(ta.value);
+  _renderParseResults();
 }
 
-function _p_pfmtOdds(n) { return n == null ? '—' : n > 0 ? `+${n}` : `${n}`; }
+function parserRenderAll(){ _renderParseResults(); }
 
-function parserRenderCards(rows) {
-  window._parsedPlays = rows.map((p,i)=>({...p,_id:String(i)}));
+function parserClearAll(){
+  _parseAllRows = [];
+  const ta=document.getElementById('parserInput'); if(ta) ta.value='';
+  const out=document.getElementById('parserOutput'); if(out) out.innerHTML='';
+  const st=document.getElementById('parserStatus'); if(st) st.textContent='';
+  ['trackSelectedBtn','selectAllBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+}
+
+function _renderParseResults(){
   const out = document.getElementById('parserOutput');
   if(!out) return;
-  const trackBtn = document.getElementById('trackSelectedBtn');
-  const selAllBtn = document.getElementById('selectAllBtn');
+  const mktF = (document.getElementById('parserMarketFilter')||{}).value||'all';
+  const betF = (document.getElementById('parserBetFilter')||{}).value||'all';
+  let rows = dedupe(_parseAllRows);
+  if(mktF!=='all') rows = rows.filter(r=>r.market===mktF);
+  if(betF!=='all') rows = rows.filter(r=>r.suggested_bet===betF);
+  window._parsedPlays = rows.map((p,i)=>({...p,_id:String(i)}));
+  const trackBtn=document.getElementById('trackSelectedBtn');
+  const selBtn=document.getElementById('selectAllBtn');
+  const st=document.getElementById('parserStatus');
   if(!rows.length){
-    out.innerHTML='<div style="color:var(--muted);padding:12px">No plays match current filters.</div>';
+    out.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">No plays found. Paste your EV Analytics gamesheet above.</div>';
     if(trackBtn) trackBtn.style.display='none';
-    if(selAllBtn) selAllBtn.style.display='none';
+    if(selBtn) selBtn.style.display='none';
+    if(st) st.textContent='';
     return;
   }
   if(trackBtn) trackBtn.style.display='inline-block';
-  if(selAllBtn) selAllBtn.style.display='inline-block';
+  if(selBtn) selBtn.style.display='inline-block';
+  if(st) st.textContent = rows.length+' plays';
   out.innerHTML = rows.map((p,i)=>{
     const best = p.books?.[0]||{};
     const odds = best.odds ?? p.over_odds ?? p.under_odds;
     const roi = best.roi ?? p.roi ?? 0;
-    const col = p.dir==='OVER'?'var(--green)':p.dir==='UNDER'?'#60a5fa':'var(--text)';
     const label = (p.mktType==='TT'||p.mktType==='1HTT') ? (p.team||p.tm) : p.tm;
+    const dir = p.suggested_bet||p.dir||'';
+    const col = dir==='OVER'?'var(--green)':dir==='UNDER'?'#60a5fa':'var(--text)';
     const already = tracker.find(t=>{
-      const gl = label+' '+p.dir+(p.line!=null?' '+p.line:'');
+      const gl = label+' '+dir+(p.line!=null?' '+p.line:'');
       return t.game===gl && t.date===p.date && t.market===p.mktType;
     });
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid ${already?'var(--border)':'var(--border2)'};background:var(--surface);margin-bottom:6px;opacity:${already?'0.5':'1'}">
-      <input type="checkbox" class="parser-check" value="${i}" ${already?'disabled title="Already tracked"':''} style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
+      <input type="checkbox" class="parser-check" value="${i}" ${already?'disabled':''} style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${label} <span style="color:${col}">${p.dir}</span>${p.line!=null?' '+p.line:''}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.game} · ${p.market} · ${p.date} ${p.time||''}</div>
+        <div style="font-size:13px;font-weight:600">${label} <span style="color:${col}">${dir}</span>${p.line!=null?' '+p.line:''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.game||''} · ${p.market||''} · ${p.date||''} ${p.time||''}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:13px;font-weight:700">${_pfmtOdds(odds)}</div>
-        <div style="font-size:11px;color:var(--green);font-weight:600">+${roi.toFixed?roi.toFixed(1):roi}%</div>
+        <div style="font-size:13px;font-weight:700">${odds!=null?(odds>0?'+':'')+odds:'—'}</div>
+        <div style="font-size:11px;color:var(--green);font-weight:600">+${(typeof roi==='number'?roi:parseFloat(roi)||0).toFixed(1)}%</div>
       </div>
-      ${already?'<div style="font-size:10px;color:var(--muted);white-space:nowrap">✓ tracked</div>':''}
+      ${already?'<div style="font-size:10px;color:var(--muted)">✓</div>':''}
     </div>`;
   }).join('');
 }
-
-function parserHlJSON(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
-      if (/^"/.test(m)) return m.endsWith(':') ? `<span class="jk">${m}</span>` : `<span class="js">${m}</span>`;
-      if (/true|false/.test(m)) return `<span class="jb">${m}</span>`;
-      return `<span class="jn">${m}</span>`;
-    });
-}
-
-function parserRenderAll() {
-  const mktF=(document.getElementById('parserMarketFilter')||{}).value||'all';
-  const betF=(document.getElementById('parserBetFilter')||{}).value||'all';
-  let rows=parserDedupe(parserAllRows);
-  if(mktF!=='all') rows=rows.filter(r=>r.market===mktF);
-  if(betF!=='all') rows=rows.filter(r=>r.dir===betF);
-  parserRenderCards(rows);
-  const st=document.getElementById('parserStatus');
-  if(st) st.textContent=rows.length+' plays found';
-}
-
-function parserPopulateBooks() {
-  const books = ['all', ...new Set(parserAllRows.map(r => r.book))];
-  document.getElementById('bookFilter').innerHTML = books.map(b => `<option value="${b}">${b==='all'?'All':b}</option>`).join('');
-}
-
-function parserParse() {
-  const ta = document.getElementById('parserInput'); const text = ta ? ta.value : '';
-  if (!text.trim()) { parserSetStatus('Nothing to parse.', false); return; }
-  parserAllRows = parseEV(text);
-  if (!parserAllRows.length) {
-    const out=document.getElementById('parserOutput');
-    if(out) out.innerHTML='<div style="color:var(--red);padding:12px">No plays found. Make sure you paste the full EV Analytics gamesheet.</div>';
-    parserSetStatus('No data found.', true); return;
-  }
-  parserCurrentMarket = 'all';
-  parserRenderAll();
-  const total = parserDedupe(parserAllRows).length;
-  const markets = new Set(parserAllRows.map(r => r.market)).size;
-  parserSetStatus('✓ '+total+' plays across '+markets+' markets', false);
-}
-
-function parserSetMarket(m, btn) {
-  parserCurrentMarket = m;
-  document.querySelectorAll('.market-tab').forEach(t => t.classList.toggle('active', t === btn));
-  parserRenderAll();
-}
-
-function parserSetBet(val, btn) {
-  parserBetFilter = val;
-  document.querySelectorAll('[data-g="bet"]').forEach(b => b.classList.toggle('active', b === btn));
-  parserRenderAll();
-}
-
-function parserSetView(v) {
-  document.getElementById('vtCards').classList.toggle('active', v === 'cards');
-  document.getElementById('vtJSON').classList.toggle('active', v === 'json');
-  document.getElementById('cardsView').classList.toggle('hidden', v !== 'cards');
-  document.getElementById('jsonView').classList.toggle('visible', v === 'json');
-}
-
-function parserCopyJSON(currentTab) {
-  const rows = currentTab ? parserVisibleRows() : parserDedupe(parserAllRows);
-  navigator.clipboard.writeText(JSON.stringify(rows, null, 2))
-    .then(() => parserSetStatus(`✓ Copied ${rows.length} rows`, false));
-}
-
-function parserDownloadJSON() {
-  const rows = parserVisibleRows();
-  const a = document.createElement('a');
-  const mkt = parserCurrentMarket === 'all' ? 'all' : parserCurrentMarket.replace(/ /g,'_').toLowerCase();
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' }));
-  a.download = `batx_${mkt}_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-}
-
-function parserClearAll() {
-  document.getElementById('inputArea').value = '';
-  parserAllRows = []; parserCurrentMarket = 'all';
-  document.getElementById('marketTabs').innerHTML = '';
-  document.getElementById('cardsView').innerHTML = 'Parsed rows will appear here…';
-  document.getElementById('cardsView').className = 'output-scroll empty';
-  document.getElementById('jsonView').innerHTML = '';
-  document.getElementById('parseBadge').textContent = '—'; document.getElementById('parseBadge').className = 'badge';
-  document.getElementById('rowBadge').textContent = '—'; document.getElementById('rowBadge').className = 'badge';
-  parserSetStatus('Cleared.', false); document.getElementById('statusRight').textContent = '';
-}
-
-function parserSetStatus(msg, isErr) {
-  const el = document.getElementById('parserStatus');
-  if(el){ el.textContent = msg; el.style.color = isErr ? 'var(--red)' : 'var(--green)'; }
-}
-
-let inputTimer;
-
-function parserLoadSample() {
-  document.getElementById('inputArea').value =
-`Pinnacle\t03/30\t6:40 PM\tTeam Total\tPhiladelphia Phillies\tPHI\tWSH@PHI\t\t\t\t4.5 (-133)\t4.5 (+113)\t\t4.57\tUNDER\t-129\t56.3%\t$19.98\t20.0%\t
-Pinnacle\t03/30\t6:40 PM\tGame Total\tNationals / Phillies\tWSH/PHI\tWSH@PHI\t\t\t\t9.0 (-117)\t9.0 (+104)\t\t8.88\tUNDER\t-138\t58.0%\t$18.36\t18.4%\t
-BetOnline\t03/30\t6:40 PM\tGame Total\tNationals / Phillies\tWSH/PHI\tWSH@PHI\t\t\t\t9.0 (-117)\t9.0 (-103)\t\t8.88\tUNDER\t-138\t58.0%\t$14.78\t14.4%\t
-Pinnacle\t03/30\t7:45 PM\t1H Game Total\tMets / Cardinals\tNYM/STL\tNYM@STL\t\t\t\t5.0 (+101)\t5.0 (-116)\t\t4.87\tUNDER\t-156\t60.9%\t$15.63\t13.5%\t
-DraftKings\t03/30\t6:40 PM\t1H Moneyline\tWashington Nationals\tWSH\tWSH@PHI\t\t\t\t\t\t+130\t0.51\tWSH\t-102\t50.6%\t$16.36\t16.4%\t`;
-  parse();
-}
-
-
-function parserOnInput(){ clearTimeout(window._parserTimer); window._parserTimer=setTimeout(parserParse,300); }
 
 function selectAllParsed(){
   document.querySelectorAll('.parser-check:not(:disabled)').forEach(cb=>cb.checked=true);
@@ -2082,8 +2001,9 @@ function trackSelectedPlays(){
     if(!p) continue;
     const rawG=p.game||p.tm||'';
     const gp=rawG.toUpperCase().split(/[/@]/);
+    const dir=p.suggested_bet||p.dir||'';
     const label=(p.mktType==='TT'||p.mktType==='1HTT')?(p.team||p.tm):p.tm;
-    const gameLabel=label+' '+p.dir+(p.line!=null?' '+p.line:'');
+    const gameLabel=label+' '+dir+(p.line!=null?' '+p.line:'');
     if(tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType)) continue;
     const best=p.books?.[0]||{};
     const entry={
@@ -2093,12 +2013,12 @@ function trackSelectedPlays(){
       awayTeam:(gp[0]||'').replace(/[^A-Z]/g,''),
       homeTeam:(gp[1]||'').replace(/[^A-Z]/g,''),
       team:p.team||null,
-      dir:p.dir,tm:p.tm,
+      dir:dir,tm:p.tm,
       market:p.mktType,marketLabel:p.market||p.mktType,
       book:best.book||p.book||'',
-      odds:best.odds||p.over_odds||p.under_odds,
+      odds:best.odds??p.over_odds??p.under_odds,
       line:p.line,proj:p.proj||p.batx_proj,
-      roi:best.roi||p.roi,
+      roi:best.roi??p.roi,
       fairPrice:p.fairPrice||p.fair_price||null,
       tracked_at:new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
       result:'',books:p.books||[]
@@ -2108,14 +2028,15 @@ function trackSelectedPlays(){
   }
   if(added){
     localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
-    parserSetStatus(added+' plays added to tracker!');
+    const st=document.getElementById('parserStatus');
+    if(st) st.textContent=added+' plays added!';
     document.querySelectorAll('.parser-check').forEach(cb=>cb.checked=false);
-    renderTracker();
     setTab('dashboard');
   } else {
-    parserSetStatus('All selected plays already tracked');
+    alert('All selected plays already tracked');
   }
 }
+
 
 renderTracker();
 populateGradeDates();
