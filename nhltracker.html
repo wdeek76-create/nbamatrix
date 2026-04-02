@@ -1450,12 +1450,8 @@ function extractGoalieName(line) {
 }
 
 function isConfirmed(line) {
-  const l = line.toLowerCase().trim();
-  // Only "Starter:" and "Very Likely Starter:" count as confirmed
-  // "Likely Starter:" is NOT confirmed regardless of percentage
-  if (l.startsWith('starter:')) return true;
-  if (l.startsWith('very likely starter:')) return true;
-  return false;
+  // ONLY "Starter: NAME" counts — Likely, Very Likely, nothing else
+  return /^Starter:/i.test(line.trim());
 }
 
 function autoLogEV(goalieData) {
