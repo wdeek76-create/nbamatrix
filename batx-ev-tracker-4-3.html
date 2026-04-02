@@ -1000,23 +1000,29 @@ function exportXLSX(){
   const settled = tracker.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
 
   // ── Sheet 1: Bet Log ──
-  const betRows = tracker.map(t=>({
-    'Date': t.date||'',
-    'Time': t.time||'',
-    'Play': t.game||'',
-    'Market': MKT_LABELS[t.market]||t.market||'',
-    'Book': t.book||'',
-    'Odds': t.odds!=null?fmtOdds(t.odds):'',
-    'Fair': t.fairPrice!=null?fmtOdds(t.fairPrice):'',
-    'Proj': t.proj!=null?t.proj:'',
-    'ROI%': t.roi!=null?t.roi.toFixed(1):'',
-    'Line': t.line!=null?t.line:'',
-    'Final': t.finalTotal!=null?t.finalTotal:'',
-    'Result': t.result==='W'?'WIN':t.result==='L'?'LOSS':t.result==='P'?'PUSH':'Pending',
-    'Units P&L': t.result?(unitPnl(t)>=0?'+':'')+unitPnl(t).toFixed(2):'',
-  }));
+  let running=0;
+  const betRows = [...tracker].reverse().map(t=>{
+    const pnl=t.result?unitPnl(t):null;
+    if(pnl!=null) running+=pnl;
+    return {
+      'Date': t.date||'',
+      'Time': t.time||'',
+      'Play': t.game||'',
+      'Market': MKT_LABELS[t.market]||t.market||'',
+      'Book': t.book||'',
+      'Odds': t.odds!=null?fmtOdds(t.odds):'',
+      'Fair': t.fairPrice!=null?fmtOdds(t.fairPrice):'',
+      'Proj': t.proj!=null?t.proj:'',
+      'ROI%': t.roi!=null?t.roi.toFixed(1):'',
+      'Line': t.line!=null?t.line:'',
+      'Final': t.finalTotal!=null?t.finalTotal:'',
+      'Result': t.result==='W'?'WIN':t.result==='L'?'LOSS':t.result==='P'?'PUSH':'Pending',
+      'Units P&L': pnl!=null?(pnl>=0?'+':'')+pnl.toFixed(2):'',
+      'Running Total': pnl!=null?(running>=0?'+':'')+running.toFixed(2):'',
+    };
+  });
   const ws1 = XLSX.utils.json_to_sheet(betRows);
-  ws1['!cols'] = [8,8,30,16,12,8,8,6,8,6,6,8,10].map(w=>({wch:w}));
+  ws1['!cols'] = [8,8,30,16,12,8,8,6,8,6,6,8,10,12].map(w=>({wch:w}));
 
   // ── Helper: build breakdown rows ──
   function breakdown(bets, groupFn, labelFn){
@@ -1048,6 +1054,17 @@ function exportXLSX(){
     rows.forEach(r=>breakdownData.push(r));
     breakdownData.push({'Category':'','W':'','L':'','P':'','W%':'','Units P&L':'','Avg ROI%':''});
   };
+  // Overall all-time row at top
+  const allW=settled.filter(t=>t.result==='W').length;
+  const allL=settled.filter(t=>t.result==='L').length;
+  const allP=settled.filter(t=>t.result==='P').length;
+  const allUnits=settled.reduce((s,t)=>s+unitPnl(t),0);
+  const allAvgRoi=settled.length?(settled.reduce((s,t)=>s+(t.roi||0),0)/settled.length).toFixed(1):0;
+  const allWpct=settled.length?+(allW/settled.length*100).toFixed(1):0;
+  const pending=tracker.filter(t=>!t.result||t.result==='').length;
+  breakdownData.push({'Category':'ALL TIME','W':allW,'L':allL,'P':allP,'W%':allWpct,'Units P&L':+allUnits.toFixed(2),'Avg ROI%':+allAvgRoi});
+  breakdownData.push({'Category':settled.length+' settled · '+pending+' pending','W':'','L':'','P':'','W%':'','Units P&L':'','Avg ROI%':''});
+  breakdownData.push({'Category':'','W':'','L':'','P':'','W%':'','Units P&L':'','Avg ROI%':''});
 
   addSection('BY MARKET TYPE', breakdown(settled, t=>t.market||'?', t=>MKT_LABELS[t.market]||t.market||'?'));
   addSection('BY DIRECTION', breakdown(settled, t=>t.dir==='OVER'||t.dir==='UNDER'?t.dir:'ML/RL', t=>t.dir==='OVER'||t.dir==='UNDER'?t.dir:'ML / Run Line'));
@@ -1059,6 +1076,30 @@ function exportXLSX(){
   addSection('BY LINE (O/U TOTALS)', breakdown(settledTotals, t=>{const d=t.dir==='OVER'?'o':'u';const l=t.line;return d+(l%1===0?l+'.0':String(l));}, (t,k)=>{const d=t.dir==='OVER'?'O':'U';const l=t.line;return d+(l%1===0?l+'.0':String(l));}));
   
   addSection('BY ODDS BUCKET', breakdown(settled, t=>{const o=t.odds;if(o==null)return 'z?';if(o<=-200)return 'a-200 or worse';if(o<=-150)return 'b-150 to -199';if(o<=-120)return 'c-120 to -149';if(o<=-100)return 'd-100 to -119';if(o<=110)return 'e+100 to +110';if(o<=130)return 'f+111 to +130';return 'g+131 or better';}, (_,k)=>k.slice(1)));
+
+  // Per-market deep breakdowns
+  const MKTS_EXPORT = [
+    {key:'TOTAL',label:'Game Total'},{key:'TT',label:'Team Total'},
+    {key:'1HTOTAL',label:'1H Total'},{key:'1HTT',label:'1H Team Total'},
+    {key:'1HML',label:'1H Moneyline'},{key:'1HRL',label:'1H Run Line'},
+  ];
+  for(const {key,label} of MKTS_EXPORT){
+    const ms=settled.filter(t=>t.market===key);
+    if(!ms.length) continue;
+    const isML=key==='1HML', isRL=key==='1HRL';
+    if(isML){
+      addSection(label.toUpperCase()+' — BY BOOK', breakdown(ms, t=>t.book||'?', t=>t.book||'?'));
+    } else if(isRL){
+      addSection(label.toUpperCase()+' — BY SPREAD', breakdown(ms, t=>{const l=t.line;return l!=null?(l>=0?'+'+l:String(l))+'RL':'?';}, (_,k)=>k));
+      addSection(label.toUpperCase()+' — BY BOOK', breakdown(ms, t=>t.book||'?', t=>t.book||'?'));
+    } else {
+      addSection(label.toUpperCase()+' — OVER vs UNDER', breakdown(ms, t=>t.dir==='OVER'?'OVER':'UNDER', t=>t.dir==='OVER'?'OVER':'UNDER'));
+      addSection(label.toUpperCase()+' — BY BOOK', breakdown(ms, t=>t.book||'?', t=>t.book||'?'));
+      // By line for totals
+      const totalBets=ms.filter(t=>(t.dir==='OVER'||t.dir==='UNDER')&&t.line!=null&&t.line>=1);
+      if(totalBets.length) addSection(label.toUpperCase()+' — BY LINE', breakdown(totalBets, t=>{const d=t.dir==='OVER'?'O':'U';const l=t.line;return d+(l%1===0?l+'.0':String(l));}, (t,k)=>k));
+    }
+  }
 
   const ws2 = XLSX.utils.json_to_sheet(breakdownData);
   ws2['!cols'] = [22,6,6,6,8,12,10].map(w=>({wch:w}));
