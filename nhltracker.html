@@ -792,6 +792,19 @@ const MONTH_MAP = {
   'May':'05','June':'06','July':'07','August':'08',
   'September':'09','October':'10','November':'11','December':'12'
 };
+const TEAM_NAMES = {
+  'BUF':'Buffalo Sabres',    'OTT':'Ottawa Senators',    'PIT':'Pittsburgh Penguins',
+  'TB': 'Tampa Bay',         'BOS':'Boston Bruins',       'FLA':'Florida Panthers',
+  'MTL':'Montreal',          'NYR':'NY Rangers',          'DET':'Detroit Red Wings',
+  'PHI':'Philadelphia',      'CBJ':'Columbus',            'CAR':'Carolina',
+  'WSH':'Washington',        'NJ': 'New Jersey',          'WPG':'Winnipeg Jets',
+  'DAL':'Dallas Stars',      'VAN':'Vancouver',           'MIN':'Minnesota Wild',
+  'CHI':'Chicago',           'EDM':'Edmonton Oilers',     'CGY':'Calgary Flames',
+  'VGK':'Vegas Golden Knts', 'TOR':'Toronto',             'SJ': 'San Jose Sharks',
+  'UTA':'Utah HC',           'SEA':'Seattle Kraken',      'NSH':'Nashville',
+  'LA': 'Los Angeles Kings', 'STL':'St. Louis Blues',     'ANA':'Anaheim Ducks',
+  'NYI':'NY Islanders',      'COL':'Colorado Avalanche',
+};
 
 function runParser() {
   const raw = document.getElementById('pasteArea').value.trim();
@@ -871,9 +884,13 @@ function _buildGameData(games, date) {
   gameData = {
     generated: date,
     games: games.map(g => ({
-      ...g,
+      away:      g.away,
+      home:      g.home,
       away_name: TEAM_NAMES[g.away] || g.away,
       home_name: TEAM_NAMES[g.home] || g.home,
+      time:      g.time,
+      hs_away_pct: g.away_pct,
+      hs_home_pct: g.home_pct,
       away_ml:null, home_ml:null, spread_line:null, spread_ml_away:null,
       spread_ml_home:null, total_line:null, over_odds:null, under_odds:null,
       fair_away_pct:null, fair_home_pct:null, ml_edge_away:null, ml_edge_home:null,
@@ -951,7 +968,9 @@ function loadSample() {
         total_edge:0.1, book:'pinnacle' },
     ]
   };
-  applyData();
+  document.getElementById('dateLabel').textContent = 'Sample';
+  setLoadStatus('✓ 4 sample games loaded', 'ok');
+  renderGames();
   toast('Sample data loaded', 'ok');
 }
 
