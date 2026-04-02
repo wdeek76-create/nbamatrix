@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -997,171 +997,128 @@ function setTab(tab){trackerTab=tab;renderTracker();}
 function exportXLSX(){
   try {
   if(!tracker.length){ alert('No bets to export'); return; }
+  const settled=tracker.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+  const pend=tracker.filter(t=>!t.result||t.result==='').length;
 
-  const settled = tracker.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
-  const pending = tracker.filter(t=>!t.result||t.result==='').length;
-
-  // Helper: stats for a set of bets
-  function stats(bets){
-    const w=bets.filter(t=>t.result==='W').length;
-    const l=bets.filter(t=>t.result==='L').length;
-    const p=bets.filter(t=>t.result==='P').length;
-    const units=bets.reduce((s,t)=>s+unitPnl(t),0);
-    const tot=w+l+p;
-    // Actual ROI = units won / total staked
-    // Stake per bet: if odds>0 stake 1u, if odds<0 stake abs(odds)/100
-    const staked=bets.reduce((s,t)=>{
-      if(!t.result||t.result==='') return s;
-      const o=t.odds;
-      if(o==null) return s+1;
-      return s+(o>0?1:Math.abs(o)/100);
-    },0);
-    const actualRoi=staked>0?(units/staked)*100:0;
-    return {w,l,p,units,winPct:tot>0?w/tot*100:0,avgRoi:actualRoi,tot};
+  function st(bets){
+    const w=bets.filter(t=>t.result==='W').length,l=bets.filter(t=>t.result==='L').length,p=bets.filter(t=>t.result==='P').length;
+    const units=bets.reduce((s,t)=>s+unitPnl(t),0),tot=w+l+p;
+    let staked=0;
+    for(const t of bets){if(!t.result||t.result==='')continue;const o=t.odds;staked+=(o==null||o>0?1:Math.abs(o)/100);}
+    const roi=staked>0?units/staked*100:null;
+    return {w,l,p,units,tot,wp:tot>0?w/tot*100:0,roi};
   }
+  const pu=(s)=>(s.units>=0?'+':'')+s.units.toFixed(2)+'u';
+  const pr=(s)=>s.roi!=null?(s.roi>=0?'+':'')+s.roi.toFixed(1)+'%':'—';
+  const pw=(s)=>s.tot>0?s.wp.toFixed(1)+'%':'—';
 
-  // ── Sheet 1: Bet Log ──
-  let running=0;
-  const betRows=[...tracker].reverse().map(t=>{
+  // ── BET LOG ──
+  let run=0;
+  const logRows=[...tracker].reverse().map(t=>{
     const pnl=t.result?unitPnl(t):null;
-    if(pnl!=null) running+=pnl;
-    return {
-      'Date':t.date||'','Time':t.time||'','Play':t.game||'',
-      'Market':MKT_LABELS[t.market]||t.market||'','Book':t.book||'',
-      'Odds':t.odds!=null?fmtOdds(t.odds):'','Fair':t.fairPrice!=null?fmtOdds(t.fairPrice):'',
-      'Proj':t.proj!=null?t.proj:'','ROI%':t.roi!=null?t.roi.toFixed(1):'',
-      'Line':t.line!=null?t.line:'','Final':t.finalTotal!=null?t.finalTotal:'',
-      'Result':t.result==='W'?'WIN':t.result==='L'?'LOSS':t.result==='P'?'PUSH':'Pending',
-      'Units P&L':pnl!=null?(pnl>=0?'+':'')+pnl.toFixed(2):'',
-      'Running Total':pnl!=null?(running>=0?'+':'')+running.toFixed(2):'',
-    };
+    if(pnl!=null)run+=pnl;
+    return {'Date':t.date||'','Time':t.time||'','Play':t.game||'','Market':MKT_LABELS[t.market]||t.market||'',
+      'Book':t.book||'','Odds':t.odds!=null?fmtOdds(t.odds):'','Fair':t.fairPrice!=null?fmtOdds(t.fairPrice):'',
+      'Proj':t.proj!=null?t.proj:'','BatX Edge%':t.roi!=null?t.roi.toFixed(1):'','Line':t.line!=null?t.line:'',
+      'Final':t.finalTotal!=null?t.finalTotal:'','Result':t.result==='W'?'WIN':t.result==='L'?'LOSS':t.result==='P'?'PUSH':'Pending',
+      'Units P&L':pnl!=null?(pnl>=0?'+':'')+pnl.toFixed(2):'','Running Total':pnl!=null?(run>=0?'+':'')+run.toFixed(2):''};
   });
-  const ws1=XLSX.utils.json_to_sheet(betRows);
-  ws1['!cols']=[8,8,30,16,12,8,8,6,8,6,6,8,10,12].map(w=>({wch:w}));
+  const ws1=XLSX.utils.json_to_sheet(logRows);
+  ws1['!cols']=[8,8,30,16,12,8,8,6,10,6,6,8,10,12].map(w=>({wch:w}));
 
-  // ── Sheet 2: Breakdowns — two-column OVER/UNDER style ──
-  // Build as array of arrays for full control
+  // ── BREAKDOWNS ──
+  const aoa=[];
+  const r=(...c)=>aoa.push(c);
+  const br=()=>aoa.push([]);
+  const HDR=['Category','W','L','P','Win%','Units P&L','Actual ROI%'];
+  const addRow=(label,s)=>r(label,s.w,s.l,s.p,pw(s),pu(s),pr(s));
+
+  // Overall
+  const ov=st(settled);
+  r('BAT X EV TRACKER — OVERALL SUMMARY');
+  br();
+  r(...HDR);
+  addRow('ALL TIME',ov);
+  r(settled.length+' settled bets · '+pend+' pending');
+  br(); br();
+
+  // Per market
   const MKTS=[
-    {key:'TOTAL',label:'GAME TOTALS'},
-    {key:'TT',label:'TEAM TOTALS'},
-    {key:'1HTOTAL',label:'1H TOTALS'},
-    {key:'1HTT',label:'1H TEAM TOTALS'},
-    {key:'1HML',label:'1H MONEYLINE'},
-    {key:'1HRL',label:'1H RUN LINE'},
+    {key:'TOTAL',label:'GAME TOTALS'},{key:'TT',label:'TEAM TOTALS'},
+    {key:'1HTOTAL',label:'1H TOTALS'},{key:'1HTT',label:'1H TEAM TOTALS'},
+    {key:'1HML',label:'1H MONEYLINE'},{key:'1HRL',label:'1H RUN LINE'},
   ];
 
-  const aoa=[]; // array of arrays
-  const row=(...cells)=>aoa.push(cells);
-  const blank=()=>aoa.push([]);
-
-  // Overall header
-  const ov=stats(settled);
-  row('BAT X EV TRACKER','','','','OVERALL','','','');
-  row('','','','','','','','');
-  row('','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
-  row('ALL TIME',(ov.units>=0?'+':'')+ov.units.toFixed(2)+'u',ov.w,ov.l,ov.winPct.toFixed(1)+'%',ov.avgRoi.toFixed(1)+'%','','');
-  row(settled.length+' settled · '+pending+' pending','','','','','','','');
-  blank();
-
-  // Per-market two-column layout
   for(const {key,label} of MKTS){
     const ms=settled.filter(t=>t.market===key);
     if(!ms.length) continue;
-    const isML=key==='1HML'; const isRL=key==='1HRL'; const isMLRL=isML||isRL;
+    const isML=key==='1HML', isRL=key==='1HRL', isTot=!isML&&!isRL;
+    const mo=st(ms);
+    r('── '+label+' ──');
+    br();
+    r(...HDR);
+    addRow('Overall',mo);
+    br();
 
-    row(label,'','','','','','','');
-
-    if(isMLRL){
-      // ML: overall + by team side (fav vs dog) + by book
-      // RL: overall + by spread (+0.5 vs -0.5) + by book
-      const ov2=stats(ms);
-      row('','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
-      row('Overall',(ov2.units>=0?'+':'')+ov2.units.toFixed(2)+'u',ov2.w,ov2.l,ov2.winPct.toFixed(1)+'%',ov2.avgRoi.toFixed(1)+'%','','');
-      blank();
-      if(isRL){
-        // By spread
-        const spreads=[...new Set(ms.filter(t=>t.line!=null).map(t=>t.line))].sort((a,b)=>a-b);
-        if(spreads.length){
-          row('BY SPREAD','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
-          for(const sp of spreads){
-            const ss=stats(ms.filter(t=>t.line===sp));
-            if(!ss.tot) continue;
-            row((sp>=0?'+':'')+sp+' RL',(ss.units>=0?'+':'')+ss.units.toFixed(2)+'u',ss.w,ss.l,ss.winPct.toFixed(1)+'%','','','');
-          }
-          blank();
-        }
-      } else {
-        // ML: fav (negative odds) vs dog (positive odds)
-        const favs=ms.filter(t=>t.odds!=null&&t.odds<0);
-        const dogs=ms.filter(t=>t.odds!=null&&t.odds>0);
-        if(favs.length||dogs.length){
-          row('BY SIDE','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
-          if(favs.length){const fs=stats(favs);row('Favorite (−)',(fs.units>=0?'+':'')+fs.units.toFixed(2)+'u',fs.w,fs.l,fs.winPct.toFixed(1)+'%',fs.avgRoi.toFixed(1)+'%','','');}
-          if(dogs.length){const ds2=stats(dogs);row('Underdog (+)',(ds2.units>=0?'+':'')+ds2.units.toFixed(2)+'u',ds2.w,ds2.l,ds2.winPct.toFixed(1)+'%',ds2.avgRoi.toFixed(1)+'%','','');}
-          blank();
-        }
-      }
-      // By book
-      row('BY BOOK','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
-      const books=[...new Set(ms.map(t=>t.book))].sort();
-      for(const bk of books){
-        const bs=stats(ms.filter(t=>t.book===bk));
-        row(bk,(bs.units>=0?'+':'')+bs.units.toFixed(2)+'u',bs.w,bs.l,bs.winPct.toFixed(1)+'%',bs.avgRoi.toFixed(1)+'%','','');
-      }
-    } else {
+    if(isTot){
+      // OVERS
       const overs=ms.filter(t=>t.dir==='OVER');
-      const unders=ms.filter(t=>t.dir==='UNDER');
-      const ost=stats(overs), ust=stats(unders);
-      // Header row
-      row('','OVERS ONLY','','','','UNDERS ONLY','','');
-      row('','PROFIT','WINS','LOSSES','WIN %','PROFIT','WINS','LOSSES','WIN %');
-      row('Overall',
-        (ost.units>=0?'+':'')+ost.units.toFixed(2)+'u',ost.w,ost.l,ost.winPct.toFixed(1)+'%',
-        (ust.units>=0?'+':'')+ust.units.toFixed(2)+'u',ust.w,ust.l,ust.winPct.toFixed(1)+'%');
-      blank();
-      // By line
-      const lines=[...new Set(ms.filter(t=>t.line!=null).map(t=>t.line))].sort((a,b)=>a-b);
-      if(lines.length){
-        row('BY LINE','PROFIT','WINS','LOSSES','WIN %','PROFIT','WINS','LOSSES','WIN %');
-        for(const ln of lines){
-          const ob=stats(overs.filter(t=>t.line===ln));
-          const ub=stats(unders.filter(t=>t.line===ln));
-          if(!ob.tot&&!ub.tot) continue;
-          row('Line '+ln,
-            ob.tot?(ob.units>=0?'+':'')+ob.units.toFixed(2)+'u':'—',ob.tot?ob.w:'',ob.tot?ob.l:'',ob.tot?ob.winPct.toFixed(1)+'%':'',
-            ub.tot?(ub.units>=0?'+':'')+ub.units.toFixed(2)+'u':'—',ub.tot?ub.w:'',ub.tot?ub.l:'',ub.tot?ub.winPct.toFixed(1)+'%':'');
-        }
-        blank();
+      if(overs.length){
+        r('OVERS',...Array(6).fill(''));
+        r(...HDR);
+        addRow('Overall',st(overs));
+        const books=[...new Set(overs.map(t=>t.book))].sort();
+        books.forEach(b=>addRow(b,st(overs.filter(t=>t.book===b))));
+        const lines=[...new Set(overs.filter(t=>t.line!=null).map(t=>t.line))].sort((a,b)=>a-b);
+        if(lines.length){br();r('By Line',...Array(6).fill(''));r(...HDR);lines.forEach(l=>addRow('O'+l,st(overs.filter(t=>t.line===l))));}
+        br();
       }
+      // UNDERS
+      const unders=ms.filter(t=>t.dir==='UNDER');
+      if(unders.length){
+        r('UNDERS',...Array(6).fill(''));
+        r(...HDR);
+        addRow('Overall',st(unders));
+        const books=[...new Set(unders.map(t=>t.book))].sort();
+        books.forEach(b=>addRow(b,st(unders.filter(t=>t.book===b))));
+        const lines=[...new Set(unders.filter(t=>t.line!=null).map(t=>t.line))].sort((a,b)=>a-b);
+        if(lines.length){br();r('By Line',...Array(6).fill(''));r(...HDR);lines.forEach(l=>addRow('U'+l,st(unders.filter(t=>t.line===l))));}
+        br();
+      }
+    } else if(isRL){
+      // By spread
+      const spreads=[...new Set(ms.filter(t=>t.line!=null).map(t=>t.line))].sort((a,b)=>a-b);
+      if(spreads.length){r('By Spread',...Array(6).fill(''));r(...HDR);spreads.forEach(sp=>addRow((sp>=0?'+':'')+sp+' RL',st(ms.filter(t=>t.line===sp))));br();}
       // By book
       const books=[...new Set(ms.map(t=>t.book))].sort();
-      row('BY BOOK','PROFIT','WINS','LOSSES','WIN %','PROFIT','WINS','LOSSES','WIN %');
-      for(const bk of books){
-        const ob=stats(overs.filter(t=>t.book===bk));
-        const ub=stats(unders.filter(t=>t.book===bk));
-        row(bk,
-          ob.tot?(ob.units>=0?'+':'')+ob.units.toFixed(2)+'u':'—',ob.tot?ob.w:'',ob.tot?ob.l:'',ob.tot?ob.winPct.toFixed(1)+'%':'',
-          ub.tot?(ub.units>=0?'+':'')+ub.units.toFixed(2)+'u':'—',ub.tot?ub.w:'',ub.tot?ub.l:'',ub.tot?ub.winPct.toFixed(1)+'%':'');
-      }
+      r('By Book',...Array(6).fill(''));r(...HDR);books.forEach(b=>addRow(b,st(ms.filter(t=>t.book===b))));br();
+    } else {
+      // ML: fav vs dog
+      const favs=ms.filter(t=>t.odds!=null&&t.odds<0), dogs=ms.filter(t=>t.odds!=null&&t.odds>0);
+      r('By Side',...Array(6).fill(''));r(...HDR);
+      if(favs.length) addRow('Favorite (−)',st(favs));
+      if(dogs.length) addRow('Underdog (+)',st(dogs));
+      br();
+      const books=[...new Set(ms.map(t=>t.book))].sort();
+      r('By Book',...Array(6).fill(''));r(...HDR);books.forEach(b=>addRow(b,st(ms.filter(t=>t.book===b))));br();
     }
-    blank();
+    br();
   }
 
   const ws2=XLSX.utils.aoa_to_sheet(aoa);
-  ws2['!cols']=[20,12,6,6,8,12,6,6,8].map(w=>({wch:w}));
+  ws2['!cols']=[22,6,6,6,8,12,10].map(w=>({wch:w}));
 
-  // ── Sheet 3: Daily Summary ──
+  // ── DAILY SUMMARY ──
   const byDate={};
   for(const t of tracker){const d=t.date||'?';if(!byDate[d])byDate[d]=[];byDate[d].push(t);}
   const dailyRows=[];
   for(const [date,bets] of Object.entries(byDate).sort()){
     const ds=bets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
-    const w=ds.filter(t=>t.result==='W').length,l=ds.filter(t=>t.result==='L').length,p=ds.filter(t=>t.result==='P').length;
-    const units=ds.reduce((s,t)=>s+unitPnl(t),0);
-    dailyRows.push({'Date':date,'W':w,'L':l,'P':p,'W%':ds.length?+(w/ds.length*100).toFixed(1):0,'Units P&L':+units.toFixed(2),'Pending':bets.filter(t=>!t.result||t.result==='').length});
+    const s=st(ds);
+    dailyRows.push({'Date':date,'W':s.w,'L':s.l,'P':s.p,'Win%':pw(s),'Units P&L':pu(s),'Actual ROI%':pr(s),'Pending':bets.filter(t=>!t.result||t.result==='').length});
   }
   const ws3=XLSX.utils.json_to_sheet(dailyRows);
-  ws3['!cols']=[10,6,6,6,8,12,8].map(w=>({wch:w}));
+  ws3['!cols']=[10,6,6,6,8,12,10,8].map(w=>({wch:w}));
 
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws1,'Bet Log');
@@ -1170,6 +1127,8 @@ function exportXLSX(){
   XLSX.writeFile(wb,'BatX-Tracker-'+new Date().toISOString().slice(0,10)+'.xlsx');
   } catch(e){ alert('Export error: '+e.message); }
 }
+
+
 function exportTracker(){const blob=new Blob([JSON.stringify(tracker,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='batx-tracker-'+new Date().toISOString().slice(0,10)+'.json';a.click();}
 function importTracker(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!Array.isArray(d))throw new Error('Invalid');if(tracker.length>0&&!confirm('Merge? Cancel to replace.')){tracker=d;}else{const ids=new Set(tracker.map(t=>t.id));tracker=[...tracker,...d.filter(t=>!ids.has(t.id))];}localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();input.value='';}catch(err){alert('Could not load: '+err.message);}};r.readAsText(f);}
 function addManual(){
