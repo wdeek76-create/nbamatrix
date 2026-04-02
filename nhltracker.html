@@ -399,13 +399,13 @@ body {
 .bet-log-wrap { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden; }
 .track-head {
   display: grid;
-  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 30px;
+  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 80px 30px;
   padding: 7px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); gap: 5px;
 }
 .track-head span { font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;user-select:none;white-space:nowrap;overflow:hidden; }
 .track-row {
   display: grid;
-  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 30px;
+  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 80px 30px;
   padding: 7px 14px; border-top: 1px solid var(--border); align-items: center; gap: 5px;
 }
 .track-row:hover { background: var(--surface2); }
@@ -481,6 +481,7 @@ body {
 .toast.ok   { border-color: var(--green); color: var(--green); }
 .toast.err  { border-color: var(--red);   color: var(--red);   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -661,6 +662,7 @@ body {
       <span id="gradeStatus" style="font-size:.75rem;color:var(--muted);"></span>
       <div style="margin-left:auto;display:flex;gap:8px;">
         <button class="screenshot-btn" onclick="exportCSV()">⬇ CSV</button>
+        <button class="screenshot-btn" onclick="exportXLSX()">⬇ Excel</button>
         <button class="screenshot-btn" onclick="exportJSON()">⬇ JSON</button>
         <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importBets(this)" style="display:none"/></label>
         <button class="danger-btn" onclick="clearPendingAll()">Clear pending</button>
@@ -703,6 +705,7 @@ body {
         <span onclick="sortLog('stake')" style="cursor:pointer">Stake</span>
         <span onclick="sortLog('result')" style="cursor:pointer">Result</span>
         <span onclick="sortLog('pl')" style="cursor:pointer">P/L</span>
+        <span>Goalie</span>
         <span></span>
       </div>
       <div id="betTbody"></div>
@@ -1447,11 +1450,11 @@ function extractGoalieName(line) {
 }
 
 function isConfirmed(line) {
-  const l = line.toLowerCase();
-  if (l.startsWith('very likely') || l.startsWith('starter:')) return true;
-  // "Likely Starter: NAME: XX%" — confirmed if probability ≥ 70%
-  const pctM = line.match(/:[\s\d.]+(\d+\.\d+)%/);
-  if (pctM) return parseFloat(pctM[1]) >= 70;
+  const l = line.toLowerCase().trim();
+  // Only "Starter:" and "Very Likely Starter:" count as confirmed
+  // "Likely Starter:" is NOT confirmed regardless of percentage
+  if (l.startsWith('starter:')) return true;
+  if (l.startsWith('very likely starter:')) return true;
   return false;
 }
 
@@ -1671,6 +1674,9 @@ function renderLog() {
     const edgeStr  = bet.edge != null ? `<span class="${bet.edge>=EDGE_THRESH?'pl-pos':bet.edge<0?'pl-neg':''}">${bet.edge>0?'+':''}${bet.edge.toFixed(1)}%</span>` : '—';
     const resColor = bet.result==='win'?'var(--green)':bet.result==='loss'?'var(--red)':bet.result==='push'?'var(--gold)':'var(--muted)';
     const modelStr = bet.modelOdds != null ? mlFmt(bet.modelOdds) : '—';
+    // Extract goalie from notes field ("G: Luukkonen" format)
+    const goalieM  = bet.notes?.match(/^G:\s*(.+)$/);
+    const goalieStr = goalieM ? `<span style="color:var(--green);font-size:.72rem;">✓ ${goalieM[1]}</span>` : '<span style="color:var(--muted)">—</span>';
     return `
       <div class="track-row">
         <div class="tv">${bet.date}</div>
@@ -1691,6 +1697,7 @@ function renderLog() {
           </select>
         </div>
         <div class="tv">${plStr}</div>
+        <div class="tv">${goalieStr}</div>
         <div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteBet(${bet.id})">✕</button></div>
       </div>`;
   }).join('');
@@ -2095,8 +2102,132 @@ function exportCSV() {
   toast('CSV exported', 'ok');
 }
 
+function exportXLSX() {
+  if (!bets.length) { toast('No bets to export', 'err'); return; }
+  try {
+    const settled = bets.filter(b => b.result !== 'pending');
+    const pending = bets.filter(b => b.result === 'pending').length;
+
+    function stats(arr) {
+      const s = arr.filter(b => b.result === 'win' || b.result === 'loss' || b.result === 'push');
+      const w = s.filter(b => b.result === 'win').length;
+      const l = s.filter(b => b.result === 'loss').length;
+      const p = s.filter(b => b.result === 'push').length;
+      const units = s.reduce((sum, b) => sum + (b.pl || 0), 0);
+      const staked = s.reduce((sum, b) => sum + (b.stake || 0), 0);
+      return { w, l, p, units, winPct: s.length ? w/s.length*100 : 0, roi: staked ? units/staked*100 : 0, tot: s.length };
+    }
+
+    // ── Sheet 1: Bet Log ──
+    let running = 0;
+    const betRows = [...bets].reverse().map(b => {
+      const pnl = b.result && b.result !== 'pending' ? (b.pl || 0) : null;
+      if (pnl != null) running += pnl;
+      const goalieM = b.notes?.match(/^G:\s*(.+)$/);
+      return {
+        'Date':        b.date || '',
+        'Matchup':     b.matchup || '',
+        'Market':      b.market || '',
+        'Pick':        b.pick || '',
+        'Odds':        b.odds != null ? (b.odds > 0 ? '+' + b.odds : '' + b.odds) : '',
+        'Model Odds':  b.modelOdds != null ? (b.modelOdds > 0 ? '+' + b.modelOdds : '' + b.modelOdds) : '',
+        'Edge%':       b.edge != null ? '+' + b.edge.toFixed(1) + '%' : '',
+        'Stake (u)':   parseFloat((b.stake || 0).toFixed(2)),
+        'Book':        b.book || '',
+        'Goalie':      goalieM ? goalieM[1] : '',
+        'Result':      b.result === 'win' ? 'WIN' : b.result === 'loss' ? 'LOSS' : b.result === 'push' ? 'PUSH' : 'Pending',
+        'Units P&L':   pnl != null ? parseFloat(pnl.toFixed(2)) : '',
+        'Running':     pnl != null ? parseFloat(running.toFixed(2)) : '',
+      };
+    });
+    const ws1 = XLSX.utils.json_to_sheet(betRows);
+    ws1['!cols'] = [10,14,8,14,8,10,8,8,12,14,8,10,10].map(w => ({ wch: w }));
+
+    // ── Sheet 2: Breakdowns ──
+    const aoa = [];
+    const row = (...cells) => aoa.push(cells);
+    const blank = () => aoa.push([]);
+
+    const ov = stats(settled);
+    row('NHL EV TRACKER', '', '', '', 'OVERALL');
+    blank();
+    row('', 'Units P&L', 'W', 'L', 'W%', 'ROI%');
+    row('ALL TIME',
+      (ov.units >= 0 ? '+' : '') + ov.units.toFixed(2) + 'u',
+      ov.w, ov.l, ov.winPct.toFixed(1) + '%', ov.roi.toFixed(1) + '%');
+    row(settled.length + ' settled · ' + pending + ' pending');
+    blank();
+
+    // By market
+    const markets = ['ML', 'PL', 'Total', 'Team Total'];
+    row('BY MARKET', 'Units P&L', 'W', 'L', 'W%', 'ROI%');
+    for (const mkt of markets) {
+      const ms = settled.filter(b => b.market === mkt);
+      if (!ms.length) continue;
+      const s = stats(ms);
+      row(mkt, (s.units>=0?'+':'')+s.units.toFixed(2)+'u', s.w, s.l, s.winPct.toFixed(1)+'%', s.roi.toFixed(1)+'%');
+    }
+    blank();
+
+    // By book
+    const books = [...new Set(settled.map(b => b.book).filter(Boolean))].sort();
+    row('BY BOOK', 'Units P&L', 'W', 'L', 'W%', 'ROI%');
+    for (const bk of books) {
+      const bs = stats(settled.filter(b => b.book === bk));
+      row(bk, (bs.units>=0?'+':'')+bs.units.toFixed(2)+'u', bs.w, bs.l, bs.winPct.toFixed(1)+'%', bs.roi.toFixed(1)+'%');
+    }
+    blank();
+
+    // +EV buckets
+    const evBuckets = [
+      { label: 'All +EV (≥2%)', min: 2, max: 99 },
+      { label: '2–4%',          min: 2, max: 4  },
+      { label: '4–6%',          min: 4, max: 6  },
+      { label: '6–8%',          min: 6, max: 8  },
+      { label: '8%+',           min: 8, max: 99 },
+    ];
+    row('+EV BUCKETS', 'Units P&L', 'W', 'L', 'W%', 'Avg Edge');
+    for (const bkt of evBuckets) {
+      const es = settled.filter(b => b.edge != null && b.edge >= bkt.min && b.edge < bkt.max);
+      if (!es.length) continue;
+      const s = stats(es);
+      const avgEdge = es.reduce((sum,b)=>sum+(b.edge||0),0)/es.length;
+      row(bkt.label, (s.units>=0?'+':'')+s.units.toFixed(2)+'u', s.w, s.l, s.winPct.toFixed(1)+'%', '+'+avgEdge.toFixed(1)+'%');
+    }
+
+    const ws2 = XLSX.utils.aoa_to_sheet(aoa);
+    ws2['!cols'] = [22,12,6,6,8,10].map(w => ({ wch: w }));
+
+    // ── Sheet 3: Daily Summary ──
+    const byDate = {};
+    for (const b of bets) { const d = b.date || '?'; if (!byDate[d]) byDate[d] = []; byDate[d].push(b); }
+    const dailyRows = [];
+    for (const [date, dayBets] of Object.entries(byDate).sort()) {
+      const ds = dayBets.filter(b => b.result === 'win' || b.result === 'loss' || b.result === 'push');
+      const w  = ds.filter(b => b.result === 'win').length;
+      const l  = ds.filter(b => b.result === 'loss').length;
+      const u  = ds.reduce((s, b) => s + (b.pl || 0), 0);
+      dailyRows.push({
+        'Date': date, 'W': w, 'L': l,
+        'W%': ds.length ? parseFloat((w/ds.length*100).toFixed(1)) : 0,
+        'Units P&L': parseFloat(u.toFixed(2)),
+        'Pending': dayBets.filter(b => b.result === 'pending').length,
+        '+EV Bets': dayBets.filter(b => b.edge != null && b.edge >= EDGE_THRESH).length,
+      });
+    }
+    const ws3 = XLSX.utils.json_to_sheet(dailyRows);
+    ws3['!cols'] = [10,6,6,8,12,8,10].map(w => ({ wch: w }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws1, 'Bet Log');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Breakdowns');
+    XLSX.utils.book_append_sheet(wb, ws3, 'Daily Summary');
+    XLSX.writeFile(wb, 'NHL-Tracker-' + new Date().toISOString().slice(0,10) + '.xlsx');
+    toast('Excel exported', 'ok');
+  } catch(e) { toast('Export error: ' + e.message, 'err'); }
+}
+
 function toast(msg, cls='ok') {
-  const el = document.getElementById('toast');
   el.textContent = msg;
   el.className   = 'toast show ' + cls;
   setTimeout(() => el.className = 'toast', 2200);
