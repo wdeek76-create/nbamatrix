@@ -1027,6 +1027,14 @@ function exportXLSX(){
   ws1['!cols']=[8,8,30,16,12,8,8,6,10,6,6,8,10,12].map(w=>({wch:w}));
 
   // ── BREAKDOWNS ──
+  const roiBuckets=[
+    {label:'5-7%',  fn:t=>t.roi>=5&&t.roi<7},
+    {label:'7-10%', fn:t=>t.roi>=7&&t.roi<10},
+    {label:'10-13%',fn:t=>t.roi>=10&&t.roi<13},
+    {label:'13-16%',fn:t=>t.roi>=13&&t.roi<16},
+    {label:'16-20%',fn:t=>t.roi>=16&&t.roi<20},
+    {label:'20%+',  fn:t=>t.roi>=20},
+  ];
   const aoa=[];
   const r=(...c)=>aoa.push(c);
   const br=()=>aoa.push([]);
@@ -1069,11 +1077,11 @@ function exportXLSX(){
   r(settled.length+' settled · '+pend+' pending');
   br();
   addOddsSection(settled);
-  // BatX ROI buckets overall
   r('By BatX Edge% Bucket',...Array(6).fill(''));
   r(...HDR);
   for(const {label,fn} of roiBuckets){const sub=settled.filter(fn);if(sub.length)addRow(label,st(sub));}
   br();
+
   // Overall by book
   r('By Book',...Array(6).fill(''));
   r(...HDR);
@@ -1085,15 +1093,6 @@ function exportXLSX(){
     {key:'TOTAL',label:'GAME TOTALS'},{key:'TT',label:'TEAM TOTALS'},
     {key:'1HTOTAL',label:'1H TOTALS'},{key:'1HTT',label:'1H TEAM TOTALS'},
     {key:'1HML',label:'1H MONEYLINE'},{key:'1HRL',label:'1H RUN LINE'},
-  ];
-
-  const roiBuckets=[
-    {label:'5-7%',  fn:t=>t.roi>=5&&t.roi<7},
-    {label:'7-10%', fn:t=>t.roi>=7&&t.roi<10},
-    {label:'10-13%',fn:t=>t.roi>=10&&t.roi<13},
-    {label:'13-16%',fn:t=>t.roi>=13&&t.roi<16},
-    {label:'16-20%',fn:t=>t.roi>=16&&t.roi<20},
-    {label:'20%+',  fn:t=>t.roi>=20},
   ];
 
   for(const {key,label} of MKTS){
@@ -1339,7 +1338,11 @@ function renderTracker(){
     html+=statCard('Win rate', settled.length?winRate+'%':'—', 'settled bets only', 'var(--text)');
     html+=statCard('Units P&L', roiStr, 'win 1u minus / stake 1u plus', 'var(--text)');
     const avgROI = settled.length?(settled.reduce((s,t)=>s+(t.roi||0),0)/settled.length).toFixed(1):'—';
-    html+=statCard('Avg Bat X ROI', avgROI!=='—'?'+'+avgROI+'%':'—', 'avg across settled plays', 'var(--text)');
+    let actStaked=0, actUnits=0;
+    for(const t of settled){const o=t.odds;actStaked+=(o==null||o>0?1:Math.abs(o)/100);actUnits+=unitPnl(t);}
+    const actROI=actStaked>0?((actUnits/actStaked)*100).toFixed(1):'—';
+    html+=statCard('Actual ROI', actROI!=='—'?(parseFloat(actROI)>=0?'+':'')+actROI+'%':'—', 'units won ÷ units staked', actROI!=='—'&&parseFloat(actROI)>=0?'var(--green)':'var(--red)');
+    html+=statCard('Avg BatX Edge', avgROI!=='—'?'+'+avgROI+'%':'—', 'avg projected edge', 'var(--text)');
     html+='</div>';
 
     // Per-market deep breakdowns
