@@ -4,27 +4,28 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>NHL Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root {
-  --bg:        #0d0f14;
-  --surface:   #13161e;
-  --surface2:  #1a1e28;
-  --surface3:  #222736;
-  --border:    #2a2f3e;
-  --border2:   #353c52;
-  --text:      #e8ecf4;
-  --muted:     #6b748a;
-  --muted2:    #8990a8;
-  --accent:    #4f9eff;
-  --accent2:   #2d6fd4;
-  --green:     #2ecf7a;
-  --green-dim: #1a7a47;
-  --red:       #f0495a;
-  --red-dim:   #7a2830;
-  --gold:      #f5c842;
-  --gold-dim:  #7a6020;
-  --ice:       #9ecfed;
+  --bg:        #080c14;
+  --surface:   #0d1220;
+  --surface2:  #111827;
+  --surface3:  #182030;
+  --border:    #1e2a3e;
+  --border2:   #263347;
+  --text:      #e4eaf6;
+  --muted:     #5a6a84;
+  --muted2:    #7a8fa8;
+  --accent:    #3b82f6;
+  --accent2:   #1d4ed8;
+  --green:     #10d9a0;
+  --green-dim: #0a4a38;
+  --red:       #ef4444;
+  --red-dim:   #5a1a1a;
+  --gold:      #f59e0b;
+  --gold-dim:  #5a3a08;
+  --ice:       #7dd3fc;
+  --navy:      #0f1929;
   --radius:    6px;
   --radius2:   10px;
 }
@@ -34,7 +35,7 @@ html { font-size: 14px; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Barlow', sans-serif;
+  font-family: 'Inter', sans-serif;
   min-height: 100vh;
 }
 
@@ -52,10 +53,12 @@ body {
   z-index: 100;
 }
 .logo {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 900;
-  font-size: 1.3rem;
-  letter-spacing: .04em;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-style: italic;
   color: var(--text);
   display: flex;
   align-items: center;
@@ -73,10 +76,10 @@ body {
   background: none;
   border: none;
   color: var(--muted2);
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: .95rem;
+  font-family: 'Oswald', sans-serif;
+  font-size: .9rem;
   font-weight: 600;
-  letter-spacing: .05em;
+  letter-spacing: .08em;
   padding: 6px 14px;
   border-radius: var(--radius);
   cursor: pointer;
@@ -92,7 +95,7 @@ body {
   font-size: .8rem;
   color: var(--muted);
 }
-.hstat strong { color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; }
+.hstat strong { color: var(--text); font-family: 'Oswald', sans-serif; font-size: 1rem; }
 .hstat.green strong { color: var(--green); }
 .hstat.red strong { color: var(--red); }
 
@@ -109,7 +112,7 @@ body {
   margin-bottom: 14px;
 }
 .section-title {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: 'Oswald', sans-serif;
   font-weight: 700;
   font-size: 1.05rem;
   letter-spacing: .06em;
@@ -152,7 +155,7 @@ body {
   color: var(--text);
   border-radius: var(--radius);
   padding: 6px 14px;
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: 'Oswald', sans-serif;
   font-size: .9rem;
   font-weight: 600;
   letter-spacing: .04em;
@@ -221,15 +224,16 @@ body {
 }
 .team-row {
   display: grid;
-  grid-template-columns: 36px 1fr auto auto auto;
+  grid-template-columns: 36px 1fr auto auto auto auto;
   align-items: center;
   gap: 8px;
 }
 .team-abbrev {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: 'Oswald', sans-serif;
   font-weight: 700;
   font-size: 1.05rem;
   letter-spacing: .04em;
+  text-transform: uppercase;
 }
 .team-name-full {
   font-size: .75rem;
@@ -239,11 +243,14 @@ body {
   text-overflow: ellipsis;
 }
 .win-pct {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: 'Oswald', sans-serif;
   font-weight: 700;
-  font-size: .95rem;
-  width: 38px;
+  font-size: .88rem;
+  width: 44px;
   text-align: right;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-align: center;
 }
 .fair-pct {
   font-size: .72rem;
@@ -252,13 +259,14 @@ body {
   text-align: right;
 }
 .edge-badge {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: 'Oswald', sans-serif;
   font-weight: 700;
-  font-size: .78rem;
+  font-size: .8rem;
   padding: 2px 7px;
   border-radius: 4px;
-  min-width: 42px;
+  min-width: 46px;
   text-align: center;
+  letter-spacing: .02em;
 }
 .edge-badge.pos  { background: var(--green-dim); color: var(--green); }
 .edge-badge.neg  { background: var(--red-dim);   color: var(--red); }
@@ -287,7 +295,7 @@ body {
   margin-bottom: 2px;
 }
 .market-pill .val {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: 'Oswald', sans-serif;
   font-weight: 700;
   font-size: .9rem;
 }
@@ -325,7 +333,7 @@ body {
   max-width: 95vw;
 }
 .modal-title {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: 'Oswald', sans-serif;
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: .05em;
@@ -355,7 +363,7 @@ body {
   border-radius: var(--radius);
   color: var(--text);
   padding: 7px 10px;
-  font-family: 'Barlow', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: .88rem;
   outline: none;
   transition: border-color .15s;
@@ -370,216 +378,79 @@ body {
   justify-content: flex-end;
 }
 
-/* ── Bet Log Table ── */
-.bet-log-wrap {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius2);
-  overflow: hidden;
+/* ── Grade bar ── */
+.grade-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 10px 14px; margin-bottom: 14px;
 }
-.bet-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .82rem;
-}
-.bet-table th {
-  background: var(--surface2);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 600;
-  font-size: .78rem;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--muted2);
-  white-space: nowrap;
-  cursor: pointer;
-  user-select: none;
-}
-.bet-table th:hover { color: var(--text); }
-.bet-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-  white-space: nowrap;
-}
-.bet-table tr:last-child td { border-bottom: none; }
-.bet-table tr:hover td { background: var(--surface2); }
+.grade-bar-label { font-size:.72rem;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap; }
+.tk { background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:.78rem;padding:5px 8px;outline:none;cursor:pointer; }
+.tracker-btn { font-size:.78rem;font-weight:600;padding:5px 14px;background:rgba(79,158,255,.1);border:1px solid rgba(79,158,255,.3);border-radius:var(--radius);color:var(--accent);cursor:pointer;white-space:nowrap; }
+.tracker-btn:hover { background:rgba(79,158,255,.2); }
+.screenshot-btn { font-size:.78rem;font-weight:600;padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--muted2);cursor:pointer;white-space:nowrap; }
+.screenshot-btn:hover { color:var(--text); }
+.danger-btn { font-size:.78rem;font-weight:600;padding:5px 12px;background:rgba(240,73,90,.08);border:1px solid rgba(240,73,90,.2);border-radius:var(--radius);color:var(--red);cursor:pointer;white-space:nowrap; }
+.danger-btn:hover { background:rgba(240,73,90,.15); }
+.pl-pos { color:var(--green);font-weight:600; }
+.pl-neg { color:var(--red);font-weight:600; }
 
-.result-badge {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 700;
-  font-size: .82rem;
-  padding: 2px 8px;
-  border-radius: 4px;
-  text-transform: uppercase;
+/* ── Track table ── */
+.bet-log-wrap { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden; }
+.track-head {
+  display: grid;
+  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 30px;
+  padding: 7px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); gap: 5px;
 }
-.result-badge.win  { background: var(--green-dim); color: var(--green); }
-.result-badge.loss { background: var(--red-dim);   color: var(--red);   }
-.result-badge.push { background: var(--gold-dim);  color: var(--gold);  }
-.result-badge.pending {
-  background: var(--surface3);
-  color: var(--muted2);
-  border: 1px solid var(--border2);
+.track-head span { font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;user-select:none;white-space:nowrap;overflow:hidden; }
+.track-row {
+  display: grid;
+  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 30px;
+  padding: 7px 14px; border-top: 1px solid var(--border); align-items: center; gap: 5px;
 }
-
-.pl-pos { color: var(--green); font-weight: 600; }
-.pl-neg { color: var(--red);   font-weight: 600; }
-
-/* Grade controls */
-.grade-select {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text);
-  padding: 3px 6px;
-  font-size: .78rem;
-  font-family: 'Barlow', sans-serif;
-  cursor: pointer;
-}
+.track-row:hover { background: var(--surface2); }
+.tv { font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.result-sel { background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:.73rem;font-weight:700;padding:2px 4px;outline:none;width:100%;cursor:pointer; }
+.del-btn { background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:2px 4px;border-radius:4px; }
+.del-btn:hover { color:var(--red); }
 
 /* ── Dashboard ── */
-.dash-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 22px;
-}
-.stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius2);
-  padding: 14px 16px;
-}
-.stat-card .lbl {
-  font-size: .7rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.stat-card .val {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-.stat-card .sub {
-  font-size: .72rem;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.market-breakdown {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius2);
-  overflow: hidden;
-  margin-bottom: 22px;
-}
-.mb-header {
-  padding: 10px 16px;
-  background: var(--surface2);
-  border-bottom: 1px solid var(--border);
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 700;
-  font-size: .9rem;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: var(--muted2);
-}
-.mb-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-.mb-table td { padding: 8px 16px; border-bottom: 1px solid var(--border); }
-.mb-table tr:last-child td { border-bottom: none; }
-.mb-table .mkt-name { color: var(--muted2); font-weight: 600; width: 120px; }
+.dash-stats { display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;margin-bottom:16px; }
+.dash-stat { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:12px 14px; }
+.dash-stat-label { font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:6px; }
+.dash-stat-val { font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;line-height:1;margin-bottom:4px; }
+.dash-stat-sub { font-size:.68rem;color:var(--muted); }
+.bk-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;margin-bottom:10px; }
+.bk-title { font-size:.68rem;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;padding:8px 14px;background:var(--surface2);border-bottom:1px solid var(--border); }
+.bk-head { display:grid;grid-template-columns:1fr 36px 36px 36px 55px 75px;padding:5px 14px;background:var(--surface2);border-top:1px solid var(--border); }
+.bk-head span { font-size:.63rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em; }
+.bk-row { display:grid;grid-template-columns:1fr 36px 36px 36px 55px 75px;padding:7px 14px;border-top:1px solid var(--border);align-items:center;font-size:.78rem; }
+.bk-row:hover { background:var(--surface2); }
+.bk-label { font-size:.8rem;font-weight:500; }
+.bk-val { font-size:.75rem;color:var(--muted); }
+.bk-val.g { color:var(--green);font-weight:600; }
+.bk-val.r { color:var(--red); }
+.bk-val.pos { color:var(--green);font-weight:600; }
+.bk-val.neg { color:var(--red); }
+.bk-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px; }
+.dash-section-title { font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:12px 0 6px;border-top:1px solid var(--border);margin-top:6px; }
 
 /* ── Parser ── */
-.parser-wrap {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius2);
-  margin-bottom: 18px;
-  overflow: hidden;
-}
-.parser-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: var(--surface2);
-  border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
-  gap: 8px;
-}
-#pasteArea {
-  width: 100%;
-  height: 110px;
-  background: var(--bg);
-  border: none;
-  border-bottom: 1px solid var(--border);
-  color: var(--muted2);
-  font-family: 'Barlow', sans-serif;
-  font-size: .78rem;
-  padding: 12px 14px;
-  resize: vertical;
-  outline: none;
-  line-height: 1.5;
-}
-#pasteArea:focus { color: var(--text); }
-#pasteArea::placeholder { color: var(--muted); }
-.parser-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+.parser-wrap { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);margin-bottom:18px;overflow:hidden; }
+.parser-header { display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px; }
+#pasteArea { width:100%;height:110px;background:var(--bg);border:none;border-bottom:1px solid var(--border);color:var(--muted2);font-family:'Inter',sans-serif;font-size:.78rem;padding:12px 14px;resize:vertical;outline:none;line-height:1.5; }
+#pasteArea:focus { color:var(--text); }
+#pasteArea::placeholder { color:var(--muted); }
+.parser-footer { display:flex;align-items:center;justify-content:space-between;padding:8px 14px;flex-wrap:wrap;gap:8px; }
 
 /* ── Odds input row ── */
-.odds-inputs-row {
-  display: flex;
-  gap: 6px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border);
-  flex-wrap: wrap;
-  background: var(--bg);
-}
-.odds-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 52px;
-}
-.oi-label {
-  font-size: .62rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  font-weight: 600;
-  text-align: center;
-}
-.odds-input {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text);
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: .88rem;
-  font-weight: 600;
-  padding: 4px 4px;
-  text-align: center;
-  outline: none;
-  width: 100%;
-  transition: border-color .12s;
-  -moz-appearance: textfield;
-}
-.odds-input::-webkit-outer-spin-button,
-.odds-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-.odds-input:focus { border-color: var(--accent); }
-.odds-input:not(:placeholder-shown) { color: var(--ice); }
+.odds-inputs-row { display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--border);flex-wrap:wrap;background:var(--bg); }
+.odds-input-group { display:flex;flex-direction:column;gap:3px;flex:1;min-width:52px; }
+.oi-label { font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;text-align:center; }
+.odds-input { background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;padding:4px;text-align:center;outline:none;width:100%;transition:border-color .12s;-moz-appearance:textfield; }
+.odds-input::-webkit-outer-spin-button,.odds-input::-webkit-inner-spin-button { -webkit-appearance:none; }
+.odds-input:focus { border-color:var(--accent); }
+.odds-input:not(:placeholder-shown) { color:var(--ice); }
 
 /* ── empty state ── */
 .empty {
@@ -724,7 +595,7 @@ body {
       <div class="parser-footer">
         <div style="display:flex;gap:8px;align-items:center">
           <label style="font-size:.75rem;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Filter date:</label>
-          <input type="date" id="filterDate" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:5px 10px;font-family:Barlow,sans-serif;font-size:.82rem;outline:none"/>
+          <input type="date" id="filterDate" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:5px 10px;font-family:Inter,sans-serif;font-size:.82rem;outline:none"/>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <span class="load-status" id="loadStatus"></span>
@@ -737,7 +608,7 @@ body {
     <div id="oddsToolbar" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:10px 14px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
       <button class="btn primary" id="fetchOddsBtn" onclick="fetchOdds()">⚡ Fetch Best Odds</button>
       <span id="oddsStatus" style="font-size:.78rem;color:var(--muted)"></span>
-      <div id="evAlertBar" style="display:none;margin-left:auto;background:var(--green-dim);border:1px solid var(--green);border-radius:var(--radius);padding:4px 12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;color:var(--green);letter-spacing:.04em;"></div>
+      <div id="evAlertBar" style="display:none;margin-left:auto;background:var(--green-dim);border:1px solid var(--green);border-radius:var(--radius);padding:4px 12px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.85rem;color:var(--green);letter-spacing:.04em;"></div>
     </div>
 
     <div id="gamesContainer">
@@ -752,78 +623,69 @@ body {
 
   <!-- ── LOG PANEL ── -->
   <div class="panel" id="panel-log">
-    <div class="section-header">
-      <span class="section-title">Bet Log</span>
-      <div style="display:flex;gap:8px">
-        <button class="btn sm" onclick="exportCSV()">Export CSV</button>
-        <button class="btn sm danger" onclick="clearBets()">Clear All</button>
+
+    <!-- Grade bar -->
+    <div class="grade-bar" id="gradeBar">
+      <span class="grade-bar-label">Grade date</span>
+      <select id="gradeDate" class="tk"><option value="">Pick date…</option></select>
+      <button class="tracker-btn" id="gradeBtn" onclick="gradeByDate()">▶ Grade</button>
+      <select id="regradeDate" class="tk"><option value="">Re-grade date…</option></select>
+      <button class="screenshot-btn" onclick="regradeByDate()">↺ Re-grade</button>
+      <button class="screenshot-btn" onclick="cancelPendingByDate()">✕ Cancel pending date</button>
+      <span id="gradeStatus" style="font-size:.75rem;color:var(--muted);"></span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="screenshot-btn" onclick="exportCSV()">⬇ CSV</button>
+        <button class="screenshot-btn" onclick="exportJSON()">⬇ JSON</button>
+        <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importBets(this)" style="display:none"/></label>
+        <button class="danger-btn" onclick="clearPendingAll()">Clear pending</button>
+        <button class="danger-btn" onclick="clearBets()">Clear all</button>
       </div>
     </div>
 
+    <!-- Search + filter -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+      <input id="betSearch" type="text" placeholder="Search bets…" oninput="renderLog()"
+        style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:.82rem;padding:6px 10px;outline:none;"/>
+      <select id="filterResult" onchange="renderLog()"
+        style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:.82rem;padding:6px 10px;outline:none;">
+        <option value="">All results</option>
+        <option value="pending">Pending</option>
+        <option value="win">Win</option>
+        <option value="loss">Loss</option>
+        <option value="push">Push</option>
+      </select>
+      <select id="filterMarket" onchange="renderLog()"
+        style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:.82rem;padding:6px 10px;outline:none;">
+        <option value="">All markets</option>
+        <option value="ML">Moneyline</option>
+        <option value="PL">Puck Line</option>
+        <option value="Total">Total</option>
+        <option value="Team Total">Team Total</option>
+      </select>
+    </div>
+
     <div class="bet-log-wrap">
-      <table class="bet-table" id="betTable">
-        <thead>
-          <tr>
-            <th onclick="sortLog('date')">Date</th>
-            <th onclick="sortLog('matchup')">Matchup</th>
-            <th onclick="sortLog('market')">Market</th>
-            <th onclick="sortLog('pick')">Pick</th>
-            <th onclick="sortLog('odds')">Odds</th>
-            <th onclick="sortLog('edge')">Edge%</th>
-            <th onclick="sortLog('stake')">Stake</th>
-            <th onclick="sortLog('result')">Result</th>
-            <th onclick="sortLog('pl')">P/L (u)</th>
-            <th>Grade</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="betTbody"></tbody>
-      </table>
+      <div class="track-head">
+        <span onclick="sortLog('date')" style="cursor:pointer">Date</span>
+        <span onclick="sortLog('matchup')" style="cursor:pointer">Matchup</span>
+        <span onclick="sortLog('market')" style="cursor:pointer">Market</span>
+        <span onclick="sortLog('pick')" style="cursor:pointer">Pick</span>
+        <span onclick="sortLog('odds')" style="cursor:pointer">Odds</span>
+        <span onclick="sortLog('edge')" style="cursor:pointer">Edge%</span>
+        <span>Model</span>
+        <span>Book</span>
+        <span onclick="sortLog('stake')" style="cursor:pointer">Stake</span>
+        <span onclick="sortLog('result')" style="cursor:pointer">Result</span>
+        <span onclick="sortLog('pl')" style="cursor:pointer">P/L</span>
+        <span></span>
+      </div>
+      <div id="betTbody"></div>
     </div>
   </div>
 
   <!-- ── DASHBOARD PANEL ── -->
   <div class="panel" id="panel-dash">
-    <div class="section-header">
-      <span class="section-title">Dashboard</span>
-    </div>
-
-    <div class="dash-grid" id="dashCards"></div>
-
-    <div class="market-breakdown">
-      <div class="mb-header">By Market</div>
-      <table class="mb-table" id="mbTable">
-        <thead>
-          <tr>
-            <td class="mkt-name"><strong>Market</strong></td>
-            <td><strong>Bets</strong></td>
-            <td><strong>W-L</strong></td>
-            <td><strong>Win%</strong></td>
-            <td><strong>Units</strong></td>
-            <td><strong>Avg Edge</strong></td>
-          </tr>
-        </thead>
-        <tbody id="mbTbody"></tbody>
-      </table>
-    </div>
-
-    <div class="market-breakdown" style="margin-top:14px">
-      <div class="mb-header" style="color:var(--green);">⚡ +EV Breakdown (≥2% edge)</div>
-      <table class="mb-table" id="evTable">
-        <thead>
-          <tr>
-            <td class="mkt-name"><strong>Bucket</strong></td>
-            <td><strong>Bets</strong></td>
-            <td><strong>W-L</strong></td>
-            <td><strong>Win%</strong></td>
-            <td><strong>Units</strong></td>
-            <td><strong>Avg Edge</strong></td>
-            <td><strong>Expected W%</strong></td>
-          </tr>
-        </thead>
-        <tbody id="evTbody"></tbody>
-      </table>
-    </div>
+    <div id="dashInner"></div>
   </div>
 
 </div><!-- /main -->
@@ -850,7 +712,7 @@ function showPanel(id) {
   document.querySelectorAll('.htab').forEach(t => {
     if (t.textContent.toLowerCase().includes(id)) t.classList.add('active');
   });
-  if (id === 'log')  renderLog();
+  if (id === 'log')  { renderLog(); populateGradeDates(); }
   if (id === 'dash') renderDash();
 }
 
@@ -1056,14 +918,25 @@ function renderGames() {
   // Show odds toolbar
   document.getElementById('oddsToolbar').style.display = 'flex';
 
+  // Sort: highest edge first, then no-odds games by time
+  const sorted = [...gameData.games].sort((a, b) => {
+    const edgeA = Math.max(a.ml_edge_away ?? -99, a.ml_edge_home ?? -99);
+    const edgeB = Math.max(b.ml_edge_away ?? -99, b.ml_edge_home ?? -99);
+    // Both have odds — sort by best edge desc
+    if (edgeA !== -99 || edgeB !== -99) return edgeB - edgeA;
+    return 0;
+  });
+
   const grid = document.createElement('div');
   grid.className = 'games-grid';
 
-  gameData.games.forEach((g, idx) => {
+  sorted.forEach((g, displayIdx) => {
+    // Keep original idx for DOM IDs (use original game index for live edit refs)
+    const origIdx = gameData.games.indexOf(g);
     const card = document.createElement('div');
     card.className = 'game-card';
-    card.id = `card-${idx}`;
-    card.innerHTML = buildCardHTML(g, idx);
+    card.id = `card-${origIdx}`;
+    card.innerHTML = buildCardHTML(g, origIdx);
     grid.appendChild(card);
   });
 
@@ -1084,9 +957,16 @@ function buildCardHTML(g, idx) {
   return `
     <div class="game-card-header" style="${cardBorder ? 'border-bottom-color:var(--green-dim);' : ''}">
       <span class="game-time">${g.time || '—'}</span>
-      ${hasEdge ? `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.72rem;color:var(--green);letter-spacing:.05em;text-transform:uppercase;">⚡ +EV</span>` : ''}
+      ${hasEdge ? `<span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:.72rem;color:var(--green);letter-spacing:.05em;text-transform:uppercase;">⚡ +EV</span>` : ''}
     </div>
     <div class="game-teams">
+      <div style="display:grid;grid-template-columns:36px 1fr auto auto auto auto;gap:8px;padding:2px 12px 4px;border-bottom:1px solid var(--border);">
+        <span></span><span></span>
+        <span style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:38px;text-align:right;">Win%</span>
+        <span style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:42px;text-align:right;">Model</span>
+        <span style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:42px;text-align:right;">Market</span>
+        <span style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:42px;text-align:center;">Edge</span>
+      </div>
       ${teamRow(g, 'away', idx)}
       ${teamRow(g, 'home', idx)}
     </div>
@@ -1134,38 +1014,43 @@ function buildCardHTML(g, idx) {
 }
 
 function teamRow(g, side, idx) {
-  const abbrev   = g[side];
-  const name     = g[side + '_name'] || abbrev;
-  const pct      = g['hs_' + side + '_pct'];
-  const edge     = g['ml_edge_' + side];
-  const mktML    = g[side + '_ml'];
-
-  // Model implied odds from HS win%
+  const abbrev    = g[side];
+  const name      = g[side + '_name'] || abbrev;
+  const pct       = g['hs_' + side + '_pct'];
+  const edge      = g['ml_edge_' + side];
+  const mktML     = g[side + '_ml'];
   const modelOdds = pct != null ? probToML(pct / 100) : null;
+
+  const hasValue  = modelOdds != null && mktML != null && mktML > modelOdds;
   const modelOddsStr = modelOdds != null ? mlFmt(modelOdds) : '—';
+  const mktStr       = mktML    != null ? mlFmt(mktML)      : '—';
 
-  // Market odds display
-  const mktStr = mktML != null ? mlFmt(mktML) : '—';
-
-  // Edge badge
   const edgeCls = edge == null ? 'zero' : edge >= EDGE_THRESH ? 'pos' : edge <= -EDGE_THRESH ? 'neg' : 'zero';
   const edgeTxt = edge == null ? '—' : (edge > 0 ? '+' : '') + edge.toFixed(1) + '%';
-  const pctCol  = pct >= 60 ? 'var(--green)' : pct <= 40 ? 'var(--muted)' : 'var(--text)';
 
-  // Arrow indicator when model is better than market
-  const arrow = (modelOdds != null && mktML != null)
-    ? (modelOdds > mktML ? ' ▲' : modelOdds < mktML ? ' ▼' : '')
+  // Win% badge — HockeyStats style: teal bg for favorites (≥50%), red for underdogs
+  const isFav   = pct != null && pct >= 50;
+  const pctBg   = pct == null ? 'var(--surface3)' : pct >= 60 ? 'rgba(16,217,160,.18)' : pct <= 40 ? 'rgba(239,68,68,.18)' : 'rgba(125,211,252,.1)';
+  const pctClr  = pct == null ? 'var(--muted)' : pct >= 60 ? 'var(--green)' : pct <= 40 ? 'var(--red)' : 'var(--ice)';
+
+  const modelStyle = hasValue
+    ? 'color:var(--green);font-weight:700;'
+    : 'color:var(--muted2);';
+  const mktStyle = hasValue
+    ? 'color:var(--text);font-weight:700;'
+    : 'color:var(--muted);';
+
+  const valueTag = hasValue
+    ? `<span style="font-size:.58rem;background:rgba(16,217,160,.15);color:var(--green);border:1px solid rgba(16,217,160,.3);border-radius:3px;padding:1px 5px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.04em;margin-left:2px;">VAL</span>`
     : '';
-  const modelColor = (modelOdds != null && mktML != null && modelOdds > mktML)
-    ? 'var(--green)' : 'var(--ice)';
 
   return `
     <div class="team-row">
       <span class="team-abbrev">${abbrev}</span>
       <span class="team-name-full">${name}</span>
-      <span class="win-pct" style="color:${pctCol}">${pct ?? '—'}%</span>
-      <span class="model-odds" id="model-${side}-${idx}" style="color:${modelColor};font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.88rem;min-width:42px;text-align:right;" title="Model implied">${modelOddsStr}${arrow}</span>
-      <span class="fair-pct" id="mkt-${side}-${idx}" style="color:var(--muted2);min-width:42px;text-align:right;">${mktStr}</span>
+      <span class="win-pct" style="background:${pctBg};color:${pctClr};">${pct ?? '—'}%</span>
+      <span style="${modelStyle}font-family:'Oswald',sans-serif;font-size:.9rem;min-width:44px;text-align:right;" id="model-${side}-${idx}" title="Model fair odds">${modelOddsStr}</span>
+      <span style="${mktStyle}font-family:'Oswald',sans-serif;font-size:.9rem;min-width:44px;text-align:right;" id="mkt-${side}-${idx}" title="Best market price">${mktStr}${valueTag}</span>
       <span class="edge-badge ${edgeCls}" id="edge-${side}-${idx}">${edgeTxt}</span>
     </div>`;
 }
@@ -1182,23 +1067,33 @@ function updateOdds(idx, field, val) {
   const homeEdge = g.ml_edge_home;
 
   for (const side of ['away','home']) {
-    const edge     = g['ml_edge_' + side];
-    const badge    = document.getElementById(`edge-${side}-${idx}`);
-    const mktEl    = document.getElementById(`mkt-${side}-${idx}`);
-    const modelEl  = document.getElementById(`model-${side}-${idx}`);
-    const mktML    = g[side + '_ml'];
-    const pct      = g['hs_' + side + '_pct'];
+    const edge      = g['ml_edge_' + side];
+    const badge     = document.getElementById(`edge-${side}-${idx}`);
+    const mktEl     = document.getElementById(`mkt-${side}-${idx}`);
+    const modelEl   = document.getElementById(`model-${side}-${idx}`);
+    const mktML     = g[side + '_ml'];
+    const pct       = g['hs_' + side + '_pct'];
     const modelOdds = pct != null ? probToML(pct / 100) : null;
+    const hasValue  = modelOdds != null && mktML != null && mktML > modelOdds;
 
     if (badge) {
       badge.textContent = edge == null ? '—' : (edge > 0 ? '+' : '') + edge.toFixed(1) + '%';
       badge.className   = 'edge-badge ' + (edge == null ? 'zero' : edge >= EDGE_THRESH ? 'pos' : edge <= -EDGE_THRESH ? 'neg' : 'zero');
     }
-    if (mktEl)   mktEl.textContent   = mktML != null ? mlFmt(mktML) : '—';
     if (modelEl) {
-      const arrow = (modelOdds != null && mktML != null) ? (modelOdds > mktML ? ' ▲' : modelOdds < mktML ? ' ▼' : '') : '';
-      modelEl.textContent = modelOdds != null ? mlFmt(modelOdds) + arrow : '—';
-      modelEl.style.color = (modelOdds != null && mktML != null && modelOdds > mktML) ? 'var(--green)' : 'var(--ice)';
+      modelEl.textContent = modelOdds != null ? mlFmt(modelOdds) : '—';
+      modelEl.style.cssText = hasValue
+        ? 'color:var(--green);font-weight:700;font-family:Oswald,sans-serif;font-size:.9rem;min-width:44px;text-align:right;'
+        : 'color:var(--muted2);font-family:Oswald,sans-serif;font-size:.9rem;min-width:44px;text-align:right;';
+    }
+    if (mktEl) {
+      const valTag = hasValue
+        ? `<span style="font-size:.58rem;background:rgba(16,217,160,.15);color:var(--green);border:1px solid rgba(16,217,160,.3);border-radius:3px;padding:1px 5px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.04em;margin-left:2px;">VAL</span>`
+        : '';
+      mktEl.innerHTML = (mktML != null ? mlFmt(mktML) : '—') + valTag;
+      mktEl.style.cssText = hasValue
+        ? 'color:var(--text);font-weight:700;font-family:Oswald,sans-serif;font-size:.9rem;min-width:44px;text-align:right;'
+        : 'color:var(--muted);font-family:Oswald,sans-serif;font-size:.9rem;min-width:44px;text-align:right;';
     }
   }
 
@@ -1215,7 +1110,7 @@ function updateOdds(idx, field, val) {
     if (hasEdge && !evBadge) {
       evBadge = document.createElement('span');
       evBadge.className = 'ev-badge';
-      evBadge.style.cssText = "font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.72rem;color:var(--green);letter-spacing:.05em;text-transform:uppercase;";
+      evBadge.style.cssText = "font-family:'Oswald',sans-serif;font-weight:700;font-size:.72rem;color:var(--green);letter-spacing:.05em;text-transform:uppercase;";
       evBadge.textContent = '⚡ +EV';
       header.appendChild(evBadge);
     } else if (!hasEdge && evBadge) {
@@ -1334,17 +1229,35 @@ async function fetchOdds() {
   btn.disabled = false;
 }
 
+// Full name lookup for Odds API matching — keyed by abbrev
+const ODDS_FULL_NAMES = {
+  'BUF':'Buffalo Sabres',        'OTT':'Ottawa Senators',
+  'PIT':'Pittsburgh Penguins',   'TB': 'Tampa Bay Lightning',
+  'BOS':'Boston Bruins',         'FLA':'Florida Panthers',
+  'MTL':'Montreal Canadiens',    'NYR':'New York Rangers',
+  'DET':'Detroit Red Wings',     'PHI':'Philadelphia Flyers',
+  'CBJ':'Columbus Blue Jackets', 'CAR':'Carolina Hurricanes',
+  'WSH':'Washington Capitals',   'NJ': 'New Jersey Devils',
+  'WPG':'Winnipeg Jets',         'DAL':'Dallas Stars',
+  'VAN':'Vancouver Canucks',     'MIN':'Minnesota Wild',
+  'CHI':'Chicago Blackhawks',    'EDM':'Edmonton Oilers',
+  'CGY':'Calgary Flames',        'VGK':'Vegas Golden Knights',
+  'TOR':'Toronto Maple Leafs',   'SJ': 'San Jose Sharks',
+  'UTA':'Utah Hockey Club',      'SEA':'Seattle Kraken',
+  'NSH':'Nashville Predators',   'LA': 'Los Angeles Kings',
+  'STL':'St. Louis Blues',       'ANA':'Anaheim Ducks',
+  'NYI':'New York Islanders',    'COL':'Colorado Avalanche',
+};
+
 function findOddsMatch(g, oddsData) {
-  // Odds API uses full team names — map back via TEAM_NAMES (reversed)
-  const awayFull = Object.entries(TEAM_NAMES).find(([k]) => k === g.away)?.[1];
-  const homeFull = Object.entries(TEAM_NAMES).find(([k]) => k === g.home)?.[1];
+  const awayFull = ODDS_FULL_NAMES[g.away];
+  const homeFull = ODDS_FULL_NAMES[g.home];
   return oddsData.find(od =>
-    (od.away_team?.includes(g.away) || od.away_team === awayFull) &&
-    (od.home_team?.includes(g.home) || od.home_team === homeFull)
+    od.away_team === awayFull && od.home_team === homeFull
   ) || oddsData.find(od =>
-    // looser match on first 3 chars
-    od.away_team?.slice(0,3) === g.away.slice(0,3) &&
-    od.home_team?.slice(0,3) === g.home.slice(0,3)
+    // fallback: partial match on first word of team name
+    od.away_team?.split(' ').pop() === awayFull?.split(' ').pop() &&
+    od.home_team?.split(' ').pop() === homeFull?.split(' ').pop()
   );
 }
 
@@ -1476,19 +1389,29 @@ function saveBet() {
   const stake = parseFloat(document.getElementById('bStake').value);
   if (!odds || !stake) { toast('Enter odds and stake', 'err'); return; }
 
+  // Derive model odds from the game data if available
+  const pick = document.getElementById('bPick').value;
+  let modelOdds = null;
+  if (modalGame) {
+    const pickU = pick.toUpperCase();
+    if (pickU.includes(modalGame.away)) modelOdds = probToML((modalGame.hs_away_pct||0)/100);
+    else if (pickU.includes(modalGame.home)) modelOdds = probToML((modalGame.hs_home_pct||0)/100);
+  }
+
   const bet = {
-    id:      Date.now(),
-    date:    document.getElementById('bDate').value,
-    matchup: document.getElementById('bMatchup').value,
-    market:  document.getElementById('bMarket').value,
-    pick:    document.getElementById('bPick').value,
+    id:         Date.now(),
+    date:       document.getElementById('bDate').value,
+    matchup:    document.getElementById('bMatchup').value,
+    market:     document.getElementById('bMarket').value,
+    pick,
     odds,
     stake,
-    edge:    parseFloat(document.getElementById('bEdge').value) || null,
-    book:    document.getElementById('bBook').value,
-    notes:   document.getElementById('bNotes').value,
-    result:  'pending',
-    pl:      null,
+    edge:       parseFloat(document.getElementById('bEdge').value) || null,
+    book:       document.getElementById('bBook').value,
+    notes:      document.getElementById('bNotes').value,
+    modelOdds,
+    result:     'pending',
+    pl:         null,
   };
 
   bets.unshift(bet);
@@ -1500,13 +1423,19 @@ function saveBet() {
 
 // ── Bet Log ──────────────────────────────────────────────────────────────────
 function renderLog() {
-  const tbody = document.getElementById('betTbody');
-  if (!bets.length) {
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty">No bets logged yet.</div></td></tr>`;
-    return;
-  }
+  const tbody  = document.getElementById('betTbody');
+  const search = (document.getElementById('betSearch')?.value || '').toLowerCase();
+  const fRes   = document.getElementById('filterResult')?.value || '';
+  const fMkt   = document.getElementById('filterMarket')?.value || '';
 
-  const sorted = [...bets].sort((a, b) => {
+  let filtered = [...bets].filter(b => {
+    if (fRes && b.result !== fRes) return false;
+    if (fMkt && b.market !== fMkt) return false;
+    if (search && !JSON.stringify(b).toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => {
     let va = a[sortField], vb = b[sortField];
     if (typeof va === 'string') va = va.toLowerCase();
     if (typeof vb === 'string') vb = vb.toLowerCase();
@@ -1515,44 +1444,271 @@ function renderLog() {
     return 0;
   });
 
-  tbody.innerHTML = sorted.map(bet => {
-    const plVal = bet.pl;
-    const plHtml = plVal == null ? '—'
-      : `<span class="${plVal >= 0 ? 'pl-pos' : 'pl-neg'}">${plVal >= 0 ? '+' : ''}${plVal.toFixed(2)}u</span>`;
-    const edgeHtml = bet.edge != null
-      ? `<span class="${bet.edge >= 3 ? 'pl-pos' : bet.edge <= -3 ? 'pl-neg' : ''}">${bet.edge > 0 ? '+' : ''}${bet.edge.toFixed(1)}%</span>`
-      : '—';
+  if (!filtered.length) {
+    tbody.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted);font-size:.85rem;">No bets found.</div>`;
+    return;
+  }
 
+  tbody.innerHTML = filtered.map(bet => {
+    const pl       = bet.pl;
+    const plStr    = pl == null ? '—' : `<span class="${pl>=0?'pl-pos':'pl-neg'}">${pl>=0?'+':''}${pl.toFixed(2)}u</span>`;
+    const edgeStr  = bet.edge != null ? `<span class="${bet.edge>=EDGE_THRESH?'pl-pos':bet.edge<0?'pl-neg':''}">${bet.edge>0?'+':''}${bet.edge.toFixed(1)}%</span>` : '—';
+    const resColor = bet.result==='win'?'var(--green)':bet.result==='loss'?'var(--red)':bet.result==='push'?'var(--gold)':'var(--muted)';
+    const modelStr = bet.modelOdds != null ? mlFmt(bet.modelOdds) : '—';
     return `
-      <tr>
-        <td>${bet.date}</td>
-        <td>${bet.matchup}</td>
-        <td>${bet.market}</td>
-        <td>${bet.pick || '—'}</td>
-        <td>${bet.odds > 0 ? '+' : ''}${bet.odds}</td>
-        <td>${edgeHtml}</td>
-        <td>${bet.stake}u</td>
-        <td><span class="result-badge ${bet.result}">${bet.result}</span></td>
-        <td>${plHtml}</td>
-        <td>
-          <select class="grade-select" onchange="gradeBet(${bet.id}, this.value)">
-            <option value="pending"  ${bet.result==='pending' ?'selected':''}>Pending</option>
-            <option value="win"      ${bet.result==='win'     ?'selected':''}>Win</option>
-            <option value="loss"     ${bet.result==='loss'    ?'selected':''}>Loss</option>
-            <option value="push"     ${bet.result==='push'    ?'selected':''}>Push</option>
+      <div class="track-row">
+        <div class="tv">${bet.date}</div>
+        <div class="tv" title="${bet.matchup}">${bet.matchup}</div>
+        <div class="tv" style="color:var(--muted2)">${bet.market}</div>
+        <div class="tv" title="${bet.pick||''}">${bet.pick||'—'}</div>
+        <div class="tv">${bet.odds>0?'+':''}${bet.odds}</div>
+        <div class="tv">${edgeStr}</div>
+        <div class="tv" style="color:var(--ice)">${modelStr}</div>
+        <div class="tv" style="color:var(--muted2)">${bet.book||'—'}</div>
+        <div class="tv">${bet.stake}u</div>
+        <div class="tv" onclick="event.stopPropagation()">
+          <select class="result-sel" style="color:${resColor}" onchange="gradeBet(${bet.id},this.value)">
+            <option value="pending" ${bet.result==='pending'?'selected':''}>Pending</option>
+            <option value="win"     ${bet.result==='win'    ?'selected':''}>WIN</option>
+            <option value="loss"    ${bet.result==='loss'   ?'selected':''}>LOSS</option>
+            <option value="push"    ${bet.result==='push'   ?'selected':''}>PUSH</option>
           </select>
-        </td>
-        <td><button class="btn sm danger" onclick="deleteBet(${bet.id})">✕</button></td>
-      </tr>`;
+        </div>
+        <div class="tv">${plStr}</div>
+        <div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteBet(${bet.id})">✕</button></div>
+      </div>`;
   }).join('');
+
+  populateGradeDates();
 }
 
+// ── Grade / cancel controls ───────────────────────────────────────────────────
+function populateGradeDates() {
+  const pendingDates = [...new Set(bets.filter(b=>b.result==='pending').map(b=>b.date).filter(Boolean))].sort();
+  const allDates     = [...new Set(bets.map(b=>b.date).filter(Boolean))].sort();
+  const gd = document.getElementById('gradeDate');
+  if (gd) {
+    const cur = gd.value;
+    gd.innerHTML = '<option value="">Pick date…</option>' +
+      pendingDates.map(d=>`<option value="${d}"${d===cur?' selected':''}>${d} (${bets.filter(b=>b.date===d&&b.result==='pending').length} pending)</option>`).join('');
+  }
+  const rd = document.getElementById('regradeDate');
+  if (rd) {
+    const cur = rd.value;
+    rd.innerHTML = '<option value="">Re-grade date…</option>' +
+      allDates.map(d=>`<option value="${d}"${d===cur?' selected':''}>${d} (${bets.filter(b=>b.date===d).length} bets)</option>`).join('');
+  }
+}
+
+function setGradeStatus(msg) {
+  const el = document.getElementById('gradeStatus');
+  if (el) el.textContent = msg;
+}
+
+function gradeByDate() {
+  const d = document.getElementById('gradeDate')?.value;
+  if (!d) { setGradeStatus('Pick a date first'); return; }
+  showBulkGradeModal(d, false);
+}
+
+function regradeByDate() {
+  const d = document.getElementById('regradeDate')?.value;
+  if (!d) { setGradeStatus('Pick a date first'); return; }
+  if (!confirm(`Clear and re-grade all bets on ${d}?`)) return;
+  bets.forEach(b => { if (b.date===d) { b.result='pending'; b.pl=null; }});
+  saveBets(); updateHeader(); renderLog();
+  showBulkGradeModal(d, true);
+}
+
+function cancelPendingByDate() {
+  const d = document.getElementById('gradeDate')?.value;
+  if (!d) { setGradeStatus('Pick a date first'); return; }
+  const n = bets.filter(b=>b.date===d&&b.result==='pending').length;
+  if (!n) { setGradeStatus('No pending bets on '+d); return; }
+  if (!confirm(`Cancel ${n} pending bet${n>1?'s':''} on ${d}?`)) return;
+  bets = bets.filter(b => !(b.date===d && b.result==='pending'));
+  saveBets(); updateHeader(); renderLog();
+  setGradeStatus(`Cancelled ${n} bets on ${d}`);
+}
+
+function clearPendingAll() {
+  const n = bets.filter(b=>b.result==='pending').length;
+  if (!n) { toast('No pending bets', 'err'); return; }
+  if (!confirm(`Clear all ${n} pending bets?`)) return;
+  bets = bets.filter(b => b.result !== 'pending');
+  saveBets(); updateHeader(); renderLog();
+  toast(`Cleared ${n} pending bets`, 'ok');
+}
+
+function showBulkGradeModal(date, isRegrade) {
+  const dateBets = bets.filter(b => b.date === date);
+  if (!dateBets.length) { setGradeStatus('No bets on '+date); return; }
+  const existing = document.getElementById('bulkGradeModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'bulkGradeModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border2);border-radius:10px;max-width:580px;width:100%;max-height:80vh;overflow-y:auto;padding:20px;';
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <span style="font-size:1rem;font-weight:700;">${isRegrade?'Re-grade':'Grade'} — ${date}</span>
+      <button onclick="document.getElementById('bulkGradeModal').remove()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;">✕</button>
+    </div>
+    ${dateBets.map(b => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.matchup} · ${b.pick||b.market}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:2px;">${b.odds>0?'+':''}${b.odds} · ${b.stake}u${b.edge!=null?' · Edge '+b.edge.toFixed(1)+'%':''} · ${b.book||'—'}</div>
+        </div>
+        <select class="result-sel" style="min-width:80px;flex-shrink:0;" onchange="gradeBet(${b.id},this.value);updateBulkPL()">
+          <option value="pending" ${b.result==='pending'?'selected':''}>Pending</option>
+          <option value="win"     ${b.result==='win'    ?'selected':''}>WIN</option>
+          <option value="loss"    ${b.result==='loss'   ?'selected':''}>LOSS</option>
+          <option value="push"    ${b.result==='push'   ?'selected':''}>PUSH</option>
+        </select>
+      </div>`).join('')}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:8px;">
+      <span id="bulkPLSummary" style="font-size:.82rem;color:var(--muted);"></span>
+      <button class="btn primary" onclick="document.getElementById('bulkGradeModal').remove();renderLog();renderDash();updateHeader();">Done</button>
+    </div>`;
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target===modal) { modal.remove(); renderLog(); renderDash(); } });
+  updateBulkPL();
+}
+
+function updateBulkPL() {
+  const el = document.getElementById('bulkPLSummary');
+  if (!el) return;
+  const graded = bets.filter(b=>b.result!=='pending'&&b.pl!=null);
+  const units  = graded.reduce((s,b)=>s+(b.pl||0),0);
+  el.textContent = graded.length ? `${graded.length} graded · ${units>=0?'+':''}${units.toFixed(2)}u` : '';
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+function renderDash() {
+  const el      = document.getElementById('dashInner');
+  if (!el) return;
+  const settled = bets.filter(b => b.result !== 'pending');
+  const wins    = settled.filter(b => b.result === 'win').length;
+  const losses  = settled.filter(b => b.result === 'loss').length;
+  const pushes  = settled.filter(b => b.result === 'push').length;
+  const pending = bets.filter(b => b.result === 'pending').length;
+  const units   = settled.reduce((s,b) => s + (b.pl||0), 0);
+  const staked  = settled.reduce((s,b) => s + b.stake, 0);
+  const roi     = staked ? (units / staked) * 100 : 0;
+  const evBets  = bets.filter(b => b.edge != null && b.edge >= EDGE_THRESH);
+
+  function dStat(lbl,val,sub,color='var(--text)') {
+    return `<div class="dash-stat"><div class="dash-stat-label">${lbl}</div><div class="dash-stat-val" style="color:${color}">${val}</div>${sub?`<div class="dash-stat-sub">${sub}</div>`:''}</div>`;
+  }
+  function bkTable(rows, title) {
+    if (!rows.length) return '';
+    let h = `<div class="bk-card"><div class="bk-title">${title}</div><div class="bk-head"><span>Category</span><span>W</span><span>L</span><span>P</span><span>W%</span><span>Units</span></div>`;
+    for (const r of rows) {
+      const t = r.w+r.l+r.p;
+      const wp = t > 0 ? (r.w/t*100).toFixed(0)+'%' : '—';
+      h += `<div class="bk-row"><div class="bk-label">${r.label}</div><div class="bk-val g">${r.w}</div><div class="bk-val r">${r.l}</div><div class="bk-val">${r.p}</div><div class="bk-val">${wp}</div><div class="bk-val ${r.units>=0?'pos':'neg'}">${(r.units>=0?'+':'')+r.units.toFixed(2)}u</div></div>`;
+    }
+    return h + '</div>';
+  }
+  function breakdown(groupFn, labelFn, arr) {
+    const g = {};
+    for (const b of arr) {
+      const k = groupFn(b); if (!k) continue;
+      if (!g[k]) g[k] = {label:labelFn(b,k), w:0, l:0, p:0, units:0};
+      if (b.result==='win')  { g[k].w++; g[k].units += b.pl||0; }
+      else if (b.result==='loss') { g[k].l++; g[k].units += b.pl||0; }
+      else if (b.result==='push') g[k].p++;
+    }
+    return Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([,v])=>v);
+  }
+
+  const mktRows  = breakdown(b=>b.market||'?', b=>b.market||'?', settled);
+  const bookRows = breakdown(b=>b.book||'?',   b=>b.book||'?',   settled);
+  const evRows   = (() => {
+    const rows = breakdown(b => {
+      const e = b.edge; if (e==null||e<EDGE_THRESH) return null;
+      if (e<4) return 'a2–4%'; if (e<6) return 'b4–6%'; if (e<8) return 'c6–8%'; return 'd8%+';
+    }, (_,k)=>k.slice(1), settled);
+    const evSettled = settled.filter(b=>b.edge!=null&&b.edge>=EDGE_THRESH);
+    if (evSettled.length) {
+      rows.unshift({label:'⚡ All +EV', w:evSettled.filter(b=>b.result==='win').length, l:evSettled.filter(b=>b.result==='loss').length, p:evSettled.filter(b=>b.result==='push').length, units:evSettled.reduce((s,b)=>s+(b.pl||0),0)});
+    }
+    return rows;
+  })();
+  const oddsRows = breakdown(b => {
+    if (!b.edge||b.edge<EDGE_THRESH||b.odds==null) return null;
+    const o=b.odds;
+    if (o<=-151) return 'a-151+'; if (o<=-121) return 'b-121 to -150';
+    if (o<=-101) return 'c-101 to -120'; if (o<=110) return 'd+100 to +110';
+    if (o<=130)  return 'e+111 to +130'; return 'f+131+';
+  }, (_,k)=>k.slice(1), settled);
+
+  let html = `<div class="dash-stats">
+    ${dStat('Record',`${wins}W · ${losses}L${pushes?` · ${pushes}P`:''}`,`${settled.length} settled · ${pending} pending`)}
+    ${dStat('Units P&L',(units>=0?'+':'')+units.toFixed(2)+'u','',units>=0?'var(--green)':'var(--red)')}
+    ${dStat('ROI',settled.length?(roi>=0?'+':'')+roi.toFixed(1)+'%':'—','actual units / staked',roi>=0?'var(--green)':'var(--red)')}
+    ${dStat('Win%',settled.length?(wins/settled.length*100).toFixed(1)+'%':'—',settled.length+' settled')}
+    ${dStat('⚡ +EV Bets',evBets.length+'',evBets.filter(b=>b.result==='pending').length+' pending',evBets.length?'var(--green)':'var(--muted)')}
+    ${dStat('Open',pending+'','pending bets')}
+  </div>`;
+
+  html += '<div class="dash-section-title">Overall</div><div class="bk-grid">';
+  html += bkTable(mktRows,  'By Market');
+  html += bkTable(bookRows, 'By Book');
+  html += '</div>';
+
+  if (evRows.length) {
+    html += '<div class="dash-section-title">⚡ +EV Breakdown (≥2% edge)</div><div class="bk-grid">';
+    html += bkTable(evRows,   'By Edge Bucket');
+    html += bkTable(oddsRows, '+EV by Odds Bucket');
+    html += '</div>';
+  }
+
+  if (!settled.length) html += '<div style="text-align:center;color:var(--muted);font-size:.85rem;padding:2rem;">No settled bets yet.</div>';
+  el.innerHTML = html;
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(bets,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `nhl-bets-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('JSON exported', 'ok');
+}
+
+function importBets(input) {
+  const f = input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      if (!Array.isArray(d)) throw new Error('Not an array');
+      if (bets.length > 0 && !confirm('Merge with existing bets? Cancel to replace.')) {
+        bets = d;
+      } else {
+        const ids = new Set(bets.map(b=>b.id));
+        bets = [...bets, ...d.filter(b=>!ids.has(b.id))];
+      }
+      saveBets(); updateHeader(); renderLog();
+      toast(`Imported ${d.length} bets`, 'ok');
+    } catch(err) { toast('Import failed: '+err.message, 'err'); }
+  };
+  r.readAsText(f); input.value='';
+}
 function gradeBet(id, result) {
   const bet = bets.find(b => b.id === id);
   if (!bet) return;
   bet.result = result;
   if (result === 'win') {
-    bet.pl = bet.odds > 0 ? (bet.stake * bet.odds / 100) : (bet.stake * 100 / Math.abs(bet.odds));
+    bet.pl = bet.odds > 0
+      ? (bet.stake * bet.odds / 100)
+      : (bet.stake * 100 / Math.abs(bet.odds));
   } else if (result === 'loss') {
     bet.pl = -bet.stake;
   } else if (result === 'push') {
@@ -1562,14 +1718,11 @@ function gradeBet(id, result) {
   }
   saveBets();
   updateHeader();
-  renderLog();
 }
 
 function deleteBet(id) {
   bets = bets.filter(b => b.id !== id);
-  saveBets();
-  updateHeader();
-  renderLog();
+  saveBets(); updateHeader(); renderLog();
   toast('Bet removed', 'ok');
 }
 
@@ -1577,107 +1730,6 @@ function sortLog(field) {
   if (sortField === field) sortAsc = !sortAsc;
   else { sortField = field; sortAsc = true; }
   renderLog();
-}
-
-// ── Dashboard ────────────────────────────────────────────────────────────────
-function renderDash() {
-  const graded  = bets.filter(b => b.result !== 'pending');
-  const wins    = graded.filter(b => b.result === 'win').length;
-  const losses  = graded.filter(b => b.result === 'loss').length;
-  const units   = graded.reduce((s, b) => s + (b.pl || 0), 0);
-  const roi     = graded.length ? (units / graded.reduce((s,b) => s + b.stake, 0)) * 100 : 0;
-  const edgeBets = bets.filter(b => b.edge != null);
-  const avgEdge  = edgeBets.length ? edgeBets.reduce((s,b) => s + b.edge, 0) / edgeBets.length : 0;
-  const evBets   = bets.filter(b => b.edge != null && b.edge >= EDGE_THRESH);
-
-  const dc = document.getElementById('dashCards');
-  dc.innerHTML = `
-    ${statCard('Record', `${wins}-${losses}`, graded.length + ' graded')}
-    ${statCard('Units', (units >= 0 ? '+' : '') + units.toFixed(2) + 'u', '', units >= 0 ? 'var(--green)' : 'var(--red)')}
-    ${statCard('ROI', (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%', '', roi >= 0 ? 'var(--green)' : 'var(--red)')}
-    ${statCard('Win%', graded.length ? ((wins/graded.length)*100).toFixed(1)+'%' : '—', graded.length + ' bets')}
-    ${statCard('Avg Edge', (avgEdge >= 0 ? '+' : '') + avgEdge.toFixed(1) + '%', edgeBets.length + ' with edge', avgEdge >= 2 ? 'var(--green)' : avgEdge < 0 ? 'var(--red)' : 'var(--text)')}
-    ${statCard('⚡ +EV Bets', evBets.length + '', evBets.filter(b=>b.result==='pending').length + ' pending', evBets.length ? 'var(--green)' : 'var(--muted)')}
-  `;
-
-  // ── By Market ──
-  const markets = ['ML', 'PL', 'Total', 'Team Total'];
-  document.getElementById('mbTbody').innerHTML = markets.map(mkt => {
-    const mb  = graded.filter(b => b.market === mkt);
-    const mw  = mb.filter(b => b.result === 'win').length;
-    const ml  = mb.filter(b => b.result === 'loss').length;
-    const mu  = bets.filter(b => b.market === mkt && b.result === 'pending').length;
-    const mu2 = mb.reduce((s,b) => s + (b.pl||0), 0);
-    const me  = bets.filter(b => b.market === mkt && b.edge != null);
-    const mae = me.length ? me.reduce((s,b) => s + b.edge, 0) / me.length : null;
-    if (!mb.length && !mu) return '';
-    const pctStr = mb.length ? ((mw/mb.length)*100).toFixed(0)+'%' : '—';
-    const uStr   = `<span class="${mu2>=0?'pl-pos':'pl-neg'}">${mu2>=0?'+':''}${mu2.toFixed(2)}u</span>`;
-    const eStr   = mae != null ? `<span class="${mae>=2?'pl-pos':mae<0?'pl-neg':''}">${mae>0?'+':''}${mae.toFixed(1)}%</span>` : '—';
-    return `<tr>
-      <td class="mkt-name">${mkt}</td>
-      <td>${mb.length + mu}</td><td>${mw}-${ml}</td><td>${pctStr}</td><td>${uStr}</td><td>${eStr}</td>
-    </tr>`;
-  }).join('');
-
-  // ── +EV Breakdown ──
-  // Buckets: 2–4%, 4–6%, 6–8%, 8%+, and overall +EV
-  const evBuckets = [
-    { label: 'All +EV',  min: EDGE_THRESH, max: Infinity },
-    { label: '2–4%',     min: 2,   max: 4   },
-    { label: '4–6%',     min: 4,   max: 6   },
-    { label: '6–8%',     min: 6,   max: 8   },
-    { label: '8%+',      min: 8,   max: Infinity },
-  ];
-
-  document.getElementById('evTbody').innerHTML = evBuckets.map(bucket => {
-    const bucketBets   = bets.filter(b => b.edge != null && b.edge >= bucket.min && b.edge < bucket.max);
-    const bucketGraded = bucketBets.filter(b => b.result !== 'pending');
-    if (!bucketBets.length) return '';
-
-    const bw    = bucketGraded.filter(b => b.result === 'win').length;
-    const bl    = bucketGraded.filter(b => b.result === 'loss').length;
-    const bu    = bucketGraded.reduce((s,b) => s + (b.pl||0), 0);
-    const bpend = bucketBets.filter(b => b.result === 'pending').length;
-    const bavg  = bucketBets.reduce((s,b) => s + b.edge, 0) / bucketBets.length;
-
-    // Expected win% from avg edge + implied prob (rough: fair% = 50% + edge/2 as approximation)
-    // Better: use Kelly-style. We store edge vs fair%, so expected win% ≈ fair% which we don't store per bet.
-    // Use average odds instead: EV = (winProb * profit) - (lossProb * stake)  → winProb = (EV/stake + 1) / (profit/stake + 1)
-    // Simpler display: just show implied win% from avg odds
-    const betsWithOdds = bucketBets.filter(b => b.odds != null);
-    let expWinPct = null;
-    if (betsWithOdds.length) {
-      const avgFair = betsWithOdds.reduce((s,b) => {
-        const imp = b.odds > 0 ? 100/(b.odds+100) : Math.abs(b.odds)/(Math.abs(b.odds)+100);
-        // fair prob = implied + edge/100 (since edge = model% - market%)
-        return s + imp + (b.edge || 0) / 100;
-      }, 0) / betsWithOdds.length;
-      expWinPct = (avgFair * 100).toFixed(1) + '%';
-    }
-
-    const actWinPct = bucketGraded.length ? ((bw/bucketGraded.length)*100).toFixed(0)+'%' : '—';
-    const uStr      = bu !== 0 ? `<span class="${bu>=0?'pl-pos':'pl-neg'}">${bu>=0?'+':''}${bu.toFixed(2)}u</span>` : '0.00u';
-    const isAll     = bucket.label === 'All +EV';
-
-    return `<tr style="${isAll ? 'background:var(--surface2);' : ''}">
-      <td class="mkt-name" style="${isAll ? 'color:var(--green);' : ''}">${isAll ? '⚡ ' : ''}${bucket.label}</td>
-      <td>${bucketBets.length}${bpend ? ` <span style="color:var(--muted);font-size:.72rem;">(${bpend} open)</span>` : ''}</td>
-      <td>${bw}-${bl}</td>
-      <td>${actWinPct}</td>
-      <td>${uStr}</td>
-      <td><span class="pl-pos">+${bavg.toFixed(1)}%</span></td>
-      <td style="color:var(--muted2)">${expWinPct ?? '—'}</td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="7" style="color:var(--muted);padding:14px 16px;font-size:.82rem;">No +EV bets logged yet.</td></tr>`;
-}
-
-function statCard(lbl, val, sub='', color='var(--text)') {
-  return `<div class="stat-card">
-    <div class="lbl">${lbl}</div>
-    <div class="val" style="color:${color}">${val}</div>
-    ${sub ? `<div class="sub">${sub}</div>` : ''}
-  </div>`;
 }
 
 // ── Header stats ─────────────────────────────────────────────────────────────
@@ -1700,22 +1752,20 @@ function saveBets() {
 }
 
 function clearBets() {
-  if (!confirm('Clear all bets? This cannot be undone.')) return;
+  if (!confirm('Clear ALL bets? This cannot be undone.')) return;
   bets = [];
-  saveBets();
-  updateHeader();
-  renderLog();
+  saveBets(); updateHeader(); renderLog();
   toast('All bets cleared', 'ok');
 }
 
 function exportCSV() {
   if (!bets.length) { toast('No bets to export', 'err'); return; }
-  const cols = ['date','matchup','market','pick','odds','edge','stake','result','pl','book','notes'];
+  const cols = ['date','matchup','market','pick','odds','modelOdds','edge','stake','book','result','pl','notes'];
   const rows = [cols.join(','), ...bets.map(b => cols.map(c => JSON.stringify(b[c] ?? '')).join(','))];
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `nhl_bets_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `nhl-bets-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   toast('CSV exported', 'ok');
 }
