@@ -262,6 +262,39 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
     </div>
   </div>
 
+  <div class="input-panel">
+    <div class="input-panel-header">
+      <div>
+        <div class="panel-label">Bat X JSON</div>
+        <div class="panel-sub">game · market · tm · suggested_bet · batx_proj · roi · over/under/ml/rl odds</div>
+      </div>
+      <div class="panel-count" id="pc"></div>
+    </div>
+    <textarea id="batxInput" placeholder='Paste Bat X JSON array here...' oninput="validateInput()"></textarea>
+    <div class="filter-row">
+      <label>Min Carty ROI %</label>
+      <input type="number" id="minRoi" value="5" step="0.5" min="0">
+      <label>Min margin past line</label>
+      <input type="number" id="minMargin" value="0" step="0.1" min="0" placeholder="0">
+    </div>
+  </div>
+
+  <div class="market-filters">
+    <button class="mf-btn active" onclick="setMarket('ALL',this)">All</button>
+    <button class="mf-btn c-total" onclick="setMarket('TOTAL',this)">Game Total</button>
+    <button class="mf-btn c-f5total" onclick="setMarket('1HTOTAL',this)">1H Total</button>
+    <button class="mf-btn c-tt" onclick="setMarket('TT',this)">Team Total</button>
+    <button class="mf-btn c-f5tt" onclick="setMarket('1HTT',this)">1H Team Total</button>
+    <button class="mf-btn c-f5ml" onclick="setMarket('1HML',this)">1H ML</button>
+    <button class="mf-btn c-f5rl" onclick="setMarket('1HRL',this)">1H RL</button>
+    <button class="mf-btn c-tt" onclick="setMarket('NRFI',this)">NRFI/YRFI</button>
+    <button class="mf-btn" onclick="setMarket('OTHER',this)">Other</button>
+  </div>
+
+  <button class="run-btn" id="runBtn" onclick="runFilter()" disabled>Filter plays →</button>
+  <div class="skipped" id="skipped"></div>
+  <div id="results"></div>
+
 
   <!-- Static grade controls - never rebuilt -->
   <div id="gradeBar" style="display:none;margin-top:16px;padding:10px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
