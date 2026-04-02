@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -1493,12 +1494,13 @@ function autoLogEV(goalieData) {
       if (bets.some(b => b.date===today && b.matchup===matchup && b.pick===pick)) return;
 
       const goalieName = side === 'away' ? g.awayGoalie : g.homeGoalie;
+      const bothGoalies = (g.awayGoalie && g.homeGoalie) ? `G: ${g.awayGoalie} / ${g.homeGoalie}` : goalieName ? `G: ${goalieName}` : 'auto';
       bets.unshift({
         id: Date.now() + Math.random(), date: today, matchup, market: 'ML', pick, odds: ml,
         stake: ml > 0 ? 1 : parseFloat((Math.abs(ml)/100).toFixed(2)),
         edge: round1(edge), book: book || '—',
         modelOdds: probToML((g['hs_'+side+'_pct']||0)/100),
-        notes: goalieName ? `G: ${goalieName}` : 'auto',
+        notes: bothGoalies,
         result: 'pending', pl: null,
       });
       autoLogged++;
@@ -1670,7 +1672,6 @@ function renderLog() {
     const edgeStr  = bet.edge != null ? `<span class="${bet.edge>=EDGE_THRESH?'pl-pos':bet.edge<0?'pl-neg':''}">${bet.edge>0?'+':''}${bet.edge.toFixed(1)}%</span>` : '—';
     const resColor = bet.result==='win'?'var(--green)':bet.result==='loss'?'var(--red)':bet.result==='push'?'var(--gold)':'var(--muted)';
     const modelStr = bet.modelOdds != null ? mlFmt(bet.modelOdds) : '—';
-    // Extract goalie from notes field ("G: Luukkonen" format)
     const goalieM  = bet.notes?.match(/^G:\s*(.+)$/);
     const goalieStr = goalieM ? `<span style="color:var(--green);font-size:.72rem;">✓ ${goalieM[1]}</span>` : '<span style="color:var(--muted)">—</span>';
     return `
