@@ -2000,10 +2000,25 @@ function hlJSON(str) {
 }
 
 function parserRenderAll() {
-  const rows = visibleRows();
+  // Get text from parse tab textarea
+  const ta = document.getElementById('parserInput');
+  const text = ta ? ta.value : '';
+  if(!text.trim()){ 
+    const out=document.getElementById('parserOutput');
+    if(out) out.innerHTML='';
+    return; 
+  }
+  // Parse the raw gamesheet
+  allRows = parseEV(text);
+  // Apply market/bet filters from parse tab dropdowns
+  const mktF = (document.getElementById('parserMarketFilter')||{}).value||'all';
+  const betF = (document.getElementById('parserBetFilter')||{}).value||'all';
+  let rows = dedupe(allRows);
+  if(mktF!=='all') rows=rows.filter(r=>r.market===mktF);
+  if(betF!=='all') rows=rows.filter(r=>r.dir===betF);
   renderCards(rows);
-  document.getElementById('jsonView').innerHTML = hlJSON(JSON.stringify(rows, null, 2));
-  document.getElementById('statusRight').textContent = `${rows.length} rows shown`;
+  const st=document.getElementById('parserStatus');
+  if(st) st.textContent = rows.length ? rows.length+' plays found' : 'No plays found';
 }
 
 function populateBooks() {
@@ -2068,15 +2083,14 @@ function downloadJSON() {
 }
 
 function parserClearAll() {
-  document.getElementById('inputArea').value = '';
-  allRows = []; currentMarket = 'all';
-  document.getElementById('marketTabs').innerHTML = '';
-  document.getElementById('cardsView').innerHTML = 'Parsed rows will appear here…';
-  document.getElementById('cardsView').className = 'output-scroll empty';
-  document.getElementById('jsonView').innerHTML = '';
-  document.getElementById('parseBadge').textContent = '—'; document.getElementById('parseBadge').className = 'badge';
-  document.getElementById('rowBadge').textContent = '—'; document.getElementById('rowBadge').className = 'badge';
-  parserSetStatus('Cleared.', false); document.getElementById('statusRight').textContent = '';
+  const ta=document.getElementById('parserInput');
+  if(ta) ta.value='';
+  const out=document.getElementById('parserOutput');
+  if(out) out.innerHTML='';
+  const st=document.getElementById('parserStatus');
+  if(st) st.textContent='';
+  ['trackSelectedBtn','selectAllBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  allRows=[];
 }
 
 function parserSetStatus(msg, isErr) {
