@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -1849,6 +1848,26 @@ function renderDash() {
 
   const mktRows  = breakdown(b=>b.market||'?', b=>b.market||'?', settled);
   const bookRows = breakdown(b=>b.book||'?',   b=>b.book||'?',   settled);
+
+  // +/- breakdown (favorites vs underdogs)
+  const favRows = breakdown(b => {
+    if (!b.odds) return null;
+    return b.odds < 0 ? 'a_Favorites (−)' : 'b_Underdogs (+)';
+  }, (_,k) => k.slice(2), settled);
+
+  // Odds buckets — ALL bets
+  const allOddsRows = breakdown(b => {
+    const o = b.odds; if (!o) return null;
+    if (o <= -201) return 'a-201 or worse';
+    if (o <= -151) return 'b-151 to -200';
+    if (o <= -121) return 'c-121 to -150';
+    if (o <= -101) return 'd-101 to -120';
+    if (o <=  110) return 'e+100 to +110';
+    if (o <=  130) return 'f+111 to +130';
+    if (o <=  150) return 'g+131 to +150';
+    return 'h+151+';
+  }, (_,k) => k.slice(1), settled);
+
   const evRows   = (() => {
     const rows = breakdown(b => {
       const e = b.edge; if (e==null||e<EDGE_THRESH) return null;
@@ -1860,6 +1879,8 @@ function renderDash() {
     }
     return rows;
   })();
+
+  // +EV odds buckets
   const oddsRows = breakdown(b => {
     if (!b.edge||b.edge<EDGE_THRESH||b.odds==null) return null;
     const o=b.odds;
@@ -1880,6 +1901,11 @@ function renderDash() {
   html += '<div class="dash-section-title">Overall</div><div class="bk-grid">';
   html += bkTable(mktRows,  'By Market');
   html += bkTable(bookRows, 'By Book');
+  html += '</div>';
+
+  html += '<div class="bk-grid">';
+  html += bkTable(favRows,     'Favorites (−) vs Underdogs (+)');
+  html += bkTable(allOddsRows, 'By Odds Bucket (All Bets)');
   html += '</div>';
 
   if (evRows.length) {
@@ -2172,6 +2198,34 @@ function exportXLSX() {
     for (const bk of books) {
       const bs = stats(settled.filter(b => b.book === bk));
       row(bk, (bs.units>=0?'+':'')+bs.units.toFixed(2)+'u', bs.w, bs.l, bs.winPct.toFixed(1)+'%', bs.roi.toFixed(1)+'%');
+    }
+    blank();
+
+    // Favorites vs Underdogs
+    row('FAVORITES (−) vs UNDERDOGS (+)', 'Units P&L', 'W', 'L', 'W%', 'ROI%');
+    const favs = settled.filter(b => b.odds && b.odds < 0);
+    const dogs = settled.filter(b => b.odds && b.odds > 0);
+    if (favs.length) { const sf=stats(favs); row('Favorites (−)',(sf.units>=0?'+':'')+sf.units.toFixed(2)+'u',sf.w,sf.l,sf.winPct.toFixed(1)+'%',sf.roi.toFixed(1)+'%'); }
+    if (dogs.length) { const sd=stats(dogs); row('Underdogs (+)',(sd.units>=0?'+':'')+sd.units.toFixed(2)+'u',sd.w,sd.l,sd.winPct.toFixed(1)+'%',sd.roi.toFixed(1)+'%'); }
+    blank();
+
+    // Odds buckets — all bets
+    const oddsBuckets = [
+      {label:'-201 or worse', fn: o=>o<=-201},
+      {label:'-151 to -200',  fn: o=>o>=-200&&o<=-151},
+      {label:'-121 to -150',  fn: o=>o>=-150&&o<=-121},
+      {label:'-101 to -120',  fn: o=>o>=-120&&o<=-101},
+      {label:'+100 to +110',  fn: o=>o>=100&&o<=110},
+      {label:'+111 to +130',  fn: o=>o>=111&&o<=130},
+      {label:'+131 to +150',  fn: o=>o>=131&&o<=150},
+      {label:'+151+',         fn: o=>o>=151},
+    ];
+    row('BY ODDS BUCKET (ALL BETS)', 'Units P&L', 'W', 'L', 'W%', 'ROI%');
+    for (const bkt of oddsBuckets) {
+      const bs = settled.filter(b => b.odds && bkt.fn(b.odds));
+      if (!bs.length) continue;
+      const s = stats(bs);
+      row(bkt.label,(s.units>=0?'+':'')+s.units.toFixed(2)+'u',s.w,s.l,s.winPct.toFixed(1)+'%',s.roi.toFixed(1)+'%');
     }
     blank();
 
