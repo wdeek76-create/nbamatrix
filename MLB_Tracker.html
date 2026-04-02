@@ -2077,54 +2077,103 @@ async function gradeAllForDate(scope, btn){
   let done=0;
 
   if(scope==='totals'){
-    // Use MLB Stats API for accuracy
     btn.textContent='Fetching scores...';
-    let mlbGames=[];
-    try{
-      const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`);
-      const d=await r.json();
-      mlbGames=(d.dates?.[0]?.games||[]).filter(g=>/final|complete/i.test(g.status?.detailedState||''));
-    }catch(e){ console.warn('MLB fetch error:',e.message); }
 
+    // Comprehensive map: what you type → what MLB Stats API abbreviation returns
+    const TEAM_MAP={
+      // What user types → canonical mlb abbr
+      'kc':'kc','kcr':'kc','atl':'atl','cle':'cle','sea':'sea','det':'det',
+      'sd':'sd','sdp':'sd','az':'ari','ari':'ari','lad':'lad','la':'lad',
+      'nyy':'nyy','ny':'nyy','sf':'sf','sfg':'sf','ath':'oak','oak':'oak',
+      'tor':'tor','col':'col','mia':'mia','laa':'laa','ana':'laa',
+      'hou':'hou','nym':'nym','phi':'phi','mil':'mil','stl':'stl',
+      'chc':'chc','cws':'cws','chw':'cws','min':'min','tex':'tex',
+      'bos':'bos','tb':'tb','tbr':'tb','bal':'bal','was':'wsh','wsh':'wsh',
+      'pit':'pit','cin':'cin','nyy':'nyy',
+      // City/name fragments that might appear
+      'yankees':'nyy','mets':'nym','dodgers':'lad','cubs':'chc',
+      'whitesox':'cws','redsox':'bos','bluejays':'tor','angels':'laa',
+      'cardinals':'stl','brewers':'mil','phillies':'phi','braves':'atl',
+      'astros':'hou','rangers':'tex','tigers':'det','royals':'kc',
+      'guardians':'cle','mariners':'sea','athletics':'oak','padres':'sd',
+      'diamondbacks':'ari','rockies':'col','marlins':'mia','nationals':'wsh',
+      'pirates':'pit','reds':'cin','twins':'min','orioles':'bal','rays':'tb',
+      'giants':'sf','athletics':'oak',
+    };
     const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
-    const ABBR={'kc':'kc','kcr':'kc','atl':'atl','cle':'cle','sea':'sea','det':'det','sd':'sd','sdp':'sd','az':'ari','ari':'ari','lad':'lad','la':'lad','nyy':'nyy','sf':'sf','sfg':'sf','ath':'oak','oak':'oak','tor':'tor','col':'col','mia':'mia','laa':'laa','hou':'hou','nym':'nym','phi':'phi','mil':'mil','stl':'stl','chc':'chc','cws':'cws','min':'min','tex':'tex','bos':'bos','tb':'tb','tbr':'tb','bal':'bal','was':'wsh','wsh':'wsh','pit':'pit','cin':'cin'};
-    const toA=s=>ABBR[norm(s)]||norm(s);
+    const toA=s=>TEAM_MAP[norm(s)]||norm(s);
+
+    async function fetchFinalGames(date){
+      try{
+        const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore`);
+        const d=await r.json();
+        return (d.dates?.[0]?.games||[]).filter(g=>/final|complete/i.test(g.status?.detailedState||''));
+      }catch(e){ return []; }
+    }
+
+    function findTotal(games, away, home){
+      const awayA=toA(away), homeA=toA(home);
+      const awayN=norm(away), homeN=norm(home);
+      // Pass 1: both abbreviations match
+      for(const g of games){
+        const gA=toA(g.teams?.away?.team?.abbreviation||'');
+        const gH=toA(g.teams?.home?.team?.abbreviation||'');
+        if(gA===awayA&&gH===homeA){
+          const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
+          if(ar!=null&&hr!=null) return ar+hr;
+        }
+      }
+      // Pass 2: team name contains the query string
+      for(const g of games){
+        const gAn=norm(g.teams?.away?.team?.name||'');
+        const gHn=norm(g.teams?.home?.team?.name||'');
+        if(gAn.includes(awayN)&&gHn.includes(homeN)){
+          const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
+          if(ar!=null&&hr!=null) return ar+hr;
+        }
+      }
+      // Pass 3: city name contains
+      for(const g of games){
+        const gAc=norm(g.teams?.away?.team?.locationName||'');
+        const gHc=norm(g.teams?.home?.team?.locationName||'');
+        if(gAc.includes(awayN)&&gHc.includes(homeN)){
+          const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
+          if(ar!=null&&hr!=null) return ar+hr;
+        }
+      }
+      return null;
+    }
+
+    // Fetch exact date + next day (late games finish after midnight)
+    const next=new Date(dateStr+'T12:00:00'); next.setDate(next.getDate()+1);
+    const nextStr=next.toISOString().split('T')[0];
+    const [games, nextGames]=await Promise.all([fetchFinalGames(dateStr), fetchFinalGames(nextStr)]);
+    const allGames=[...games, ...nextGames];
+
+    console.log(`Found ${games.length} final games on ${dateStr}, ${nextGames.length} on ${nextStr}`);
+    allGames.forEach(g=>{
+      const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
+      console.log(`  ${g.teams?.away?.team?.abbreviation} @ ${g.teams?.home?.team?.abbreviation}: ${ar}-${hr}`);
+    });
 
     const failed=[];
     for(let i=0;i<bets.length;i++){
       const bet=bets[i];
       if(bet.date!==dateStr||bet.grade) continue;
       btn.textContent=`Grading ${bet.away}@${bet.home}...`;
-      const awayA=toA(bet.away), homeA=toA(bet.home);
-      let found=null;
-      // Pass 1: abbreviation
-      for(const g of mlbGames){
-        if(toA(g.teams?.away?.team?.abbreviation||'')===awayA&&toA(g.teams?.home?.team?.abbreviation||'')===homeA){
-          const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-          if(ar!=null&&hr!=null){ found=ar+hr; break; }
-        }
-      }
-      // Pass 2: name contains
-      if(found===null){
-        const awayN=norm(bet.away), homeN=norm(bet.home);
-        for(const g of mlbGames){
-          if(norm(g.teams?.away?.team?.name||'').includes(awayN)&&norm(g.teams?.home?.team?.name||'').includes(homeN)){
-            const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-            if(ar!=null&&hr!=null){ found=ar+hr; break; }
-          }
-        }
-      }
+      const found=findTotal(allGames, bet.away, bet.home);
       if(found!==null){
         const r=found===bet.line?'push':(bet.ou==='over'?found>bet.line:found<bet.line)?'win':'loss';
         bets[i].grade=r; bets[i].actual=found; done++;
+        console.log(`✓ ${bet.away}@${bet.home} = ${found} → ${r}`);
       } else {
         failed.push(`${bet.away}@${bet.home}`);
+        console.warn(`✗ No match for ${bet.away}@${bet.home}`);
       }
-      await new Promise(r=>setTimeout(r,50));
     }
     saveBets(scope); render(scope);
     btn.disabled=false; btn.textContent='⚡ GRADE DATE';
-    if(failed.length) alert(`Graded ${done}. Couldn't find:\n${failed.join('\n')}\nGrade manually.`);
+    if(failed.length) alert(`Graded ${done}. Couldn't auto-grade:\n${failed.join('\n')}\n\nUse Change to set manually.`);
     else alert(`All ${done} bets graded ✓`);
 
   } else {
