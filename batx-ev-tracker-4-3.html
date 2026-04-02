@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -995,6 +995,7 @@ function closeSummary() {
 
 function setTab(tab){trackerTab=tab;renderTracker();}
 function exportXLSX(){
+  try {
   if(!tracker.length){ alert('No bets to export'); return; }
 
   const settled = tracker.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
@@ -1057,8 +1058,8 @@ function exportXLSX(){
   const ov=stats(settled);
   row('BAT X EV TRACKER','','','','OVERALL','','','');
   row('','','','','','','','');
-  row('','PROFIT','WINS','LOSSES','WIN %','ROI%','','');
-  row('ALL TIME',(ov.units>=0?'+':'')+ov.units.toFixed(2)+'u',ov.w,ov.l,ov.winPct.toFixed(1)+'%',ov.actualRoi.toFixed(1)+'%','','');
+  row('','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
+  row('ALL TIME',(ov.units>=0?'+':'')+ov.units.toFixed(2)+'u',ov.w,ov.l,ov.winPct.toFixed(1)+'%',ov.avgRoi.toFixed(1)+'%','','');
   row(settled.length+' settled · '+pending+' pending','','','','','','','');
   blank();
 
@@ -1074,14 +1075,14 @@ function exportXLSX(){
       // ML: overall + by team side (fav vs dog) + by book
       // RL: overall + by spread (+0.5 vs -0.5) + by book
       const ov2=stats(ms);
-      row('','PROFIT','WINS','LOSSES','WIN %','ROI%','','');
-      row('Overall',(ov2.units>=0?'+':'')+ov2.units.toFixed(2)+'u',ov2.w,ov2.l,ov2.winPct.toFixed(1)+'%',ov2.actualRoi.toFixed(1)+'%','','');
+      row('','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
+      row('Overall',(ov2.units>=0?'+':'')+ov2.units.toFixed(2)+'u',ov2.w,ov2.l,ov2.winPct.toFixed(1)+'%',ov2.avgRoi.toFixed(1)+'%','','');
       blank();
       if(isRL){
         // By spread
         const spreads=[...new Set(ms.filter(t=>t.line!=null).map(t=>t.line))].sort((a,b)=>a-b);
         if(spreads.length){
-          row('BY SPREAD','PROFIT','WINS','LOSSES','WIN %','ACTUAL ROI','','');
+          row('BY SPREAD','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
           for(const sp of spreads){
             const ss=stats(ms.filter(t=>t.line===sp));
             if(!ss.tot) continue;
@@ -1094,18 +1095,18 @@ function exportXLSX(){
         const favs=ms.filter(t=>t.odds!=null&&t.odds<0);
         const dogs=ms.filter(t=>t.odds!=null&&t.odds>0);
         if(favs.length||dogs.length){
-          row('BY SIDE','PROFIT','WINS','LOSSES','WIN %','ACTUAL ROI','','');
-          if(favs.length){const fs=stats(favs);row('Favorite (−)',(fs.units>=0?'+':'')+fs.units.toFixed(2)+'u',fs.w,fs.l,fs.winPct.toFixed(1)+'%',fs.actualRoi.toFixed(1)+'%','','');}
-          if(dogs.length){const ds2=stats(dogs);row('Underdog (+)',(ds2.units>=0?'+':'')+ds2.units.toFixed(2)+'u',ds2.w,ds2.l,ds2.winPct.toFixed(1)+'%',ds2.actualRoi.toFixed(1)+'%','','');}
+          row('BY SIDE','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
+          if(favs.length){const fs=stats(favs);row('Favorite (−)',(fs.units>=0?'+':'')+fs.units.toFixed(2)+'u',fs.w,fs.l,fs.winPct.toFixed(1)+'%',fs.avgRoi.toFixed(1)+'%','','');}
+          if(dogs.length){const ds2=stats(dogs);row('Underdog (+)',(ds2.units>=0?'+':'')+ds2.units.toFixed(2)+'u',ds2.w,ds2.l,ds2.winPct.toFixed(1)+'%',ds2.avgRoi.toFixed(1)+'%','','');}
           blank();
         }
       }
       // By book
-      row('BY BOOK','PROFIT','WINS','LOSSES','WIN %','ACTUAL ROI','','');
+      row('BY BOOK','PROFIT','WINS','LOSSES','WIN %','Actual ROI%','','');
       const books=[...new Set(ms.map(t=>t.book))].sort();
       for(const bk of books){
         const bs=stats(ms.filter(t=>t.book===bk));
-        row(bk,(bs.units>=0?'+':'')+bs.units.toFixed(2)+'u',bs.w,bs.l,bs.winPct.toFixed(1)+'%',bs.actualRoi.toFixed(1)+'%','','');
+        row(bk,(bs.units>=0?'+':'')+bs.units.toFixed(2)+'u',bs.w,bs.l,bs.winPct.toFixed(1)+'%',bs.avgRoi.toFixed(1)+'%','','');
       }
     } else {
       const overs=ms.filter(t=>t.dir==='OVER');
@@ -1167,6 +1168,7 @@ function exportXLSX(){
   XLSX.utils.book_append_sheet(wb,ws2,'Breakdowns');
   XLSX.utils.book_append_sheet(wb,ws3,'Daily Summary');
   XLSX.writeFile(wb,'BatX-Tracker-'+new Date().toISOString().slice(0,10)+'.xlsx');
+  } catch(e){ alert('Export error: '+e.message); }
 }
 function exportTracker(){const blob=new Blob([JSON.stringify(tracker,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='batx-tracker-'+new Date().toISOString().slice(0,10)+'.json';a.click();}
 function importTracker(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!Array.isArray(d))throw new Error('Invalid');if(tracker.length>0&&!confirm('Merge? Cancel to replace.')){tracker=d;}else{const ids=new Set(tracker.map(t=>t.id));tracker=[...tracker,...d.filter(t=>!ids.has(t.id))];}localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();input.value='';}catch(err){alert('Could not load: '+err.message);}};r.readAsText(f);}
