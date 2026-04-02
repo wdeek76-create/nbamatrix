@@ -121,9 +121,9 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
 .bk-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 16px;}
 .bk-grid3{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 16px;}
 .dash-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:16px 16px 8px;border-top:1px solid var(--border);}
-.bk-head2{display:grid;grid-template-columns:1fr 36px 36px 36px 55px 75px 75px 75px;padding:6px 14px;background:var(--surface2);border-top:1px solid var(--border);}
+.bk-head2{display:grid;grid-template-columns:1fr 32px 32px 32px 52px 72px 72px 72px;padding:6px 14px;background:var(--surface2);border-top:1px solid var(--border);}
 .bk-head2 span{font-size:10px;color:var(--hint);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
-.bk-row2{display:grid;grid-template-columns:1fr 36px 36px 36px 55px 75px 75px 75px;padding:8px 14px;border-top:1px solid var(--border);align-items:center;}
+.bk-row2{display:grid;grid-template-columns:1fr 32px 32px 32px 52px 72px 72px 72px;padding:8px 14px;border-top:1px solid var(--border);align-items:center;}
 .bk-row2:hover{background:var(--surface2);}
 .bk-val.m{color:var(--muted);}
 .bk-card{background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;}
@@ -1033,38 +1033,91 @@ function exportXLSX(){
   const HDR=['Category','W','L','P','Win%','Units P&L','Actual ROI%'];
   const addRow=(label,s)=>r(label,s.w,s.l,s.p,pw(s),pu(s),pr(s));
 
+  function addOddsSection(bets){
+    const buckets=[
+      {label:'Heavy Fav (−200 or worse)', fn:t=>t.odds!=null&&t.odds<=-200},
+      {label:'Fav (−150 to −199)',         fn:t=>t.odds!=null&&t.odds>=-199&&t.odds<=-150},
+      {label:'Fav (−120 to −149)',         fn:t=>t.odds!=null&&t.odds>=-149&&t.odds<=-120},
+      {label:'Fav (−100 to −119)',         fn:t=>t.odds!=null&&t.odds>=-119&&t.odds<=-100},
+      {label:'Dog (+100 to +119)',         fn:t=>t.odds!=null&&t.odds>=100&&t.odds<=119},
+      {label:'Dog (+120 to +149)',         fn:t=>t.odds!=null&&t.odds>=120&&t.odds<=149},
+      {label:'Dog (+150 to +199)',         fn:t=>t.odds!=null&&t.odds>=150&&t.odds<=199},
+      {label:'Big Dog (+200 or better)',   fn:t=>t.odds!=null&&t.odds>=200},
+    ];
+    const favs=bets.filter(t=>t.odds!=null&&t.odds<0);
+    const dogs=bets.filter(t=>t.odds!=null&&t.odds>0);
+    r('Favorite vs Underdog',...Array(6).fill(''));
+    r(...HDR);
+    if(favs.length) addRow('All Favorites (−)',st(favs));
+    if(dogs.length) addRow('All Underdogs (+)',st(dogs));
+    br();
+    r('By Odds Bucket',...Array(6).fill(''));
+    r(...HDR);
+    for(const {label,fn} of buckets){
+      const sub=bets.filter(fn);
+      if(sub.length) addRow(label,st(sub));
+    }
+    br();
+  }
+
   // Overall
   const ov=st(settled);
   r('BAT X EV TRACKER — OVERALL SUMMARY');
   br();
   r(...HDR);
   addRow('ALL TIME',ov);
-  r(settled.length+' settled bets · '+pend+' pending');
+  r(settled.length+' settled · '+pend+' pending');
+  br();
+  addOddsSection(settled);
+  // BatX ROI buckets overall
+  r('By BatX Edge% Bucket',...Array(6).fill(''));
+  r(...HDR);
+  for(const {label,fn} of roiBuckets){const sub=settled.filter(fn);if(sub.length)addRow(label,st(sub));}
+  br();
+  // Overall by book
+  r('By Book',...Array(6).fill(''));
+  r(...HDR);
+  const allBooks=[...new Set(settled.map(t=>t.book))].sort();
+  allBooks.forEach(b=>addRow(b,st(settled.filter(t=>t.book===b))));
   br(); br();
 
-  // Per market
   const MKTS=[
     {key:'TOTAL',label:'GAME TOTALS'},{key:'TT',label:'TEAM TOTALS'},
     {key:'1HTOTAL',label:'1H TOTALS'},{key:'1HTT',label:'1H TEAM TOTALS'},
     {key:'1HML',label:'1H MONEYLINE'},{key:'1HRL',label:'1H RUN LINE'},
   ];
 
+  const roiBuckets=[
+    {label:'5-7%',  fn:t=>t.roi>=5&&t.roi<7},
+    {label:'7-10%', fn:t=>t.roi>=7&&t.roi<10},
+    {label:'10-13%',fn:t=>t.roi>=10&&t.roi<13},
+    {label:'13-16%',fn:t=>t.roi>=13&&t.roi<16},
+    {label:'16-20%',fn:t=>t.roi>=16&&t.roi<20},
+    {label:'20%+',  fn:t=>t.roi>=20},
+  ];
+
   for(const {key,label} of MKTS){
     const ms=settled.filter(t=>t.market===key);
     if(!ms.length) continue;
     const isML=key==='1HML', isRL=key==='1HRL', isTot=!isML&&!isRL;
-    const mo=st(ms);
     r('── '+label+' ──');
     br();
     r(...HDR);
-    addRow('Overall',mo);
+    addRow('Overall',st(ms));
+    br();
+    addOddsSection(ms);
+
+    // BatX Edge buckets per market
+    r('By BatX Edge% Bucket',...Array(6).fill(''));
+    r(...HDR);
+    for(const {label,fn} of roiBuckets){const sub=ms.filter(fn);if(sub.length)addRow(label,st(sub));}
     br();
 
     if(isTot){
-      // OVERS
       const overs=ms.filter(t=>t.dir==='OVER');
+      const unders=ms.filter(t=>t.dir==='UNDER');
       if(overs.length){
-        r('OVERS',...Array(6).fill(''));
+        r('OVERS ONLY',...Array(6).fill(''));
         r(...HDR);
         addRow('Overall',st(overs));
         const books=[...new Set(overs.map(t=>t.book))].sort();
@@ -1073,10 +1126,8 @@ function exportXLSX(){
         if(lines.length){br();r('By Line',...Array(6).fill(''));r(...HDR);lines.forEach(l=>addRow('O'+l,st(overs.filter(t=>t.line===l))));}
         br();
       }
-      // UNDERS
-      const unders=ms.filter(t=>t.dir==='UNDER');
       if(unders.length){
-        r('UNDERS',...Array(6).fill(''));
+        r('UNDERS ONLY',...Array(6).fill(''));
         r(...HDR);
         addRow('Overall',st(unders));
         const books=[...new Set(unders.map(t=>t.book))].sort();
@@ -1086,15 +1137,12 @@ function exportXLSX(){
         br();
       }
     } else if(isRL){
-      // By spread
       const spreads=[...new Set(ms.filter(t=>t.line!=null).map(t=>t.line))].sort((a,b)=>a-b);
       if(spreads.length){r('By Spread',...Array(6).fill(''));r(...HDR);spreads.forEach(sp=>addRow((sp>=0?'+':'')+sp+' RL',st(ms.filter(t=>t.line===sp))));br();}
-      // By book
       const books=[...new Set(ms.map(t=>t.book))].sort();
       r('By Book',...Array(6).fill(''));r(...HDR);books.forEach(b=>addRow(b,st(ms.filter(t=>t.book===b))));br();
     } else {
-      // ML: fav vs dog
-      const favs=ms.filter(t=>t.odds!=null&&t.odds<0), dogs=ms.filter(t=>t.odds!=null&&t.odds>0);
+      const favs=ms.filter(t=>t.odds!=null&&t.odds<0),dogs=ms.filter(t=>t.odds!=null&&t.odds>0);
       r('By Side',...Array(6).fill(''));r(...HDR);
       if(favs.length) addRow('Favorite (−)',st(favs));
       if(dogs.length) addRow('Underdog (+)',st(dogs));
@@ -1106,7 +1154,7 @@ function exportXLSX(){
   }
 
   const ws2=XLSX.utils.aoa_to_sheet(aoa);
-  ws2['!cols']=[22,6,6,6,8,12,10].map(w=>({wch:w}));
+  ws2['!cols']=[28,6,6,6,8,12,10].map(w=>({wch:w}));
 
   // ── DAILY SUMMARY ──
   const byDate={};
@@ -1219,16 +1267,14 @@ function renderTracker(){
     }
 
     function actualRoi(bets) {
-      // Actual ROI = units won / units staked * 100
-      let staked=0, won=0;
+      let staked=0, units=0;
       for(const t of bets) {
         if(t.result!=='W'&&t.result!=='L'&&t.result!=='P') continue;
-        const o=t.odds;
-        if(o==null) continue;
-        if(o>0){ staked+=1; won+=(t.result==='W'?o/100:t.result==='P'?0:-1); }
-        else { staked+=Math.abs(o)/100; won+=(t.result==='W'?1:t.result==='P'?0:-Math.abs(o)/100); }
+        const o=t.odds; if(o==null){staked+=1;units+=unitPnl(t);continue;}
+        staked+=(o>0?1:Math.abs(o)/100);
+        units+=unitPnl(t);
       }
-      return staked>0?(won/staked*100).toFixed(1):'—';
+      return staked>0?((units/staked)*100).toFixed(1):'—';
     }
 
     function breakdown2(groupFn, labelFn, bets) {
