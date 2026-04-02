@@ -605,10 +605,26 @@ body {
     </div>
 
     <!-- Odds toolbar — shown after parse -->
-    <div id="oddsToolbar" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:10px 14px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
-      <button class="btn primary" id="fetchOddsBtn" onclick="fetchOdds()">⚡ Fetch Best Odds</button>
-      <span id="oddsStatus" style="font-size:.78rem;color:var(--muted)"></span>
-      <div id="evAlertBar" style="display:none;margin-left:auto;background:var(--green-dim);border:1px solid var(--green);border-radius:var(--radius);padding:4px 12px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.85rem;color:var(--green);letter-spacing:.04em;"></div>
+    <div id="oddsToolbar" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;flex-wrap:wrap;">
+        <button class="btn primary" id="fetchOddsBtn" onclick="fetchOdds()">⚡ Fetch Best Odds (API)</button>
+        <span style="font-size:.72rem;color:var(--muted)">or</span>
+        <button class="btn" onclick="toggleAnPaste()" id="anToggleBtn">📋 Paste Betstamp</button>
+        <span id="oddsStatus" style="font-size:.78rem;color:var(--muted)"></span>
+        <div id="evAlertBar" style="display:none;margin-left:auto;background:rgba(16,217,160,.12);border:1px solid rgba(16,217,160,.3);border-radius:var(--radius);padding:4px 12px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.85rem;color:var(--green);letter-spacing:.04em;"></div>
+      </div>
+      <!-- Action Network paste panel (hidden by default) -->
+      <div id="anPastePanel" style="display:none;border-top:1px solid var(--border);">
+        <div style="padding:8px 14px 4px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:.72rem;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;">betstamp.com → NHL → Odds Comparison → Cmd+A → Cmd+C → paste below</span>
+          <span id="anStatus" style="font-size:.75rem;color:var(--muted);"></span>
+        </div>
+        <textarea id="anPasteArea" placeholder="Paste Betstamp odds page here…"
+          style="width:100%;height:90px;background:var(--bg);border:none;border-bottom:1px solid var(--border);color:var(--muted2);font-family:'Inter',sans-serif;font-size:.75rem;padding:10px 14px;resize:vertical;outline:none;line-height:1.5;"></textarea>
+        <div style="padding:8px 14px;">
+          <button class="btn primary" onclick="runAnParser()">Parse Action Network →</button>
+        </div>
+      </div>
     </div>
 
     <div id="gamesContainer">
@@ -732,7 +748,7 @@ const TEAM_NAMES = {
   'DAL':'Dallas Stars',      'VAN':'Vancouver',           'MIN':'Minnesota Wild',
   'CHI':'Chicago',           'EDM':'Edmonton Oilers',     'CGY':'Calgary Flames',
   'VGK':'Vegas Golden Knts', 'TOR':'Toronto',             'SJ': 'San Jose Sharks',
-  'UTA':'Utah HC',           'SEA':'Seattle Kraken',      'NSH':'Nashville',
+  'UTA':'Utah Mammoth',      'SEA':'Seattle Kraken',      'NSH':'Nashville',
   'LA': 'Los Angeles Kings', 'STL':'St. Louis Blues',     'ANA':'Anaheim Ducks',
   'NYI':'NY Islanders',      'COL':'Colorado Avalanche',
 };
@@ -1265,22 +1281,58 @@ const ODDS_FULL_NAMES = {
   'CHI':'Chicago Blackhawks',    'EDM':'Edmonton Oilers',
   'CGY':'Calgary Flames',        'VGK':'Vegas Golden Knights',
   'TOR':'Toronto Maple Leafs',   'SJ': 'San Jose Sharks',
-  'UTA':'Utah Hockey Club',      'SEA':'Seattle Kraken',
+  'UTA':'Utah Mammoth',      'SEA':'Seattle Kraken',
   'NSH':'Nashville Predators',   'LA': 'Los Angeles Kings',
   'STL':'St. Louis Blues',       'ANA':'Anaheim Ducks',
   'NYI':'New York Islanders',    'COL':'Colorado Avalanche',
 };
 
+// Utah HC alias — Odds API uses different names across bookmakers
+const ODDS_ALIASES = {
+  'UTA': ['Utah Mammoth', 'Utah Hockey Club', 'Utah HC', 'Utah Hc', 'Utah Hockey'],
+  'NJ':  ['New Jersey Devils'],
+  'TB':  ['Tampa Bay Lightning'],
+  'LA':  ['Los Angeles Kings'],
+  'SJ':  ['San Jose Sharks'],
+};
+
 function findOddsMatch(g, oddsData) {
   const awayFull = ODDS_FULL_NAMES[g.away];
   const homeFull = ODDS_FULL_NAMES[g.home];
-  return oddsData.find(od =>
+
+  // 1. Exact full name match
+  const exact = oddsData.find(od =>
     od.away_team === awayFull && od.home_team === homeFull
-  ) || oddsData.find(od =>
-    // fallback: partial match on first word of team name
+  );
+  if (exact) return exact;
+
+  // 2. Alias match
+  const awayAliases = ODDS_ALIASES[g.away] ? [awayFull, ...ODDS_ALIASES[g.away]] : [awayFull];
+  const homeAliases = ODDS_ALIASES[g.home] ? [homeFull, ...ODDS_ALIASES[g.home]] : [homeFull];
+  const alias = oddsData.find(od =>
+    awayAliases.some(a => od.away_team === a) &&
+    homeAliases.some(h => od.home_team === h)
+  );
+  if (alias) return alias;
+
+  // 3. Last word fallback ("Sabres" == "Sabres")
+  const lastWord = oddsData.find(od =>
     od.away_team?.split(' ').pop() === awayFull?.split(' ').pop() &&
     od.home_team?.split(' ').pop() === homeFull?.split(' ').pop()
   );
+  if (lastWord) return lastWord;
+
+  // 4. First 4 chars of city name
+  const city4 = oddsData.find(od =>
+    awayFull && od.away_team?.slice(0,4) === awayFull.slice(0,4) &&
+    homeFull && od.home_team?.slice(0,4) === homeFull.slice(0,4)
+  );
+  if (city4) return city4;
+
+  // Debug: log unmatched so you can see the exact API name
+  console.warn(`No odds match for ${g.away}@${g.home} (looking for "${awayFull}" @ "${homeFull}")`);
+  console.warn('Available games:', oddsData.map(o => `${o.away_team} @ ${o.home_team}`).join(', '));
+  return null;
 }
 
 function applyBestOdds(g, odGame) {
@@ -1336,7 +1388,168 @@ function betterOdds(newPrice, curPrice) {
   return newPrice > curPrice;
 }
 
-// ── Quick log EV bets ─────────────────────────────────────────────────────────
+// ── Betstamp Parser ──────────────────────────────────────────────────────────────
+
+// Betstamp abbrev overrides (their non-standard ones)
+const BS_NORM = {
+  'TBL':'TB', 'NJD':'NJ', 'VGS':'VGK', 'SJS':'SJ', 'LAK':'LA',
+};
+
+// Betstamp full team name → our abbrev
+const BS_TEAM_MAP = {
+  'Detroit Red Wings':'DET',    'Philadelphia Flyers':'PHI',
+  'Boston Bruins':'BOS',        'Florida Panthers':'FLA',
+  'Montreal Canadiens':'MTL',   'New York Rangers':'NYR',
+  'Buffalo Sabres':'BUF',       'Ottawa Senators':'OTT',
+  'Columbus Blue Jackets':'CBJ','Carolina Hurricanes':'CAR',
+  'Pittsburgh Penguins':'PIT',  'Tampa Bay Lightning':'TB',
+  'Washington Capitals':'WSH',  'New Jersey Devils':'NJ',
+  'Winnipeg Jets':'WPG',        'Dallas Stars':'DAL',
+  'Vancouver Canucks':'VAN',    'Minnesota Wild':'MIN',
+  'Chicago Blackhawks':'CHI',   'Edmonton Oilers':'EDM',
+  'Utah Mammoth':'UTA',         'Seattle Kraken':'SEA',
+  'Calgary Flames':'CGY',       'Vegas Golden Knights':'VGK',
+  'Toronto Maple Leafs':'TOR',  'San Jose Sharks':'SJ',
+  'Nashville Predators':'NSH',  'Los Angeles Kings':'LA',
+  'St. Louis Blues':'STL',      'Anaheim Ducks':'ANA',
+  'New York Islanders':'NYI',   'Colorado Avalanche':'COL',
+};
+
+function toggleAnPaste() {
+  const panel = document.getElementById('anPastePanel');
+  const btn   = document.getElementById('anToggleBtn');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? '\u2715 Close' : '\ud83d\udccb Paste Betstamp';
+}
+
+function runAnParser() {
+  const raw = document.getElementById('anPasteArea').value.trim();
+  if (!raw) { document.getElementById('anStatus').textContent = 'Nothing pasted'; return; }
+  if (!gameData?.games?.length) { document.getElementById('anStatus').textContent = 'Parse HockeyStats first'; return; }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const oddsMap = {};
+
+  // Betstamp block per game:
+  //   "NHL"
+  //   "7:00pm"
+  //   "DET"               ← away abbrev
+  //   "Detroit Red Wings" ← away full name
+  //   "51%"               ← win% (ignore - we use HS)
+  //   "PHI"
+  //   "Philadelphia Flyers"
+  //   "49%"
+  //   "-105"              ← away ML best  (1st bare +/-number)
+  //   "Caesars"           ← book
+  //   "-1.5 +231"         ← puck line (has space, skip)
+  //   "Pinnacle"
+  //   "o6 +102"           ← total (skip)
+  //   "Bet105"
+  //   "+100"              ← home ML best  (4th bare +/-number)
+  //   "Bet105"
+  //   ...
+
+  let i = 0;
+  while (i < lines.length) {
+    if (lines[i] !== 'NHL') { i++; continue; }
+    i++; // skip "NHL"
+
+    // Time
+    if (!lines[i]?.match(/^\d{1,2}:\d{2}(am|pm)$/i)) { i++; continue; }
+    i++; // skip time
+
+    // Away abbrev + full name + pct
+    const awayRaw  = lines[i];   i++;
+    const awayFull = lines[i];   i++;
+    if (!/^\d+%$/.test(lines[i])) { i++; continue; }
+    i++; // skip pct
+
+    // Home abbrev + full name + pct
+    const homeRaw  = lines[i];   i++;
+    const homeFull = lines[i];   i++;
+    if (!/^\d+%$/.test(lines[i])) { i++; continue; }
+    i++; // skip pct
+
+    const awayAbbr = BS_TEAM_MAP[awayFull] || BS_NORM[awayRaw] || awayRaw;
+    const homeAbbr = BS_TEAM_MAP[homeFull] || BS_NORM[homeRaw] || homeRaw;
+
+    // Scan for odds — bare +/-number lines only (no spaces = ML, has space = puck/total/period)
+    // Puck lines like "-1.5 +231" and totals like "o6 +102" contain spaces/letters → skipped
+    // So bare odds appear as: 1=away ML, 2=home ML
+    let bareOddsCount = 0;
+    let awayML = null, homeML = null, awayBook = null, homeBook = null;
+
+    while (i < lines.length) {
+      const l = lines[i];
+      if (l === 'NHL') break;
+      if (/^(Add Bet|SINGLES|PARLAY|Track|Your bet)/i.test(l)) break;
+
+      if (/^[+\-]\d+$/.test(l)) {  // bare ML odds only (no spaces, no decimal)
+        bareOddsCount++;
+        const nxt = lines[i+1] || '';
+        const bk  = (nxt && !/^[+\-\d]/.test(nxt) && !nxt.includes(' ') && !/^\d+%$/.test(nxt)) ? nxt : '';
+        if (bareOddsCount === 1) {
+          awayML = parseInt(l); awayBook = bk;
+        } else if (bareOddsCount === 2) {
+          homeML = parseInt(l); homeBook = bk;
+          i++; break;
+        }
+      }
+      i++;
+    }
+
+    if (awayML !== null && homeML !== null) {
+      oddsMap[`${awayAbbr}@${homeAbbr}`] = { away_ml: awayML, home_ml: homeML, away_book: awayBook, home_book: homeBook };
+    }
+  }
+
+  // Merge + auto-log
+  let filled = 0, autoLogged = 0;
+  const today = gameData.generated;
+
+  gameData.games.forEach(g => {
+    const key  = `${g.away}@${g.home}`;
+    const odds = oddsMap[key];
+    if (!odds) return;
+
+    g.away_ml      = odds.away_ml;
+    g.home_ml      = odds.home_ml;
+    g.book_away_ml = odds.away_book || 'Betstamp';
+    g.book_home_ml = odds.home_book || 'Betstamp';
+    g.book         = odds.away_book || odds.home_book || 'Betstamp';
+    recomputeEdge(g);
+    filled++;
+
+    [['away', g.ml_edge_away, g.away_ml, g.book_away_ml],
+     ['home', g.ml_edge_home, g.home_ml, g.book_home_ml]].forEach(([side, edge, ml, book]) => {
+      if (edge == null || edge < EDGE_THRESH || ml == null) return;
+      const pick    = `${g[side]} ML`;
+      const matchup = `${g.away}@${g.home}`;
+      if (bets.some(b => b.date===today && b.matchup===matchup && b.pick===pick)) return;
+      bets.unshift({
+        id: Date.now() + Math.random(), date: today, matchup, market: 'ML', pick, odds: ml,
+        stake: 1, edge: round1(edge), book: book || 'Betstamp',
+        modelOdds: probToML((g['hs_'+side+'_pct']||0)/100),
+        notes: 'auto', result: 'pending', pl: null,
+      });
+      autoLogged++;
+    });
+  });
+
+  if (autoLogged) { saveBets(); updateHeader(); }
+  renderGames();
+
+  const evCount = gameData.games.filter(g=>(g.ml_edge_away>=EDGE_THRESH)||(g.ml_edge_home>=EDGE_THRESH)).length;
+  const msg = `\u2713 ${filled}/${gameData.games.length} games filled \u00b7 ${evCount} +EV${autoLogged ? ` \u00b7 ${autoLogged} auto-logged` : ''}`;
+  const statusEl = document.getElementById('anStatus');
+  statusEl.style.color = filled ? 'var(--green)' : 'var(--red)';
+  statusEl.textContent = msg;
+  document.getElementById('oddsStatus').textContent = msg;
+  document.getElementById('oddsStatus').style.color = filled ? 'var(--green)' : 'var(--red)';
+  toast(`Betstamp: ${filled} games filled${autoLogged ? `, ${autoLogged} +EV logged` : ''}`, 'ok');
+}
+
 function quickLogEV(idx) {
   const g = gameData.games[idx];
   const evSides = [];
