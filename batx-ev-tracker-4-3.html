@@ -185,6 +185,7 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
 .summary-text{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;font-family:monospace;max-height:400px;overflow-y:auto;color:var(--text);}
 .summary-actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -993,6 +994,96 @@ function closeSummary() {
 }
 
 function setTab(tab){trackerTab=tab;renderTracker();}
+function exportXLSX(){
+  if(!tracker.length){ alert('No bets to export'); return; }
+
+  const settled = tracker.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+
+  // ── Sheet 1: Bet Log ──
+  const betRows = tracker.map(t=>({
+    'Date': t.date||'',
+    'Time': t.time||'',
+    'Play': t.game||'',
+    'Market': MKT_LABELS[t.market]||t.market||'',
+    'Book': t.book||'',
+    'Odds': t.odds!=null?fmtOdds(t.odds):'',
+    'Fair': t.fairPrice!=null?fmtOdds(t.fairPrice):'',
+    'Proj': t.proj!=null?t.proj:'',
+    'ROI%': t.roi!=null?t.roi.toFixed(1):'',
+    'Line': t.line!=null?t.line:'',
+    'Final': t.finalTotal!=null?t.finalTotal:'',
+    'Result': t.result==='W'?'WIN':t.result==='L'?'LOSS':t.result==='P'?'PUSH':'Pending',
+    'Units P&L': t.result?(unitPnl(t)>=0?'+':'')+unitPnl(t).toFixed(2):'',
+  }));
+  const ws1 = XLSX.utils.json_to_sheet(betRows);
+  ws1['!cols'] = [8,8,30,16,12,8,8,6,8,6,6,8,10].map(w=>({wch:w}));
+
+  // ── Helper: build breakdown rows ──
+  function breakdown(bets, groupFn, labelFn){
+    const g={};
+    for(const t of bets){
+      const k=groupFn(t);
+      if(!g[k]) g[k]={label:labelFn(t,k),w:0,l:0,p:0,units:0,totalRoi:0,count:0};
+      if(t.result==='W'){g[k].w++;g[k].units+=unitPnl(t);}
+      else if(t.result==='L'){g[k].l++;g[k].units+=unitPnl(t);}
+      else if(t.result==='P') g[k].p++;
+      g[k].totalRoi+=(t.roi||0); g[k].count++;
+    }
+    return Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>{
+      const tot=v.w+v.l+v.p;
+      return {
+        'Category': v.label,
+        'W': v.w, 'L': v.l, 'P': v.p,
+        'W%': tot>0?+(v.w/tot*100).toFixed(1):0,
+        'Units P&L': +v.units.toFixed(2),
+        'Avg ROI%': v.count>0?+(v.totalRoi/v.count).toFixed(1):0,
+      };
+    });
+  }
+
+  // ── Sheet 2: Breakdowns ──
+  const breakdownData = [];
+  const addSection = (title, rows) => {
+    breakdownData.push({'Category':title,'W':'','L':'','P':'','W%':'','Units P&L':'','Avg ROI%':''});
+    rows.forEach(r=>breakdownData.push(r));
+    breakdownData.push({'Category':'','W':'','L':'','P':'','W%':'','Units P&L':'','Avg ROI%':''});
+  };
+
+  addSection('BY MARKET TYPE', breakdown(settled, t=>t.market||'?', t=>MKT_LABELS[t.market]||t.market||'?'));
+  addSection('BY DIRECTION', breakdown(settled, t=>t.dir==='OVER'||t.dir==='UNDER'?t.dir:'ML/RL', t=>t.dir==='OVER'||t.dir==='UNDER'?t.dir:'ML / Run Line'));
+  addSection('BY BOOK', breakdown(settled, t=>t.book||'?', t=>t.book||'?'));
+  addSection('BY BAT X ROI BUCKET', breakdown(settled, t=>{const r=t.roi||0;return r<5?'a<5%':r<10?'b5-10%':r<15?'c10-15%':r<20?'d15-20%':'e20%+';}, (_,k)=>k.slice(1)));
+  
+  const totalsMkts=['TOTAL','TT','1HTOTAL','1HTT','NRFI'];
+  const settledTotals=settled.filter(t=>totalsMkts.includes(t.market)&&(t.dir==='OVER'||t.dir==='UNDER')&&t.line!=null&&t.line>=3);
+  addSection('BY LINE (O/U TOTALS)', breakdown(settledTotals, t=>{const d=t.dir==='OVER'?'o':'u';const l=t.line;return d+(l%1===0?l+'.0':String(l));}, (t,k)=>{const d=t.dir==='OVER'?'O':'U';const l=t.line;return d+(l%1===0?l+'.0':String(l));}));
+  
+  addSection('BY ODDS BUCKET', breakdown(settled, t=>{const o=t.odds;if(o==null)return 'z?';if(o<=-200)return 'a-200 or worse';if(o<=-150)return 'b-150 to -199';if(o<=-120)return 'c-120 to -149';if(o<=-100)return 'd-100 to -119';if(o<=110)return 'e+100 to +110';if(o<=130)return 'f+111 to +130';return 'g+131 or better';}, (_,k)=>k.slice(1)));
+
+  const ws2 = XLSX.utils.json_to_sheet(breakdownData);
+  ws2['!cols'] = [22,6,6,6,8,12,10].map(w=>({wch:w}));
+
+  // ── Sheet 3: Daily Summary ──
+  const byDate={};
+  for(const t of tracker){ const d=t.date||'?'; if(!byDate[d]) byDate[d]=[]; byDate[d].push(t); }
+  const dailyRows=[];
+  for(const [date, bets] of Object.entries(byDate).sort()){
+    const ds=bets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+    const w=ds.filter(t=>t.result==='W').length, l=ds.filter(t=>t.result==='L').length, p=ds.filter(t=>t.result==='P').length;
+    const units=ds.reduce((s,t)=>s+unitPnl(t),0);
+    const pending=bets.filter(t=>!t.result||t.result==='').length;
+    dailyRows.push({'Date':date,'W':w,'L':l,'P':p,'W%':ds.length>0?+(w/ds.length*100).toFixed(1):0,'Units P&L':+units.toFixed(2),'Pending':pending});
+  }
+  const ws3 = XLSX.utils.json_to_sheet(dailyRows);
+  ws3['!cols'] = [10,6,6,6,8,12,8].map(w=>({wch:w}));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, 'Bet Log');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Breakdowns');
+  XLSX.utils.book_append_sheet(wb, ws3, 'Daily Summary');
+  XLSX.writeFile(wb, 'BatX-Tracker-'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
 function exportTracker(){const blob=new Blob([JSON.stringify(tracker,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='batx-tracker-'+new Date().toISOString().slice(0,10)+'.json';a.click();}
 function importTracker(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!Array.isArray(d))throw new Error('Invalid');if(tracker.length>0&&!confirm('Merge? Cancel to replace.')){tracker=d;}else{const ids=new Set(tracker.map(t=>t.id));tracker=[...tracker,...d.filter(t=>!ids.has(t.id))];}localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();input.value='';}catch(err){alert('Could not load: '+err.message);}};r.readAsText(f);}
 function addManual(){
@@ -1050,7 +1141,8 @@ function renderTracker(){
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="screenshot-btn" onclick="showSummary()">📋 Summary</button>
-      <button class="screenshot-btn" onclick="exportTracker()">⬇ Export</button>
+      <button class="screenshot-btn" onclick="exportTracker()">⬇ JSON</button>
+      <button class="screenshot-btn" onclick="exportXLSX()">⬇ Excel</button>
       <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
       <button class="tracker-clear" onclick="clearPending()">Clear pending</button>
       <button class="tracker-clear" onclick="clearTracker()">Clear all</button>
