@@ -606,24 +606,16 @@ body {
 
     <!-- Odds toolbar — shown after parse -->
     <div id="oddsToolbar" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;">
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;flex-wrap:wrap;">
-        <button class="btn primary" id="fetchOddsBtn" onclick="fetchOdds()">⚡ Fetch Best Odds (API)</button>
-        <span style="font-size:.72rem;color:var(--muted)">or</span>
-        <button class="btn" onclick="toggleAnPaste()" id="anToggleBtn">📋 Paste Betstamp</button>
-        <span id="oddsStatus" style="font-size:.78rem;color:var(--muted)"></span>
+      <div style="padding:8px 14px 4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:.72rem;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;">betstamp.com → NHL → Odds Comparison → Cmd+A → Cmd+C → paste below</span>
+        <span id="anStatus" style="font-size:.75rem;color:var(--muted);"></span>
         <div id="evAlertBar" style="display:none;margin-left:auto;background:rgba(16,217,160,.12);border:1px solid rgba(16,217,160,.3);border-radius:var(--radius);padding:4px 12px;font-family:'Oswald',sans-serif;font-weight:700;font-size:.85rem;color:var(--green);letter-spacing:.04em;"></div>
       </div>
-      <!-- Action Network paste panel (hidden by default) -->
-      <div id="anPastePanel" style="display:none;border-top:1px solid var(--border);">
-        <div style="padding:8px 14px 4px;display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:.72rem;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;">betstamp.com → NHL → Odds Comparison → Cmd+A → Cmd+C → paste below</span>
-          <span id="anStatus" style="font-size:.75rem;color:var(--muted);"></span>
-        </div>
-        <textarea id="anPasteArea" placeholder="Paste Betstamp odds page here…"
-          style="width:100%;height:90px;background:var(--bg);border:none;border-bottom:1px solid var(--border);color:var(--muted2);font-family:'Inter',sans-serif;font-size:.75rem;padding:10px 14px;resize:vertical;outline:none;line-height:1.5;"></textarea>
-        <div style="padding:8px 14px;">
-          <button class="btn primary" onclick="runAnParser()">Parse Action Network →</button>
-        </div>
+      <textarea id="anPasteArea" placeholder="Paste Betstamp odds page here…"
+        style="width:100%;height:90px;background:var(--bg);border:none;border-top:1px solid var(--border);border-bottom:1px solid var(--border);color:var(--muted2);font-family:'Inter',sans-serif;font-size:.75rem;padding:10px 14px;resize:vertical;outline:none;line-height:1.5;"></textarea>
+      <div style="padding:8px 14px;display:flex;align-items:center;gap:10px;">
+        <button class="btn primary" onclick="runAnParser()">Parse Betstamp →</button>
+        <span id="oddsStatus" style="font-size:.78rem;color:var(--muted)"></span>
       </div>
     </div>
 
@@ -648,6 +640,7 @@ body {
       <select id="regradeDate" class="tk"><option value="">Re-grade date…</option></select>
       <button class="screenshot-btn" onclick="regradeByDate()">↺ Re-grade</button>
       <button class="screenshot-btn" onclick="cancelPendingByDate()">✕ Cancel pending date</button>
+      <button class="tracker-btn" id="nhlGradeBtn" onclick="nhlAutoGrade()" style="background:rgba(125,211,252,.1);border:1px solid rgba(125,211,252,.3);color:var(--ice);">🏒 NHL Auto-Grade</button>
       <span id="gradeStatus" style="font-size:.75rem;color:var(--muted);"></span>
       <div style="margin-left:auto;display:flex;gap:8px;">
         <button class="screenshot-btn" onclick="exportCSV()">⬇ CSV</button>
@@ -975,11 +968,12 @@ function buildCardHTML(g, idx) {
   const hasEdge  = (awayEdge != null && awayEdge >= EDGE_THRESH) || (homeEdge != null && homeEdge >= EDGE_THRESH);
 
   // Best book per side
-  const awayBook = g.book_away_ml || g.book || null;
-  const homeBook = g.book_home_ml || g.book || null;
-  const bookDisplay = awayBook || homeBook
-    ? `${awayBook || homeBook}${awayBook && homeBook && awayBook !== homeBook ? ' / ' + homeBook : ''}`
-    : '—';
+  // Show the book for whichever side has edge, or just away book
+  const evAwayBook = (g.ml_edge_away != null && g.ml_edge_away >= EDGE_THRESH) ? g.book_away_ml : null;
+  const evHomeBook = (g.ml_edge_home != null && g.ml_edge_home >= EDGE_THRESH) ? g.book_home_ml : null;
+  const awayBook   = g.book_away_ml || g.book || null;
+  const homeBook   = g.book_home_ml || g.book || null;
+  const bookDisplay = evAwayBook || evHomeBook || awayBook || homeBook || '—';
 
   return `
     <div class="game-card-header" style="${hasEdge ? 'border-bottom-color:rgba(16,217,160,.25);' : ''}">
@@ -1192,202 +1186,6 @@ function refreshEVAlert() {
 }
 
 // ── Fetch Odds API ────────────────────────────────────────────────────────────
-const ODDS_API_KEY = 'c9cb14ff8cfbecf9e6d4481b19ac2371';
-const BOOKS = ['pinnacle','fanduel','draftkings','betmgm','bovada','betonline_ag','mybookieag','williamhill_us','pointsbetus'];
-
-async function fetchOdds() {
-  if (!gameData?.games.length) { toast('Parse games first', 'err'); return; }
-  const btn = document.getElementById('fetchOddsBtn');
-  const status = document.getElementById('oddsStatus');
-  btn.textContent = '⏳ Fetching…';
-  btn.disabled = true;
-  status.textContent = '';
-
-  try {
-    const url = `https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds?apiKey=${ODDS_API_KEY}&regions=us,us2&markets=h2h,spreads,totals&bookmakers=${BOOKS.join(',')}&oddsFormat=american&dateFormat=iso`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`API error ${resp.status}`);
-    const data = await resp.json();
-
-    let filled = 0;
-    gameData.games.forEach((g, idx) => {
-      const match = findOddsMatch(g, data);
-      if (!match) return;
-      applyBestOdds(g, match);
-      recomputeEdge(g);
-      filled++;
-    });
-
-    // Auto-log all +EV bets (≥2% edge) that aren't already logged today
-    const today = gameData.generated;
-    let autoLogged = 0;
-    gameData.games.forEach(g => {
-      [['away', g.ml_edge_away, g.away_ml, g.book_away_ml],
-       ['home', g.ml_edge_home, g.home_ml, g.book_home_ml]].forEach(([side, edge, odds, book]) => {
-        if (edge == null || edge < EDGE_THRESH || odds == null) return;
-        const pick    = `${g[side]} ML`;
-        const matchup = `${g.away}@${g.home}`;
-        // Skip if already logged today for this matchup+pick
-        const exists  = bets.some(b => b.date===today && b.matchup===matchup && b.pick===pick);
-        if (exists) return;
-        const modelOdds = probToML((g['hs_'+side+'_pct']||0)/100);
-        bets.unshift({
-          id:         Date.now() + Math.random(),
-          date:       today,
-          matchup,
-          market:     'ML',
-          pick,
-          odds,
-          stake:      1,
-          edge:       round1(edge),
-          book:       book || g.book || '—',
-          modelOdds,
-          notes:      'auto',
-          result:     'pending',
-          pl:         null,
-        });
-        autoLogged++;
-      });
-    });
-
-    if (autoLogged) { saveBets(); updateHeader(); }
-
-    renderGames();
-    const evCount = gameData.games.filter(g => (g.ml_edge_away>=EDGE_THRESH)||(g.ml_edge_home>=EDGE_THRESH)).length;
-    status.textContent = `✓ ${filled}/${gameData.games.length} games filled · ${evCount} +EV${autoLogged ? ` · ${autoLogged} auto-logged` : ''}`;
-    status.style.color = 'var(--green)';
-    toast(`${filled} games filled${autoLogged ? `, ${autoLogged} +EV auto-logged` : ''}`, 'ok');
-  } catch(e) {
-    status.textContent = 'Odds API failed: ' + e.message;
-    status.style.color = 'var(--red)';
-    toast('Odds fetch failed', 'err');
-  }
-
-  btn.textContent = '⚡ Fetch Best Odds';
-  btn.disabled = false;
-}
-
-// Full name lookup for Odds API matching — keyed by abbrev
-const ODDS_FULL_NAMES = {
-  'BUF':'Buffalo Sabres',        'OTT':'Ottawa Senators',
-  'PIT':'Pittsburgh Penguins',   'TB': 'Tampa Bay Lightning',
-  'BOS':'Boston Bruins',         'FLA':'Florida Panthers',
-  'MTL':'Montreal Canadiens',    'NYR':'New York Rangers',
-  'DET':'Detroit Red Wings',     'PHI':'Philadelphia Flyers',
-  'CBJ':'Columbus Blue Jackets', 'CAR':'Carolina Hurricanes',
-  'WSH':'Washington Capitals',   'NJ': 'New Jersey Devils',
-  'WPG':'Winnipeg Jets',         'DAL':'Dallas Stars',
-  'VAN':'Vancouver Canucks',     'MIN':'Minnesota Wild',
-  'CHI':'Chicago Blackhawks',    'EDM':'Edmonton Oilers',
-  'CGY':'Calgary Flames',        'VGK':'Vegas Golden Knights',
-  'TOR':'Toronto Maple Leafs',   'SJ': 'San Jose Sharks',
-  'UTA':'Utah Mammoth',      'SEA':'Seattle Kraken',
-  'NSH':'Nashville Predators',   'LA': 'Los Angeles Kings',
-  'STL':'St. Louis Blues',       'ANA':'Anaheim Ducks',
-  'NYI':'New York Islanders',    'COL':'Colorado Avalanche',
-};
-
-// Utah HC alias — Odds API uses different names across bookmakers
-const ODDS_ALIASES = {
-  'UTA': ['Utah Mammoth', 'Utah Hockey Club', 'Utah HC', 'Utah Hc', 'Utah Hockey'],
-  'NJ':  ['New Jersey Devils'],
-  'TB':  ['Tampa Bay Lightning'],
-  'LA':  ['Los Angeles Kings'],
-  'SJ':  ['San Jose Sharks'],
-};
-
-function findOddsMatch(g, oddsData) {
-  const awayFull = ODDS_FULL_NAMES[g.away];
-  const homeFull = ODDS_FULL_NAMES[g.home];
-
-  // 1. Exact full name match
-  const exact = oddsData.find(od =>
-    od.away_team === awayFull && od.home_team === homeFull
-  );
-  if (exact) return exact;
-
-  // 2. Alias match
-  const awayAliases = ODDS_ALIASES[g.away] ? [awayFull, ...ODDS_ALIASES[g.away]] : [awayFull];
-  const homeAliases = ODDS_ALIASES[g.home] ? [homeFull, ...ODDS_ALIASES[g.home]] : [homeFull];
-  const alias = oddsData.find(od =>
-    awayAliases.some(a => od.away_team === a) &&
-    homeAliases.some(h => od.home_team === h)
-  );
-  if (alias) return alias;
-
-  // 3. Last word fallback ("Sabres" == "Sabres")
-  const lastWord = oddsData.find(od =>
-    od.away_team?.split(' ').pop() === awayFull?.split(' ').pop() &&
-    od.home_team?.split(' ').pop() === homeFull?.split(' ').pop()
-  );
-  if (lastWord) return lastWord;
-
-  // 4. First 4 chars of city name
-  const city4 = oddsData.find(od =>
-    awayFull && od.away_team?.slice(0,4) === awayFull.slice(0,4) &&
-    homeFull && od.home_team?.slice(0,4) === homeFull.slice(0,4)
-  );
-  if (city4) return city4;
-
-  // Debug: log unmatched so you can see the exact API name
-  console.warn(`No odds match for ${g.away}@${g.home} (looking for "${awayFull}" @ "${homeFull}")`);
-  console.warn('Available games:', oddsData.map(o => `${o.away_team} @ ${o.home_team}`).join(', '));
-  return null;
-}
-
-function applyBestOdds(g, odGame) {
-  let bestAwayML = null, bestHomeML = null, bestAwayMLBook = null, bestHomeMLBook = null;
-  let bestSpreadLineAway = null, bestSpreadMLAway = null, bestSpreadMLHome = null;
-  let bestTotalLine = null, bestOverOdds = null, bestUnderOdds = null;
-
-  for (const bm of odGame.bookmakers || []) {
-    for (const mkt of bm.markets || []) {
-      if (mkt.key === 'h2h') {
-        for (const o of mkt.outcomes) {
-          if (o.name === odGame.away_team && (bestAwayML === null || betterOdds(o.price, bestAwayML))) {
-            bestAwayML = o.price; bestAwayMLBook = bm.key;
-          }
-          if (o.name === odGame.home_team && (bestHomeML === null || betterOdds(o.price, bestHomeML))) {
-            bestHomeML = o.price; bestHomeMLBook = bm.key;
-          }
-        }
-      }
-      if (mkt.key === 'spreads') {
-        for (const o of mkt.outcomes) {
-          if (o.name === odGame.away_team && (bestSpreadMLAway === null || betterOdds(o.price, bestSpreadMLAway))) {
-            bestSpreadMLAway = o.price; bestSpreadLineAway = o.point;
-          }
-          if (o.name === odGame.home_team && (bestSpreadMLHome === null || betterOdds(o.price, bestSpreadMLHome))) {
-            bestSpreadMLHome = o.price;
-          }
-        }
-      }
-      if (mkt.key === 'totals') {
-        for (const o of mkt.outcomes) {
-          if (o.name === 'Over'  && (bestOverOdds  === null || betterOdds(o.price, bestOverOdds)))  { bestOverOdds  = o.price; bestTotalLine = o.point; }
-          if (o.name === 'Under' && (bestUnderOdds === null || betterOdds(o.price, bestUnderOdds))) bestUnderOdds = o.price;
-        }
-      }
-    }
-  }
-
-  if (bestAwayML   != null) g.away_ml = bestAwayML;
-  if (bestHomeML   != null) g.home_ml = bestHomeML;
-  if (bestSpreadMLAway != null) { g.spread_line = bestSpreadLineAway; g.spread_ml_away = bestSpreadMLAway; }
-  if (bestSpreadMLHome != null) g.spread_ml_home = bestSpreadMLHome;
-  if (bestTotalLine    != null) { g.total_line = bestTotalLine; g.over_odds = bestOverOdds; g.under_odds = bestUnderOdds; }
-
-  // Store book per side so card can show it
-  g.book_away_ml = bestAwayMLBook;
-  g.book_home_ml = bestHomeMLBook;
-  g.book = bestAwayMLBook || bestHomeMLBook || null;
-}
-
-function betterOdds(newPrice, curPrice) {
-  // Higher payout = better. For favorites (negative) less negative = better, for dogs higher = better
-  return newPrice > curPrice;
-}
-
 // ── Betstamp Parser ──────────────────────────────────────────────────────────────
 
 // Betstamp abbrev overrides (their non-standard ones)
@@ -1414,14 +1212,6 @@ const BS_TEAM_MAP = {
   'St. Louis Blues':'STL',      'Anaheim Ducks':'ANA',
   'New York Islanders':'NYI',   'Colorado Avalanche':'COL',
 };
-
-function toggleAnPaste() {
-  const panel = document.getElementById('anPastePanel');
-  const btn   = document.getElementById('anToggleBtn');
-  const open  = panel.style.display === 'none';
-  panel.style.display = open ? 'block' : 'none';
-  btn.textContent = open ? '\u2715 Close' : '\ud83d\udccb Paste Betstamp';
-}
 
 function runAnParser() {
   const raw = document.getElementById('anPasteArea').value.trim();
@@ -1488,7 +1278,8 @@ function runAnParser() {
       if (/^[+\-]\d+$/.test(l)) {  // bare ML odds only (no spaces, no decimal)
         bareOddsCount++;
         const nxt = lines[i+1] || '';
-        const bk  = (nxt && !/^[+\-\d]/.test(nxt) && !nxt.includes(' ') && !/^\d+%$/.test(nxt)) ? nxt : '';
+        // Book name: not an odds line, not a pct, not a spread/total line (contains digits+letters mixed)
+        const bk  = (nxt && !/^[+\-]?\d/.test(nxt) && !/^\d+%$/.test(nxt) && !/^[ou]\d/i.test(nxt)) ? nxt : '';
         if (bareOddsCount === 1) {
           awayML = parseInt(l); awayBook = bk;
         } else if (bareOddsCount === 2) {
@@ -1529,7 +1320,7 @@ function runAnParser() {
       if (bets.some(b => b.date===today && b.matchup===matchup && b.pick===pick)) return;
       bets.unshift({
         id: Date.now() + Math.random(), date: today, matchup, market: 'ML', pick, odds: ml,
-        stake: 1, edge: round1(edge), book: book || 'Betstamp',
+        stake: ml > 0 ? 1 : Math.abs(ml) / 100, edge: round1(edge), book: book || 'Betstamp',
         modelOdds: probToML((g['hs_'+side+'_pct']||0)/100),
         notes: 'auto', result: 'pending', pl: null,
       });
@@ -1588,13 +1379,21 @@ function openBet(g, prefillPick, prefillOdds, prefillEdge) {
   document.getElementById('bMatchup').value = `${g.away}@${g.home}`;
   document.getElementById('bPick').value    = prefillPick || '';
   document.getElementById('bOdds').value    = prefillOdds || '';
-  document.getElementById('bStake').value   = '1';
+  // Auto-stake: favs stake abs(odds)/100 to win 1u, dogs stake 1u flat
+  const o = parseInt(prefillOdds);
+  document.getElementById('bStake').value   = (o && o < 0) ? (Math.abs(o)/100).toFixed(2) : '1';
   document.getElementById('bEdge').value    = prefillEdge != null ? prefillEdge.toFixed(1) : '';
   document.getElementById('bBook').value    = g.book || '';
   document.getElementById('bNotes').value   = '';
   document.getElementById('modalTitle').textContent = `Log Bet — ${g.away} @ ${g.home}`;
   document.getElementById('bMarket').onchange = autoFillEdge;
   document.getElementById('bPick').oninput    = autoFillEdge;
+  // Update stake when odds change
+  document.getElementById('bOdds').oninput = function() {
+    const ov = parseInt(this.value);
+    if (ov && ov < 0) document.getElementById('bStake').value = (Math.abs(ov)/100).toFixed(2);
+    else if (ov && ov > 0) document.getElementById('bStake').value = '1';
+  };
   document.getElementById('betOverlay').classList.add('open');
 }
 
@@ -1701,7 +1500,7 @@ function renderLog() {
         <div class="tv">${edgeStr}</div>
         <div class="tv" style="color:var(--ice)">${modelStr}</div>
         <div class="tv" style="color:var(--muted2)">${bet.book||'—'}</div>
-        <div class="tv">${bet.stake}u</div>
+        <div class="tv">${parseFloat(bet.stake).toFixed(2)}u</div>
         <div class="tv" onclick="event.stopPropagation()">
           <select class="result-sel" style="color:${resColor}" onchange="gradeBet(${bet.id},this.value)">
             <option value="pending" ${bet.result==='pending'?'selected':''}>Pending</option>
@@ -1937,14 +1736,123 @@ function importBets(input) {
   };
   r.readAsText(f); input.value='';
 }
+
+// ── NHL Auto-Grade ────────────────────────────────────────────────────────────
+const NHL_ABBR_MAP = {
+  'BUF':'BUF','OTT':'OTT','PIT':'PIT','TBL':'TB','BOS':'BOS','FLA':'FLA',
+  'MTL':'MTL','NYR':'NYR','DET':'DET','PHI':'PHI','CBJ':'CBJ','CAR':'CAR',
+  'WSH':'WSH','NJD':'NJ','WPG':'WPG','DAL':'DAL','VAN':'VAN','MIN':'MIN',
+  'CHI':'CHI','EDM':'EDM','CGY':'CGY','VGK':'VGK','TOR':'TOR','SJS':'SJ',
+  'UTA':'UTA','SEA':'SEA','NSH':'NSH','LAK':'LA','STL':'STL','ANA':'ANA',
+  'NYI':'NYI','COL':'COL','TBL':'TB','NJD':'NJ','SJS':'SJ','LAK':'LA',
+};
+
+async function nhlAutoGrade() {
+  const dateEl = document.getElementById('gradeDate');
+  const date   = dateEl?.value;
+  const btn    = document.getElementById('nhlGradeBtn');
+  if (!date) { setGradeStatus('Pick a date first'); return; }
+
+  const pending = bets.filter(b => b.date === date && b.result === 'pending');
+  if (!pending.length) { setGradeStatus(`No pending bets on ${date}`); return; }
+
+  btn.textContent = '⏳ Fetching…';
+  btn.disabled    = true;
+  setGradeStatus('Fetching NHL scores…');
+
+  try {
+    const apiUrl = `https://api-web.nhle.com/v1/score/${date}`;
+    let data;
+    try {
+      const r = await fetch(apiUrl);
+      if (!r.ok) throw new Error(`${r.status}`);
+      data = await r.json();
+    } catch(e) {
+      const r = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`);
+      data = await r.json();
+    }
+
+    const games = data.games || [];
+    if (!games.length) { setGradeStatus(`No games found for ${date}`); btn.textContent='🏒 NHL Auto-Grade'; btn.disabled=false; return; }
+
+    // Build score lookup keyed by "AWAY@HOME"
+    const scores = {};
+    for (const g of games) {
+      const away = NHL_ABBR_MAP[g.awayTeam?.abbrev] || g.awayTeam?.abbrev;
+      const home = NHL_ABBR_MAP[g.homeTeam?.abbrev] || g.homeTeam?.abbrev;
+      const isFinal = ['OFF','FINAL','7'].includes(String(g.gameState));
+      if (away && home) {
+        scores[`${away}@${home}`] = {
+          awayScore: g.awayTeam?.score ?? null,
+          homeScore: g.homeTeam?.score ?? null,
+          isFinal,
+        };
+      }
+    }
+
+    let graded = 0, skipped = 0;
+
+    for (const bet of pending) {
+      const score = scores[bet.matchup];
+      if (!score || !score.isFinal || score.awayScore === null) { skipped++; continue; }
+
+      const { awayScore, homeScore } = score;
+      const [away] = bet.matchup.split('@');
+      let result = null;
+
+      if (bet.market === 'ML') {
+        const betTeam = bet.pick.replace(' ML','').trim();
+        const betAway = betTeam === away;
+        const myScore = betAway ? awayScore : homeScore;
+        const opScore = betAway ? homeScore : awayScore;
+        result = myScore > opScore ? 'win' : myScore < opScore ? 'loss' : 'push';
+
+      } else if (bet.market === 'PL') {
+        const lineM   = bet.pick.match(/([+\-]?\d+\.5)/);
+        const line    = lineM ? parseFloat(lineM[1]) : null;
+        const betTeam = bet.pick.split(' ')[0];
+        if (line !== null) {
+          const betAway = betTeam === away;
+          const diff    = (betAway ? awayScore - homeScore : homeScore - awayScore) + line;
+          result = diff > 0 ? 'win' : diff < 0 ? 'loss' : 'push';
+        }
+
+      } else if (bet.market === 'Total') {
+        const total  = awayScore + homeScore;
+        const lineM  = bet.pick.match(/(\d+\.?\d*)/);
+        const line   = lineM ? parseFloat(lineM[1]) : null;
+        const isOver = /over/i.test(bet.pick);
+        if (line !== null) {
+          result = total === line ? 'push'
+                 : (total > line) === isOver ? 'win' : 'loss';
+        }
+      }
+
+      if (result) { gradeBet(bet.id, result); graded++; }
+      else skipped++;
+    }
+
+    saveBets(); updateHeader(); renderLog();
+    setGradeStatus(`✓ ${graded} graded · ${skipped} skipped`);
+    toast(`Graded ${graded} bets`, 'ok');
+
+  } catch(e) {
+    setGradeStatus('API error: ' + e.message);
+    toast('Grade failed', 'err');
+  }
+
+  btn.textContent = '🏒 NHL Auto-Grade';
+  btn.disabled    = false;
+}
+
 function gradeBet(id, result) {
   const bet = bets.find(b => b.id === id);
   if (!bet) return;
   bet.result = result;
+  // Favorites: stake abs(odds)/100 to WIN 1u → P/L = +1u or -stake
+  // Underdogs:  stake 1u flat → P/L = +(odds/100)u or -1u
   if (result === 'win') {
-    bet.pl = bet.odds > 0
-      ? (bet.stake * bet.odds / 100)
-      : (bet.stake * 100 / Math.abs(bet.odds));
+    bet.pl = bet.odds > 0 ? (bet.stake * bet.odds / 100) : 1;
   } else if (result === 'loss') {
     bet.pl = -bet.stake;
   } else if (result === 'push') {
