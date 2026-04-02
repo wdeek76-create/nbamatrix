@@ -537,6 +537,50 @@ body {
   gap: 8px;
 }
 
+/* ── Odds input row ── */
+.odds-inputs-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  background: var(--bg);
+}
+.odds-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 52px;
+}
+.oi-label {
+  font-size: .62rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 600;
+  text-align: center;
+}
+.odds-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: .88rem;
+  font-weight: 600;
+  padding: 4px 4px;
+  text-align: center;
+  outline: none;
+  width: 100%;
+  transition: border-color .12s;
+  -moz-appearance: textfield;
+}
+.odds-input::-webkit-outer-spin-button,
+.odds-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.odds-input:focus { border-color: var(--accent); }
+.odds-input:not(:placeholder-shown) { color: var(--ice); }
+
 /* ── empty state ── */
 .empty {
   text-align: center;
@@ -689,6 +733,13 @@ body {
       </div>
     </div>
 
+    <!-- Odds toolbar — shown after parse -->
+    <div id="oddsToolbar" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:10px 14px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
+      <button class="btn primary" id="fetchOddsBtn" onclick="fetchOdds()">⚡ Fetch Best Odds</button>
+      <span id="oddsStatus" style="font-size:.78rem;color:var(--muted)"></span>
+      <div id="evAlertBar" style="display:none;margin-left:auto;background:var(--green-dim);border:1px solid var(--green);border-radius:var(--radius);padding:4px 12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;color:var(--green);letter-spacing:.04em;"></div>
+    </div>
+
     <div id="gamesContainer">
       <div class="empty">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -753,6 +804,24 @@ body {
           </tr>
         </thead>
         <tbody id="mbTbody"></tbody>
+      </table>
+    </div>
+
+    <div class="market-breakdown" style="margin-top:14px">
+      <div class="mb-header" style="color:var(--green);">⚡ +EV Breakdown (≥2% edge)</div>
+      <table class="mb-table" id="evTable">
+        <thead>
+          <tr>
+            <td class="mkt-name"><strong>Bucket</strong></td>
+            <td><strong>Bets</strong></td>
+            <td><strong>W-L</strong></td>
+            <td><strong>Win%</strong></td>
+            <td><strong>Units</strong></td>
+            <td><strong>Avg Edge</strong></td>
+            <td><strong>Expected W%</strong></td>
+          </tr>
+        </thead>
+        <tbody id="evTbody"></tbody>
       </table>
     </div>
   </div>
@@ -975,6 +1044,8 @@ function loadSample() {
 }
 
 // ── Render Games ─────────────────────────────────────────────────────────────
+const EDGE_THRESH = 2.0;
+
 function renderGames() {
   const c = document.getElementById('gamesContainer');
   if (!gameData || !gameData.games.length) {
@@ -982,83 +1053,372 @@ function renderGames() {
     return;
   }
 
+  // Show odds toolbar
+  document.getElementById('oddsToolbar').style.display = 'flex';
+
   const grid = document.createElement('div');
   grid.className = 'games-grid';
 
-  gameData.games.forEach(g => {
+  gameData.games.forEach((g, idx) => {
     const card = document.createElement('div');
     card.className = 'game-card';
-
-    // Total edge direction
-    let totalEdgeHtml = '';
-    if (g.proj_total != null && g.total_line != null) {
-      const te  = g.total_edge;
-      const dir = te < -0.1 ? 'under' : te > 0.1 ? 'over' : '';
-      const lbl = te < -0.1 ? `▼ Under ${g.total_line}` : te > 0.1 ? `▲ Over ${g.total_line}` : `≈ ${g.total_line}`;
-      totalEdgeHtml = `<span class="total-edge-val ${dir}">${lbl} (${te > 0 ? '+' : ''}${te?.toFixed(2)})</span>`;
-    }
-
-    const projLine = g.proj_away_goals != null
-      ? `<span>Proj <span>${g.proj_away_goals} – ${g.proj_home_goals}</span> (${g.proj_total})</span>`
-      : '';
-
-    card.innerHTML = `
-      <div class="game-card-header">
-        <span class="game-time">${g.time || '—'}</span>
-        <span class="game-proj-total">${projLine}</span>
-      </div>
-      <div class="game-teams">
-        ${teamRow(g, 'away')}
-        ${teamRow(g, 'home')}
-      </div>
-      <div class="game-markets">
-        ${marketPill('ML', mlFmt(g.away_ml), mlFmt(g.home_ml))}
-        ${marketPill('PL', puckFmt(g.spread_line, g.spread_ml_away), puckFmt(-g.spread_line, g.spread_ml_home))}
-        <div class="market-pill">
-          <div class="lbl">Total</div>
-          <div class="val">${g.total_line ?? '—'}</div>
-          <div class="odds">${mlFmt(g.over_odds)} / ${mlFmt(g.under_odds)}</div>
-          ${totalEdgeHtml}
-        </div>
-      </div>
-      <div class="game-card-footer">
-        <button class="btn sm primary" style="flex:1" onclick="openBet(${JSON.stringify(g).replace(/"/g,'&quot;')})">+ Log Bet</button>
-      </div>
-    `;
+    card.id = `card-${idx}`;
+    card.innerHTML = buildCardHTML(g, idx);
     grid.appendChild(card);
   });
 
   c.innerHTML = '';
   c.appendChild(grid);
+  refreshEVAlert();
 }
 
-function teamRow(g, side) {
-  const abbrev  = g[side];
-  const name    = g[side + '_name'] || abbrev;
-  const pct     = g['hs_' + side + '_pct'];
-  const fair    = g['fair_' + side + '_pct'];
-  const edge    = g['ml_edge_' + side];
-  const edgeCls = edge == null ? 'zero' : edge >= 2 ? 'pos' : edge <= -2 ? 'neg' : 'zero';
+function buildCardHTML(g, idx) {
+  const awayEdge = g.ml_edge_away;
+  const homeEdge = g.ml_edge_home;
+  const hasEdge  = (awayEdge != null && awayEdge >= EDGE_THRESH) || (homeEdge != null && homeEdge >= EDGE_THRESH);
+  const totalEdge = g.total_edge;
+  const hasTotalEdge = totalEdge != null && Math.abs(totalEdge) >= 0.3;
+
+  const cardBorder = hasEdge ? 'border-color:var(--green);' : '';
+
+  return `
+    <div class="game-card-header" style="${cardBorder ? 'border-bottom-color:var(--green-dim);' : ''}">
+      <span class="game-time">${g.time || '—'}</span>
+      ${hasEdge ? `<span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.72rem;color:var(--green);letter-spacing:.05em;text-transform:uppercase;">⚡ +EV</span>` : ''}
+    </div>
+    <div class="game-teams">
+      ${teamRow(g, 'away', idx)}
+      ${teamRow(g, 'home', idx)}
+    </div>
+    <div class="odds-inputs-row">
+      <div class="odds-input-group">
+        <div class="oi-label">Away ML</div>
+        <input class="odds-input" type="number" placeholder="—" value="${g.away_ml ?? ''}"
+          onchange="updateOdds(${idx},'away_ml',this.value)" oninput="updateOdds(${idx},'away_ml',this.value)"/>
+      </div>
+      <div class="odds-input-group">
+        <div class="oi-label">Home ML</div>
+        <input class="odds-input" type="number" placeholder="—" value="${g.home_ml ?? ''}"
+          onchange="updateOdds(${idx},'home_ml',this.value)" oninput="updateOdds(${idx},'home_ml',this.value)"/>
+      </div>
+      <div class="odds-input-group">
+        <div class="oi-label">PL Away</div>
+        <input class="odds-input" type="number" placeholder="—" value="${g.spread_ml_away ?? ''}"
+          onchange="updateOdds(${idx},'spread_ml_away',this.value)" oninput="updateOdds(${idx},'spread_ml_away',this.value)"/>
+      </div>
+      <div class="odds-input-group">
+        <div class="oi-label">PL Home</div>
+        <input class="odds-input" type="number" placeholder="—" value="${g.spread_ml_home ?? ''}"
+          onchange="updateOdds(${idx},'spread_ml_home',this.value)" oninput="updateOdds(${idx},'spread_ml_home',this.value)"/>
+      </div>
+      <div class="odds-input-group">
+        <div class="oi-label">Total</div>
+        <input class="odds-input" type="number" step="0.5" placeholder="—" value="${g.total_line ?? ''}"
+          onchange="updateOdds(${idx},'total_line',this.value)" oninput="updateOdds(${idx},'total_line',this.value)"/>
+      </div>
+      <div class="odds-input-group">
+        <div class="oi-label">Over</div>
+        <input class="odds-input" type="number" placeholder="—" value="${g.over_odds ?? ''}"
+          onchange="updateOdds(${idx},'over_odds',this.value)" oninput="updateOdds(${idx},'over_odds',this.value)"/>
+      </div>
+      <div class="odds-input-group">
+        <div class="oi-label">Under</div>
+        <input class="odds-input" type="number" placeholder="—" value="${g.under_odds ?? ''}"
+          onchange="updateOdds(${idx},'under_odds',this.value)" oninput="updateOdds(${idx},'under_odds',this.value)"/>
+      </div>
+    </div>
+    <div class="game-card-footer">
+      ${hasEdge || hasTotalEdge ? `<button class="btn sm" style="background:var(--green-dim);border-color:var(--green);color:var(--green);" onclick="quickLogEV(${idx})">⚡ Quick Log EV</button>` : ''}
+      <button class="btn sm primary" style="flex:1" onclick="openBetIdx(${idx})">+ Log Bet</button>
+    </div>`;
+}
+
+function teamRow(g, side, idx) {
+  const abbrev   = g[side];
+  const name     = g[side + '_name'] || abbrev;
+  const pct      = g['hs_' + side + '_pct'];
+  const edge     = g['ml_edge_' + side];
+  const mktML    = g[side + '_ml'];
+
+  // Model implied odds from HS win%
+  const modelOdds = pct != null ? probToML(pct / 100) : null;
+  const modelOddsStr = modelOdds != null ? mlFmt(modelOdds) : '—';
+
+  // Market odds display
+  const mktStr = mktML != null ? mlFmt(mktML) : '—';
+
+  // Edge badge
+  const edgeCls = edge == null ? 'zero' : edge >= EDGE_THRESH ? 'pos' : edge <= -EDGE_THRESH ? 'neg' : 'zero';
   const edgeTxt = edge == null ? '—' : (edge > 0 ? '+' : '') + edge.toFixed(1) + '%';
   const pctCol  = pct >= 60 ? 'var(--green)' : pct <= 40 ? 'var(--muted)' : 'var(--text)';
+
+  // Arrow indicator when model is better than market
+  const arrow = (modelOdds != null && mktML != null)
+    ? (modelOdds > mktML ? ' ▲' : modelOdds < mktML ? ' ▼' : '')
+    : '';
+  const modelColor = (modelOdds != null && mktML != null && modelOdds > mktML)
+    ? 'var(--green)' : 'var(--ice)';
 
   return `
     <div class="team-row">
       <span class="team-abbrev">${abbrev}</span>
       <span class="team-name-full">${name}</span>
       <span class="win-pct" style="color:${pctCol}">${pct ?? '—'}%</span>
-      <span class="fair-pct">${fair != null ? fair.toFixed(1)+'%' : '—'}</span>
-      <span class="edge-badge ${edgeCls}">${edgeTxt}</span>
+      <span class="model-odds" id="model-${side}-${idx}" style="color:${modelColor};font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.88rem;min-width:42px;text-align:right;" title="Model implied">${modelOddsStr}${arrow}</span>
+      <span class="fair-pct" id="mkt-${side}-${idx}" style="color:var(--muted2);min-width:42px;text-align:right;">${mktStr}</span>
+      <span class="edge-badge ${edgeCls}" id="edge-${side}-${idx}">${edgeTxt}</span>
     </div>`;
 }
 
-function marketPill(lbl, away, home) {
-  return `
-    <div class="market-pill">
-      <div class="lbl">${lbl}</div>
-      <div class="val">${away}</div>
-      <div class="odds">${home}</div>
-    </div>`;
+// ── Live odds editing ─────────────────────────────────────────────────────────
+function updateOdds(idx, field, val) {
+  const g   = gameData.games[idx];
+  const num = val === '' ? null : parseInt(val);
+  g[field]  = num;
+  recomputeEdge(g);
+
+  // Re-render just the edge badges + card border without full redraw
+  const awayEdge = g.ml_edge_away;
+  const homeEdge = g.ml_edge_home;
+
+  for (const side of ['away','home']) {
+    const edge     = g['ml_edge_' + side];
+    const badge    = document.getElementById(`edge-${side}-${idx}`);
+    const mktEl    = document.getElementById(`mkt-${side}-${idx}`);
+    const modelEl  = document.getElementById(`model-${side}-${idx}`);
+    const mktML    = g[side + '_ml'];
+    const pct      = g['hs_' + side + '_pct'];
+    const modelOdds = pct != null ? probToML(pct / 100) : null;
+
+    if (badge) {
+      badge.textContent = edge == null ? '—' : (edge > 0 ? '+' : '') + edge.toFixed(1) + '%';
+      badge.className   = 'edge-badge ' + (edge == null ? 'zero' : edge >= EDGE_THRESH ? 'pos' : edge <= -EDGE_THRESH ? 'neg' : 'zero');
+    }
+    if (mktEl)   mktEl.textContent   = mktML != null ? mlFmt(mktML) : '—';
+    if (modelEl) {
+      const arrow = (modelOdds != null && mktML != null) ? (modelOdds > mktML ? ' ▲' : modelOdds < mktML ? ' ▼' : '') : '';
+      modelEl.textContent = modelOdds != null ? mlFmt(modelOdds) + arrow : '—';
+      modelEl.style.color = (modelOdds != null && mktML != null && modelOdds > mktML) ? 'var(--green)' : 'var(--ice)';
+    }
+  }
+
+  // Update card border + EV badge + footer button
+  const card = document.getElementById(`card-${idx}`);
+  if (card) {
+    const hasEdge = (awayEdge != null && awayEdge >= EDGE_THRESH) || (homeEdge != null && homeEdge >= EDGE_THRESH);
+    const hasTotalEdge = g.total_edge != null && Math.abs(g.total_edge) >= 0.3;
+    card.style.borderColor = hasEdge ? 'var(--green)' : '';
+
+    // Update EV header badge
+    const header = card.querySelector('.game-card-header');
+    let evBadge  = header.querySelector('.ev-badge');
+    if (hasEdge && !evBadge) {
+      evBadge = document.createElement('span');
+      evBadge.className = 'ev-badge';
+      evBadge.style.cssText = "font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.72rem;color:var(--green);letter-spacing:.05em;text-transform:uppercase;";
+      evBadge.textContent = '⚡ +EV';
+      header.appendChild(evBadge);
+    } else if (!hasEdge && evBadge) {
+      evBadge.remove();
+    }
+
+    // Update footer quick log button
+    const footer   = card.querySelector('.game-card-footer');
+    let quickBtn   = footer.querySelector('.quick-ev-btn');
+    if ((hasEdge || hasTotalEdge) && !quickBtn) {
+      quickBtn = document.createElement('button');
+      quickBtn.className = 'btn sm quick-ev-btn';
+      quickBtn.style.cssText = 'background:var(--green-dim);border-color:var(--green);color:var(--green);';
+      quickBtn.textContent = '⚡ Quick Log EV';
+      quickBtn.onclick = () => quickLogEV(idx);
+      footer.insertBefore(quickBtn, footer.firstChild);
+    } else if (!hasEdge && !hasTotalEdge && quickBtn) {
+      quickBtn.remove();
+    }
+  }
+
+  refreshEVAlert();
+}
+
+function recomputeEdge(g) {
+  if (g.away_ml != null && g.home_ml != null) {
+    const ra = mlToImplied(g.away_ml), rh = mlToImplied(g.home_ml);
+    const [fa, fh] = devigify(ra, rh);
+    g.fair_away_pct   = round1(fa * 100);
+    g.fair_home_pct   = round1(fh * 100);
+    g.ml_edge_away    = round1(g.hs_away_pct - fa * 100);
+    g.ml_edge_home    = round1(g.hs_home_pct - fh * 100);
+  } else {
+    g.fair_away_pct = g.fair_home_pct = g.ml_edge_away = g.ml_edge_home = null;
+  }
+  if (g.proj_total != null && g.total_line != null) {
+    g.total_edge = round2(g.proj_total - g.total_line);
+  }
+}
+
+function mlToImplied(ml) {
+  return ml > 0 ? 100 / (ml + 100) : Math.abs(ml) / (Math.abs(ml) + 100);
+}
+function probToML(p) {
+  if (p <= 0 || p >= 1) return null;
+  return p >= 0.5
+    ? Math.round(-(p / (1 - p)) * 100)
+    : Math.round(((1 - p) / p) * 100);
+}
+function devigify(p1, p2) {
+  const t = p1 + p2; return [p1/t, p2/t];
+}
+function round1(n) { return Math.round(n * 10) / 10; }
+function round2(n) { return Math.round(n * 100) / 100; }
+
+function refreshEVAlert() {
+  const evGames = gameData?.games.filter(g =>
+    (g.ml_edge_away != null && g.ml_edge_away >= EDGE_THRESH) ||
+    (g.ml_edge_home != null && g.ml_edge_home >= EDGE_THRESH)
+  ) || [];
+  const bar = document.getElementById('evAlertBar');
+  if (!bar) return;
+  if (evGames.length) {
+    bar.style.display = 'block';
+    bar.textContent   = `⚡ ${evGames.length} +EV game${evGames.length > 1 ? 's' : ''} today`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+// ── Fetch Odds API ────────────────────────────────────────────────────────────
+const ODDS_API_KEY = 'c9cb14ff8cfbecf9e6d4481b19ac2371';
+const BOOKS = ['pinnacle','fanduel','draftkings','betmgm','bovada','betonline_ag','mybookieag','williamhill_us','pointsbetus'];
+
+async function fetchOdds() {
+  if (!gameData?.games.length) { toast('Parse games first', 'err'); return; }
+  const btn = document.getElementById('fetchOddsBtn');
+  const status = document.getElementById('oddsStatus');
+  btn.textContent = '⏳ Fetching…';
+  btn.disabled = true;
+  status.textContent = '';
+
+  try {
+    const url = `https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds?apiKey=${ODDS_API_KEY}&regions=us,us2&markets=h2h,spreads,totals&bookmakers=${BOOKS.join(',')}&oddsFormat=american&dateFormat=iso`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data = await resp.json();
+
+    let filled = 0;
+    gameData.games.forEach((g, idx) => {
+      const match = findOddsMatch(g, data);
+      if (!match) return;
+      applyBestOdds(g, match);
+      recomputeEdge(g);
+      filled++;
+      // Re-render card
+      const card = document.getElementById(`card-${idx}`);
+      if (card) card.outerHTML = `<div class="game-card" id="card-${idx}">${buildCardHTML(g, idx)}</div>`;
+      // outerHTML swap loses reference — re-query
+      const newCard = document.getElementById(`card-${idx}`);
+      if (newCard) newCard.style.borderColor = (g.ml_edge_away >= EDGE_THRESH || g.ml_edge_home >= EDGE_THRESH) ? 'var(--green)' : '';
+    });
+
+    // Re-render all cards cleanly
+    renderGames();
+    status.textContent = `✓ ${filled}/${gameData.games.length} games filled`;
+    status.style.color = 'var(--green)';
+    toast(`Odds loaded — ${filled} games`, 'ok');
+  } catch(e) {
+    status.textContent = 'Odds API failed: ' + e.message;
+    status.style.color = 'var(--red)';
+    toast('Odds fetch failed', 'err');
+  }
+
+  btn.textContent = '⚡ Fetch Best Odds';
+  btn.disabled = false;
+}
+
+function findOddsMatch(g, oddsData) {
+  // Odds API uses full team names — map back via TEAM_NAMES (reversed)
+  const awayFull = Object.entries(TEAM_NAMES).find(([k]) => k === g.away)?.[1];
+  const homeFull = Object.entries(TEAM_NAMES).find(([k]) => k === g.home)?.[1];
+  return oddsData.find(od =>
+    (od.away_team?.includes(g.away) || od.away_team === awayFull) &&
+    (od.home_team?.includes(g.home) || od.home_team === homeFull)
+  ) || oddsData.find(od =>
+    // looser match on first 3 chars
+    od.away_team?.slice(0,3) === g.away.slice(0,3) &&
+    od.home_team?.slice(0,3) === g.home.slice(0,3)
+  );
+}
+
+function applyBestOdds(g, odGame) {
+  // For each market, find the BEST price across all books
+  let bestAwayML = null, bestHomeML = null, bestAwayMLBook = null, bestHomeMLBook = null;
+  let bestSpreadLineAway = null, bestSpreadMLAway = null, bestSpreadMLHome = null;
+  let bestTotalLine = null, bestOverOdds = null, bestUnderOdds = null;
+
+  for (const bm of odGame.bookmakers || []) {
+    for (const mkt of bm.markets || []) {
+      if (mkt.key === 'h2h') {
+        for (const o of mkt.outcomes) {
+          if (o.name === odGame.away_team) {
+            if (bestAwayML === null || betterOdds(o.price, bestAwayML)) { bestAwayML = o.price; bestAwayMLBook = bm.key; }
+          }
+          if (o.name === odGame.home_team) {
+            if (bestHomeML === null || betterOdds(o.price, bestHomeML)) { bestHomeML = o.price; bestHomeMLBook = bm.key; }
+          }
+        }
+      }
+      if (mkt.key === 'spreads') {
+        for (const o of mkt.outcomes) {
+          if (o.name === odGame.away_team) {
+            if (bestSpreadMLAway === null || betterOdds(o.price, bestSpreadMLAway)) {
+              bestSpreadMLAway = o.price; bestSpreadLineAway = o.point;
+            }
+          }
+          if (o.name === odGame.home_team) {
+            if (bestSpreadMLHome === null || betterOdds(o.price, bestSpreadMLHome)) bestSpreadMLHome = o.price;
+          }
+        }
+      }
+      if (mkt.key === 'totals') {
+        for (const o of mkt.outcomes) {
+          if (o.name === 'Over'  && (bestOverOdds  === null || betterOdds(o.price, bestOverOdds)))  { bestOverOdds  = o.price; bestTotalLine = o.point; }
+          if (o.name === 'Under' && (bestUnderOdds === null || betterOdds(o.price, bestUnderOdds))) bestUnderOdds = o.price;
+        }
+      }
+    }
+  }
+
+  if (bestAwayML   != null) g.away_ml        = bestAwayML;
+  if (bestHomeML   != null) g.home_ml        = bestHomeML;
+  if (bestSpreadMLAway != null) { g.spread_line = bestSpreadLineAway; g.spread_ml_away = bestSpreadMLAway; }
+  if (bestSpreadMLHome != null) g.spread_ml_home = bestSpreadMLHome;
+  if (bestTotalLine    != null) { g.total_line = bestTotalLine; g.over_odds = bestOverOdds; g.under_odds = bestUnderOdds; }
+  g.book = bestAwayMLBook || bestHomeMLBook || 'best';
+}
+
+function betterOdds(newPrice, curPrice) {
+  // Higher payout = better. For favorites (negative) less negative = better, for dogs higher = better
+  return newPrice > curPrice;
+}
+
+// ── Quick log EV bets ─────────────────────────────────────────────────────────
+function quickLogEV(idx) {
+  const g = gameData.games[idx];
+  const evSides = [];
+  if (g.ml_edge_away != null && g.ml_edge_away >= EDGE_THRESH)
+    evSides.push({ pick: `${g.away} ML`, odds: g.away_ml, edge: g.ml_edge_away });
+  if (g.ml_edge_home != null && g.ml_edge_home >= EDGE_THRESH)
+    evSides.push({ pick: `${g.home} ML`, odds: g.home_ml, edge: g.ml_edge_home });
+
+  if (!evSides.length) { openBetIdx(idx); return; }
+
+  // If one side, open modal pre-filled
+  const side = evSides[0];
+  openBetIdx(idx, side.pick, side.odds, side.edge);
+}
+
+function openBetIdx(idx, prefillPick, prefillOdds, prefillEdge) {
+  const g = gameData.games[idx];
+  openBet(g, prefillPick, prefillOdds, prefillEdge);
 }
 
 function mlFmt(ml) {
@@ -1071,20 +1431,19 @@ function puckFmt(line, ml) {
   return `${lineStr} (${mlFmt(ml)})`;
 }
 
+
 // ── Bet Modal ────────────────────────────────────────────────────────────────
-function openBet(g) {
+function openBet(g, prefillPick, prefillOdds, prefillEdge) {
   modalGame = g;
   document.getElementById('bDate').value    = gameData?.generated || new Date().toISOString().slice(0,10);
   document.getElementById('bMatchup').value = `${g.away}@${g.home}`;
-  document.getElementById('bPick').value    = '';
-  document.getElementById('bOdds').value    = '';
+  document.getElementById('bPick').value    = prefillPick || '';
+  document.getElementById('bOdds').value    = prefillOdds || '';
   document.getElementById('bStake').value   = '1';
-  document.getElementById('bEdge').value    = '';
+  document.getElementById('bEdge').value    = prefillEdge != null ? prefillEdge.toFixed(1) : '';
   document.getElementById('bBook').value    = g.book || '';
   document.getElementById('bNotes').value   = '';
   document.getElementById('modalTitle').textContent = `Log Bet — ${g.away} @ ${g.home}`;
-
-  // Auto-fill edge when market changes
   document.getElementById('bMarket').onchange = autoFillEdge;
   document.getElementById('bPick').oninput    = autoFillEdge;
   document.getElementById('betOverlay').classList.add('open');
@@ -1222,12 +1581,14 @@ function sortLog(field) {
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 function renderDash() {
-  const graded = bets.filter(b => b.result !== 'pending');
-  const wins   = graded.filter(b => b.result === 'win').length;
-  const losses = graded.filter(b => b.result === 'loss').length;
-  const units  = graded.reduce((s, b) => s + (b.pl || 0), 0);
-  const roi    = graded.length ? (units / graded.reduce((s,b) => s + b.stake, 0)) * 100 : 0;
-  const avgEdge = bets.filter(b=>b.edge!=null).reduce((s,b)=>s+b.edge,0) / (bets.filter(b=>b.edge!=null).length || 1);
+  const graded  = bets.filter(b => b.result !== 'pending');
+  const wins    = graded.filter(b => b.result === 'win').length;
+  const losses  = graded.filter(b => b.result === 'loss').length;
+  const units   = graded.reduce((s, b) => s + (b.pl || 0), 0);
+  const roi     = graded.length ? (units / graded.reduce((s,b) => s + b.stake, 0)) * 100 : 0;
+  const edgeBets = bets.filter(b => b.edge != null);
+  const avgEdge  = edgeBets.length ? edgeBets.reduce((s,b) => s + b.edge, 0) / edgeBets.length : 0;
+  const evBets   = bets.filter(b => b.edge != null && b.edge >= EDGE_THRESH);
 
   const dc = document.getElementById('dashCards');
   dc.innerHTML = `
@@ -1235,34 +1596,80 @@ function renderDash() {
     ${statCard('Units', (units >= 0 ? '+' : '') + units.toFixed(2) + 'u', '', units >= 0 ? 'var(--green)' : 'var(--red)')}
     ${statCard('ROI', (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%', '', roi >= 0 ? 'var(--green)' : 'var(--red)')}
     ${statCard('Win%', graded.length ? ((wins/graded.length)*100).toFixed(1)+'%' : '—', graded.length + ' bets')}
-    ${statCard('Avg Edge', (avgEdge >= 0 ? '+' : '') + avgEdge.toFixed(1) + '%', bets.filter(b=>b.edge!=null).length + ' with edge', avgEdge >= 2 ? 'var(--green)' : avgEdge < 0 ? 'var(--red)' : 'var(--text)')}
-    ${statCard('Open', bets.filter(b=>b.result==='pending').length + '', 'pending bets')}
+    ${statCard('Avg Edge', (avgEdge >= 0 ? '+' : '') + avgEdge.toFixed(1) + '%', edgeBets.length + ' with edge', avgEdge >= 2 ? 'var(--green)' : avgEdge < 0 ? 'var(--red)' : 'var(--text)')}
+    ${statCard('⚡ +EV Bets', evBets.length + '', evBets.filter(b=>b.result==='pending').length + ' pending', evBets.length ? 'var(--green)' : 'var(--muted)')}
   `;
 
-  // By market
+  // ── By Market ──
   const markets = ['ML', 'PL', 'Total', 'Team Total'];
-  const tbody = document.getElementById('mbTbody');
-  tbody.innerHTML = markets.map(mkt => {
-    const mb = graded.filter(b => b.market === mkt);
-    const mw = mb.filter(b => b.result === 'win').length;
-    const ml = mb.filter(b => b.result === 'loss').length;
-    const mu = bets.filter(b => b.market === mkt && b.result === 'pending').length;
+  document.getElementById('mbTbody').innerHTML = markets.map(mkt => {
+    const mb  = graded.filter(b => b.market === mkt);
+    const mw  = mb.filter(b => b.result === 'win').length;
+    const ml  = mb.filter(b => b.result === 'loss').length;
+    const mu  = bets.filter(b => b.market === mkt && b.result === 'pending').length;
     const mu2 = mb.reduce((s,b) => s + (b.pl||0), 0);
-    const me = bets.filter(b=>b.market===mkt&&b.edge!=null);
-    const mae = me.length ? me.reduce((s,b)=>s+b.edge,0)/me.length : null;
+    const me  = bets.filter(b => b.market === mkt && b.edge != null);
+    const mae = me.length ? me.reduce((s,b) => s + b.edge, 0) / me.length : null;
     if (!mb.length && !mu) return '';
     const pctStr = mb.length ? ((mw/mb.length)*100).toFixed(0)+'%' : '—';
     const uStr   = `<span class="${mu2>=0?'pl-pos':'pl-neg'}">${mu2>=0?'+':''}${mu2.toFixed(2)}u</span>`;
     const eStr   = mae != null ? `<span class="${mae>=2?'pl-pos':mae<0?'pl-neg':''}">${mae>0?'+':''}${mae.toFixed(1)}%</span>` : '—';
     return `<tr>
       <td class="mkt-name">${mkt}</td>
-      <td>${mb.length + mu}</td>
-      <td>${mw}-${ml}</td>
-      <td>${pctStr}</td>
-      <td>${uStr}</td>
-      <td>${eStr}</td>
+      <td>${mb.length + mu}</td><td>${mw}-${ml}</td><td>${pctStr}</td><td>${uStr}</td><td>${eStr}</td>
     </tr>`;
   }).join('');
+
+  // ── +EV Breakdown ──
+  // Buckets: 2–4%, 4–6%, 6–8%, 8%+, and overall +EV
+  const evBuckets = [
+    { label: 'All +EV',  min: EDGE_THRESH, max: Infinity },
+    { label: '2–4%',     min: 2,   max: 4   },
+    { label: '4–6%',     min: 4,   max: 6   },
+    { label: '6–8%',     min: 6,   max: 8   },
+    { label: '8%+',      min: 8,   max: Infinity },
+  ];
+
+  document.getElementById('evTbody').innerHTML = evBuckets.map(bucket => {
+    const bucketBets   = bets.filter(b => b.edge != null && b.edge >= bucket.min && b.edge < bucket.max);
+    const bucketGraded = bucketBets.filter(b => b.result !== 'pending');
+    if (!bucketBets.length) return '';
+
+    const bw    = bucketGraded.filter(b => b.result === 'win').length;
+    const bl    = bucketGraded.filter(b => b.result === 'loss').length;
+    const bu    = bucketGraded.reduce((s,b) => s + (b.pl||0), 0);
+    const bpend = bucketBets.filter(b => b.result === 'pending').length;
+    const bavg  = bucketBets.reduce((s,b) => s + b.edge, 0) / bucketBets.length;
+
+    // Expected win% from avg edge + implied prob (rough: fair% = 50% + edge/2 as approximation)
+    // Better: use Kelly-style. We store edge vs fair%, so expected win% ≈ fair% which we don't store per bet.
+    // Use average odds instead: EV = (winProb * profit) - (lossProb * stake)  → winProb = (EV/stake + 1) / (profit/stake + 1)
+    // Simpler display: just show implied win% from avg odds
+    const betsWithOdds = bucketBets.filter(b => b.odds != null);
+    let expWinPct = null;
+    if (betsWithOdds.length) {
+      const avgFair = betsWithOdds.reduce((s,b) => {
+        const imp = b.odds > 0 ? 100/(b.odds+100) : Math.abs(b.odds)/(Math.abs(b.odds)+100);
+        // fair prob = implied + edge/100 (since edge = model% - market%)
+        return s + imp + (b.edge || 0) / 100;
+      }, 0) / betsWithOdds.length;
+      expWinPct = (avgFair * 100).toFixed(1) + '%';
+    }
+
+    const actWinPct = bucketGraded.length ? ((bw/bucketGraded.length)*100).toFixed(0)+'%' : '—';
+    const uStr      = bu !== 0 ? `<span class="${bu>=0?'pl-pos':'pl-neg'}">${bu>=0?'+':''}${bu.toFixed(2)}u</span>` : '0.00u';
+    const isAll     = bucket.label === 'All +EV';
+
+    return `<tr style="${isAll ? 'background:var(--surface2);' : ''}">
+      <td class="mkt-name" style="${isAll ? 'color:var(--green);' : ''}">${isAll ? '⚡ ' : ''}${bucket.label}</td>
+      <td>${bucketBets.length}${bpend ? ` <span style="color:var(--muted);font-size:.72rem;">(${bpend} open)</span>` : ''}</td>
+      <td>${bw}-${bl}</td>
+      <td>${actWinPct}</td>
+      <td>${uStr}</td>
+      <td><span class="pl-pos">+${bavg.toFixed(1)}%</span></td>
+      <td style="color:var(--muted2)">${expWinPct ?? '—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" style="color:var(--muted);padding:14px 16px;font-size:.82rem;">No +EV bets logged yet.</td></tr>`;
 }
 
 function statCard(lbl, val, sub='', color='var(--text)') {
