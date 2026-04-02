@@ -1283,14 +1283,14 @@ function renderTracker(){
     html+=`<div id="parseTabContent" style="padding:16px">
       <div style="display:flex;gap:10px;margin-bottom:10px;align-items:center">
         <span style="font-size:12px;color:var(--muted)">Paste gamesheet — auto-parses instantly</span>
-        <button class="screenshot-btn" onclick="parserClearAll()" style="margin-left:auto">✕ Clear</button>
+        <button class="screenshot-btn" onclick="_parserClear()" style="margin-left:auto">✕ Clear</button>
         <span id="parserStatus" style="font-size:12px;color:var(--green)"></span>
       </div>
       <textarea id="parserInput" placeholder="Paste BatX EV Analytics gamesheet here..." 
         oninput="parserOnInput()"
         style="width:100%;height:150px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:10px;resize:vertical;font-family:monospace"></textarea>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
-        <select id="parserMarketFilter" onchange="parserRenderAll()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px">
+        <select id="parserMarketFilter" onchange="_renderParseResults()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px">
           <option value="all">All Markets</option>
           <option value="Total">Game Total</option>
           <option value="Team Total">Team Total</option>
@@ -1299,7 +1299,7 @@ function renderTracker(){
           <option value="1H ML">1H ML</option>
           <option value="1H RL">1H RL</option>
         </select>
-        <select id="parserBetFilter" onchange="parserRenderAll()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px">
+        <select id="parseBetFilter" onchange="_renderParseResults()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px">
           <option value="all">All Bets</option>
           <option value="OVER">Overs</option>
           <option value="UNDER">Unders</option>
@@ -1741,7 +1741,7 @@ async function gradeDate(selectedDate, setStatus){
   setStatus(graded+' bets graded!');
 }
 
-function parserOnInput(){ clearTimeout(window._parserTimer); window._parserTimer=setTimeout(parserParse,300); }
+
 
 function selectAllParsed(){
   document.querySelectorAll('.parser-check:not(:disabled)').forEach(cb=>cb.checked=true);
@@ -1932,6 +1932,7 @@ function _runParse(){
 
 function parserRenderAll(){ _renderParseResults(); }
 
+function _parserClear(){ parserClearAll(); }
 function parserClearAll(){
   _parseAllRows = [];
   const ta=document.getElementById('parserInput'); if(ta) ta.value='';
@@ -1944,7 +1945,7 @@ function _renderParseResults(){
   const out = document.getElementById('parserOutput');
   if(!out) return;
   const mktF = (document.getElementById('parserMarketFilter')||{}).value||'all';
-  const betF = (document.getElementById('parserBetFilter')||{}).value||'all';
+  const betF = (document.getElementById('parseBetFilter')||{}).value||'all';
   let rows = dedupe(_parseAllRows);
   if(mktF!=='all') rows = rows.filter(r=>r.market===mktF);
   if(betF!=='all') rows = rows.filter(r=>r.suggested_bet===betF);
