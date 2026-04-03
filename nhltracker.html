@@ -399,13 +399,13 @@ body {
 .bet-log-wrap { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden; }
 .track-head {
   display: grid;
-  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 80px 30px;
+  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 30px;
   padding: 7px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); gap: 5px;
 }
 .track-head span { font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;user-select:none;white-space:nowrap;overflow:hidden; }
 .track-row {
   display: grid;
-  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 80px 30px;
+  grid-template-columns: 78px 100px 68px 1fr 58px 58px 58px 78px 48px 80px 68px 30px;
   padding: 7px 14px; border-top: 1px solid var(--border); align-items: center; gap: 5px;
 }
 .track-row:hover { background: var(--surface2); }
@@ -620,23 +620,6 @@ body {
       </div>
     </div>
 
-    <!-- MoneyPuck goalie confirmation — shown after Betstamp parse -->
-    <div id="mpToolbar" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;">
-      <div style="padding:8px 14px 4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:.72rem;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;">moneypuck.com → Cmd+A → Cmd+C → paste to confirm starters</span>
-          <span style="font-size:.68rem;background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:2px 8px;font-weight:600;">Skips games with no goalie info</span>
-        </div>
-        <span id="mpStatus" style="font-size:.75rem;color:var(--muted);"></span>
-      </div>
-      <textarea id="mpPasteArea" placeholder="Paste MoneyPuck page here… (optional but recommended)"
-        style="width:100%;height:90px;background:var(--bg);border:none;border-top:1px solid var(--border);border-bottom:1px solid var(--border);color:var(--muted2);font-family:'Inter',sans-serif;font-size:.75rem;padding:10px 14px;resize:vertical;outline:none;line-height:1.5;"></textarea>
-      <div style="padding:8px 14px;display:flex;align-items:center;gap:10px;">
-        <button class="btn primary" onclick="runMpParser()">Confirm Starters →</button>
-        <button class="btn" onclick="skipMpParser()" style="color:var(--muted)">Skip (bet all +EV)</button>
-      </div>
-    </div>
-
     <div id="gamesContainer">
       <div class="empty">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -707,7 +690,6 @@ body {
         <span onclick="sortLog('stake')" style="cursor:pointer">Stake</span>
         <span onclick="sortLog('result')" style="cursor:pointer">Result</span>
         <span onclick="sortLog('pl')" style="cursor:pointer">P/L</span>
-        <span>Goalie</span>
         <span></span>
       </div>
       <div id="betTbody"></div>
@@ -1343,146 +1325,39 @@ function runAnParser() {
 
   renderGames();
 
+  // Auto-log all +EV bets immediately
+  autoLogEV(null);
+
   const evCount = gameData.games.filter(g=>(g.ml_edge_away>=EDGE_THRESH)||(g.ml_edge_home>=EDGE_THRESH)).length;
-  const msg = `✓ ${filled}/${gameData.games.length} filled · ${evCount} +EV · confirm starters below`;
+  const msg = `✓ ${filled}/${gameData.games.length} filled · ${evCount} +EV`;
   const statusEl = document.getElementById('anStatus');
   statusEl.style.color = filled ? 'var(--green)' : 'var(--red)';
   statusEl.textContent = msg;
   document.getElementById('oddsStatus').textContent = msg;
   document.getElementById('oddsStatus').style.color = filled ? 'var(--green)' : 'var(--red)';
-
-  // Show MoneyPuck panel for goalie confirmation
-  document.getElementById('mpToolbar').style.display = 'block';
-  toast(`Betstamp: ${filled} games filled — confirm starters`, 'ok');
+  toast(`Betstamp: ${filled} games filled`, 'ok');
 }
 
-// ── MoneyPuck Goalie Parser ───────────────────────────────────────────────────
-// Confirmation levels from MoneyPuck paste:
-//   "Starter: NAME"              → confirmed
-//   "Likely Starter: NAME: XX%"  → likely (treat as confirmed if ≥70%)
-//   "Very Likely Starter: ..."   → confirmed
-// If either goalie in a game is not confirmed → skip that bet
-
-// MP uses win% order same as HockeyStats: away first, home second per game block
-// Each game block: [away_pct%, Starter/Likely, away_goalie, home_pct%, Starter/Likely, home_goalie, time]
-
-function runMpParser() {
-  const raw = document.getElementById('mpPasteArea').value.trim();
-  if (!raw) { document.getElementById('mpStatus').textContent = 'Nothing pasted'; return; }
-  if (!gameData?.games?.length) { document.getElementById('mpStatus').textContent = 'Parse HockeyStats first'; return; }
-
-  const goalieMap = parseMpGoalies(raw);
-  autoLogEV(goalieMap);
-}
-
-function skipMpParser() {
-  autoLogEV(null); // null = skip goalie check, log all +EV
-}
-
-function parseMpGoalies(raw) {
-  // Strip markdown artifacts and clean up
-  const lines = raw.split('\n')
-    .map(l => l.replace(/__/g, '').trim())  // remove __ markdown
-    .filter(l => l && !/^(Games|Playoff|Power|Teams|Players|Goalies|Lines|Betting|Standings|Injuries|Data|About|Privacy|Glossary|\*|Preview|Next|Stay|Chance of Winning)/i.test(l));
-
-  const IS_PCT   = /^\d+\.\d+%$/;
-  const IS_START = /^(Starter|Likely Starter|Very Likely Starter):/i;
-  const IS_TIME  = /\d{1,2}:\d{2}\s*(AM|PM)\s*ET/i;
-  const IS_SRC   = /^Source:/i;
-
-  const games = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    // Find away win%
-    if (!IS_PCT.test(lines[i])) { i++; continue; }
-    i++;
-
-    // Away goalie (optional)
-    let awayGoalie = null, awayConfirmed = false;
-    if (i < lines.length && IS_START.test(lines[i])) {
-      awayGoalie = extractGoalieName(lines[i]);
-      awayConfirmed = isConfirmed(lines[i]);
-      i++;
-    }
-    if (i < lines.length && IS_SRC.test(lines[i])) i++;
-
-    // Time — skip everything until we find it or home pct
-    while (i < lines.length && !IS_TIME.test(lines[i]) && !IS_PCT.test(lines[i])) i++;
-    if (i < lines.length && IS_TIME.test(lines[i])) i++;
-
-    // Home win%
-    if (i >= lines.length || !IS_PCT.test(lines[i])) {
-      games.push({ away: { name: awayGoalie, confirmed: awayConfirmed }, home: { name: null, confirmed: false } });
-      continue;
-    }
-    i++;
-
-    // Home goalie (optional)
-    let homeGoalie = null, homeConfirmed = false;
-    if (i < lines.length && IS_START.test(lines[i])) {
-      homeGoalie = extractGoalieName(lines[i]);
-      homeConfirmed = isConfirmed(lines[i]);
-      i++;
-    }
-    if (i < lines.length && IS_SRC.test(lines[i])) i++;
-
-    games.push({
-      away: { name: awayGoalie, confirmed: awayConfirmed },
-      home: { name: homeGoalie, confirmed: homeConfirmed },
-    });
-  }
-
-  return games;
-}
-
-function extractGoalieName(line) {
-  // "Starter: Luukkonen" → "Luukkonen"
-  // "Likely Starter: Wolf: 74.7%" → "Wolf"
-  // "Very Likely Starter: Kuemper: 76.8%" → "Kuemper"
-  const m = line.match(/Starter:\s*([A-Za-z\-']+)/i);
-  return m ? m[1] : null;
-}
-
-function isConfirmed(line) {
-  // Starter, Very Likely Starter, and Likely Starter all count
-  return /^(Starter|Likely Starter|Very Likely Starter):/i.test(line.trim());
-}
-
+// ── Auto-log EV bets ─────────────────────────────────────────────────────────
 function autoLogEV(goalieData) {
   if (!gameData?.games?.length) return;
   const today = gameData.generated;
-  let autoLogged = 0, skippedGoalie = 0;
-
-  const sortedGames = [...gameData.games].sort((a,b) => a.time?.localeCompare(b.time||'') || 0);
+  let autoLogged = 0;
 
   gameData.games.forEach(g => {
-    const sortedIdx = sortedGames.indexOf(g);
-    const goalie    = goalieData ? goalieData[sortedIdx] : null;
-
-    // Store goalie names for display, no confirmation gate — always log +EV
-    if (goalie) {
-      g.awayGoalie    = goalie.away?.name || null;
-      g.homeGoalie    = goalie.home?.name || null;
-      g.goalieWarning = null;
-    } else if (goalieData !== null) {
-      g.goalieWarning = 'No goalie data';
-    }
-
     [['away', g.ml_edge_away, g.away_ml, g.book_away_ml],
      ['home', g.ml_edge_home, g.home_ml, g.book_home_ml]].forEach(([side, edge, ml, book]) => {
       if (edge == null || edge < EDGE_THRESH || ml == null) return;
       const pick    = `${g[side]} ML`;
       const matchup = `${g.away}@${g.home}`;
       if (bets.some(b => b.date===today && b.matchup===matchup && b.pick===pick)) return;
-      const bothGoalies = `G: ${g.awayGoalie||'TBD'} / ${g.homeGoalie||'TBD'}`;
       bets.unshift({
         id: Date.now() + Math.random(), date: today, matchup, market: 'ML', pick, odds: ml,
         stake: ml > 0 ? 1 : parseFloat((Math.abs(ml)/100).toFixed(2)),
         edge: round1(edge), book: book || '—',
         modelOdds: probToML((g['hs_'+side+'_pct']||0)/100),
         hs_pct: g['hs_'+side+'_pct'] || null,
-        notes: bothGoalies,
+        notes: 'auto',
         result: 'pending', pl: null,
       });
       autoLogged++;
@@ -1491,16 +1366,7 @@ function autoLogEV(goalieData) {
 
   if (autoLogged) { saveBets(); updateHeader(); }
   renderGames();
-
-  const statusEl = document.getElementById('mpStatus');
-  const msg = autoLogged
-    ? `✓ ${autoLogged} +EV bets logged${skippedGoalie ? ` · ${skippedGoalie} skipped (unconfirmed)` : ''}`
-    : `No bets logged${skippedGoalie ? ` · ${skippedGoalie} skipped (unconfirmed)` : ''}`;
-  statusEl.style.color = autoLogged ? 'var(--green)' : 'var(--muted)';
-  statusEl.textContent = msg;
-  document.getElementById('anStatus').textContent = document.getElementById('anStatus').textContent.replace('confirm starters below', msg);
-  toast(msg, autoLogged ? 'ok' : 'err');
-  document.getElementById('mpToolbar').style.display = 'none';
+  if (autoLogged) toast(`${autoLogged} +EV bets logged`, 'ok');
 }
 
 function quickLogEV(idx) {
@@ -1652,8 +1518,6 @@ function renderLog() {
     const edgeStr  = bet.edge != null ? `<span class="${bet.edge>=EDGE_THRESH?'pl-pos':bet.edge<0?'pl-neg':''}">${bet.edge>0?'+':''}${bet.edge.toFixed(1)}%</span>` : '—';
     const resColor = bet.result==='win'?'var(--green)':bet.result==='loss'?'var(--red)':bet.result==='push'?'var(--gold)':'var(--muted)';
     const modelStr = bet.modelOdds != null ? mlFmt(bet.modelOdds) : '—';
-    const goalieM  = bet.notes?.match(/^G:\s*(.+)$/);
-    const goalieStr = goalieM ? `<span style="color:var(--green);font-size:.72rem;">✓ ${goalieM[1]}</span>` : '<span style="color:var(--muted)">—</span>';
     return `
       <div class="track-row">
         <div class="tv">${bet.date}</div>
@@ -1674,7 +1538,6 @@ function renderLog() {
           </select>
         </div>
         <div class="tv">${plStr}</div>
-        <div class="tv">${goalieStr}</div>
         <div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteBet(${bet.id})">✕</button></div>
       </div>`;
   }).join('');
@@ -2252,7 +2115,6 @@ function exportXLSX() {
         'Edge%':       b.edge != null ? '+' + b.edge.toFixed(1) + '%' : '',
         'Stake (u)':   parseFloat((b.stake || 0).toFixed(2)),
         'Book':        b.book || '',
-        'Goalie':      goalieM ? goalieM[1] : '',
         'Result':      b.result === 'win' ? 'WIN' : b.result === 'loss' ? 'LOSS' : b.result === 'push' ? 'PUSH' : 'Pending',
         'Units P&L':   pnl != null ? parseFloat(pnl.toFixed(2)) : '',
         'Running':     pnl != null ? parseFloat(running.toFixed(2)) : '',
