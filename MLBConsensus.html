@@ -812,58 +812,86 @@ function populateGradeDates() {
     }).join('');
 }
 
-async function autoGrade(regrade = false) {
+function gradeDate() { autoGrade(false); }
+function regradeDate() { autoGrade(true); }
+
+function autoGrade(regrade) {
   const sel = document.getElementById('gradeDate');
-  const selectedDate = sel?.value;
+  const selectedDate = sel ? sel.value : '';
   const btn = document.getElementById('autoGradeBtn');
 
   if (!selectedDate) { alert('Pick a date from the dropdown first.'); return; }
 
-  // regrade = include already-graded bets; grade = pending only
   const bets = regrade
-    ? tracker.filter(t => t.date === selectedDate)
-    : tracker.filter(t => t.date === selectedDate && (!t.result || t.result === ''));
+    ? tracker.filter(function(t){ return t.date === selectedDate; })
+    : tracker.filter(function(t){ return t.date === selectedDate && (!t.result || t.result === ''); });
 
   if (!bets.length) {
-    alert(regrade ? 'No bets on ' + selectedDate : 'No pending bets on ' + selectedDate + ' — use Regrade to re-run all.');
+    alert(regrade ? 'No bets on ' + selectedDate : 'No pending bets on ' + selectedDate + ' — try Regrade.');
     return;
   }
 
   if (btn) { btn.textContent = 'Grading...'; btn.disabled = true; }
 
   const dateStr = parseDateMMDD(selectedDate);
-  if (!dateStr) { if (btn) { btn.textContent = 'Grade ↑'; btn.disabled = false; } return; }
+  if (!dateStr) { alert('Bad date: ' + selectedDate); if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; } return; }
 
-  let graded = 0;
-  try {
-    const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`;
-    const resp = await fetch(url);
-    if (!resp.ok) { alert('API error ' + resp.status); if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; } return; }
-    const data = await resp.json();
-    const games = data.dates?.[0]?.games || [];
+  const url = 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' + dateStr + '&hydrate=linescore';
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 10000;
 
-    if (!games.length) { alert('No games found for ' + selectedDate); if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; } return; }
+  xhr.ontimeout = function() {
+    alert('Request timed out.');
+    if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
+  };
 
-    for (const t of bets) {
-      const teams = extractTeamsFromGame(t.game || t.displayGame || '');
+  xhr.onerror = function() {
+    alert('Network error — could not reach MLB API.');
+    if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
+  };
+
+  xhr.onload = function() {
+    if (xhr.status !== 200) {
+      alert('MLB API error: ' + xhr.status);
+      if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
+      return;
+    }
+    var data;
+    try { data = JSON.parse(xhr.responseText); }
+    catch(e) { alert('Bad API response.'); if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; } return; }
+
+    var games = (data.dates && data.dates[0] && data.dates[0].games) ? data.dates[0].games : [];
+    if (!games.length) {
+      alert('No games found for ' + selectedDate);
+      if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
+      return;
+    }
+
+    var graded = 0;
+    for (var i = 0; i < bets.length; i++) {
+      var t = bets[i];
+      var teams = extractTeamsFromGame(t.game || t.displayGame || '');
       if (teams.length < 2) continue;
 
-      const game = games.find(g => {
-        const ha = (g.teams?.home?.team?.abbreviation || '').toUpperCase();
-        const aa = (g.teams?.away?.team?.abbreviation || '').toUpperCase();
-        return teams.some(x => ha === x || MLB_ABBR[x] === ha || x === MLB_ABBR[ha])
-            && teams.some(x => aa === x || MLB_ABBR[x] === aa || x === MLB_ABBR[aa]);
-      });
+      var game = null;
+      for (var j = 0; j < games.length; j++) {
+        var g = games[j];
+        var ha = (g.teams && g.teams.home && g.teams.home.team ? g.teams.home.team.abbreviation : '').toUpperCase();
+        var aa = (g.teams && g.teams.away && g.teams.away.team ? g.teams.away.team.abbreviation : '').toUpperCase();
+        var homeMatch = teams.some(function(x){ return ha===x || MLB_ABBR[x]===ha || x===MLB_ABBR[ha]; });
+        var awayMatch = teams.some(function(x){ return aa===x || MLB_ABBR[x]===aa || x===MLB_ABBR[aa]; });
+        if (homeMatch && awayMatch) { game = g; break; }
+      }
 
       if (!game) continue;
+      var status = (game.status && game.status.detailedState ? game.status.detailedState : '').toLowerCase();
+      if (status.indexOf('final') === -1) continue;
 
-      const status = (game.status?.detailedState || '').toLowerCase();
-      if (!status.includes('final')) continue;
-
-      const homeScore = parseInt(game.teams?.home?.score) || 0;
-      const awayScore = parseInt(game.teams?.away?.score) || 0;
-      const total = homeScore + awayScore;
-      const line = parseFloat(t.market);
+      var homeScore = parseInt(game.teams.home.score) || 0;
+      var awayScore = parseInt(game.teams.away.score) || 0;
+      var total = homeScore + awayScore;
+      var line = parseFloat(t.market);
       if (isNaN(line)) continue;
 
       t.result = total > line ? (t.dir === 'OVER' ? 'W' : 'L')
@@ -871,17 +899,17 @@ async function autoGrade(regrade = false) {
       t.finalTotal = total;
       graded++;
     }
-  } catch(e) {
-    alert('Error: ' + e.message);
-    if (btn) { btn.textContent = 'Grade ↑'; btn.disabled = false; }
-    return;
-  }
 
-  localStorage.setItem('corbieTracker', JSON.stringify(tracker));
-  renderTracker();
-  setTimeout(populateGradeDates, 50);
-  if (btn) { btn.textContent = graded ? '✓ ' + graded + ' graded' : 'No results yet'; btn.disabled = false; }
-  setTimeout(() => { if (btn) btn.textContent = 'Grade ↑'; }, 3000);
+    localStorage.setItem('corbieTracker', JSON.stringify(tracker));
+    renderTracker();
+    setTimeout(populateGradeDates, 50);
+
+    var msg = graded ? ('✓ ' + graded + ' graded') : ('0 matched of ' + games.length + ' games');
+    if (btn) { btn.textContent = msg; btn.disabled = false; }
+    setTimeout(function(){ if (btn) btn.textContent = 'Grade ↑'; }, 4000);
+  };
+
+  xhr.send();
 }
 
 
@@ -1011,8 +1039,8 @@ function renderTracker() {
   html += '</div></div>';
   html += '<div style="display:flex;gap:8px;align-items:center">';
   html += '<select id="gradeDate" class="tk" style="min-width:120px"><option value="">Pick date...</option></select>';
-  html += '<button id="autoGradeBtn" class="tracker-btn" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade ↑</button>';
-  html += '<button id="regradeBtn" class="screenshot-btn">Regrade</button>';
+  html += '<button id="autoGradeBtn" class="tracker-btn" onclick="gradeDate()" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade ↑</button>';
+  html += '<button id="regradeBtn" class="screenshot-btn" onclick="regradeDate()">Regrade</button>';
   html += '<button class="screenshot-btn" onclick="exportTracker()" title="Save progress to file">⬇ Export</button>';
   html += '<label class="screenshot-btn" style="cursor:pointer" title="Load progress from file">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>';
   html += '<button class="tracker-clear" onclick="clearTracker()">Clear all</button>';
@@ -1081,13 +1109,7 @@ function renderTracker() {
 
   html += '</div>';
   el.innerHTML = html;
-  setTimeout(() => {
-    populateGradeDates();
-    const gb = document.getElementById('autoGradeBtn');
-    const rb = document.getElementById('regradeBtn');
-    if (gb) gb.addEventListener('click', () => autoGrade(false));
-    if (rb) rb.addEventListener('click', () => autoGrade(true));
-  }, 0);
+  setTimeout(populateGradeDates, 0);
 }
 
 function addManual() {
