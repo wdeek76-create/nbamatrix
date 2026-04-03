@@ -816,13 +816,13 @@ function gradeDate() { autoGrade(false); }
 function regradeDate() { autoGrade(true); }
 
 function autoGrade(regrade) {
-  const sel = document.getElementById('gradeDate');
-  const selectedDate = sel ? sel.value : '';
-  const btn = document.getElementById('autoGradeBtn');
+  var sel = document.getElementById('gradeDate');
+  var selectedDate = sel ? sel.value : '';
+  var btn = document.getElementById('autoGradeBtn');
 
   if (!selectedDate) { alert('Pick a date from the dropdown first.'); return; }
 
-  const bets = regrade
+  var bets = regrade
     ? tracker.filter(function(t){ return t.date === selectedDate; })
     : tracker.filter(function(t){ return t.date === selectedDate && (!t.result || t.result === ''); });
 
@@ -833,83 +833,68 @@ function autoGrade(regrade) {
 
   if (btn) { btn.textContent = 'Grading...'; btn.disabled = true; }
 
-  const dateStr = parseDateMMDD(selectedDate);
+  var dateStr = parseDateMMDD(selectedDate);
   if (!dateStr) { alert('Bad date: ' + selectedDate); if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; } return; }
 
-  const url = 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' + dateStr + '&hydrate=linescore';
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.timeout = 10000;
+  var url = 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=' + dateStr + '&hydrate=linescore';
 
-  xhr.ontimeout = function() {
-    alert('Request timed out.');
-    if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
-  };
-
-  xhr.onerror = function() {
-    alert('Network error — could not reach MLB API.');
-    if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
-  };
-
-  xhr.onload = function() {
-    if (xhr.status !== 200) {
-      alert('MLB API error: ' + xhr.status);
-      if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
-      return;
-    }
-    var data;
-    try { data = JSON.parse(xhr.responseText); }
-    catch(e) { alert('Bad API response.'); if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; } return; }
-
-    var games = (data.dates && data.dates[0] && data.dates[0].games) ? data.dates[0].games : [];
-    if (!games.length) {
-      alert('No games found for ' + selectedDate);
-      if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
-      return;
-    }
-
-    var graded = 0;
-    for (var i = 0; i < bets.length; i++) {
-      var t = bets[i];
-      var teams = extractTeamsFromGame(t.game || t.displayGame || '');
-      if (teams.length < 2) continue;
-
-      var game = null;
-      for (var j = 0; j < games.length; j++) {
-        var g = games[j];
-        var ha = (g.teams && g.teams.home && g.teams.home.team ? g.teams.home.team.abbreviation : '').toUpperCase();
-        var aa = (g.teams && g.teams.away && g.teams.away.team ? g.teams.away.team.abbreviation : '').toUpperCase();
-        var homeMatch = teams.some(function(x){ return ha===x || MLB_ABBR[x]===ha || x===MLB_ABBR[ha]; });
-        var awayMatch = teams.some(function(x){ return aa===x || MLB_ABBR[x]===aa || x===MLB_ABBR[aa]; });
-        if (homeMatch && awayMatch) { game = g; break; }
+  fetch(url)
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('API status ' + resp.status);
+      return resp.json();
+    })
+    .then(function(data) {
+      var games = (data.dates && data.dates[0] && data.dates[0].games) ? data.dates[0].games : [];
+      if (!games.length) {
+        alert('No games found for ' + selectedDate);
+        if (btn) { btn.textContent='Grade ↑'; btn.disabled=false; }
+        return;
       }
 
-      if (!game) continue;
-      var status = (game.status && game.status.detailedState ? game.status.detailedState : '').toLowerCase();
-      if (status.indexOf('final') === -1) continue;
+      var graded = 0;
+      for (var i = 0; i < bets.length; i++) {
+        var t = bets[i];
+        var teams = extractTeamsFromGame(t.game || t.displayGame || '');
+        if (teams.length < 2) continue;
 
-      var homeScore = parseInt(game.teams.home.score) || 0;
-      var awayScore = parseInt(game.teams.away.score) || 0;
-      var total = homeScore + awayScore;
-      var line = parseFloat(t.market);
-      if (isNaN(line)) continue;
+        var game = null;
+        for (var j = 0; j < games.length; j++) {
+          var g = games[j];
+          var ha = (g.teams && g.teams.home && g.teams.home.team ? g.teams.home.team.abbreviation : '').toUpperCase();
+          var aa = (g.teams && g.teams.away && g.teams.away.team ? g.teams.away.team.abbreviation : '').toUpperCase();
+          var hm = teams.some(function(x){ return ha===x || MLB_ABBR[x]===ha || x===MLB_ABBR[ha]; });
+          var am = teams.some(function(x){ return aa===x || MLB_ABBR[x]===aa || x===MLB_ABBR[aa]; });
+          if (hm && am) { game = g; break; }
+        }
 
-      t.result = total > line ? (t.dir === 'OVER' ? 'W' : 'L')
-               : total < line ? (t.dir === 'UNDER' ? 'W' : 'L') : 'P';
-      t.finalTotal = total;
-      graded++;
-    }
+        if (!game) continue;
+        var status = (game.status && game.status.detailedState ? game.status.detailedState : '').toLowerCase();
+        if (status.indexOf('final') === -1) continue;
 
-    localStorage.setItem('corbieTracker', JSON.stringify(tracker));
-    renderTracker();
-    setTimeout(populateGradeDates, 50);
+        var homeScore = parseInt(game.teams.home.score) || 0;
+        var awayScore = parseInt(game.teams.away.score) || 0;
+        var total = homeScore + awayScore;
+        var line = parseFloat(t.market);
+        if (isNaN(line)) continue;
 
-    var msg = graded ? ('✓ ' + graded + ' graded') : ('0 matched of ' + games.length + ' games');
-    if (btn) { btn.textContent = msg; btn.disabled = false; }
-    setTimeout(function(){ if (btn) btn.textContent = 'Grade ↑'; }, 4000);
-  };
+        t.result = total > line ? (t.dir === 'OVER' ? 'W' : 'L')
+                 : total < line ? (t.dir === 'UNDER' ? 'W' : 'L') : 'P';
+        t.finalTotal = total;
+        graded++;
+      }
 
-  xhr.send();
+      localStorage.setItem('corbieTracker', JSON.stringify(tracker));
+      renderTracker();
+      setTimeout(populateGradeDates, 50);
+
+      var msg = graded ? ('✓ ' + graded + ' graded') : ('0 matched — ' + games.length + ' games found');
+      if (btn) { btn.textContent = msg; btn.disabled = false; }
+      setTimeout(function(){ if (btn) btn.textContent = 'Grade ↑'; }, 4000);
+    })
+    .catch(function(e) {
+      alert('Error: ' + e.message);
+      if (btn) { btn.textContent = 'Grade ↑'; btn.disabled = false; }
+    });
 }
 
 
