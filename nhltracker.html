@@ -1505,6 +1505,8 @@ function autoLogEV(goalieData) {
         stake: ml > 0 ? 1 : parseFloat((Math.abs(ml)/100).toFixed(2)),
         edge: round1(edge), book: book || '—',
         modelOdds: probToML((g['hs_'+side+'_pct']||0)/100),
+        hs_pct: g['hs_'+side+'_pct'] || null,
+        hs_pct: g['hs_'+side+'_pct'] || null,
         notes: bothGoalies,
         result: 'pending', pl: null,
       });
@@ -2155,17 +2157,16 @@ function recalcEdges() {
   let updated = 0;
   for (const bet of bets) {
     if (bet.odds == null) continue;
-    const fair = mlToImplied(bet.odds) / FIXED_VIG * 100;
-    // modelOdds → HS win% (reverse engineer from stored modelOdds)
-    // If modelOdds stored, convert back to pct for HS win%
-    // Otherwise use stored edge as-is (can't recalc without HS%)
-    // Best approach: store hs_pct on bet — but we don't yet
-    // Instead: recalc from modelOdds if available (modelOdds = probToML(hs_pct/100))
-    if (bet.modelOdds != null) {
-      const hsPct = bet.modelOdds > 0
+    // HS% − raw implied% (no devig)
+    const fair = mlToImplied(bet.odds) * 100;
+    // Use stored hs_pct if available, otherwise reverse from modelOdds
+    let hsPct = bet.hs_pct ?? null;
+    if (hsPct == null && bet.modelOdds != null) {
+      hsPct = bet.modelOdds > 0
         ? 100 / (bet.modelOdds + 100) * 100
         : Math.abs(bet.modelOdds) / (Math.abs(bet.modelOdds) + 100) * 100;
-      const fair = mlToImplied(bet.odds) * 100;
+    }
+    if (hsPct != null) {
       bet.edge = round1(hsPct - fair);
       updated++;
     }
@@ -2173,7 +2174,7 @@ function recalcEdges() {
   saveBets();
   renderLog();
   renderDash();
-  toast(`Recalculated edges on ${updated} bets`, 'ok');
+  toast(`Recalculated ${updated} bets`, 'ok');
 }
 
 function gradeBet(id, result) {
