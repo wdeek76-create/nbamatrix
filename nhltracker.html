@@ -2178,6 +2178,7 @@ function recalcEdges() {
 }
 
 function gradeBet(id, result) {
+  const bet = bets.find(b => b.id === id);
   if (!bet) return;
   bet.result = result;
   // Favorites: stake abs(odds)/100 to WIN 1u → P/L = +1u or -stake
@@ -2193,6 +2194,7 @@ function gradeBet(id, result) {
   }
   saveBets();
   updateHeader();
+  renderDash();
 }
 
 function deleteBet(id) {
