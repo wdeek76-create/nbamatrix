@@ -1384,66 +1384,28 @@ function skipMpParser() {
 }
 
 function parseMpGoalies(raw) {
-  // Returns map: gameIdx → { away: {name, confirmed}, home: {name, confirmed} }
-  // We match by game order (MP lists games in same order as the date)
-  // Structure per game:
-  //   XX.X%                     ← away win%
-  //   Starter: NAME / Likely Starter: NAME: XX% / Very Likely Starter: NAME: XX%
-  //   Source:@...               ← skip
-  //   HH:MM PM ET               ← time (delimiter)
-  //   XX.X%                     ← home win%  (comes AFTER the time)
-  //   Starter: NAME ...
-
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-  const games = []; // array of {away, home} goalie info per game slot
-
-  const IS_PCT   = /^\d+\.\d+%$/;
-  const IS_TIME  = /^\d{1,2}:\d{2}\s*(AM|PM)\s*ET$/i;
   const IS_START = /^(Starter|Likely Starter|Very Likely Starter):/i;
-  const IS_SRC   = /^Source:/i;
 
-  let i = 0;
-  while (i < lines.length) {
-    // Skip until we find a percentage (away win%)
-    if (!IS_PCT.test(lines[i])) { i++; continue; }
-
-    // Away side
-    const awayPct = lines[i]; i++;
-    let awayGoalie = null, awayConfirmed = false;
-
-    // Next should be Starter line
-    if (i < lines.length && IS_START.test(lines[i])) {
-      const sl = lines[i]; i++;
-      awayGoalie    = extractGoalieName(sl);
-      awayConfirmed = isConfirmed(sl);
+  // Just collect every goalie entry in order — MP lists them away/home alternating per game
+  const goalies = [];
+  for (const line of lines) {
+    if (IS_START.test(line)) {
+      goalies.push({
+        name: extractGoalieName(line),
+        confirmed: isConfirmed(line),
+      });
     }
-    // Skip Source line
-    if (i < lines.length && IS_SRC.test(lines[i])) i++;
-
-    // Time line (delimiter between away and home)
-    if (i < lines.length && IS_TIME.test(lines[i])) i++;
-
-    // Home side pct
-    if (i >= lines.length || !IS_PCT.test(lines[i])) {
-      games.push({ away: { name: awayGoalie, confirmed: awayConfirmed }, home: null });
-      continue;
-    }
-    i++; // skip home pct
-
-    let homeGoalie = null, homeConfirmed = false;
-    if (i < lines.length && IS_START.test(lines[i])) {
-      const sl = lines[i]; i++;
-      homeGoalie    = extractGoalieName(sl);
-      homeConfirmed = isConfirmed(sl);
-    }
-    if (i < lines.length && IS_SRC.test(lines[i])) i++;
-
-    games.push({
-      away: { name: awayGoalie, confirmed: awayConfirmed },
-      home: { name: homeGoalie, confirmed: homeConfirmed },
-    });
   }
 
+  // Pair them up: [0,1]=game1 away/home, [2,3]=game2 away/home, etc.
+  const games = [];
+  for (let i = 0; i < goalies.length; i += 2) {
+    games.push({
+      away: goalies[i]   || { name: null, confirmed: false },
+      home: goalies[i+1] || { name: null, confirmed: false },
+    });
+  }
   return games;
 }
 
@@ -1465,30 +1427,30 @@ function autoLogEV(goalieData) {
   const today = gameData.generated;
   let autoLogged = 0, skippedGoalie = 0;
 
-  // Build goalie lookup by matching game order
-  // MP games appear in same date order as our gameData (sorted by time)
-  // We match by index within the day's games
   const sortedGames = [...gameData.games].sort((a,b) => a.time?.localeCompare(b.time||'') || 0);
 
-  gameData.games.forEach((g, origIdx) => {
+  gameData.games.forEach(g => {
     const sortedIdx = sortedGames.indexOf(g);
     const goalie    = goalieData ? goalieData[sortedIdx] : null;
 
-    // Goalie confirmation check
-    if (goalieData !== null) {
-      if (!goalie) { skippedGoalie++; return; } // no MP data for this game
-      const awayOk = goalie.away?.confirmed;
-      const homeOk = goalie.home?.confirmed;
+    // Always store goalie names on game for card display
+    if (goalie) {
+      g.awayGoalie    = goalie.away?.name || null;
+      g.homeGoalie    = goalie.home?.name || null;
+      const awayOk    = goalie.away?.confirmed;
+      const homeOk    = goalie.home?.confirmed;
       if (!awayOk || !homeOk) {
-        // Mark game as goalie-unconfirmed so card can show it
-        g.goalieWarning = `${!awayOk ? (goalie.away?.name || 'Away') : ''} ${!homeOk ? (goalie.home?.name || 'Home') : ''} unconfirmed`.trim();
+        const missing = [!awayOk ? (goalie.away?.name || 'Away') : '', !homeOk ? (goalie.home?.name || 'Home') : ''].filter(Boolean).join(' / ');
+        g.goalieWarning = `${missing} unconfirmed`;
         skippedGoalie++;
-        return;
+        return; // skip logging this game
       }
-      // Store confirmed goalies on game for display
-      g.awayGoalie = goalie.away?.name;
-      g.homeGoalie = goalie.home?.name;
       g.goalieWarning = null;
+    } else if (goalieData !== null) {
+      // goalieData provided but no entry for this game
+      g.goalieWarning = 'No goalie data';
+      skippedGoalie++;
+      return;
     }
 
     [['away', g.ml_edge_away, g.away_ml, g.book_away_ml],
@@ -1497,15 +1459,14 @@ function autoLogEV(goalieData) {
       const pick    = `${g[side]} ML`;
       const matchup = `${g.away}@${g.home}`;
       if (bets.some(b => b.date===today && b.matchup===matchup && b.pick===pick)) return;
-
-      const goalieName = side === 'away' ? g.awayGoalie : g.homeGoalie;
-      const bothGoalies = (g.awayGoalie && g.homeGoalie) ? `G: ${g.awayGoalie} / ${g.homeGoalie}` : goalieName ? `G: ${goalieName}` : 'auto';
+      const bothGoalies = (g.awayGoalie && g.homeGoalie)
+        ? `G: ${g.awayGoalie} / ${g.homeGoalie}`
+        : g.awayGoalie || g.homeGoalie ? `G: ${g.awayGoalie||g.homeGoalie}` : 'auto';
       bets.unshift({
         id: Date.now() + Math.random(), date: today, matchup, market: 'ML', pick, odds: ml,
         stake: ml > 0 ? 1 : parseFloat((Math.abs(ml)/100).toFixed(2)),
         edge: round1(edge), book: book || '—',
         modelOdds: probToML((g['hs_'+side+'_pct']||0)/100),
-        hs_pct: g['hs_'+side+'_pct'] || null,
         hs_pct: g['hs_'+side+'_pct'] || null,
         notes: bothGoalies,
         result: 'pending', pl: null,
@@ -1519,14 +1480,12 @@ function autoLogEV(goalieData) {
 
   const statusEl = document.getElementById('mpStatus');
   const msg = autoLogged
-    ? `✓ ${autoLogged} +EV bets logged${skippedGoalie ? ` · ${skippedGoalie} games skipped (unconfirmed starters)` : ''}`
-    : `No bets logged${skippedGoalie ? ` · ${skippedGoalie} games skipped (unconfirmed starters)` : ''}`;
+    ? `✓ ${autoLogged} +EV bets logged${skippedGoalie ? ` · ${skippedGoalie} skipped (unconfirmed)` : ''}`
+    : `No bets logged${skippedGoalie ? ` · ${skippedGoalie} skipped (unconfirmed)` : ''}`;
   statusEl.style.color = autoLogged ? 'var(--green)' : 'var(--muted)';
   statusEl.textContent = msg;
   document.getElementById('anStatus').textContent = document.getElementById('anStatus').textContent.replace('confirm starters below', msg);
   toast(msg, autoLogged ? 'ok' : 'err');
-
-  // Hide MP panel after logging
   document.getElementById('mpToolbar').style.display = 'none';
 }
 
