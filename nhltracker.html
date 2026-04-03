@@ -625,7 +625,7 @@ body {
       <div style="padding:8px 14px 4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:.72rem;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;">moneypuck.com → Cmd+A → Cmd+C → paste to confirm starters</span>
-          <span style="font-size:.68rem;background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:2px 8px;font-weight:600;">If one starter unconfirmed → no bet</span>
+          <span style="font-size:.68rem;background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:2px 8px;font-weight:600;">Skips games with no goalie info</span>
         </div>
         <span id="mpStatus" style="font-size:.75rem;color:var(--muted);"></span>
       </div>
@@ -1046,12 +1046,8 @@ function buildCardHTML(g, idx) {
       <span id="book-${idx}" style="font-size:.78rem;color:${(evAwayBook||evHomeBook||awayBook||homeBook)?'var(--ice)':'var(--muted)'};font-family:'Oswald',sans-serif;font-weight:600;">${bookDisplay}</span>
     </div>
     ${(g.awayGoalie || g.homeGoalie) ? `<div style="padding:2px 12px 7px;display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Goalies ✓</span>
-      <span style="font-size:.72rem;color:var(--green);">${g.awayGoalie||'?'} / ${g.homeGoalie||'?'}</span>
-    </div>` : ''}
-    ${g.goalieWarning ? `<div style="padding:2px 12px 7px;display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:.63rem;color:var(--red);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">⚠ Unconfirmed</span>
-      <span style="font-size:.72rem;color:var(--red);">${g.goalieWarning}</span>
+      <span style="font-size:.63rem;color:${g.goalieWarning?'var(--red)':'var(--muted)'};text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Goalies${g.goalieWarning?' ⚠':' ✓'}</span>
+      <span style="font-size:.72rem;color:${g.goalieWarning?'var(--red)':'var(--green)'};">${g.awayGoalie||'TBD'} / ${g.homeGoalie||'TBD'}</span>
     </div>` : ''}`;
 }
 
@@ -1385,27 +1381,56 @@ function skipMpParser() {
 
 function parseMpGoalies(raw) {
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const IS_PCT   = /^\d+\.\d+%$/;
   const IS_START = /^(Starter|Likely Starter|Very Likely Starter):/i;
+  const IS_TIME  = /^\d{1,2}:\d{2}\s*(AM|PM)\s*ET$/i;
+  const IS_SRC   = /^Source:/i;
+  const IS_NOISE = /^(Preview|Next|Stay|__)/i;
 
-  // Just collect every goalie entry in order — MP lists them away/home alternating per game
-  const goalies = [];
-  for (const line of lines) {
-    if (IS_START.test(line)) {
-      goalies.push({
-        name: extractGoalieName(line),
-        confirmed: isConfirmed(line),
-      });
-    }
-  }
-
-  // Pair them up: [0,1]=game1 away/home, [2,3]=game2 away/home, etc.
   const games = [];
-  for (let i = 0; i < goalies.length; i += 2) {
+  let i = 0;
+
+  while (i < lines.length) {
+    // Find away win%
+    if (!IS_PCT.test(lines[i])) { i++; continue; }
+    i++; // skip away pct
+
+    // Optional: away starter line
+    let awayGoalie = null, awayConfirmed = false;
+    if (i < lines.length && IS_START.test(lines[i])) {
+      awayGoalie    = extractGoalieName(lines[i]);
+      awayConfirmed = isConfirmed(lines[i]);
+      i++;
+    }
+    // Optional: source
+    if (i < lines.length && IS_SRC.test(lines[i])) i++;
+    // Optional: time
+    if (i < lines.length && IS_TIME.test(lines[i])) i++;
+    // Skip noise lines (Preview, Next, Stay, etc.) until home pct or next starter
+    while (i < lines.length && !IS_PCT.test(lines[i]) && !IS_START.test(lines[i])) i++;
+
+    // Home win%
+    if (i >= lines.length || !IS_PCT.test(lines[i])) {
+      games.push({ away: { name: awayGoalie, confirmed: awayConfirmed }, home: { name: null, confirmed: false } });
+      continue;
+    }
+    i++; // skip home pct
+
+    // Optional: home starter
+    let homeGoalie = null, homeConfirmed = false;
+    if (i < lines.length && IS_START.test(lines[i])) {
+      homeGoalie    = extractGoalieName(lines[i]);
+      homeConfirmed = isConfirmed(lines[i]);
+      i++;
+    }
+    if (i < lines.length && IS_SRC.test(lines[i])) i++;
+
     games.push({
-      away: goalies[i]   || { name: null, confirmed: false },
-      home: goalies[i+1] || { name: null, confirmed: false },
+      away: { name: awayGoalie, confirmed: awayConfirmed },
+      home: { name: homeGoalie, confirmed: homeConfirmed },
     });
   }
+
   return games;
 }
 
@@ -1459,9 +1484,7 @@ function autoLogEV(goalieData) {
       const pick    = `${g[side]} ML`;
       const matchup = `${g.away}@${g.home}`;
       if (bets.some(b => b.date===today && b.matchup===matchup && b.pick===pick)) return;
-      const bothGoalies = (g.awayGoalie && g.homeGoalie)
-        ? `G: ${g.awayGoalie} / ${g.homeGoalie}`
-        : g.awayGoalie || g.homeGoalie ? `G: ${g.awayGoalie||g.homeGoalie}` : 'auto';
+      const bothGoalies = `G: ${g.awayGoalie||'TBD'} / ${g.homeGoalie||'TBD'}`;
       bets.unshift({
         id: Date.now() + Math.random(), date: today, matchup, market: 'ML', pick, odds: ml,
         stake: ml > 0 ? 1 : parseFloat((Math.abs(ml)/100).toFixed(2)),
