@@ -1456,8 +1456,8 @@ function extractGoalieName(line) {
 }
 
 function isConfirmed(line) {
-  // ONLY "Starter: NAME" counts — Likely, Very Likely, nothing else
-  return /^Starter:/i.test(line.trim());
+  // Starter, Very Likely Starter, and Likely Starter all count
+  return /^(Starter|Likely Starter|Very Likely Starter):/i.test(line.trim());
 }
 
 function autoLogEV(goalieData) {
