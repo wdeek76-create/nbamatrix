@@ -894,7 +894,21 @@ function unitPnl(t) {
 
 function renderTracker() {
   const el = document.getElementById('trackerSection');
-  if (!tracker.length) { el.innerHTML=''; return; }
+  if (!tracker.length) {
+    el.innerHTML = `<div class="tracker-section">
+      <div class="tracker-title">
+        <span style="font-size:15px;font-weight:700">Tracker</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label class="tracker-btn" style="cursor:pointer;background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">⬆ Import bets<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
+        </div>
+      </div>
+      <div style="text-align:center;padding:3rem 2rem;color:var(--muted);font-size:14px;line-height:2">
+        No bets tracked yet.<br>
+        <span style="font-size:12px">Filter plays above to track, or import a JSON export.</span>
+      </div>
+    </div>`;
+    return;
+  }
 
   const settled = tracker.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
   const wins = tracker.filter(t=>t.result==='W').length;
