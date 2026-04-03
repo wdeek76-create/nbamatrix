@@ -667,7 +667,6 @@ body {
         <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importBets(this)" style="display:none"/></label>
         <button class="danger-btn" onclick="clearPendingAll()">Clear pending</button>
         <button class="danger-btn" onclick="clearBets()">Clear all</button>
-        <button class="screenshot-btn" onclick="recalcEdges()" style="color:var(--ice);border-color:rgba(125,211,252,.3);">↻ Recalc Edges</button>
       </div>
     </div>
 
@@ -675,6 +674,8 @@ body {
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
       <input id="betSearch" type="text" placeholder="Search bets…" oninput="renderLog()"
         style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:.82rem;padding:6px 10px;outline:none;"/>
+      <button class="screenshot-btn" onclick="recalcEdges()" style="color:var(--ice);border-color:rgba(125,211,252,.3);">↻ Recalc Edges</button>
+      <button class="screenshot-btn" onclick="showSummary()">📋 Summary</button>
       <select id="filterResult" onchange="renderLog()"
         style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:.82rem;padding:6px 10px;outline:none;">
         <option value="">All results</option>
@@ -2059,6 +2060,95 @@ async function nhlAutoGrade() {
 
   btn.textContent = '🏒 NHL Auto-Grade';
   btn.disabled    = false;
+}
+
+function showSummary() {
+  const existing = document.getElementById('summaryModal');
+  if (existing) existing.remove();
+
+  const settled = bets.filter(b => b.result !== 'pending');
+  const pending = bets.filter(b => b.result === 'pending');
+  const wins    = settled.filter(b => b.result === 'win').length;
+  const losses  = settled.filter(b => b.result === 'loss').length;
+  const units   = settled.reduce((s,b) => s+(b.pl||0), 0);
+
+  // Group by date
+  const byDate = {};
+  for (const b of bets) {
+    const d = b.date || '?';
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(b);
+  }
+
+  function unitPnl(b) { return b.pl || 0; }
+  function fmtOdds(o) { return o > 0 ? '+'+o : ''+o; }
+
+  let text = 'NHL EV TRACKER\n\n';
+  if (settled.length) {
+    text += `Overall  ${wins}W-${losses}L  ${units>=0?'+':''}${units.toFixed(2)}u`;
+    if (pending.length) text += `  (${pending.length} pending)`;
+    text += '\n\n';
+  } else {
+    text += `${bets.length} bets (${pending.length} pending)\n\n`;
+  }
+
+  for (const [date, dayBets] of Object.entries(byDate).sort()) {
+    const ds  = dayBets.filter(b => b.result==='win'||b.result==='loss'||b.result==='push');
+    const dw  = ds.filter(b => b.result==='win').length;
+    const dl  = ds.filter(b => b.result==='loss').length;
+    const du  = ds.reduce((s,b) => s+unitPnl(b), 0);
+    const dp  = dayBets.filter(b => b.result==='pending');
+
+    text += date;
+    if (ds.length) text += `  ${dw}W-${dl}L  ${du>=0?'+':''}${du.toFixed(2)}u`;
+    if (dp.length) text += `  (${dp.length} pending)`;
+    text += '\n';
+
+    // Settled bets
+    for (const b of ds) {
+      const res = b.result==='win'?'W ':b.result==='loss'?'L ':b.result==='push'?'P ':'  ';
+      const pnl = `(${unitPnl(b)>=0?'+':''}${unitPnl(b).toFixed(2)}u)`;
+      const goalieM = b.notes?.match(/^G:\s*(.+)$/);
+      const goalie  = goalieM ? ` · G: ${goalieM[1]}` : '';
+      text += `  ${res}${b.pick}  ${fmtOdds(b.odds)}  Edge +${b.edge?.toFixed(1)||'?'}%  ${b.book||'—'}${goalie}  ${pnl}\n`;
+    }
+
+    // Pending bets grouped by game
+    if (dp.length) {
+      const byGame = {};
+      for (const b of dp) {
+        if (!byGame[b.matchup]) byGame[b.matchup] = [];
+        byGame[b.matchup].push(b);
+      }
+      for (const [game, gameBets] of Object.entries(byGame).sort()) {
+        text += `  ${game}\n`;
+        for (const b of gameBets) {
+          const goalieM = b.notes?.match(/^G:\s*(.+)$/);
+          const goalie  = goalieM ? ` · G: ${goalieM[1]}` : '';
+          text += `    ${b.pick}  ${fmtOdds(b.odds)}  Edge +${b.edge?.toFixed(1)||'?'}%  ${b.book||'—'}${goalie}\n`;
+        }
+      }
+    }
+    text += '\n';
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'summaryModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:var(--bg);border:1px solid var(--border2);border-radius:14px;max-width:560px;width:100%;padding:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span style="font-size:1rem;font-weight:700;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;">Summary</span>
+        <button onclick="document.getElementById('summaryModal').remove()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;">✕</button>
+      </div>
+      <textarea id="summaryText" readonly style="width:100%;height:360px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:monospace;font-size:.75rem;padding:12px;outline:none;resize:vertical;line-height:1.7;white-space:pre;">${text.trim()}</textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+        <button class="screenshot-btn" onclick="navigator.clipboard.writeText(document.getElementById('summaryText').value).then(()=>{this.textContent='✓ Copied!';setTimeout(()=>this.textContent='📋 Copy',2000)}).catch(()=>prompt('Copy:',document.getElementById('summaryText').value))">📋 Copy</button>
+        <button class="btn primary" onclick="document.getElementById('summaryModal').remove()">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target===modal) modal.remove(); });
 }
 
 function recalcEdges() {
