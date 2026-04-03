@@ -105,9 +105,9 @@ textarea::placeholder { color: var(--hint); }
 .ev-fill.neg { background: var(--red); }
 
 /* books */
-.books-head { display: grid; grid-template-columns: 1fr 70px 80px 90px 90px 90px; padding: 8px 18px; background: var(--surface2); }
+.books-head { display: grid; grid-template-columns: 1fr 70px 80px 90px 90px; padding: 8px 18px; background: var(--surface2); }
 .books-head span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-.book-row { display: grid; grid-template-columns: 1fr 70px 80px 90px 90px 90px; padding: 10px 18px; border-top: 1px solid var(--border); align-items: center; transition: background 0.1s; }
+.book-row { display: grid; grid-template-columns: 1fr 70px 80px 90px 90px; padding: 10px 18px; border-top: 1px solid var(--border); align-items: center; transition: background 0.1s; }
 .book-row:hover { background: var(--surface2); }
 .bname { font-size: 13px; font-weight: 600; }
 .bv { font-size: 13px; }
@@ -137,11 +137,49 @@ select.tk { background: var(--surface); border: 1px solid var(--border2); border
 .tv { font-size: 12px; color: var(--text); }
 .result-sel { background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; padding: 3px 6px; font-size: 11px; color: var(--text); cursor: pointer; width: 100%; }
 
-.del-btn { background: none; border: none; color: var(--hint); cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; line-height: 1; }
+.manual-add { padding: 14px 16px; border-top: 1px solid var(--border2); background: var(--surface2); }
+.manual-add-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+.manual-add-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.mf { display: flex; flex-direction: column; gap: 3px; }
+.mf label { font-size: 10px; color: var(--hint); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.mf input, .mf select { background: var(--surface3); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); font-size: 12px; padding: 5px 8px; width: 90px; outline: none; }
+.mf input:focus, .mf select:focus { border-color: rgba(255,255,255,0.25); }
+.mf select { width: 100px; }
 .del-btn:hover { color: var(--red); background: rgba(248,113,113,0.1); }
 .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 3rem 2rem; border: 1px dashed var(--border2); border-radius: 12px; line-height: 2; }
-/* tabs */
-.tab-row { display: flex; gap: 4px; }
+/* calendar */
+.cal-wrap { padding: 16px; }
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.cal-nav { display: flex; align-items: center; gap: 10px; }
+.cal-nav button { background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); width: 28px; height: 28px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.cal-nav button:hover { border-color: rgba(255,255,255,0.2); }
+.cal-month { font-size: 16px; font-weight: 700; min-width: 110px; text-align: center; }
+.cal-month-roi { font-size: 14px; font-weight: 700; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.cal-dow { text-align: center; font-size: 10px; color: var(--hint); font-weight: 600; padding: 4px 0; letter-spacing: 0.05em; }
+.cal-day { min-height: 72px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); padding: 8px; position: relative; cursor: default; transition: border-color 0.15s; }
+.cal-day.has-bets { cursor: pointer; }
+.cal-day.has-bets:hover { border-color: rgba(255,255,255,0.2); }
+.cal-day.today { border-color: var(--green-border); }
+.cal-day.win-day { background: rgba(74,222,128,0.06); border-color: rgba(74,222,128,0.2); }
+.cal-day.loss-day { background: rgba(248,113,113,0.06); border-color: rgba(248,113,113,0.15); }
+.cal-day.mixed-day { background: rgba(251,191,36,0.04); border-color: rgba(251,191,36,0.15); }
+.cal-day-num { font-size: 12px; color: var(--muted); font-weight: 600; }
+.cal-day.has-bets .cal-day-num { color: var(--text); }
+.cal-record { font-size: 13px; font-weight: 700; margin-top: 4px; }
+.cal-units { font-size: 12px; font-weight: 700; margin-top: 2px; }
+.cal-day-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.cal-day-modal-box { background: var(--bg); border: 1px solid var(--border2); border-radius: 12px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 20px; }
+.cal-day-modal-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+.cal-bet-row { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal-bet-row:last-child { border-bottom: none; }
+.cal-bet-name { font-size: 13px; font-weight: 600; }
+.cal-bet-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.cal-result-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.cal-result-badge.W { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.cal-result-badge.L { background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+.cal-result-badge.P { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
+.cal-result-badge.pending { background: var(--surface2); color: var(--hint); border: 1px solid var(--border); }
 .tab-btn { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
 .tab-btn.active { background: var(--surface2); color: var(--text); border-color: rgba(255,255,255,0.2); }
 .tab-btn:hover:not(.active) { color: var(--text); }
@@ -177,7 +215,8 @@ select.tk { background: var(--surface); border: 1px solid var(--border2); border
 /* modal */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal-box { background: var(--bg); border: 1px solid var(--border2); border-radius: 14px; max-width: 780px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; }
-.modal-close { position: absolute; top: 12px; right: 14px; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; z-index: 10; line-height: 1; }
+.modal-card .books-head { grid-template-columns: 1fr 70px 80px 90px 90px 90px; }
+.modal-card .book-row { grid-template-columns: 1fr 70px 80px 90px 90px 90px; }
 .modal-close:hover { color: var(--text); }
 .modal-card { border-radius: 14px; overflow: hidden; }
 .bet-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
@@ -198,13 +237,13 @@ select.tk { background: var(--surface); border: 1px solid var(--border2); border
 <div class="header">
   <div>
     <h1>MLB Totals Model</h1>
-    <p>Grade 7/9+ · Carty ROI ≥5% + direction match · edge vs market</p>
+    <p>Grade 7/9+ · Carty direction match + gap ≤0.8 runs · edge vs market</p>
   </div>
 </div>
 <div class="main">
   <div class="logic">
     <div class="logic-step"><div class="ls-num">GATE 1 — CORBIE</div><div class="ls-text">Grade <span>7/9+</span> only. Edge% = how far model is over market total.</div></div>
-    <div class="logic-step"><div class="ls-num">GATE 2 — CARTY ROI</div><div class="ls-text">Carty must show <span>ROI ≥5%</span> on the same direction as Corbie.</div></div>
+    <div class="logic-step"><div class="ls-num">GATE 2 — CARTY</div><div class="ls-text">Explicit same direction · both past line · gap ≤ <span>0.8 runs</span> · Carty ROI <span>≥5%</span> if available.</div></div>
     <div class="logic-step"><div class="ls-num">EV CALC</div><div class="ls-text">Fair prob = <span>book implied + Corbie edge%</span> → EV per $100 flat.</div></div>
     <div class="logic-step"><div class="ls-num">BLENDED</div><div class="ls-text">(Corbie + Carty) / 2 shown <span>for reference</span> — not used in math.</div></div>
   </div>
@@ -479,8 +518,23 @@ function compare() {
     const marketLine = m.market_line ?? null;
     const edgePct = m.edge_pct ?? null;
     const confirming = (cartyMap[k]||[]).filter(b => {
-      if ((b.suggested_bet||'').toUpperCase() !== mDir) return false;
-      if ((b.roi ?? 0) < 5) return false;
+      // must have explicit suggested_bet matching Corbie direction
+      const bDir = (b.suggested_bet||'').toUpperCase();
+      if (!bDir || bDir !== mDir) return false;
+      const cartyProj = b.carty_proj ?? b.batx_proj ?? b.projection;
+      if (cartyProj == null || marketLine == null) return false;
+      // both projections on correct side of line
+      const corbieOnside = mDir==='OVER' ? corbieTotal > marketLine : corbieTotal < marketLine;
+      const cartyOnside  = mDir==='OVER' ? cartyProj  > marketLine : cartyProj  < marketLine;
+      if (!corbieOnside || !cartyOnside) return false;
+      // Carty must be at least 0.25 runs past the line
+      const cartyMargin = mDir==='OVER' ? cartyProj - marketLine : marketLine - cartyProj;
+      if (cartyMargin < 0.25) return false;
+      // gap between projections must be within 0.8 runs
+      const gap = Math.abs(cartyProj - (corbieTotal||0));
+      if (gap > 0.8) return false;
+      // Carty ROI >= 5% if available
+      if (b.roi != null && b.roi < 5) return false;
       return true;
     });
     if (!confirming.length) { skipNoMatch++; continue; }
@@ -593,13 +647,16 @@ function renderResults(games, filterDir) {
     html += '<div class="sc"><div class="sc-label">Books confirmed</div><div class="sc-val green">'+bookCalcs.length+'</div><div class="sc-sub">best odds: '+(bestOdds!=null?fmtOdds(bestOdds):'—')+'</div></div>';
     html += '</div>';
 
-    html += '<div class="books-head"><span>Book</span><span>Line</span><span>Odds</span><span>Implied</span><span>Edge vs mkt</span><span>Carty ROI</span></div>';
-    for (const b of bookCalcs) {
-      const isBest = b.odds===bestOdds;
+    html += '<div class="books-head"><span>Book</span><span>Line</span><span>Odds</span><span>Implied</span><span>Edge vs mkt</span></div>';
+    const sortedBooks = [...bookCalcs].map(b => {
       const lineVal = dir==='OVER'?b.over_line:b.under_line;
       const edgeVsMkt = b.implied!=null&&fairProb!=null ? (fairProb - b.implied)*100 : null;
-      const eCls = edgeVsMkt!=null&&edgeVsMkt>0?'epos':edgeVsMkt!=null&&edgeVsMkt<0?'eneg':'';
-      html += '<div class="book-row"><div class="bname">'+b.book+'</div><div class="bv">'+(lineVal??'—')+'</div><div class="bv '+(isBest?'best':'')+'">'+(fmtOdds(b.odds))+'</div><div class="bv">'+(b.implied!=null?(b.implied*100).toFixed(1)+'%':'—')+'</div><div class="bv '+eCls+'">'+(edgeVsMkt!=null?(edgeVsMkt>0?'+':'')+edgeVsMkt.toFixed(1)+'%':'—')+'</div><div class="bv amber">'+(b.roi!=null?'+'+b.roi.toFixed(1)+'%':'—')+'</div></div>';
+      return {...b, lineVal, edgeVsMkt};
+    }).sort((a,b) => (b.edgeVsMkt??-99) - (a.edgeVsMkt??-99));
+    for (const b of sortedBooks) {
+      const isBest = b.odds===bestOdds;
+      const eCls = b.edgeVsMkt!=null&&b.edgeVsMkt>0?'epos':b.edgeVsMkt!=null&&b.edgeVsMkt<0?'eneg':'';
+      html += '<div class="book-row"><div class="bname">'+b.book+'</div><div class="bv">'+(b.lineVal??'—')+'</div><div class="bv '+(isBest?'best':'')+'">'+(fmtOdds(b.odds))+'</div><div class="bv">'+(b.implied!=null?(b.implied*100).toFixed(1)+'%':'—')+'</div><div class="bv '+eCls+'">'+(b.edgeVsMkt!=null?(b.edgeVsMkt>0?'+':'')+b.edgeVsMkt.toFixed(1)+'%':'—')+'</div></div>';
     }
 
     // tracker
@@ -620,6 +677,7 @@ function saveTrack(gi, btn) {
   const gameLabel = g.displayGame + ' ' + (g.dir==='OVER'?'o':'u') + (g.marketLine??'');
   const entry = {
     id: Date.now(), date: g.date||'', game: gameLabel, dir: g.dir,
+    tracked_at: new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
     book: bookName, odds: bc?bc.odds:null,
     corbie: g.corbieTotal,
     carty: g.avgBatx ? parseFloat(g.avgBatx.toFixed(2)) : null,
@@ -683,7 +741,7 @@ const BDL_TEAMS = {
   'MIN':'MIN','TWINS':'MIN',
   'NYM':'NYM','METS':'NYM',
   'NYY':'NYY','YANKEES':'NYY',
-  'ATH':'OAK','OAK':'OAK','ATHLETICS':'OAK',
+  'ATH':'ATH','OAK':'ATH','ATHLETICS':'ATH',
   'PHI':'PHI','PHILLIES':'PHI',
   'PIT':'PIT','PIRATES':'PIT',
   'SD':'SD','PADRES':'SD',
@@ -692,7 +750,7 @@ const BDL_TEAMS = {
   'STL':'STL','CARDINALS':'STL',
   'TB':'TB','RAYS':'TB',
   'TEX':'TEX','RANGERS':'TEX',
-  'TOR':'TOR','BLUE JAYS':'TOR',
+  'TOR':'TOR','BLUE JAYS':'TOR','BLUEJAYS':'TOR',
   'WSH':'WSH','WSN':'WSH','NATIONALS':'WSH','NATS':'WSH'
 };
 
@@ -700,15 +758,13 @@ const BDL_TEAMS = {
 const MLB_ABBR = {
   'ARI':'ARI','AZ':'ARI','DBACKS':'ARI',
   'ATL':'ATL','BAL':'BAL','BOS':'BOS',
-  'CHC':'CHC','CWS':'CWS','CIN':'CIN',
-  'CLE':'CLE','COL':'COL','DET':'DET',
-  'HOU':'HOU','KC':'KC','LAD':'LAD',
-  'LAA':'LAA','MIA':'MIA','MIL':'MIL',
-  'MIN':'MIN','NYM':'NYM','NYY':'NYY',
-  'ATH':'ATH','OAK':'ATH','PHI':'PHI',
-  'PIT':'PIT','SD':'SD','SF':'SF',
-  'SEA':'SEA','STL':'STL','TB':'TB',
-  'TEX':'TEX','TOR':'TOR','WSH':'WSH','WSN':'WSH'
+  'CHC':'CHC','CWS':'CWS','CIN':'CIN','CLE':'CLE','COL':'COL',
+  'DET':'DET','HOU':'HOU','KC':'KC','LAD':'LAD','LAA':'LAA',
+  'MIA':'MIA','MIL':'MIL','MIN':'MIN','NYM':'NYM','NYY':'NYY',
+  'ATH':'ATH','OAK':'ATH',
+  'PHI':'PHI','PIT':'PIT','SD':'SD','SF':'SF','SEA':'SEA',
+  'STL':'STL','TB':'TB','TEX':'TEX','TOR':'TOR',
+  'WSH':'WSH','WSN':'WSH'
 };
 
 function parseDateMMDD(str) {
@@ -725,97 +781,116 @@ function parseDateMMDD(str) {
 }
 
 function extractTeamsFromGame(gameStr) {
-  // game format: "D-Backs / Dodgers o9" or "WSH @ CHC u9.5"
-  // strip the o/u total at end
-  const clean = gameStr.replace(/\s+[ou][\d.]+\s*$/i,'').trim();
-  const parts = clean.toUpperCase().replace(/\bVS\.?\b/gi,'@').replace(/\//g,'@')
-    .split('@').map(s=>s.replace(/[^A-Z\s]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+  // strip direction+total suffix: "o10", "u8.5", "OVER 9", "UNDER 8.5"
+  let clean = gameStr
+    .replace(/\s+(OVER|UNDER)\s+[\d.]+\s*$/i, '')
+    .replace(/\s+[ou][\d.]+\s*$/i, '')
+    .replace(/[\s_]+(o|u)[\d.]+$/i, '')
+    .trim();
+  const parts = clean.toUpperCase()
+    .replace(/\bVS\.?\b/gi,'@').replace(/\//g,'@')
+    .split('@').map(s=>s.replace(/[^A-Z]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
   return parts.map(p => {
-    // try direct lookup first
     const ns = p.replace(/\s+/g,'');
     if (BDL_TEAMS[ns]) return BDL_TEAMS[ns];
     if (BDL_TEAMS[p]) return BDL_TEAMS[p];
-    // try words
-    for (const w of p.split(' ')) { if (BDL_TEAMS[w]) return BDL_TEAMS[w]; }
+    for (const w of p.split(' ')) { if (BDL_TEAMS[w] && w.length > 1) return BDL_TEAMS[w]; }
     return ns.slice(0,3);
   });
 }
 
+function populateGradeDates() {
+  const sel = document.getElementById('gradeDate');
+  if (!sel) return;
+  const allDates = [...new Set(tracker.map(t=>t.date).filter(Boolean))].sort().reverse();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Pick date...</option>' +
+    allDates.map(d => {
+      const pending = tracker.filter(t=>t.date===d&&(!t.result||t.result===''));
+      const label = d + (pending.length ? ' ('+pending.length+' pending)' : ' ✓');
+      return `<option value="${d}" ${d===cur?'selected':''}>${label}</option>`;
+    }).join('');
+}
+
 async function autoGrade() {
+  const sel = document.getElementById('gradeDate');
+  const selectedDate = sel?.value;
   const btn = document.getElementById('autoGradeBtn');
+  if (!selectedDate) { alert('Pick a date to grade'); return; }
   if (btn) { btn.textContent='Grading...'; btn.disabled=true; }
 
-  const pending = tracker.filter(t=>!t.result||t.result==='');
-  if (!pending.length) {
-    if (btn) { btn.textContent='Auto-grade'; btn.disabled=false; }
-    return;
-  }
+  // grade ALL bets on that date (including already-graded, so re-grade works)
+  const bets = tracker.filter(t => t.date === selectedDate);
+  if (!bets.length) { if (btn) { btn.textContent='Grade date'; btn.disabled=false; } return; }
 
-  // group pending by date to minimize API calls
-  const byDate = {};
-  for (const t of pending) {
-    const dateStr = parseDateMMDD(t.date);
-    if (!dateStr) continue;
-    if (!byDate[dateStr]) byDate[dateStr] = [];
-    byDate[dateStr].push(t);
-  }
+  const dateStr = parseDateMMDD(selectedDate);
+  if (!dateStr) { if (btn) { btn.textContent='Grade date'; btn.disabled=false; } return; }
 
   let graded = 0;
-  const errors = [];
+  try {
+    const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`API ${resp.status}`);
+    const data = await resp.json();
+    const games = (data.dates?.[0]?.games) || [];
 
-  for (const [dateStr, bets] of Object.entries(byDate)) {
-    try {
-      // MLB Stats API — no auth needed, same as MLB tracker
-      const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&hydrate=linescore`;
-      const resp = await fetch(url);
-      if (!resp.ok) { errors.push(`API ${resp.status} for ${dateStr}`); continue; }
-      const data = await resp.json();
-      const games = (data.dates?.[0]?.games) || [];
+    console.log('Games found:', games.map(g=>g.teams?.away?.team?.abbreviation+'/'+g.teams?.home?.team?.abbreviation));
 
-      for (const t of bets) {
-        const teams = extractTeamsFromGame(t.game);
-        if (teams.length < 2) continue;
+    for (const t of bets) {
+      const teams = extractTeamsFromGame(t.game || t.displayGame || '');
+      console.log('Looking for:', t.game, '→ teams:', teams);
+      if (teams.length < 2) { console.log('Could not parse teams from:', t.game); continue; }
 
-        const game = games.find(g => {
-          const ha = (g.teams?.home?.team?.abbreviation||'').toUpperCase();
-          const aa = (g.teams?.away?.team?.abbreviation||'').toUpperCase();
-          const teamsUp = teams.map(x=>x.toUpperCase());
-          return teamsUp.some(x=>ha===x||MLB_ABBR[x]===ha) && teamsUp.some(x=>aa===x||MLB_ABBR[x]===aa);
-        });
+      const game = games.find(g => {
+        const ha = (g.teams?.home?.team?.abbreviation||'').toUpperCase();
+        const aa = (g.teams?.away?.team?.abbreviation||'').toUpperCase();
+        return teams.some(x=>ha===x||MLB_ABBR[x]===ha||x===MLB_ABBR[ha])
+            && teams.some(x=>aa===x||MLB_ABBR[x]===aa||x===MLB_ABBR[aa]);
+      });
 
-        if (!game) { console.log('No game found for', t.game, 'on', dateStr, '| Available:', games.map(g=>g.teams?.away?.team?.abbreviation+'/'+g.teams?.home?.team?.abbreviation)); continue; }
+      if (!game) { console.log('No game found for teams:', teams, '| Available:', games.map(g=>g.teams?.away?.team?.abbreviation+'/'+g.teams?.home?.team?.abbreviation)); continue; }
 
-        const status = (game.status?.detailedState||'').toLowerCase();
-        if (!status.includes('final')) { console.log('Not final:', t.game, status); continue; }
+      const status = (game.status?.detailedState||'').toLowerCase();
+      if (!status.includes('final')) { console.log('Not final:', t.game, status); continue; }
 
-        const homeScore = game.teams?.home?.score ?? game.linescore?.teams?.home?.runs ?? 0;
-        const awayScore = game.teams?.away?.score ?? game.linescore?.teams?.away?.runs ?? 0;
-        const total = parseInt(homeScore) + parseInt(awayScore);
-        const line = parseFloat(t.market);
+      const homeScore = parseInt(game.teams?.home?.score) || 0;
+      const awayScore = parseInt(game.teams?.away?.score) || 0;
+      const total = homeScore + awayScore;
+      const line = parseFloat(t.market);
 
-        let result;
-        if (total > line) result = (t.dir||'').toUpperCase()==='OVER' ? 'W' : 'L';
-        else if (total < line) result = (t.dir||'').toUpperCase()==='UNDER' ? 'W' : 'L';
-        else result = 'P';
+      if (isNaN(line)) { console.log('No line for:', t.game); continue; }
 
-        t.result = result;
-        t.finalTotal = total;
-        graded++;
-        console.log('Graded:', t.game, '| Total:', total, 'vs line', line, '| Dir:', t.dir, '| Result:', result);
-      }
-    } catch(e) { errors.push(e.message); console.warn('MLB API error:', e); }
-  }
+      let result;
+      if (total > line) result = (t.dir||'').toUpperCase()==='OVER' ? 'W' : 'L';
+      else if (total < line) result = (t.dir||'').toUpperCase()==='UNDER' ? 'W' : 'L';
+      else result = 'P';
+
+      t.result = result;
+      t.finalTotal = total;
+      graded++;
+      console.log('Graded:', t.game, '| Total:', total, 'vs line', line, '→', result);
+    }
+  } catch(e) { console.warn('MLB API error:', e); alert('Grade error: ' + e.message); }
 
   localStorage.setItem('corbieTracker', JSON.stringify(tracker));
   renderTracker();
+  populateGradeDates();
 
-  let msg = graded ? `✓ ${graded} graded` : 'Auto-grade';
-  if (errors.length) msg += ` (${errors.length} err)`;
+  const msg = graded ? `✓ ${graded} graded` : 'No results yet';
   if (btn) { btn.textContent=msg; btn.disabled=false; }
-  setTimeout(()=>{ if (btn) btn.textContent='Auto-grade'; }, 4000);
+  setTimeout(()=>{ if (btn) btn.textContent='Grade date'; }, 3000);
 }
 
 
+
+function unitPnl(t) {
+  const odds = t.odds;
+  if (t.result==='P') return 0;
+  if (odds == null) return t.result==='W' ? 1 : -1;
+  if (odds > 0) return t.result==='W' ? odds/100 : -1;
+  const stake = Math.abs(odds)/100;
+  return t.result==='W' ? 1 : -stake;
+}
 
 function renderTracker() {
   const el = document.getElementById('trackerSection');
@@ -829,17 +904,6 @@ function renderTracker() {
   const totalBets = settled.length;
   const winRate = totalBets ? (wins/totalBets*100).toFixed(1) : '—';
   // ROI: minus odds → stake |odds|/100 u to win 1u. Plus odds → stake 1u to win odds/100 u.
-  function unitPnl(t) {
-    const odds = t.odds;
-    if (t.result==='P') return 0;
-    if (odds == null) return t.result==='W' ? 1 : -1;
-    if (odds > 0) {
-      return t.result==='W' ? odds/100 : -1;
-    } else {
-      const stake = Math.abs(odds)/100;
-      return t.result==='W' ? 1 : -stake;
-    }
-  }
   const roi = settled.reduce((s,t) => s + unitPnl(t), 0);
   const roiStr = (roi>=0?'+':'')+roi.toFixed(2)+'u';
 
@@ -896,6 +960,13 @@ function renderTracker() {
   // direction
   const dirRows = breakdown(t=>t.dir||'?', t=>t.dir||'?', settled);
 
+  // OVER/UNDER x grade combined
+  const dirGradeRows = breakdown(
+    t=>(t.dir||'?')+'|'+(t.grade||'?'),
+    t=>(t.dir||'?')+' · '+(t.grade||'?'),
+    settled
+  ).sort((a,b)=>a.label.localeCompare(b.label));
+
   // edge pct buckets
   const edgeRows = breakdown(t=>{
     const e = t.edge||0;
@@ -918,10 +989,12 @@ function renderTracker() {
   html += '<span style="font-size:15px;font-weight:700">Tracker</span>';
   html += '<div class="tab-row">';
   html += '<button class="tab-btn '+(trackerTab==='dashboard'?'active':'')+'" onclick="setTab(\'dashboard\')">Dashboard</button>';
+  html += '<button class="tab-btn '+(trackerTab==='calendar'?'active':'')+'" onclick="setTab(\'calendar\')">Calendar</button>';
   html += '<button class="tab-btn '+(trackerTab==='log'?'active':'')+'" onclick="setTab(\'log\')">Bet log ('+tracker.length+')</button>';
   html += '</div></div>';
   html += '<div style="display:flex;gap:8px;align-items:center">';
-  html += '<button id="autoGradeBtn" class="tracker-btn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Auto-grade</button>';
+  html += '<select id="gradeDate" class="tk" style="min-width:110px"><option value="">Pick date...</option></select>';
+  html += '<button id="autoGradeBtn" class="tracker-btn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade date</button>';
   html += '<button class="screenshot-btn" onclick="exportTracker()" title="Save progress to file">⬇ Export</button>';
   html += '<label class="screenshot-btn" style="cursor:pointer" title="Load progress from file">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>';
   html += '<button class="tracker-clear" onclick="clearTracker()">Clear all</button>';
@@ -947,27 +1020,88 @@ function renderTracker() {
     // breakdown tables in 2-col grid
     html += '<div class="bk-grid">';
     html += bkTable(gradeRows, 'By grade');
-    html += bkTable(lineRows, 'By market line');
+    html += bkTable(lineRows, 'By market line (O/U)');
     html += bkTable(roiBucketRows, 'By Carty ROI');
-    html += bkTable(dirRows, 'By direction');
+    html += bkTable(dirRows, 'By direction (O/U)');
     html += bkTable(edgeRows, 'By Corbie edge %');
+    html += bkTable(dirGradeRows, 'Direction × Grade');
     html += '</div>';
 
     if (!settled.length) {
       html += '<div style="text-align:center;color:var(--hint);font-size:13px;padding:2rem">No settled bets yet — mark results in the Bet Log tab</div>';
     }
+  } else if (trackerTab==='calendar') {
+    html += renderCalendarHTML();
   } else {
-    // bet log
     html += '<div class="track-head"><span>Game</span><span>Book</span><span>Odds</span><span>Corbie</span><span>Carty</span><span>Blend</span><span>Edge%</span><span>Final</span><span>Result</span><span></span></div>';
     for (const t of tracker) {
       const resCls = t.result==='W'?'g':t.result==='L'?'r':'';
       const tCarty = t.carty??t.batx;
-      html+='<div class="track-row" onclick="openCard('+t.id+')" style="cursor:pointer"><div class="tv">'+t.game+'<span style="font-size:10px;color:var(--muted);margin-left:6px">'+t.date+'</span></div><div class="tv">'+t.book+'</div><div class="tv">'+(t.odds!=null?fmtOdds(t.odds):'—')+'</div><div class="tv">'+(t.corbie??'—')+'</div><div class="tv">'+(tCarty!=null?tCarty:'—')+'</div><div class="tv">'+(t.blended??'—')+'</div><div class="tv">'+(t.edge!=null?'+'+t.edge+'%':'—')+'</div><div class="tv '+(t.finalTotal?'amber':'')+'">'+(t.finalTotal!=null?t.finalTotal:'—')+'</div><div class="tv" onclick="event.stopPropagation()"><select class="result-sel" onchange="updateResult('+t.id+',this.value)"><option value="" '+(t.result?'':'selected')+'>Pending</option><option value="W" '+(t.result==='W'?'selected':'')+'>Win ✓</option><option value="L" '+(t.result==='L'?'selected':'')+'>Loss ✗</option><option value="P" '+(t.result==='P'?'selected':'')+'>Push —</option></select></div><div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteTrack('+t.id+')" title="Delete">✕</button></div></div>';
+      html+='<div class="track-row" onclick="openCard('+t.id+')" style="cursor:pointer"><div class="tv">'+t.game+'<span style="font-size:10px;color:var(--muted);margin-left:6px">'+t.date+(t.tracked_at?' · '+t.tracked_at:'')+'</span></div><div class="tv">'+t.book+'</div><div class="tv">'+(t.odds!=null?fmtOdds(t.odds):'—')+'</div><div class="tv">'+(t.corbie??'—')+'</div><div class="tv">'+(tCarty!=null?tCarty:'—')+'</div><div class="tv">'+(t.blended??'—')+'</div><div class="tv">'+(t.edge!=null?'+'+t.edge+'%':'—')+'</div><div class="tv '+(t.finalTotal?'amber':'')+'">'+(t.finalTotal!=null?t.finalTotal:'—')+'</div><div class="tv" onclick="event.stopPropagation()"><select class="result-sel" onchange="updateResult('+t.id+',this.value)"><option value="" '+(t.result?'':'selected')+'>Pending</option><option value="W" '+(t.result==='W'?'selected':'')+'>Win ✓</option><option value="L" '+(t.result==='L'?'selected':'')+'>Loss ✗</option><option value="P" '+(t.result==='P'?'selected':'')+'>Push —</option></select></div><div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteTrack('+t.id+')" title="Delete">✕</button></div></div>';
     }
+
+    // manual add form
+    html += `<div class="manual-add">
+      <div class="manual-add-title">+ Add bet manually</div>
+      <div class="manual-add-row">
+        <div class="mf"><label>Game</label><input id="mf-game" placeholder="ARI/LAD" /></div>
+        <div class="mf"><label>Date</label><input id="mf-date" placeholder="03/28" /></div>
+        <div class="mf"><label>Dir</label><select id="mf-dir"><option value="OVER">OVER</option><option value="UNDER">UNDER</option></select></div>
+        <div class="mf"><label>Line</label><input id="mf-line" placeholder="8.5" type="number" step="0.5" /></div>
+        <div class="mf"><label>Book</label><input id="mf-book" placeholder="Pinnacle" /></div>
+        <div class="mf"><label>Odds</label><input id="mf-odds" placeholder="-111" /></div>
+        <div class="mf"><label>Corbie</label><input id="mf-corbie" placeholder="9.3" type="number" step="0.1" /></div>
+        <div class="mf"><label>Edge%</label><input id="mf-edge" placeholder="5.3" type="number" step="0.1" /></div>
+        <div class="mf"><label>Grade</label><select id="mf-grade"><option value="">—</option><option>9/9</option><option>8/9</option><option>7/9</option><option>6/9</option><option>5/9</option></select></div>
+        <div class="mf"><label>Carty</label><input id="mf-carty" placeholder="9.96" type="number" step="0.01" /></div>
+        <div class="mf"><label>Blend</label><input id="mf-blend" placeholder="9.63" type="number" step="0.01" /></div>
+        <div class="mf"><label>Result</label><select id="mf-result"><option value="">Pending</option><option value="W">Win ✓</option><option value="L">Loss ✗</option><option value="P">Push —</option></select></div>
+      </div>
+      <button class="tracker-btn" onclick="addManual()" style="margin-top:8px">Add to tracker</button>
+    </div>`;
   }
 
   html += '</div>';
   el.innerHTML = html;
+  setTimeout(populateGradeDates, 0);
+}
+
+function addManual() {
+  const g = v => document.getElementById(v)?.value?.trim();
+  const n = v => { const x = parseFloat(g(v)); return isNaN(x) ? null : x; };
+
+  const game = g('mf-game'); if (!game) { alert('Game is required'); return; }
+  const date = g('mf-date'); if (!date) { alert('Date is required'); return; }
+  const dir = g('mf-dir')||'OVER';
+  const line = n('mf-line');
+  const book = g('mf-book')||'';
+  const oddsRaw = g('mf-odds');
+  const odds = oddsRaw ? parseInt(oddsRaw) : null;
+  const corbie = n('mf-corbie');
+  const edge = n('mf-edge');
+  const grade = g('mf-grade')||null;
+  const carty = n('mf-carty');
+  const blend = n('mf-blend');
+  const result = g('mf-result')||'';
+
+  const dirStr = dir==='OVER'?'o':'u';
+  const gameLabel = game+' '+dirStr+(line??'');
+
+  const entry = {
+    id: Date.now(),
+    date, game: gameLabel, dir,
+    book, odds,
+    corbie, carty, blended: blend,
+    market: line, edge, grade,
+    displayGame: game,
+    bookCalcs: book && odds != null ? [{book, odds, implied: odds>0?100/(odds+100):Math.abs(odds)/(Math.abs(odds)+100), over_line: line, under_line: line, over_odds: odds, under_odds: odds, roi: null, carty_proj: carty}] : [],
+    result
+  };
+
+  tracker = tracker.filter(t => t.game !== gameLabel || t.date !== date);
+  tracker.unshift(entry);
+  localStorage.setItem('corbieTracker', JSON.stringify(tracker));
+  renderTracker();
 }
 
 function exportTracker() {
@@ -1108,7 +1242,15 @@ function openCard(id) {
       <div class="sc"><div class="sc-label">Books confirmed</div><div class="sc-val green">${bookCalcs.length}</div><div class="sc-sub">best: ${fmtOdds(bestOdds)}</div></div>
     </div>
     <div class="books-head"><span>Book</span><span>Line</span><span>Odds</span><span>Implied</span><span>Edge vs mkt</span><span>Carty ROI</span></div>
-    ${bookRows}
+    ${[...bookCalcs].map(b => {
+      const lineVal = dir==='OVER'?b.over_line:b.under_line;
+      const edgeVsMkt = b.implied!=null&&fairProb!=null?(fairProb-b.implied)*100:null;
+      return {...b, lineVal, edgeVsMkt};
+    }).sort((a,b)=>(b.edgeVsMkt??-99)-(a.edgeVsMkt??-99)).map(b => {
+      const isBest = b.odds===bestOdds;
+      const eCls = b.edgeVsMkt!=null&&b.edgeVsMkt>0?'epos':b.edgeVsMkt!=null&&b.edgeVsMkt<0?'eneg':'';
+      return '<div class="book-row"><div class="bname">'+b.book+'</div><div class="bv">'+(b.lineVal??'—')+'</div><div class="bv '+(isBest?'best':'')+'">'+(fmtOdds(b.odds))+'</div><div class="bv">'+(b.implied!=null?(b.implied*100).toFixed(1)+'%':'—')+'</div><div class="bv '+eCls+'">'+(b.edgeVsMkt!=null?(b.edgeVsMkt>0?'+':'')+b.edgeVsMkt.toFixed(1)+'%':'—')+'</div><div class="bv amber">'+(b.roi!=null?(b.roi>0?'+':'')+b.roi.toFixed(1)+'%':'—')+'</div></div>';
+    }).join('')}
     <div style="padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border);background:var(--surface2)">
       <button class="screenshot-btn" onclick="copyModalBetText(${t.id},this)">📋 Copy</button>
       <button class="screenshot-btn" onclick="shotModalCard(this)">📸 Share</button>
@@ -1144,6 +1286,127 @@ function shotModalCard(btn) {
 }
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeCard(); });
+
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function calNav(dir) { calMonth+=dir; if(calMonth>11){calMonth=0;calYear++;}else if(calMonth<0){calMonth=11;calYear--;} renderTracker(); }
+
+function renderCalendarHTML() {
+  const today = new Date();
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  // group tracker bets by date MM/DD
+  const byDate = {};
+  for (const t of tracker) {
+    if (!t.date) continue;
+    if (!byDate[t.date]) byDate[t.date] = [];
+    byDate[t.date].push(t);
+  }
+
+  // calc month P&L
+  const monthBets = tracker.filter(t=>{
+    if(!t.date) return false;
+    const m = t.date.match(/(\d{1,2})\/(\d{1,2})/);
+    if(!m) return false;
+    return parseInt(m[1])-1===calMonth && (t.date.includes(String(calYear))||true);
+  }).filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+  const monthRoi = monthBets.reduce((s,t)=>s+unitPnl(t),0);
+  const monthRoiStr = (monthRoi>=0?'+':'')+monthRoi.toFixed(2)+'u';
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+
+  let html = `<div class="cal-wrap">
+    <div class="cal-header">
+      <div class="cal-nav">
+        <button onclick="calNav(-1)">‹</button>
+        <span class="cal-month">${monthNames[calMonth]} ${calYear}</span>
+        <button onclick="calNav(1)">›</button>
+      </div>
+      <div>Month: <span class="cal-month-roi" style="color:${monthRoi>=0?'var(--green)':'var(--red)'}">${monthRoiStr}</span></div>
+    </div>
+    <div class="cal-grid">`;
+
+  // day of week headers
+  for (const d of ['S','M','T','W','T','F','S']) html += `<div class="cal-dow">${d}</div>`;
+
+  // empty cells before month start
+  for (let i=0; i<firstDay; i++) html += '<div class="cal-day" style="opacity:0.2"></div>';
+
+  for (let day=1; day<=daysInMonth; day++) {
+    const dateStr = String(calMonth+1).padStart(2,'0')+'/'+String(day).padStart(2,'0');
+    const dayBets = byDate[dateStr] || [];
+    const settled = dayBets.filter(t=>t.result==='W'||t.result==='L'||t.result==='P');
+    const wins = dayBets.filter(t=>t.result==='W').length;
+    const losses = dayBets.filter(t=>t.result==='L').length;
+    const pushes = dayBets.filter(t=>t.result==='P').length;
+    const dayRoi = settled.reduce((s,t)=>s+unitPnl(t),0);
+    const isToday = day===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();
+    const hasBets = dayBets.length>0;
+    const allWin = settled.length>0&&wins===settled.length;
+    const allLoss = settled.length>0&&losses===settled.length;
+    const dayClass = `cal-day${hasBets?' has-bets':''}${isToday?' today':''}${allWin?' win-day':allLoss?' loss-day':settled.length>0?' mixed-day':''}`;
+
+    html += '<div class="'+dayClass+'" '+(hasBets?'onclick="openCalDay(\''+dateStr+'\')"':'')+'>'+
+            '<div class="cal-day-num">'+day+'</div>';
+    if (hasBets) {
+      const record = [wins>0?wins+'W':'', losses>0?losses+'L':'', pushes>0?pushes+'P':''].filter(Boolean).join('-');
+      html += '<div class="cal-record">'+(record||dayBets.length+' pending')+'</div>';
+      if (settled.length>0) html += '<div class="cal-units" style="color:'+(dayRoi>=0?'var(--green)':'var(--red)')+'">'+((dayRoi>=0?'+':'')+dayRoi.toFixed(2))+'u</div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div></div>';
+  return html;
+}
+
+function openCalDay(dateStr) {
+  const dayBets = tracker.filter(t=>t.date===dateStr);
+  if (!dayBets.length) return;
+  const modal = document.createElement('div');
+  modal.className = 'cal-day-modal';
+  modal.id = 'calDayModal';
+  modal.onclick = e => { if(e.target===modal) closeCalDay(); };
+
+  const dayRoi = dayBets.filter(t=>t.result).reduce((s,t)=>s+unitPnl(t),0);
+  const roiStr = (dayRoi>=0?'+':'')+dayRoi.toFixed(2)+'u';
+
+  let inner = `<div class="cal-day-modal-box">
+    <div class="cal-day-modal-title">
+      <span>${dateStr} · ${dayBets.length} bet${dayBets.length!==1?'s':''} · <span style="color:${dayRoi>=0?'var(--green)':'var(--red)'}">${roiStr}</span></span>
+      <button onclick="closeCalDay()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">✕</button>
+    </div>`;
+
+  for (const t of dayBets) {
+    const resClass = t.result||'pending';
+    const resLabel = t.result==='W'?'Win ✓':t.result==='L'?'Loss ✗':t.result==='P'?'Push':'Pending';
+    const pnl = t.result?unitPnl(t):null;
+    inner += `<div class="cal-bet-row">
+      <div>
+        <div class="cal-bet-name">${t.game}</div>
+        <div class="cal-bet-meta">${t.book} · ${t.odds!=null?fmtOdds(t.odds):'—'}${t.finalTotal!=null?' · Final: '+t.finalTotal:''}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="cal-result-badge ${resClass}">${resLabel}</div>
+        ${pnl!=null?`<div style="font-size:11px;font-weight:700;color:${pnl>=0?'var(--green)':'var(--red)'};margin-top:3px">${(pnl>=0?'+':'')+pnl.toFixed(2)}u</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  inner += '</div>';
+  modal.innerHTML = inner;
+  document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCalDay() {
+  const m = document.getElementById('calDayModal');
+  if (m) { m.remove(); document.body.style.overflow = ''; }
+}
+
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeCalDay();closeCard();} });
 
 function setTab(tab) { trackerTab=tab; renderTracker(); }
 
