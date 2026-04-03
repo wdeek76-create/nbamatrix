@@ -75,7 +75,8 @@
       <button class="sign-btn" id="signBtn">+</button>
       <div style="position:relative;flex:1;">
         <span id="signPrefix" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:28px;font-weight:600;color:#fff;pointer-events:none;z-index:1;">+</span>
-        <input class="odds-input" id="oi" type="tel" placeholder="140" inputmode="numeric" autocomplete="off" style="padding-left:34px;" />
+        <input class="odds-input" id="oi" type="tel" placeholder="140" inputmode="numeric" autocomplete="off" style="padding-left:34px;padding-right:48px;" />
+        <button id="clearBtn" onclick="clearOdds()" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--surface);border:none;width:28px;height:28px;border-radius:50%;color:var(--muted);font-size:16px;cursor:pointer;align-items:center;justify-content:center;">✕</button>
       </div>
     </div>
   </div>
@@ -129,7 +130,19 @@ document.getElementById('t2').addEventListener('click', function() { setThresh(2
 document.getElementById('t3').addEventListener('click', function() { setThresh(3); });
 document.getElementById('t4').addEventListener('click', function() { setThresh(4); });
 document.getElementById('t5').addEventListener('click', function() { setThresh(5); });
-document.getElementById('oi').addEventListener('input', go);
+document.getElementById('oi').addEventListener('input', function() {
+  var btn = document.getElementById('clearBtn');
+  btn.style.display = this.value ? 'flex' : 'none';
+  go();
+});
+
+function clearOdds() {
+  document.getElementById('oi').value = '';
+  document.getElementById('clearBtn').style.display = 'none';
+  document.getElementById('res').style.display = 'none';
+  document.getElementById('mh').style.display = 'block';
+  document.getElementById('oi').focus();
+}
 
 function setThresh(n) {
   thresh = n;
