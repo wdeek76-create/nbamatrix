@@ -1011,8 +1011,8 @@ function renderTracker() {
   html += '</div></div>';
   html += '<div style="display:flex;gap:8px;align-items:center">';
   html += '<select id="gradeDate" class="tk" style="min-width:120px"><option value="">Pick date...</option></select>';
-  html += '<button id="autoGradeBtn" class="tracker-btn" onclick="autoGrade(false)" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade ↑</button>';
-  html += '<button class="screenshot-btn" onclick="autoGrade(true)">Regrade</button>';
+  html += '<button id="autoGradeBtn" class="tracker-btn" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);color:var(--blue)">Grade ↑</button>';
+  html += '<button id="regradeBtn" class="screenshot-btn">Regrade</button>';
   html += '<button class="screenshot-btn" onclick="exportTracker()" title="Save progress to file">⬇ Export</button>';
   html += '<label class="screenshot-btn" style="cursor:pointer" title="Load progress from file">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>';
   html += '<button class="tracker-clear" onclick="clearTracker()">Clear all</button>';
@@ -1081,7 +1081,13 @@ function renderTracker() {
 
   html += '</div>';
   el.innerHTML = html;
-  setTimeout(populateGradeDates, 0);
+  setTimeout(() => {
+    populateGradeDates();
+    const gb = document.getElementById('autoGradeBtn');
+    const rb = document.getElementById('regradeBtn');
+    if (gb) gb.addEventListener('click', () => autoGrade(false));
+    if (rb) rb.addEventListener('click', () => autoGrade(true));
+  }, 0);
 }
 
 function addManual() {
