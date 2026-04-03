@@ -95,11 +95,8 @@
   <div class="result-card" id="res">
     <div class="slip-label">Order slip</div>
     <div class="offering-box">
-      <div class="offering-lbl">You're offering:</div>
-      <div class="offering-val" id="postVal">—</div>
-      <div class="divider"></div>
-      <div class="filled-lbl">If filled: <span style="color:var(--muted);font-weight:400;">(Your Price)</span></div>
-      <div class="filled-val" id="filledVal">—</div>
+      <div class="offering-lbl">Your price to make</div>
+      <div class="offering-val" id="filledVal">—</div>
     </div>
     <div class="arb-row">
       <div class="arb-lbl">Guaranteed arb if filled</div>
@@ -114,7 +111,8 @@
 var thresh = 1;
 var sign = 1;
 
-document.getElementById('signBtn').addEventListener('click', function() {
+document.getElementById('signBtn').addEventListener('mousedown', function(e) {
+  e.preventDefault();
   sign = sign * -1;
   var sym = sign > 0 ? '+' : '-';
   var col = sign > 0 ? 'var(--cyan)' : '#ff6b6b';
@@ -124,6 +122,17 @@ document.getElementById('signBtn').addEventListener('click', function() {
   document.getElementById('signPrefix').style.color = col;
   go();
 });
+document.getElementById('signBtn').addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  sign = sign * -1;
+  var sym = sign > 0 ? '+' : '-';
+  var col = sign > 0 ? 'var(--cyan)' : '#ff6b6b';
+  this.textContent = sym;
+  this.style.color = col;
+  document.getElementById('signPrefix').textContent = sym;
+  document.getElementById('signPrefix').style.color = col;
+  go();
+}, {passive: false});
 
 document.getElementById('t1').addEventListener('click', function() { setThresh(1); });
 document.getElementById('t2').addEventListener('click', function() { setThresh(2); });
@@ -188,7 +197,6 @@ function go() {
 
   res.style.display = 'block';
   mh.style.display = 'none';
-  document.getElementById('postVal').textContent = postLine;
   document.getElementById('filledVal').textContent = filledLine;
   document.getElementById('arbPct').textContent = '+' + thresh + '%';
 }
