@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Arb Calculator</title>
+<title>Fill Me Up</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #000;
@@ -22,7 +21,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: 'Sora', -apple-system, sans-serif;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -38,11 +37,11 @@
   .lbl { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 10px; display: block; }
   .odds-row { display: flex; gap: 0; }
   .sign-btn { width: 52px; height: 52px; background: var(--surface2); border: 1px solid var(--border); border-right: none; border-radius: 10px 0 0 10px; font-size: 26px; font-weight: 600; color: var(--cyan); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .odds-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 10px 10px 0; padding: 0 16px; height: 52px; font-family: inherit; font-size: 28px; font-weight: 600; color: var(--text); outline: none; width: 100%; }
+  .odds-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 10px 10px 0; padding: 0 16px; height: 52px; font-family: 'Sora', -apple-system, sans-serif; font-size: 28px; font-weight: 600; color: var(--text); outline: none; width: 100%; }
   .odds-input::placeholder { color: #444; }
   .odds-input:focus { border-color: var(--cyan); }
   .thresh-row { display: flex; }
-  .tb { flex: 1; padding: 10px 0; background: var(--surface2); border: 1px solid var(--border); border-right: none; font-family: inherit; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; text-align: center; }
+  .tb { flex: 1; padding: 10px 0; background: var(--surface2); border: 1px solid var(--border); border-right: none; font-family: 'Sora', -apple-system, sans-serif; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; text-align: center; }
   .tb:first-child { border-radius: 10px 0 0 10px; }
   .tb:last-child { border-radius: 0 10px 10px 0; border-right: 1px solid var(--border); }
   .tb.on { background: var(--cyan-dim); border-color: var(--cyan-border); color: var(--cyan); font-weight: 600; }
@@ -65,7 +64,7 @@
   <div class="header">
     <div class="badge">A</div>
     <div>
-      <div class="header-title">Arb Calculator</div>
+      <div class="header-title">Fill Me Up</div>
       <div class="header-sub">Find your exchange post price</div>
     </div>
   </div>
@@ -76,7 +75,7 @@
       <button class="sign-btn" id="signBtn">+</button>
       <div style="position:relative;flex:1;">
         <span id="signPrefix" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:28px;font-weight:600;color:#fff;pointer-events:none;z-index:1;">+</span>
-        <input class="odds-input" id="oi" type="number" placeholder="140" inputmode="numeric" autocomplete="off" style="padding-left:34px;" />
+        <input class="odds-input" id="oi" type="tel" placeholder="140" inputmode="numeric" autocomplete="off" style="padding-left:34px;" />
       </div>
     </div>
   </div>
@@ -98,7 +97,7 @@
       <div class="offering-lbl">You're offering:</div>
       <div class="offering-val" id="postVal">—</div>
       <div class="divider"></div>
-      <div class="filled-lbl">If filled:</div>
+      <div class="filled-lbl">If filled: <span style="color:var(--muted);font-weight:400;">(Your Price)</span></div>
       <div class="filled-val" id="filledVal">—</div>
     </div>
     <div class="arb-row">
