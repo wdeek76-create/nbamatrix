@@ -1154,6 +1154,7 @@ function importTracker(input) {
       }
       localStorage.setItem('corbieTracker', JSON.stringify(tracker));
       renderTracker();
+      setTimeout(populateGradeDates, 50);
       input.value = '';
     } catch(err) {
       alert('Could not load file: '+err.message);
