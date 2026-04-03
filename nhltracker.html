@@ -1380,12 +1380,15 @@ function skipMpParser() {
 }
 
 function parseMpGoalies(raw) {
-  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  // Strip markdown artifacts and clean up
+  const lines = raw.split('\n')
+    .map(l => l.replace(/__/g, '').trim())  // remove __ markdown
+    .filter(l => l && !/^(Games|Playoff|Power|Teams|Players|Goalies|Lines|Betting|Standings|Injuries|Data|About|Privacy|Glossary|\*|Preview|Next|Stay|Chance of Winning)/i.test(l));
+
   const IS_PCT   = /^\d+\.\d+%$/;
   const IS_START = /^(Starter|Likely Starter|Very Likely Starter):/i;
-  const IS_TIME  = /^\d{1,2}:\d{2}\s*(AM|PM)\s*ET$/i;
+  const IS_TIME  = /\d{1,2}:\d{2}\s*(AM|PM)\s*ET/i;
   const IS_SRC   = /^Source:/i;
-  const IS_NOISE = /^(Preview|Next|Stay|__)/i;
 
   const games = [];
   let i = 0;
@@ -1393,33 +1396,32 @@ function parseMpGoalies(raw) {
   while (i < lines.length) {
     // Find away win%
     if (!IS_PCT.test(lines[i])) { i++; continue; }
-    i++; // skip away pct
+    i++;
 
-    // Optional: away starter line
+    // Away goalie (optional)
     let awayGoalie = null, awayConfirmed = false;
     if (i < lines.length && IS_START.test(lines[i])) {
-      awayGoalie    = extractGoalieName(lines[i]);
+      awayGoalie = extractGoalieName(lines[i]);
       awayConfirmed = isConfirmed(lines[i]);
       i++;
     }
-    // Optional: source
     if (i < lines.length && IS_SRC.test(lines[i])) i++;
-    // Optional: time
+
+    // Time — skip everything until we find it or home pct
+    while (i < lines.length && !IS_TIME.test(lines[i]) && !IS_PCT.test(lines[i])) i++;
     if (i < lines.length && IS_TIME.test(lines[i])) i++;
-    // Skip noise lines (Preview, Next, Stay, etc.) until home pct or next starter
-    while (i < lines.length && !IS_PCT.test(lines[i]) && !IS_START.test(lines[i])) i++;
 
     // Home win%
     if (i >= lines.length || !IS_PCT.test(lines[i])) {
       games.push({ away: { name: awayGoalie, confirmed: awayConfirmed }, home: { name: null, confirmed: false } });
       continue;
     }
-    i++; // skip home pct
+    i++;
 
-    // Optional: home starter
+    // Home goalie (optional)
     let homeGoalie = null, homeConfirmed = false;
     if (i < lines.length && IS_START.test(lines[i])) {
-      homeGoalie    = extractGoalieName(lines[i]);
+      homeGoalie = extractGoalieName(lines[i]);
       homeConfirmed = isConfirmed(lines[i]);
       i++;
     }
