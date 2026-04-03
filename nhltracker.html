@@ -667,6 +667,7 @@ body {
         <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importBets(this)" style="display:none"/></label>
         <button class="danger-btn" onclick="clearPendingAll()">Clear pending</button>
         <button class="danger-btn" onclick="clearBets()">Clear all</button>
+        <button class="screenshot-btn" onclick="recalcEdges()" style="color:var(--ice);border-color:rgba(125,211,252,.3);">↻ Recalc Edges</button>
       </div>
     </div>
 
@@ -1169,15 +1170,19 @@ function updateOdds(idx, field, val) {
 }
 
 function recomputeEdge(g) {
-  if (g.away_ml != null && g.home_ml != null) {
-    const ra = mlToImplied(g.away_ml), rh = mlToImplied(g.home_ml);
-    const [fa, fh] = devigify(ra, rh);
-    g.fair_away_pct   = round1(fa * 100);
-    g.fair_home_pct   = round1(fh * 100);
-    g.ml_edge_away    = round1(g.hs_away_pct - fa * 100);
-    g.ml_edge_home    = round1(g.hs_home_pct - fh * 100);
+  if (g.away_ml != null) {
+    const fa = mlToImplied(g.away_ml);
+    g.fair_away_pct = round1(fa * 100);
+    g.ml_edge_away  = g.hs_away_pct != null ? round1(g.hs_away_pct - fa * 100) : null;
   } else {
-    g.fair_away_pct = g.fair_home_pct = g.ml_edge_away = g.ml_edge_home = null;
+    g.fair_away_pct = g.ml_edge_away = null;
+  }
+  if (g.home_ml != null) {
+    const fh = mlToImplied(g.home_ml);
+    g.fair_home_pct = round1(fh * 100);
+    g.ml_edge_home  = g.hs_home_pct != null ? round1(g.hs_home_pct - fh * 100) : null;
+  } else {
+    g.fair_home_pct = g.ml_edge_home = null;
   }
   if (g.proj_total != null && g.total_line != null) {
     g.total_edge = round2(g.proj_total - g.total_line);
@@ -2056,8 +2061,32 @@ async function nhlAutoGrade() {
   btn.disabled    = false;
 }
 
+function recalcEdges() {
+  let updated = 0;
+  for (const bet of bets) {
+    if (bet.odds == null) continue;
+    const fair = mlToImplied(bet.odds) / FIXED_VIG * 100;
+    // modelOdds → HS win% (reverse engineer from stored modelOdds)
+    // If modelOdds stored, convert back to pct for HS win%
+    // Otherwise use stored edge as-is (can't recalc without HS%)
+    // Best approach: store hs_pct on bet — but we don't yet
+    // Instead: recalc from modelOdds if available (modelOdds = probToML(hs_pct/100))
+    if (bet.modelOdds != null) {
+      const hsPct = bet.modelOdds > 0
+        ? 100 / (bet.modelOdds + 100) * 100
+        : Math.abs(bet.modelOdds) / (Math.abs(bet.modelOdds) + 100) * 100;
+      const fair = mlToImplied(bet.odds) * 100;
+      bet.edge = round1(hsPct - fair);
+      updated++;
+    }
+  }
+  saveBets();
+  renderLog();
+  renderDash();
+  toast(`Recalculated edges on ${updated} bets`, 'ok');
+}
+
 function gradeBet(id, result) {
-  const bet = bets.find(b => b.id === id);
   if (!bet) return;
   bet.result = result;
   // Favorites: stake abs(odds)/100 to WIN 1u → P/L = +1u or -stake
