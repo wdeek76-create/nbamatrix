@@ -1460,24 +1460,13 @@ function autoLogEV(goalieData) {
     const sortedIdx = sortedGames.indexOf(g);
     const goalie    = goalieData ? goalieData[sortedIdx] : null;
 
-    // Always store goalie names on game for card display
+    // Store goalie names for display, no confirmation gate — always log +EV
     if (goalie) {
       g.awayGoalie    = goalie.away?.name || null;
       g.homeGoalie    = goalie.home?.name || null;
-      const awayOk    = goalie.away?.confirmed;
-      const homeOk    = goalie.home?.confirmed;
-      if (!awayOk || !homeOk) {
-        const missing = [!awayOk ? (goalie.away?.name || 'Away') : '', !homeOk ? (goalie.home?.name || 'Home') : ''].filter(Boolean).join(' / ');
-        g.goalieWarning = `${missing} unconfirmed`;
-        skippedGoalie++;
-        return; // skip logging this game
-      }
       g.goalieWarning = null;
     } else if (goalieData !== null) {
-      // goalieData provided but no entry for this game
       g.goalieWarning = 'No goalie data';
-      skippedGoalie++;
-      return;
     }
 
     [['away', g.ml_edge_away, g.away_ml, g.book_away_ml],
