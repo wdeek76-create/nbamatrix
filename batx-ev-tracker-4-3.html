@@ -381,7 +381,12 @@ function classifyMarket(m) {
   if ((u.includes('F5')||u.includes('FIRST 5')) && u.includes('RL')) return 'F5RL';
 
   // 1st inning
-  if (u.includes('1INN')||u.includes('1ST INN')||u.includes('FIRST INN')) return '1INN';
+  if (u.includes('1INN')||u.includes('1ST INN')||u.includes('FIRST INN')) {
+    if (u.includes('TEAM')||u.includes('TT')) return '1INNTT';
+    if (u.includes('ML')||u.includes('MONEY')) return '1INNML';
+    if (u.includes('RL')||u.includes('RUN LINE')) return '1INNRL';
+    return '1INNTOTAL';
+  }
 
   // NRFI / YRFI
   if (u.includes('NRFI')||u.includes('YRFI')||u.includes('RYI')) return 'NRFI';
@@ -458,8 +463,14 @@ function runFilter() {
 
   for (const b of parsed) {
     const mktType = classifyMarket(b.market||b.MARKET||'');
-    const dir = (b.suggested_bet||'').toUpperCase();
-    if (!dir) continue;
+    let dir = (b.suggested_bet||'').toUpperCase();
+    // If no suggested_bet but we have roi data, try to infer from over/under roi
+    if (!dir) {
+      if (b.over_odds!=null && b.under_odds!=null) continue; // ambiguous, skip
+      if (b.over_odds!=null && b.under_odds==null) dir='OVER';
+      else if (b.under_odds!=null && b.over_odds==null) dir='UNDER';
+      else continue;
+    }
     const roi = b.roi??b.expected_roi??null;
     if (roi!=null && roi < minRoi) continue;
     const proj = b.batx_proj??b.the_bat_x_projection??null;
