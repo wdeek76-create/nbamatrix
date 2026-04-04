@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fill Me Up</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700;800&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #000;
@@ -17,148 +17,208 @@
     --cyan: #0ab4ff;
     --cyan-dim: rgba(10,180,255,0.15);
     --cyan-border: rgba(10,180,255,0.4);
+    --green: #00e5c8;
+    --green-dim: rgba(0,229,200,0.15);
+    --green-border: rgba(0,229,200,0.35);
+    --green-surface: #0d1622;
+    --green-surface2: #151f30;
   }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Sora', -apple-system, sans-serif;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-  .container { width: 100%; max-width: 420px; }
-  .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-  .badge { width: 36px; height: 36px; background: var(--cyan); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #000; flex-shrink: 0; }
-  .header-title { font-size: 18px; font-weight: 600; }
+  body { background: var(--bg); color: var(--text); font-family: 'Sora', -apple-system, sans-serif; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; }
+  .container { width: 100%; max-width: 420px; min-height: 600px; }
+
+  /* Header */
+  .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .badge { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #000; flex-shrink: 0; }
+  .badge-nv { background: var(--cyan); }
+  .badge-px { background: var(--green); color: #0d1622; }
+  .header-title { font-size: 18px; font-weight: 700; }
   .header-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
-  .card { background: var(--surface); border-radius: 14px; margin-bottom: 12px; padding: 14px 16px; }
+
+  /* Tabs */
+  .tabs { display: flex; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 20px; }
+  .tab { flex: 1; padding: 12px 0; text-align: center; font-size: 14px; font-weight: 600; cursor: pointer; background: var(--surface); color: var(--muted); transition: all 0.15s; }
+  .tab-nv.active { background: var(--cyan-dim); color: var(--cyan); border-right: 1px solid var(--cyan-border); }
+  .tab-px.active { background: var(--green-dim); color: var(--green); font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.05em; }
+
+  /* Shared card */
+  .card { border-radius: 14px; margin-bottom: 12px; padding: 14px 16px; }
+  .card-nv { background: var(--surface); }
+  .card-px { background: var(--green-surface); border: 1px solid var(--green-border); font-family: 'Barlow Condensed', sans-serif; }
   .lbl { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 10px; display: block; }
-  .odds-row { display: flex; gap: 0; }
-  .sign-btn { width: 52px; height: 52px; background: var(--surface2); border: 1px solid var(--border); border-right: none; border-radius: 10px 0 0 10px; font-size: 26px; font-weight: 600; color: var(--cyan); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .odds-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 10px 10px 0; padding: 0 16px; height: 52px; font-family: 'Sora', -apple-system, sans-serif; font-size: 28px; font-weight: 600; color: var(--text); outline: none; width: 100%; }
-  .odds-input::placeholder { color: #444; }
-  .odds-input:focus { border-color: var(--cyan); }
+  .lbl-px { color: rgba(0,255,150,0.6); }
+
+  /* Odds row */
+  .odds-row { display: flex; }
+  .sign-btn { width: 52px; height: 52px; border: 1px solid var(--border); border-right: none; border-radius: 10px 0 0 10px; font-size: 26px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sign-btn-nv { background: var(--surface2); color: var(--cyan); }
+  .sign-btn-px { background: var(--green-surface2); border-color: var(--green-border); color: var(--green); }
+  .input-wrap { position: relative; flex: 1; }
+  .prefix { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 28px; font-weight: 600; color: #fff; pointer-events: none; z-index: 1; }
+  .odds-input { width: 100%; border: 1px solid var(--border); border-radius: 0 10px 10px 0; padding: 0 48px 0 34px; height: 52px; font-family: inherit; font-size: 28px; font-weight: 600; color: #fff; outline: none; }
+  .odds-input-nv { background: var(--surface2); }
+  .odds-input-nv:focus { border-color: var(--cyan); }
+  .odds-input-px { background: var(--green-surface2); border-color: var(--green-border); font-family: "Barlow Condensed", sans-serif; font-size: 32px; }
+  .odds-input-px:focus { border-color: var(--green); }
+  .clear-btn { display: none; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: transparent; border: none; width: 28px; height: 28px; border-radius: 50%; color: var(--muted); font-size: 16px; cursor: pointer; align-items: center; justify-content: center; }
+
+  /* Threshold */
   .thresh-row { display: flex; }
-  .tb { flex: 1; padding: 10px 0; background: var(--surface2); border: 1px solid var(--border); border-right: none; font-family: 'Sora', -apple-system, sans-serif; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; text-align: center; }
+  .tb { flex: 1; padding: 10px 0; border: 1px solid var(--border); border-right: none; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; text-align: center; }
   .tb:first-child { border-radius: 10px 0 0 10px; }
   .tb:last-child { border-radius: 0 10px 10px 0; border-right: 1px solid var(--border); }
-  .tb.on { background: var(--cyan-dim); border-color: var(--cyan-border); color: var(--cyan); font-weight: 600; }
-  .result-card { background: var(--surface); border-radius: 14px; margin-bottom: 12px; display: none; }
-  .slip-label { font-size: 13px; color: var(--muted); padding: 14px 16px 8px; }
-  .offering-box { margin: 0 16px 0; background: var(--cyan-dim); border: 1px solid var(--cyan-border); border-radius: 10px; padding: 14px; }
-  .offering-lbl { font-size: 11px; color: var(--cyan); font-weight: 500; margin-bottom: 4px; letter-spacing: 0.03em; }
+  .tb-nv { background: var(--surface2); color: var(--muted); }
+  .tb-nv.on { background: var(--cyan-dim); border-color: var(--cyan-border); color: var(--cyan); font-weight: 600; }
+  .tb-px { background: var(--green-surface2); color: rgba(0,255,150,0.5); border-color: var(--green-border); }
+  .tb-px.on { background: var(--green-dim); color: var(--green); font-weight: 600; }
+
+  /* Result */
+  .result-card { border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
+  .result-card-nv { background: var(--surface); }
+  .result-card-px { background: var(--green-surface); border: 1px solid var(--green-border); font-family: 'Barlow Condensed', sans-serif; }
+  .slip-lbl { font-size: 13px; color: var(--muted); padding: 14px 16px 8px; }
+  .slip-lbl-px { color: rgba(0,255,150,0.6); }
+  .offering-box { margin: 0 16px 16px; border-radius: 10px; padding: 14px; }
+  .offering-box-nv { background: var(--cyan-dim); border: 1px solid var(--cyan-border); }
+  .offering-box-px { background: var(--green-dim); border: 1px solid var(--green-border); }
+  .offering-lbl { font-size: 11px; font-weight: 500; margin-bottom: 4px; letter-spacing: 0.03em; }
+  .offering-lbl-nv { color: var(--cyan); }
+  .offering-lbl-px { color: var(--green); }
   .offering-val { font-size: 22px; font-weight: 700; color: #fff; }
-  .divider { height: 1px; background: rgba(10,180,255,0.2); margin: 10px 0; }
-  .filled-lbl { font-size: 11px; color: var(--cyan); font-weight: 500; margin-bottom: 4px; letter-spacing: 0.03em; }
-  .filled-val { font-size: 22px; font-weight: 700; color: #fff; }
-  .arb-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; }
+  .offering-val-px { font-size: 32px; font-weight: 800; font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.02em; color: #fff; }
+  .fee-note { font-size: 11px; color: rgba(0,255,150,0.5); margin-top: 6px; }
+  .arb-row { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 14px; }
   .arb-lbl { font-size: 13px; color: var(--muted); }
-  .arb-val { font-size: 15px; font-weight: 600; color: var(--cyan); }
+  .arb-val-nv { font-size: 15px; font-weight: 600; color: var(--cyan); }
+  .arb-val-px { font-size: 15px; font-weight: 600; color: var(--green); }
   .hint { font-size: 13px; color: var(--muted); text-align: center; padding: 8px 0; }
+  .hint-px { color: rgba(0,255,150,0.5); }
+
+  /* Button active states */
+  .tab:active { opacity: 0.7; }
+  .sign-btn:active { opacity: 0.8; }
+  .tb:active { opacity: 0.7; }
+  .clear-btn:active { opacity: 0.7; }
 </style>
 </head>
 <body>
 <div class="container">
-  <div class="header">
-    <div class="badge">A</div>
-    <div>
-      <div class="header-title">Fill Me Up</div>
-      <div class="header-sub">Find your exchange post price</div>
-    </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab tab-nv active" id="tabNv" onclick="switchTab('nv')">NoVig</div>
+    <div class="tab tab-px" id="tabPx" onclick="switchTab('px')">ProphetX</div>
   </div>
 
-  <div class="card">
-    <span class="lbl">Market odds</span>
-    <div class="odds-row" style="position:relative;">
-      <button class="sign-btn" id="signBtn">+</button>
-      <div style="position:relative;flex:1;">
-        <span id="signPrefix" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:28px;font-weight:600;color:#fff;pointer-events:none;z-index:1;">+</span>
-        <input class="odds-input" id="oi" type="tel" placeholder="140" inputmode="numeric" autocomplete="off" style="padding-left:34px;padding-right:48px;" />
-        <button id="clearBtn" onclick="clearOdds()" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--surface);border:none;width:28px;height:28px;border-radius:50%;color:var(--muted);font-size:16px;cursor:pointer;align-items:center;justify-content:center;">✕</button>
+  <!-- NoVig Section -->
+  <div id="nvSection">
+    <div class="header">
+      <img src="data:image/png;base64,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" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" />
+      <div>
+        <div class="header-title">Fill Me Up</div>
+        <div class="header-sub">Find your exchange post price</div>
       </div>
     </div>
+
+    <div class="card card-nv">
+      <span class="lbl">Market odds</span>
+      <div class="odds-row">
+        <button class="sign-btn sign-btn-nv" id="nvSignBtn">+</button>
+        <div class="input-wrap">
+          <span class="prefix" id="nvPrefix">+</span>
+          <input class="odds-input odds-input-nv" id="nvOi" type="tel" placeholder="140" inputmode="numeric" autocomplete="off" />
+          <button class="clear-btn" id="nvClear" onclick="clearNv()">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-nv">
+      <span class="lbl">Min arb threshold</span>
+      <div class="thresh-row">
+        <button class="tb tb-nv on" id="nv1">1%</button>
+        <button class="tb tb-nv" id="nv2">2%</button>
+        <button class="tb tb-nv" id="nv3">3%</button>
+        <button class="tb tb-nv" id="nv4">4%</button>
+        <button class="tb tb-nv" id="nv5">5%</button>
+      </div>
+    </div>
+
+    <div class="result-card result-card-nv" id="nvRes" style="display:none;">
+      <div class="slip-lbl">Order slip</div>
+      <div class="offering-box offering-box-nv">
+        <div class="offering-lbl offering-lbl-nv">Your price to make</div>
+        <div class="offering-val" id="nvPost">—</div>
+      </div>
+      <div class="arb-row">
+        <div class="arb-lbl">Guaranteed arb if filled</div>
+        <div class="arb-val-nv" id="nvArb">—</div>
+      </div>
+    </div>
+    <p class="hint" id="nvHint">Enter odds above to see your post price</p>
   </div>
 
-  <div class="card">
-    <span class="lbl">Min arb threshold</span>
-    <div class="thresh-row">
-      <button class="tb on" id="t1">1%</button>
-      <button class="tb" id="t2">2%</button>
-      <button class="tb" id="t3">3%</button>
-      <button class="tb" id="t4">4%</button>
-      <button class="tb" id="t5">5%</button>
+  <!-- ProphetX Section -->
+  <div id="pxSection" style="display:none;">
+    <div class="header">
+      <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAAD/7QA4UGhvdG9zaG9wIDMuMAA4QklNBAQAAAAAAAA4QklNBCUAAAAAABDUHYzZjwCyBOmACZjs+EJ+/8AAEQgAIAAgAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/bAEMAAQEBAQEBAgEBAgMCAgIDBAMDAwMEBgQEBAQEBgcGBgYGBgYHBwcHBwcHBwgICAgICAkJCQkJCwsLCwsLCwsLC//bAEMBAgICAwMDBQMDBQsIBggLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLC//dAAQAAv/aAAwDAQACEQMRAD8A/kwdsis5zjJqxMccV/Q7+x38U/Bv7c/7OOqfs+/Fa2jvNe020WzvpAqLNc2pwsF6rYyJI2AWQ5H7xVOSHr7qrV9nbTQ+Qz7OZZfRjiHT5oXSk77J9bdT+cmaXecelZd0m4gjmv6VfAH7Nv7Mv/BMLwdN8Z/jrrC674rkSeC0ZYwXZGz+5s7bJ3MwADyyHaB0KgYP40ftv/tdXv7VfxBhvdCs5ND8MaYo/szT2VUcl8b55tg2mR8EDBIRQAOmTzOvfVLTozky3PJ4/EuOFot0Ev4jdlfslbX7z//Q/nv/AGOP2VLv9qD4iNZ6rdrpfhvSQJNQviyLIXbiOGDzMr5rnvg7FBODwD+r3xG/aR/Zt/4Jk+BIfhN8F9FTxJ4vuljmug8pMjh84mvLlBks3SOOMbQQc7Rk1/N+xwC3eqt4MAP6V9nVjzHxOYZB9bxftcRVbo/yLRX7t9fuP6N/20/hd4L/AG5P2bNO/aA+Ec8d1r9jZNe2bZEclzYk5ns2Xdnzo3BKJyQ6FeQwz/NZO+zFSmZz8rZ/Osq4kYNluc1il0NsgyieW0JUPaucL+7fdLtfqf/Z" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" />
+      <div>
+        <div class="header-title">Fill Me Up</div>
+        <div class="header-sub" style="font-family:'Barlow Condensed',sans-serif;color:var(--green);font-size:14px;font-weight:600;letter-spacing:0.05em;">PROPHET X · 2% MARKET FEE INCLUDED</div>
+      </div>
     </div>
+
+    <div class="card card-px">
+      <span class="lbl lbl-px">Market odds</span>
+      <div class="odds-row">
+        <button class="sign-btn sign-btn-px" id="pxSignBtn">+</button>
+        <div class="input-wrap">
+          <span class="prefix" id="pxPrefix">+</span>
+          <input class="odds-input odds-input-px" id="pxOi" type="tel" placeholder="140" inputmode="numeric" autocomplete="off" />
+          <button class="clear-btn" id="pxClear" onclick="clearPx()">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-px">
+      <span class="lbl lbl-px">Min arb threshold (net after fee)</span>
+      <div class="thresh-row">
+        <button class="tb tb-px on" id="px1">1%</button>
+        <button class="tb tb-px" id="px2">2%</button>
+        <button class="tb tb-px" id="px3">3%</button>
+        <button class="tb tb-px" id="px4">4%</button>
+        <button class="tb tb-px" id="px5">5%</button>
+      </div>
+    </div>
+
+    <div class="result-card result-card-px" id="pxRes" style="display:none;">
+      <div class="slip-lbl slip-lbl-px">Order slip</div>
+      <div class="offering-box offering-box-px">
+        <div class="offering-lbl offering-lbl-px">Your price to make</div>
+        <div class="offering-val offering-val-px" id="pxPost">—</div>
+        <div class="fee-note">2% ProphetX fee baked in</div>
+      </div>
+      <div class="arb-row">
+        <div class="arb-lbl">Net arb if filled</div>
+        <div class="arb-val-px" id="pxArb">—</div>
+      </div>
+    </div>
+    <p class="hint hint-px" id="pxHint">Enter odds above to see your post price</p>
   </div>
 
-  <div class="result-card" id="res">
-    <div class="slip-label">Order slip</div>
-    <div class="offering-box">
-      <div class="offering-lbl">Your price to make</div>
-      <div class="offering-val" id="filledVal">—</div>
-    </div>
-    <div class="arb-row">
-      <div class="arb-lbl">Guaranteed arb if filled</div>
-      <div class="arb-val" id="arbPct">—</div>
-    </div>
-  </div>
-
-  <p class="hint" id="mh">Enter odds above to see your post price</p>
 </div>
-
 <script>
-var thresh = 1;
-var sign = 1;
+var nvSign = 1, nvThresh = 1;
+var pxSign = 1, pxThresh = 1;
 
-document.getElementById('signBtn').addEventListener('mousedown', function(e) {
-  e.preventDefault();
-  sign = sign * -1;
-  var sym = sign > 0 ? '+' : '-';
-  var col = sign > 0 ? 'var(--cyan)' : '#ff6b6b';
-  this.textContent = sym;
-  this.style.color = col;
-  document.getElementById('signPrefix').textContent = sym;
-  document.getElementById('signPrefix').style.color = col;
-  go();
-});
-document.getElementById('signBtn').addEventListener('touchstart', function(e) {
-  e.preventDefault();
-  sign = sign * -1;
-  var sym = sign > 0 ? '+' : '-';
-  var col = sign > 0 ? 'var(--cyan)' : '#ff6b6b';
-  this.textContent = sym;
-  this.style.color = col;
-  document.getElementById('signPrefix').textContent = sym;
-  document.getElementById('signPrefix').style.color = col;
-  go();
-}, {passive: false});
-
-document.getElementById('t1').addEventListener('click', function() { setThresh(1); });
-document.getElementById('t2').addEventListener('click', function() { setThresh(2); });
-document.getElementById('t3').addEventListener('click', function() { setThresh(3); });
-document.getElementById('t4').addEventListener('click', function() { setThresh(4); });
-document.getElementById('t5').addEventListener('click', function() { setThresh(5); });
-document.getElementById('oi').addEventListener('input', function() {
-  var btn = document.getElementById('clearBtn');
-  btn.style.display = this.value ? 'flex' : 'none';
-  go();
-});
-
-function clearOdds() {
-  document.getElementById('oi').value = '';
-  document.getElementById('clearBtn').style.display = 'none';
-  document.getElementById('res').style.display = 'none';
-  document.getElementById('mh').style.display = 'block';
-  document.getElementById('oi').focus();
-}
-
-function setThresh(n) {
-  thresh = n;
-  for (var i = 1; i <= 5; i++) {
-    document.getElementById('t' + i).className = (i === n) ? 'tb on' : 'tb';
-  }
-  go();
+function switchTab(tab) {
+  var isNv = tab === 'nv';
+  // Haptic feedback
+  if (navigator.vibrate) navigator.vibrate(8);
+  var nvEl = document.getElementById('nvSection');
+  var pxEl = document.getElementById('pxSection');
+  nvEl.style.display = isNv ? 'block' : 'none';
+  pxEl.style.display = isNv ? 'none' : 'block';
+  document.getElementById('tabNv').className = 'tab tab-nv' + (isNv ? ' active' : '');
+  document.getElementById('tabPx').className = 'tab tab-px' + (!isNv ? ' active' : '');
 }
 
 function toImplied(o) {
@@ -166,39 +226,128 @@ function toImplied(o) {
   return Math.abs(o) / (Math.abs(o) + 100);
 }
 
-function go() {
-  var raw = document.getElementById('oi').value.trim();
-  var res = document.getElementById('res');
-  var mh = document.getElementById('mh');
-
-  if (!raw) { res.style.display = 'none'; mh.style.display = 'block'; return; }
-  var num = parseInt(raw, 10);
-  if (isNaN(num) || num < 100) { res.style.display = 'none'; mh.style.display = 'block'; return; }
-
-  var o = num * sign;
+function calcPost(o, thresh, fee) {
   var myImp = toImplied(o);
-  var otherImp = (1 - thresh / 100) - myImp;
-  if (otherImp <= 0 || otherImp >= 1) { res.style.display = 'none'; mh.style.display = 'block'; return; }
+  var otherImp = (1 - (thresh / 100) - (fee || 0)) - myImp;
+  if (otherImp <= 0 || otherImp >= 1) return null;
+  var am = otherImp < 0.5
+    ? Math.round(100 / otherImp - 100)
+    : Math.round(-otherImp / (1 - otherImp) * 100);
+  if (o > 0) return am < 0 ? String(am) : '-' + am;
+  return '+' + Math.abs(am);
+}
 
-  var otherAmerican;
-  if (otherImp < 0.5) {
-    otherAmerican = Math.round(100 / otherImp - 100);
+// NoVig
+document.getElementById('nvSignBtn').addEventListener('mousedown', function(e) { e.preventDefault(); toggleSign('nv'); });
+document.getElementById('nvSignBtn').addEventListener('touchstart', function(e) { e.preventDefault(); toggleSign('nv'); }, {passive:false});
+document.getElementById('nvOi').addEventListener('input', function() {
+  document.getElementById('nvClear').style.display = this.value ? 'flex' : 'none';
+  goNv();
+});
+for (var i = 1; i <= 5; i++) {
+  (function(n) {
+    document.getElementById('nv' + n).addEventListener('click', function() {
+      if (navigator.vibrate) navigator.vibrate(6);
+      nvThresh = n;
+      for (var j = 1; j <= 5; j++) document.getElementById('nv' + j).className = 'tb tb-nv' + (j === n ? ' on' : '');
+      goNv();
+    });
+  })(i);
+}
+
+function toggleSign(which) {
+  if (navigator.vibrate) navigator.vibrate(6);
+  if (which === 'nv') {
+    nvSign *= -1;
+    var sym = nvSign > 0 ? '+' : '-';
+    document.getElementById('nvSignBtn').textContent = sym;
+    document.getElementById('nvSignBtn').style.color = nvSign > 0 ? 'var(--cyan)' : '#ff6b6b';
+    document.getElementById('nvPrefix').textContent = sym;
+    goNv();
   } else {
-    otherAmerican = Math.round(-otherImp / (1 - otherImp) * 100);
+    pxSign *= -1;
+    var sym2 = pxSign > 0 ? '+' : '-';
+    document.getElementById('pxSignBtn').textContent = sym2;
+    document.getElementById('pxSignBtn').style.color = pxSign > 0 ? 'var(--green)' : '#ff6b6b';
+    document.getElementById('pxPrefix').textContent = sym2;
+    goPx();
   }
+}
 
-  var postLine = o > 0
-    ? (otherAmerican < 0 ? String(otherAmerican) : '-' + otherAmerican)
-    : '+' + Math.abs(otherAmerican);
+function clearNv() {
+  document.getElementById('nvOi').value = '';
+  document.getElementById('nvClear').style.display = 'none';
+  document.getElementById('nvRes').style.display = 'none';
+  document.getElementById('nvHint').style.display = 'block';
+  document.getElementById('nvOi').focus();
+}
 
-  var filledLine = postLine.charAt(0) === '-'
-    ? '+' + postLine.slice(1)
-    : '-' + postLine.slice(1);
+function goNv() {
+  var raw = document.getElementById('nvOi').value.trim();
+  var res = document.getElementById('nvRes');
+  var hint = document.getElementById('nvHint');
+  if (!raw) { res.style.display = 'none'; hint.style.display = 'block'; return; }
+  var num = parseInt(raw, 10);
+  if (isNaN(num) || num < 100) { res.style.display = 'none'; hint.style.display = 'block'; return; }
+  var post = calcPost(num * nvSign, nvThresh, 0);
+  if (!post) { res.style.display = 'none'; hint.style.display = 'block'; return; }
+  res.style.display = 'block'; hint.style.display = 'none';
+  document.getElementById('nvPost').textContent = post;
+  document.getElementById('nvArb').textContent = '+' + nvThresh + '%';
+}
 
-  res.style.display = 'block';
-  mh.style.display = 'none';
-  document.getElementById('filledVal').textContent = filledLine;
-  document.getElementById('arbPct').textContent = '+' + thresh + '%';
+// ProphetX
+
+document.getElementById('pxSignBtn').addEventListener('mousedown', function(e) { e.preventDefault(); toggleSign('px'); });
+document.getElementById('pxSignBtn').addEventListener('touchstart', function(e) { e.preventDefault(); toggleSign('px'); }, {passive:false});
+document.getElementById('pxOi').addEventListener('input', function() {
+  document.getElementById('pxClear').style.display = this.value ? 'flex' : 'none';
+  goPx();
+});
+for (var i = 1; i <= 5; i++) {
+  (function(n) {
+    document.getElementById('px' + n).addEventListener('click', function() {
+      if (navigator.vibrate) navigator.vibrate(6);
+      pxThresh = n;
+      for (var j = 1; j <= 5; j++) document.getElementById('px' + j).className = 'tb tb-px' + (j === n ? ' on' : '');
+      goPx();
+    });
+  })(i);
+}
+
+function clearPx() {
+  document.getElementById('pxOi').value = '';
+  document.getElementById('pxClear').style.display = 'none';
+  document.getElementById('pxRes').style.display = 'none';
+  document.getElementById('pxHint').style.display = 'block';
+  document.getElementById('pxOi').focus();
+}
+
+function goPx() {
+  var raw = document.getElementById('pxOi').value.trim();
+  var res = document.getElementById('pxRes');
+  var hint = document.getElementById('pxHint');
+  if (!raw) { res.style.display = 'none'; hint.style.display = 'block'; return; }
+  var num = parseInt(raw, 10);
+  if (isNaN(num) || num < 100) { res.style.display = 'none'; hint.style.display = 'block'; return; }
+  var o = num * pxSign;
+  // PX: fee is 2% of WINNINGS (decimal odds approach)
+  // Need: net_implied_after_fee = mktImp + thresh/100
+  // net_dec = 1 / (mktImp + thresh/100)
+  // dec_post = 1 + (net_dec - 1) / 0.98
+  // PX: NoVig arb number (other side), flip back to same sign as market, add 4
+  var myImp = toImplied(o);
+  var otherImp = (1 - pxThresh / 100) - myImp;
+  if (otherImp <= 0 || otherImp >= 1) { res.style.display = 'none'; hint.style.display = 'block'; return; }
+  var am;
+  if (otherImp < 0.5) { am = Math.round(100 / otherImp - 100); }
+  else { am = Math.round(-otherImp / (1 - otherImp) * 100); }
+  // am is the NoVig other-side number. Add 4 and keep same sign as input.
+  var absAm = Math.abs(am) + 4;
+  var post = o > 0 ? '+' + absAm : '-' + absAm;
+  res.style.display = 'block'; hint.style.display = 'none';
+  document.getElementById('pxPost').textContent = post;
+  document.getElementById('pxArb').textContent = '+' + pxThresh + '%';
 }
 </script>
 </body>
