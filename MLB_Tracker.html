@@ -2079,102 +2079,75 @@ async function gradeAllForDate(scope, btn){
   if(scope==='totals'){
     btn.textContent='Fetching scores...';
 
-    // Comprehensive map: what you type → what MLB Stats API abbreviation returns
-    const TEAM_MAP={
-      // What user types → canonical mlb abbr
-      'kc':'kc','kcr':'kc','atl':'atl','cle':'cle','sea':'sea','det':'det',
-      'sd':'sd','sdp':'sd','az':'ari','ari':'ari','lad':'lad','la':'lad',
-      'nyy':'nyy','ny':'nyy','sf':'sf','sfg':'sf','ath':'oak','oak':'oak',
-      'tor':'tor','col':'col','mia':'mia','laa':'laa','ana':'laa',
-      'hou':'hou','nym':'nym','phi':'phi','mil':'mil','stl':'stl',
-      'chc':'chc','cws':'cws','chw':'cws','min':'min','tex':'tex',
-      'bos':'bos','tb':'tb','tbr':'tb','bal':'bal','was':'wsh','wsh':'wsh',
-      'pit':'pit','cin':'cin','nyy':'nyy',
-      // City/name fragments that might appear
-      'yankees':'nyy','mets':'nym','dodgers':'lad','cubs':'chc',
-      'whitesox':'cws','redsox':'bos','bluejays':'tor','angels':'laa',
-      'cardinals':'stl','brewers':'mil','phillies':'phi','braves':'atl',
-      'astros':'hou','rangers':'tex','tigers':'det','royals':'kc',
-      'guardians':'cle','mariners':'sea','athletics':'oak','padres':'sd',
-      'diamondbacks':'ari','rockies':'col','marlins':'mia','nationals':'wsh',
-      'pirates':'pit','reds':'cin','twins':'min','orioles':'bal','rays':'tb',
-      'giants':'sf','athletics':'oak',
-    };
-    const norm=s=>s.toLowerCase().replace(/[^a-z]/g,'');
-    const toA=s=>TEAM_MAP[norm(s)]||norm(s);
+    // Full name → abbreviation map (from Bat X)
+    const MLB_NAME_ABBR={'Minnesota Twins':'MIN','Kansas City Royals':'KC','Baltimore Orioles':'BAL','Texas Rangers':'TEX','Atlanta Braves':'ATL','Oakland Athletics':'ATH','Sacramento Athletics':'ATH','Philadelphia Phillies':'PHI','Washington Nationals':'WSH','Pittsburgh Pirates':'PIT','New York Mets':'NYM','Colorado Rockies':'COL','Miami Marlins':'MIA','Boston Red Sox':'BOS','Cincinnati Reds':'CIN','Tampa Bay Rays':'TB','St. Louis Cardinals':'STL','Milwaukee Brewers':'MIL','Los Angeles Angels':'LAA','Chicago Cubs':'CHC','New York Yankees':'NYY','Seattle Mariners':'SEA','San Diego Padres':'SD','San Francisco Giants':'SF','Arizona Diamondbacks':'ARI','Detroit Tigers':'DET','Cleveland Guardians':'CLE','Los Angeles Dodgers':'LAD','Chicago White Sox':'CWS','Houston Astros':'HOU','Toronto Blue Jays':'TOR','Athletics':'ATH'};
+    // What you type → canonical abbr
+    const MLB_API_ABBR={'ARI':'ARI','AZ':'ARI','ATL':'ATL','BAL':'BAL','BOS':'BOS','CHC':'CHC','CWS':'CWS','CIN':'CIN','CLE':'CLE','COL':'COL','DET':'DET','HOU':'HOU','KC':'KC','KCR':'KC','LAD':'LAD','LAA':'LAA','ANA':'LAA','MIA':'MIA','MIL':'MIL','MIN':'MIN','NYM':'NYM','NYY':'NYY','ATH':'ATH','OAK':'ATH','SAC':'ATH','PHI':'PHI','PIT':'PIT','SD':'SD','SDP':'SD','SF':'SF','SFG':'SF','SEA':'SEA','STL':'STL','TB':'TB','TBR':'TB','TEX':'TEX','TOR':'TOR','WSH':'WSH','WSN':'WSH','WAS':'WSH'};
 
-    async function fetchFinalGames(date){
-      try{
-        const r=await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore`);
-        const d=await r.json();
-        return (d.dates?.[0]?.games||[]).filter(g=>/final|complete/i.test(g.status?.detailedState||''));
-      }catch(e){ return []; }
+    function teamAbbr(g, side){
+      const name=(g.teams?.[side]?.team?.name||'');
+      return MLB_NAME_ABBR[name]||MLB_API_ABBR[name.toUpperCase().replace(/\s+/g,'').slice(0,3)]||name.toUpperCase().slice(0,3);
     }
 
-    function findTotal(games, away, home){
-      const awayA=toA(away), homeA=toA(home);
-      const awayN=norm(away), homeN=norm(home);
-      // Pass 1: both abbreviations match
-      for(const g of games){
-        const gA=toA(g.teams?.away?.team?.abbreviation||'');
-        const gH=toA(g.teams?.home?.team?.abbreviation||'');
-        if(gA===awayA&&gH===homeA){
-          const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-          if(ar!=null&&hr!=null) return ar+hr;
-        }
-      }
-      // Pass 2: team name contains the query string
-      for(const g of games){
-        const gAn=norm(g.teams?.away?.team?.name||'');
-        const gHn=norm(g.teams?.home?.team?.name||'');
-        if(gAn.includes(awayN)&&gHn.includes(homeN)){
-          const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-          if(ar!=null&&hr!=null) return ar+hr;
-        }
-      }
-      // Pass 3: city name contains
-      for(const g of games){
-        const gAc=norm(g.teams?.away?.team?.locationName||'');
-        const gHc=norm(g.teams?.home?.team?.locationName||'');
-        if(gAc.includes(awayN)&&gHc.includes(homeN)){
-          const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-          if(ar!=null&&hr!=null) return ar+hr;
-        }
-      }
-      return null;
+    function getCanonical(input){
+      const u=input.toUpperCase().trim();
+      return MLB_API_ABBR[u]||u;
     }
 
-    // Fetch exact date + next day (late games finish after midnight)
-    const next=new Date(dateStr+'T12:00:00'); next.setDate(next.getDate()+1);
-    const nextStr=next.toISOString().split('T')[0];
-    const [games, nextGames]=await Promise.all([fetchFinalGames(dateStr), fetchFinalGames(nextStr)]);
-    const allGames=[...games, ...nextGames];
+    // Fetch with corsproxy fallback
+    async function fetchGames(date){
+      const url=`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore`;
+      let resp;
+      try{ resp=await fetch(url); }
+      catch(e){ resp=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url)); }
+      const data=await resp.json();
+      return (data.dates?.[0]?.games)||[];
+    }
 
-    console.log(`Found ${games.length} final games on ${dateStr}, ${nextGames.length} on ${nextStr}`);
-    allGames.forEach(g=>{
-      const ar=g.linescore?.teams?.away?.runs, hr=g.linescore?.teams?.home?.runs;
-      console.log(`  ${g.teams?.away?.team?.abbreviation} @ ${g.teams?.home?.team?.abbreviation}: ${ar}-${hr}`);
-    });
+    const games=await fetchGames(dateStr);
+    console.log(`${games.length} games on ${dateStr}:`);
+    games.forEach(g=>console.log(`  ${teamAbbr(g,'away')} @ ${teamAbbr(g,'home')} | score: ${g.teams?.away?.score}-${g.teams?.home?.score} | ${g.status?.detailedState}`));
 
     const failed=[];
     for(let i=0;i<bets.length;i++){
       const bet=bets[i];
       if(bet.date!==dateStr||bet.grade) continue;
       btn.textContent=`Grading ${bet.away}@${bet.home}...`;
-      const found=findTotal(allGames, bet.away, bet.home);
-      if(found!==null){
-        const r=found===bet.line?'push':(bet.ou==='over'?found>bet.line:found<bet.line)?'win':'loss';
-        bets[i].grade=r; bets[i].actual=found; done++;
-        console.log(`✓ ${bet.away}@${bet.home} = ${found} → ${r}`);
-      } else {
+
+      const awayC=getCanonical(bet.away);
+      const homeC=getCanonical(bet.home);
+
+      const g=games.find(g=>{
+        const ha=teamAbbr(g,'home'), aa=teamAbbr(g,'away');
+        const haC=getCanonical(ha), aaC=getCanonical(aa);
+        return (aaC===awayC||aa===awayC)&&(haC===homeC||ha===homeC);
+      });
+
+      if(!g){
+        console.warn(`No game found for ${bet.away}@${bet.home} (looking for ${awayC}@${homeC})`);
         failed.push(`${bet.away}@${bet.home}`);
-        console.warn(`✗ No match for ${bet.away}@${bet.home}`);
+        continue;
       }
+
+      const isFinal=(g.status?.detailedState||'').toLowerCase().includes('final');
+      if(!isFinal){ failed.push(`${bet.away}@${bet.home} (not final)`); continue; }
+
+      // Use .score like Bat X does — most reliable
+      const awayScore=parseInt(g.teams?.away?.score)||0;
+      const homeScore=parseInt(g.teams?.home?.score)||0;
+      const total=awayScore+homeScore;
+
+      const r=total===bet.line?'push':(bet.ou==='over'?total>bet.line:total<bet.line)?'win':'loss';
+      bets[i].grade=r; bets[i].actual=total; done++;
+      console.log(`✓ ${bet.away}@${bet.home} ${awayScore}-${homeScore} (${total}) → ${r}`);
     }
+
     saveBets(scope); render(scope);
     btn.disabled=false; btn.textContent='⚡ GRADE DATE';
-    if(failed.length) alert(`Graded ${done}. Couldn't auto-grade:\n${failed.join('\n')}\n\nUse Change to set manually.`);
-    else alert(`All ${done} bets graded ✓`);
+    if(failed.length){
+      const gameList=games.map(g=>`${teamAbbr(g,'away')}@${teamAbbr(g,'home')}`).join(', ');
+      alert(`Graded ${done}. Couldn't match:\n${failed.join('\n')}\n\nAPI games found:\n${gameList}`);
+    } else alert(`All ${done} bets graded ✓`);
 
   } else {
     // Props — use existing BDL grading
