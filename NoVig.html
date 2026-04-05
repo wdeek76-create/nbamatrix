@@ -107,6 +107,7 @@
   <div class="tabs">
     <div class="tab tab-nv active" id="tabNv" onclick="switchTab('nv')">NoVig</div>
     <div class="tab tab-px" id="tabPx" onclick="switchTab('px')">ProphetX</div>
+    <div class="tab tab-calc" id="tabCalc" onclick="switchTab('calc')">Calc</div>
   </div>
 
   <!-- NoVig Section -->
@@ -204,21 +205,237 @@
     <p class="hint hint-px" id="pxHint">Enter odds above to see your post price</p>
   </div>
 
+  <!-- Calc Section -->
+  <div id="calcSection" style="display:none;">
+    <div class="header">
+      <div class="badge" style="background:#ffc832;color:#000;">C</div>
+      <div>
+        <div class="header-title" id="calcTitle">Hedge Calc</div>
+        <div class="header-sub" id="calcSub">Precise sizing + all options</div>
+      </div>
+    </div>
+
+    <!-- Calc sub-tabs -->
+    <div style="display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px;">
+      <div id="subTabHedge" onclick="switchCalcTab('hedge')" style="flex:1;padding:10px 0;text-align:center;font-size:14px;font-weight:600;cursor:pointer;background:rgba(255,200,50,0.15);color:#ffc832;">Hedge</div>
+      <div id="subTabArb" onclick="switchCalcTab('arb')" style="flex:1;padding:10px 0;text-align:center;font-size:14px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--muted);">Arb</div>
+    </div>
+
+    <div id="hedgeSection">
+
+    <div class="card card-nv">
+      <span class="lbl">Original bet</span>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Stake ($)</div>
+        <input id="hStake" type="tel" inputmode="decimal" placeholder="100"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 16px;height:56px;font-family:inherit;font-size:28px;font-weight:600;color:#fff;outline:none;" />
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Your odds</div>
+        <div style="display:flex;">
+          <button id="hSignBtn" style="width:56px;height:56px;background:var(--surface2);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;font-size:24px;font-weight:600;color:var(--cyan);cursor:pointer;flex-shrink:0;">+</button>
+          <div style="position:relative;flex:1;">
+            <span id="hPrefix" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:28px;font-weight:600;color:#fff;pointer-events:none;z-index:1;">+</span>
+            <input id="hOdds" type="tel" inputmode="numeric" placeholder="130"
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:0 10px 10px 0;padding:0 16px 0 36px;height:56px;font-family:inherit;font-size:28px;font-weight:600;color:#fff;outline:none;" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-nv" id="exchSuggestCard" style="display:none;">
+      <span class="lbl">Best market price (optional)</span>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Enter the best odds available — get your exchange post price</div>
+      <div style="display:flex;margin-bottom:12px;">
+        <button id="mktSignBtn" style="width:56px;height:56px;background:var(--surface2);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;font-size:24px;font-weight:600;color:var(--cyan);cursor:pointer;flex-shrink:0;">+</button>
+        <div style="position:relative;flex:1;">
+          <span id="mktPrefix" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:28px;font-weight:600;color:#fff;pointer-events:none;z-index:1;">+</span>
+          <input id="mktOdds" type="tel" inputmode="numeric" placeholder="140"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:0 10px 10px 0;padding:0 16px 0 36px;height:56px;font-family:inherit;font-size:28px;font-weight:600;color:#fff;outline:none;" />
+        </div>
+      </div>
+      <div id="exchSuggestResult" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div style="background:var(--cyan-dim);border:1px solid var(--cyan-border);border-radius:10px;padding:12px 14px;">
+            <div style="font-size:10px;color:var(--cyan);font-weight:600;margin-bottom:4px;">POST ON NOVIG</div>
+            <div style="font-size:26px;font-weight:700;color:#fff;" id="nvSuggest">—</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">1% arb</div>
+          </div>
+          <div style="background:var(--green-dim);border:1px solid var(--green-border);border-radius:10px;padding:12px 14px;">
+            <div style="font-size:10px;color:var(--green);font-weight:600;margin-bottom:4px;">POST ON PROPHETX</div>
+            <div style="font-size:26px;font-weight:700;color:#fff;" id="pxSuggest">—</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">+4 pts · same sign</div>
+          </div>
+        </div>
+        <div id="filledSummary" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <!-- NoVig filled -->
+            <div style="background:var(--cyan-dim);border:1px solid var(--cyan-border);border-radius:10px;padding:12px 14px;">
+              <div style="font-size:10px;color:var(--cyan);font-weight:600;margin-bottom:8px;">IF FILLED · NOVIG</div>
+              <div style="margin-bottom:6px;">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">HEDGE STAKE</div>
+                <div style="font-size:16px;font-weight:700;color:#fff;" id="nvFillStake">—</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
+                <div>
+                  <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">ORIG WINS</div>
+                  <div style="font-size:15px;font-weight:700;" id="nvFillP1">—</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">HEDGE WINS</div>
+                  <div style="font-size:15px;font-weight:700;" id="nvFillP2">—</div>
+                </div>
+              </div>
+              <div style="font-size:11px;font-weight:700;" id="nvFillStatus"></div>
+            </div>
+            <!-- PX filled -->
+            <div style="background:var(--green-dim);border:1px solid var(--green-border);border-radius:10px;padding:12px 14px;">
+              <div style="font-size:10px;color:var(--green);font-weight:600;margin-bottom:8px;">IF FILLED · PROPHETX</div>
+              <div style="margin-bottom:6px;">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">HEDGE STAKE</div>
+                <div style="font-size:16px;font-weight:700;color:#fff;" id="pxFillStake">—</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
+                <div>
+                  <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">ORIG WINS</div>
+                  <div style="font-size:15px;font-weight:700;" id="pxFillP1">—</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">HEDGE WINS</div>
+                  <div style="font-size:15px;font-weight:700;" id="pxFillP2">—</div>
+                </div>
+              </div>
+              <div style="font-size:11px;font-weight:700;" id="pxFillStatus"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-nv" id="specificCard" style="display:none;">
+      <span class="lbl">Hedge at specific odds</span>
+      <div style="display:flex;gap:0;margin-bottom:14px;">
+        <button id="h2SignBtn" style="width:56px;height:56px;background:var(--surface2);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;font-size:24px;font-weight:600;color:var(--cyan);cursor:pointer;flex-shrink:0;">+</button>
+        <div style="position:relative;flex:1;">
+          <span id="h2Prefix" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:28px;font-weight:600;color:#fff;pointer-events:none;z-index:1;">+</span>
+          <input id="h2Odds" type="tel" inputmode="numeric" placeholder="135"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:0 10px 10px 0;padding:0 16px 0 36px;height:56px;font-family:inherit;font-size:28px;font-weight:600;color:#fff;outline:none;" />
+        </div>
+      </div>
+      <div id="specificResult" style="display:none;background:var(--surface2);border-radius:10px;padding:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-bottom:10px;">
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:600;">HEDGE STAKE</div>
+            <div style="font-size:20px;font-weight:700;color:#fff;" id="spcStake">—</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:600;">ORIG WINS</div>
+            <div style="font-size:20px;font-weight:700;" id="spcP1">—</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:600;">HEDGE WINS</div>
+            <div style="font-size:20px;font-weight:700;" id="spcP2">—</div>
+          </div>
+        </div>
+        <div id="spcLabel" style="text-align:center;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;"></div>
+      </div>
+    </div>
+
+    <div id="hedgeTable" style="display:none;">
+      <div class="card card-nv" style="padding:0;overflow:hidden;">
+        <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr;background:var(--surface2);padding:10px 14px;">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;">ODDS</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;text-align:right;">STAKE</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;text-align:right;">ORIG WINS</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;text-align:right;">HEDGE WINS</div>
+        </div>
+        <div id="hedgeRows" style="max-height:340px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <p class="hint" id="hedgeHint">Enter your original stake and odds above</p>
+    </div><!-- end hedgeSection -->
+
+
+    <!-- Arb Calculator -->
+    <div id="arbSection" style="display:none;">
+      <div class="card card-nv">
+        <span class="lbl">Side 1</span>
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Stake ($)</div>
+            <input id="arb1Stake" type="tel" inputmode="decimal" placeholder="100" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 14px;height:52px;font-family:inherit;font-size:24px;font-weight:600;color:#fff;outline:none;" />
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Odds</div>
+            <div style="display:flex;">
+              <button id="arb1SignBtn" style="width:44px;height:52px;background:var(--surface2);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;font-size:20px;font-weight:600;color:#ffc832;cursor:pointer;flex-shrink:0;">+</button>
+              <div style="position:relative;flex:1;">
+                <span id="arb1Prefix" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:24px;font-weight:600;color:#fff;pointer-events:none;z-index:1;">+</span>
+                <input id="arb1Odds" type="tel" inputmode="numeric" placeholder="200" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:0 10px 10px 0;padding:0 12px 0 30px;height:52px;font-family:inherit;font-size:24px;font-weight:600;color:#fff;outline:none;" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="lbl">Side 2</span>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Stake ($)</div>
+            <input id="arb2Stake" type="tel" inputmode="decimal" placeholder="auto" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 14px;height:52px;font-family:inherit;font-size:24px;font-weight:600;color:#fff;outline:none;" />
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Odds</div>
+            <div style="display:flex;">
+              <button id="arb2SignBtn" style="width:44px;height:52px;background:var(--surface2);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;font-size:20px;font-weight:600;color:#ffc832;cursor:pointer;flex-shrink:0;">+</button>
+              <div style="position:relative;flex:1;">
+                <span id="arb2Prefix" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:24px;font-weight:600;color:#fff;pointer-events:none;z-index:1;">+</span>
+                <input id="arb2Odds" type="tel" inputmode="numeric" placeholder="150" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:0 10px 10px 0;padding:0 12px 0 30px;height:52px;font-family:inherit;font-size:24px;font-weight:600;color:#fff;outline:none;" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="arbCalcResult" style="display:none;">
+        <div class="card card-nv" style="padding:0;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);">
+            <div style="padding:12px 14px;border-right:1px solid var(--border);">
+              <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px;">TOTAL STAKE</div>
+              <div style="font-size:18px;font-weight:700;color:#fff;" id="arbTotalStake">—</div>
+            </div>
+            <div style="padding:12px 14px;border-right:1px solid var(--border);">
+              <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px;">S1 WINS</div>
+              <div style="font-size:18px;font-weight:700;" id="arbProfit1">—</div>
+            </div>
+            <div style="padding:12px 14px;">
+              <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px;">S2 WINS</div>
+              <div style="font-size:18px;font-weight:700;" id="arbProfit2">—</div>
+            </div>
+          </div>
+          <div style="padding:11px 14px;text-align:center;">
+            <div style="font-size:13px;font-weight:700;" id="arbStatus">—</div>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="hint" id="arbCalcHint">Enter odds on both sides above</p>
+    </div><!-- end arbSection -->
+
+  </div>
 </div>
 <script>
 var nvSign = 1, nvThresh = 1;
 var pxSign = 1, pxThresh = 1;
 
 function switchTab(tab) {
-  var isNv = tab === 'nv';
-  // Haptic feedback
   if (navigator.vibrate) navigator.vibrate(8);
-  var nvEl = document.getElementById('nvSection');
-  var pxEl = document.getElementById('pxSection');
-  nvEl.style.display = isNv ? 'block' : 'none';
-  pxEl.style.display = isNv ? 'none' : 'block';
-  document.getElementById('tabNv').className = 'tab tab-nv' + (isNv ? ' active' : '');
-  document.getElementById('tabPx').className = 'tab tab-px' + (!isNv ? ' active' : '');
+  document.getElementById('nvSection').style.display = tab === 'nv' ? 'block' : 'none';
+  document.getElementById('pxSection').style.display = tab === 'px' ? 'block' : 'none';
+  document.getElementById('calcSection').style.display = tab === 'calc' ? 'block' : 'none';
+  document.getElementById('tabNv').className = 'tab tab-nv' + (tab === 'nv' ? ' active' : '');
+  document.getElementById('tabPx').className = 'tab tab-px' + (tab === 'px' ? ' active' : '');
+  document.getElementById('tabCalc').className = 'tab tab-calc' + (tab === 'calc' ? ' active' : '');
 }
 
 function toImplied(o) {
@@ -227,14 +444,14 @@ function toImplied(o) {
 }
 
 function calcPost(o, thresh, fee) {
+  // Same sign as input — add thresh+fee to implied, keep same direction
   var myImp = toImplied(o);
-  var otherImp = (1 - (thresh / 100) - (fee || 0)) - myImp;
-  if (otherImp <= 0 || otherImp >= 1) return null;
-  var am = otherImp < 0.5
-    ? Math.round(100 / otherImp - 100)
-    : Math.round(-otherImp / (1 - otherImp) * 100);
-  if (o > 0) return am < 0 ? String(am) : '-' + am;
-  return '+' + Math.abs(am);
+  var postImp = myImp + (thresh / 100) + (fee || 0);
+  if (postImp <= 0 || postImp >= 1) return null;
+  var am;
+  if (postImp < 0.5) { am = Math.round(100 / postImp - 100); }
+  else { am = Math.round(-postImp / (1 - postImp) * 100); }
+  return am > 0 ? '+' + am : String(am);
 }
 
 // NoVig
@@ -348,6 +565,294 @@ function goPx() {
   res.style.display = 'block'; hint.style.display = 'none';
   document.getElementById('pxPost').textContent = post;
   document.getElementById('pxArb').textContent = '+' + pxThresh + '%';
+}
+
+// Hedge Calc
+var hSign = 1, h2Sign = 1;
+
+function makeToggle(btnId, prefixId, signRef, cb) {
+  function go(e) {
+    e.preventDefault();
+    signRef.v *= -1;
+    var s = signRef.v > 0 ? '+' : '-';
+    var c = signRef.v > 0 ? 'var(--cyan)' : '#ff6b6b';
+    document.getElementById(btnId).textContent = s;
+    document.getElementById(btnId).style.color = c;
+    document.getElementById(prefixId).textContent = s;
+    cb();
+  }
+  document.getElementById(btnId).addEventListener('mousedown', go);
+  document.getElementById(btnId).addEventListener('touchstart', go, {passive:false});
+}
+
+var hSgn = {v:1}, h2Sgn = {v:1};
+makeToggle('hSignBtn','hPrefix', hSgn, goHedge);
+makeToggle('h2SignBtn','h2Prefix', h2Sgn, goSpecific);
+
+var mktSgn = {v:1};
+makeToggle('mktSignBtn','mktPrefix', mktSgn, goMktSuggest);
+document.getElementById('mktOdds').addEventListener('input', goMktSuggest);
+
+function goMktSuggest() {
+  var raw = parseInt(document.getElementById('mktOdds').value);
+  var res = document.getElementById('exchSuggestResult');
+  if (isNaN(raw) || raw < 100) { res.style.display = 'none'; return; }
+
+  var o = raw * mktSgn.v;
+  var myImp = toImplied(o);
+
+  // NoVig: flip sign, 1% arb math
+  // otherImp is the bettor's side implied
+  var otherImp = (1 - 0.01) - myImp;
+  var am;
+  if (otherImp <= 0) { res.style.display = 'none'; return; }
+  if (otherImp < 0.5) { am = Math.round(100 / otherImp - 100); }
+  else { am = Math.round(-otherImp / (1 - otherImp) * 100); }
+
+  // NoVig: you type the MINUS side, bettor sees the plus
+  // am is the bettor's plus side. You post the negative of that.
+  var nvPost = am > 0 ? '-' + am : '+' + Math.abs(am);
+  // Your hedge position = same as what you type (nvPost)
+  var nvPostHedgeOdds = am > 0 ? -am : Math.abs(am);
+
+  // ProphetX: same sign as market input, NoVig abs + 4
+  var absAm = Math.abs(am) + 4;
+  var pxPost = o < 0 ? '-' + absAm : '+' + absAm;
+
+  // If filled summary: what happens each outcome
+  // You already have original bet (hStake at hOdds)
+  // If filled on exchange at nvPost odds:
+  var stakeRaw = parseFloat(document.getElementById('hStake').value);
+  var oddsRaw = parseInt(document.getElementById('hOdds').value);
+  var filledSection = document.getElementById('filledSummary');
+
+  document.getElementById('nvSuggest').textContent = nvPost;
+  document.getElementById('pxSuggest').textContent = pxPost;
+
+  if (!isNaN(stakeRaw) && stakeRaw > 0 && !isNaN(oddsRaw) && oddsRaw >= 100) {
+    var origOdds = oddsRaw * hSgn.v;
+    var origPayout = calcPayout(stakeRaw, origOdds);
+    // Parse nvPost as number
+    var nvNum = parseInt(nvPost);
+    var hs = calcHedgeStake(origPayout, nvNum);
+    var hp = calcPayout(hs, nvNum);
+    var p1 = (origPayout - stakeRaw) - hs;
+    var p2 = (hp - hs) - stakeRaw;
+    var isArb = p1 > 0.01 && p2 > 0.01;
+
+    // NoVig filled — your hedge position is opposite of what bettor sees
+    var nvNum = nvPostHedgeOdds;
+    var nvHs = calcHedgeStake(origPayout, nvNum);
+    var nvHp = calcPayout(nvHs, nvNum);
+    var nvP1 = (origPayout - stakeRaw) - nvHs;
+    var nvP2 = (nvHp - nvHs) - stakeRaw;
+    var nvArb = nvP1 > 0.01 && nvP2 > 0.01;
+    document.getElementById('nvFillStake').textContent = '$' + nvHs.toFixed(2);
+    document.getElementById('nvFillP1').textContent = fmt(nvP1);
+    document.getElementById('nvFillP1').style.color = fmtColor(nvP1);
+    document.getElementById('nvFillP2').textContent = fmt(nvP2);
+    document.getElementById('nvFillP2').style.color = fmtColor(nvP2);
+    document.getElementById('nvFillStatus').textContent = nvArb ? '✓ TRUE ARB' : nvP1 > 0 || nvP2 > 0 ? 'PARTIAL' : 'DAMAGE CONTROL';
+    document.getElementById('nvFillStatus').style.color = nvArb ? '#00e87a' : nvP1 > 0 || nvP2 > 0 ? '#ffc832' : '#ff4d4d';
+
+    // PX filled
+    var pxNum = parseInt(pxPost);
+    var pxHs = calcHedgeStake(origPayout, pxNum);
+    var pxHp = calcPayout(pxHs, pxNum);
+    var pxP1 = (origPayout - stakeRaw) - pxHs;
+    var pxP2 = (pxHp - pxHs) - stakeRaw;
+    var pxArb = pxP1 > 0.01 && pxP2 > 0.01;
+    document.getElementById('pxFillStake').textContent = '$' + pxHs.toFixed(2);
+    document.getElementById('pxFillP1').textContent = fmt(pxP1);
+    document.getElementById('pxFillP1').style.color = fmtColor(pxP1);
+    document.getElementById('pxFillP2').textContent = fmt(pxP2);
+    document.getElementById('pxFillP2').style.color = fmtColor(pxP2);
+    document.getElementById('pxFillStatus').textContent = pxArb ? '✓ TRUE ARB' : pxP1 > 0 || pxP2 > 0 ? 'PARTIAL' : 'DAMAGE CONTROL';
+    document.getElementById('pxFillStatus').style.color = pxArb ? '#00e87a' : pxP1 > 0 || pxP2 > 0 ? '#ffc832' : '#ff4d4d';
+
+    filledSection.style.display = 'block';
+  } else {
+    filledSection.style.display = 'none';
+  }
+
+  res.style.display = 'block';
+}
+
+document.getElementById('hStake').addEventListener('input', goHedge);
+document.getElementById('hOdds').addEventListener('input', goHedge);
+document.getElementById('h2Odds').addEventListener('input', goSpecific);
+
+function calcPayout(stake, odds) {
+  // Total return (stake + profit)
+  if (odds > 0) return stake * (1 + odds / 100);
+  return stake * (1 + 100 / Math.abs(odds));
+}
+
+function calcHedgeStake(origTotalPayout, hedgeOdds) {
+  // Stake so hedge total return = origTotalPayout (balanced outcomes)
+  if (hedgeOdds > 0) return origTotalPayout / (1 + hedgeOdds / 100);
+  return origTotalPayout / (1 + 100 / Math.abs(hedgeOdds));
+}
+
+function fmt(val) {
+  var s = val >= 0 ? '+$' : '-$';
+  return s + Math.abs(val).toFixed(2);
+}
+
+function fmtColor(val) {
+  return val > 0.005 ? '#00e87a' : val < -0.005 ? '#ff4d4d' : '#ffc832';
+}
+
+function goSpecific() {
+  var stakeRaw = parseFloat(document.getElementById('hStake').value);
+  var oddsRaw = parseInt(document.getElementById('hOdds').value);
+  var h2Raw = parseInt(document.getElementById('h2Odds').value);
+  var card = document.getElementById('specificCard');
+  var res = document.getElementById('specificResult');
+
+  if (isNaN(stakeRaw) || stakeRaw <= 0 || isNaN(oddsRaw) || oddsRaw < 100) {
+    card.style.display = 'none'; return;
+  }
+  card.style.display = 'block';
+  document.getElementById('exchSuggestCard').style.display = 'block';
+  if (isNaN(h2Raw) || h2Raw < 100) { res.style.display = 'none'; return; }
+
+  var origOdds = oddsRaw * hSgn.v;
+  var hedgeOdds = h2Raw * h2Sgn.v;
+  var origPayout = calcPayout(stakeRaw, origOdds);
+  var hs = calcHedgeStake(origPayout, hedgeOdds);
+  var hedgePayout = calcPayout(hs, hedgeOdds);
+
+  var profitIfOrig = (origPayout - stakeRaw) - hs;     // orig profit minus hedge stake lost
+  var profitIfHedge = (hedgePayout - hs) - stakeRaw;   // hedge profit minus orig stake lost
+
+  document.getElementById('spcStake').textContent = '$' + hs.toFixed(2);
+  document.getElementById('spcP1').textContent = fmt(profitIfOrig);
+  document.getElementById('spcP1').style.color = fmtColor(profitIfOrig);
+  document.getElementById('spcP2').textContent = fmt(profitIfHedge);
+  document.getElementById('spcP2').style.color = fmtColor(profitIfHedge);
+
+  var lbl = document.getElementById('spcLabel');
+  if (profitIfOrig > 0.01 && profitIfHedge > 0.01) {
+    lbl.textContent = '✓ TRUE ARB — guaranteed profit both outcomes';
+    lbl.style.background = 'rgba(0,232,122,0.12)';
+    lbl.style.color = '#00e87a';
+  } else if (profitIfOrig > 0.01 || profitIfHedge > 0.01) {
+    lbl.textContent = 'PARTIAL — one side profitable';
+    lbl.style.background = 'rgba(255,200,50,0.1)';
+    lbl.style.color = '#ffc832';
+  } else {
+    lbl.textContent = 'NO ARB — damage control only';
+    lbl.style.background = 'rgba(255,77,77,0.08)';
+    lbl.style.color = '#ff4d4d';
+  }
+  res.style.display = 'block';
+}
+
+function goHedge() {
+  var stakeRaw = parseFloat(document.getElementById('hStake').value);
+  var oddsRaw = parseInt(document.getElementById('hOdds').value);
+  var tbl = document.getElementById('hedgeTable');
+  var hint = document.getElementById('hedgeHint');
+
+  goSpecific();
+
+  if (isNaN(stakeRaw) || stakeRaw <= 0 || isNaN(oddsRaw) || oddsRaw < 100) {
+    tbl.style.display = 'none'; hint.style.display = 'block'; return;
+  }
+
+  var origOdds = oddsRaw * hSgn.v;
+  var origPayout = calcPayout(stakeRaw, origOdds);
+
+  var hedgeOddsList = [-300,-250,-200,-180,-160,-150,-145,-140,-135,-130,-125,-120,-115,-110,-105,105,110,115,120,125,130,135,140,145,150,155,160,170,180,200,250,300];
+  var rows = '';
+  hedgeOddsList.forEach(function(ho) {
+    var hs = calcHedgeStake(origPayout, ho);
+    var hp = calcPayout(hs, ho);
+    var p1 = (origPayout - stakeRaw) - hs;
+    var p2 = (hp - hs) - stakeRaw;
+    var isArb = p1 > 0.01 && p2 > 0.01;
+    var bg = isArb ? 'rgba(0,232,122,0.06)' : '';
+    var c1 = fmtColor(p1), c2 = fmtColor(p2);
+    rows += '<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr;padding:11px 14px;border-top:1px solid var(--border);background:' + bg + ';align-items:center;">' +
+      '<div style="font-size:15px;font-weight:600;color:' + (isArb ? '#00e87a' : 'var(--cyan)') + ';">' + (ho > 0 ? '+' : '') + ho + '</div>' +
+      '<div style="font-size:14px;font-weight:500;color:#fff;text-align:right;">$' + hs.toFixed(0) + '</div>' +
+      '<div style="font-size:14px;font-weight:600;color:' + c1 + ';text-align:right;">' + fmt(p1) + '</div>' +
+      '<div style="font-size:14px;font-weight:600;color:' + c2 + ';text-align:right;">' + fmt(p2) + '</div>' +
+      '</div>';
+  });
+
+  document.getElementById('hedgeRows').innerHTML = rows;
+  tbl.style.display = 'block';
+  hint.style.display = 'none';
+}
+
+// Calc sub-tabs
+function switchCalcTab(tab) {
+  var isHedge = tab === 'hedge';
+  document.getElementById('hedgeSection').style.display = isHedge ? 'block' : 'none';
+  document.getElementById('arbSection').style.display = isHedge ? 'none' : 'block';
+  document.getElementById('subTabHedge').style.background = isHedge ? 'rgba(255,200,50,0.15)' : 'var(--surface)';
+  document.getElementById('subTabHedge').style.color = isHedge ? '#ffc832' : 'var(--muted)';
+  document.getElementById('subTabArb').style.background = !isHedge ? 'rgba(255,200,50,0.15)' : 'var(--surface)';
+  document.getElementById('subTabArb').style.color = !isHedge ? '#ffc832' : 'var(--muted)';
+  document.getElementById('calcTitle').textContent = isHedge ? 'Hedge Calc' : 'Arb Calc';
+  document.getElementById('calcSub').textContent = isHedge ? 'Precise sizing + all options' : 'Payout + rounding';
+}
+
+// Arb Calc
+var arb1Sgn = {v:1}, arb2Sgn = {v:1};
+makeToggle('arb1SignBtn','arb1Prefix', arb1Sgn, goArb);
+makeToggle('arb2SignBtn','arb2Prefix', arb2Sgn, goArb);
+document.getElementById('arb1Stake').addEventListener('input', goArb);
+document.getElementById('arb1Odds').addEventListener('input', goArb);
+document.getElementById('arb2Stake').addEventListener('input', goArb);
+document.getElementById('arb2Odds').addEventListener('input', goArb);
+
+function goArb() {
+  var s1Raw = parseFloat(document.getElementById('arb1Stake').value);
+  var o1Raw = parseInt(document.getElementById('arb1Odds').value);
+  var o2Raw = parseInt(document.getElementById('arb2Odds').value);
+  var res = document.getElementById('arbCalcResult');
+  var hint = document.getElementById('arbCalcHint');
+  var s2Input = document.getElementById('arb2Stake');
+
+  if (isNaN(s1Raw) || s1Raw <= 0 || isNaN(o1Raw) || o1Raw < 100 || isNaN(o2Raw) || o2Raw < 100) {
+    res.style.display = 'none'; hint.style.display = 'block'; return;
+  }
+
+  var o1 = o1Raw * arb1Sgn.v;
+  var o2 = o2Raw * arb2Sgn.v;
+  var p1Total = calcPayout(s1Raw, o1);
+  var s2Auto = calcHedgeStake(p1Total, o2);
+
+  // Auto-fill s2 if user hasn't typed in it
+  var s2UserRaw = parseFloat(s2Input.value);
+  var s2 = (!isNaN(s2UserRaw) && s2UserRaw > 0) ? s2UserRaw : s2Auto;
+
+  // Show auto value as placeholder
+  s2Input.placeholder = '$' + s2Auto.toFixed(2);
+
+  var p2Total = calcPayout(s2, o2);
+  var totalStake = s1Raw + s2;
+  var profit1 = (p1Total - s1Raw) - s2;
+  var profit2 = (p2Total - s2) - s1Raw;
+  var isArb = profit1 > 0.01 && profit2 > 0.01;
+
+  res.style.display = 'block'; hint.style.display = 'none';
+
+  document.getElementById('arbTotalStake').textContent = '$' + totalStake.toFixed(2);
+  document.getElementById('arbProfit1').textContent = (profit1 >= 0 ? '+$' : '-$') + Math.abs(profit1).toFixed(2);
+  document.getElementById('arbProfit1').style.color = profit1 > 0.01 ? '#00e87a' : profit1 < -0.01 ? '#ff4d4d' : '#ffc832';
+  document.getElementById('arbProfit2').textContent = (profit2 >= 0 ? '+$' : '-$') + Math.abs(profit2).toFixed(2);
+  document.getElementById('arbProfit2').style.color = profit2 > 0.01 ? '#00e87a' : profit2 < -0.01 ? '#ff4d4d' : '#ffc832';
+
+  var st = document.getElementById('arbStatus');
+  if (isArb) { st.textContent = '✓ TRUE ARB — guaranteed profit'; st.style.color = '#00e87a'; }
+  else if (profit1 > 0.01 || profit2 > 0.01) { st.textContent = 'PARTIAL — one side profitable'; st.style.color = '#ffc832'; }
+  else { st.textContent = 'NO ARB'; st.style.color = '#ff4d4d'; }
+
+
 }
 </script>
 </body>
