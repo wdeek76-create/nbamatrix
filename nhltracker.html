@@ -1023,14 +1023,18 @@ function buildCardHTML(g, idx) {
           onchange="updateOdds(${idx},'total_line',this.value)" oninput="updateOdds(${idx},'total_line',this.value)"/>
       </div>
     </div>
-    <div style="padding:5px 12px 8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;">
+    <div style="padding:5px 12px 6px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;">
       <span style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Book</span>
-      <span id="book-${idx}" style="font-size:.78rem;color:${(evAwayBook||evHomeBook||awayBook||homeBook)?'var(--ice)':'var(--muted)'};font-family:'Oswald',sans-serif;font-weight:600;">${bookDisplay}</span>
+      <input id="book-${idx}" type="text" placeholder="Book name…" value="${g.book||bookDisplay!=='—'?g.book||bookDisplay:''}"
+        oninput="gameData.games[${idx}].book=this.value;gameData.games[${idx}].book_away_ml=this.value;gameData.games[${idx}].book_home_ml=this.value;"
+        style="background:transparent;border:none;border-bottom:1px solid var(--border2);color:var(--ice);font-size:.78rem;font-family:'Oswald',sans-serif;font-weight:600;outline:none;text-align:right;width:130px;padding:2px 4px;"/>
     </div>
-    ${(g.awayGoalie || g.homeGoalie) ? `<div style="padding:2px 12px 7px;display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:.63rem;color:${g.goalieWarning?'var(--red)':'var(--muted)'};text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Goalies${g.goalieWarning?' ⚠':' ✓'}</span>
-      <span style="font-size:.72rem;color:${g.goalieWarning?'var(--red)':'var(--green)'};">${g.awayGoalie||'TBD'} / ${g.homeGoalie||'TBD'}</span>
-    </div>` : ''}`;
+    <div id="log-ev-wrap-${idx}" style="padding:0 12px 8px;display:none;">
+      <button onclick="manualLogEV(${idx})"
+        style="width:100%;background:rgba(16,217,160,.12);border:1px solid rgba(16,217,160,.3);border-radius:6px;color:var(--green);font-family:'Oswald',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.06em;padding:7px;cursor:pointer;text-transform:uppercase;">
+        ⚡ Log +EV
+      </button>
+    </div>`;
 }
 
 function teamRow(g, side, idx) {
@@ -1136,16 +1140,51 @@ function updateOdds(idx, field, val) {
       evBadge.remove();
     }
 
-    // Update book display
-    const bookEl = document.getElementById(`book-${idx}`);
-    if (bookEl) {
-      const bk = g.book_away_ml || g.book_home_ml || g.book || null;
-      bookEl.textContent = bk || '—';
-      bookEl.style.color = bk ? 'var(--ice)' : 'var(--muted)';
+    // Show Log +EV button when there's edge
+    const logWrap = document.getElementById(`log-ev-wrap-${idx}`);
+    if (logWrap) {
+      const hasEdge = (g.ml_edge_away != null && g.ml_edge_away >= EDGE_THRESH) ||
+                      (g.ml_edge_home != null && g.ml_edge_home >= EDGE_THRESH);
+      logWrap.style.display = hasEdge ? 'block' : 'none';
     }
   }
 
   refreshEVAlert();
+}
+
+function manualLogEV(idx) {
+  const g     = gameData.games[idx];
+  const today = gameData.generated;
+  const book  = document.getElementById(`book-${idx}`)?.value || g.book || '—';
+  let logged  = 0;
+
+  [['away', g.ml_edge_away, g.away_ml, g.book_away_ml || book],
+   ['home', g.ml_edge_home, g.home_ml, g.book_home_ml || book]].forEach(([side, edge, ml, bk]) => {
+    if (edge == null || edge < EDGE_THRESH || ml == null) return;
+    const pick    = `${g[side]} ML`;
+    const matchup = `${g.away}@${g.home}`;
+    if (bets.some(b => b.date===today && b.matchup===matchup && b.pick===pick)) return;
+    bets.unshift({
+      id: Date.now() + Math.random(), date: today, matchup, market: 'ML', pick, odds: ml,
+      stake: ml > 0 ? 1 : parseFloat((Math.abs(ml)/100).toFixed(2)),
+      edge: round1(edge), book: bk || book || '—',
+      modelOdds: probToML((g['hs_'+side+'_pct']||0)/100),
+      hs_pct: g['hs_'+side+'_pct'] || null,
+      notes: 'manual',
+      result: 'pending', pl: null,
+    });
+    logged++;
+  });
+
+  if (logged) {
+    saveBets(); updateHeader();
+    // Hide button after logging
+    const logWrap = document.getElementById(`log-ev-wrap-${idx}`);
+    if (logWrap) logWrap.style.display = 'none';
+    toast(`${logged} bet${logged>1?'s':''} logged`, 'ok');
+  } else {
+    toast('Already logged or no edge', 'err');
+  }
 }
 
 function recomputeEdge(g) {
