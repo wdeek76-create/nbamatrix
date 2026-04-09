@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PropShop MLB Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f5f4;
+  --bg2: #ffffff;
+  --bg3: #f9f9f8;
+  --bg4: #efefed;
+  --bg5: #e5e5e2;
+  --green: #2d7a4f;
+  --green-dim: rgba(45,122,79,0.08);
+  --green-dim2: rgba(45,122,79,0.14);
+  --amber: #b45309;
+  --amber-dim: rgba(180,83,9,0.08);
+  --red: #c0392b;
+  --red-dim: rgba(192,57,43,0.08);
+  --blue: #2563a8;
+  --blue-dim: rgba(37,99,168,0.08);
+  --text: #1a1a1a;
+  --text2: #6b7280;
+  --text3: #9ca3af;
+  --border: #e5e7eb;
+  --border2: #d1d5db;
+  --border3: #9ca3af;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; }
+
+/* ===== HEADER ===== */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 52px; gap: 12px; flex-wrap: wrap;
+}
+.logo { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: 0.08em; color: var(--green); text-transform: uppercase; white-space: nowrap; }
+.logo em { color: var(--text2); font-style: normal; font-weight: 400; }
+.header-meta { display: flex; align-items: center; gap: 16px; }
+.date-display { font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.06em; color: var(--text2); text-transform: uppercase; }
+input[type="date"].date-in {
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.04em;
+  padding: 5px 8px; border-radius: 4px; outline: none; cursor: pointer;
+}
+input[type="date"].date-in:focus { border-color: var(--green); }
+
+/* ===== SUMMARY BAR ===== */
+.summary-bar {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 10px 20px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.s-card {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 16px; text-align: center; min-width: 76px;
+}
+.s-val { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 500; line-height: 1.2; color: var(--text); }
+.s-val.teal { color: var(--green); }
+.s-val.red { color: var(--red); }
+.s-val.amber { color: var(--amber); }
+.s-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+.s-sep { width: 1px; background: var(--border); height: 36px; margin: 0 4px; }
+.ev-legend { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+.ev-badge { font-size: 10px; font-family: 'Inter', sans-serif; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; }
+.ev-elite { background: rgba(45,122,79,0.10); color: var(--green); border: 1px solid rgba(45,122,79,0.25); }
+.ev-strong { background: rgba(37,99,168,0.10); color: var(--blue); border: 1px solid rgba(37,99,168,0.22); }
+.ev-value { background: rgba(180,83,9,0.08); color: var(--amber); border: 1px solid rgba(180,83,9,0.22); }
+
+/* ===== CONTROLS ===== */
+.controls {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 8px 20px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.btn {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 14px;
+  border-radius: 4px; border: 1px solid var(--border2); background: var(--bg2);
+  color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn:hover { background: var(--bg4); border-color: var(--border2); color: var(--text); }
+.btn.primary { background: var(--green-dim2); border-color: rgba(45,122,79,0.35); color: var(--green); }
+.btn.primary:hover { background: var(--green-dim); }
+.btn.danger { background: var(--red-dim); border-color: rgba(192,57,43,0.3); color: var(--red); }
+.ctrl-sep { width: 1px; background: var(--border); height: 20px; margin: 0 2px; }
+.ctrl-lbl { font-size: 10px; color: var(--text2); font-family: 'Inter', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+select.ctrl-sel {
+  background: var(--bg2); border: 1px solid var(--border2); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 12px; padding: 5px 8px;
+  border-radius: 4px; outline: none; cursor: pointer;
+}
+select.ctrl-sel:focus { border-color: var(--green); }
+.grade-status { font-size: 11px; color: var(--text2); font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
+.grade-status.loading { color: var(--blue); }
+.grade-status.done { color: var(--green); }
+.grade-status.error { color: var(--red); }
+
+/* ===== PASTE MODAL ===== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  z-index: 1000; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px; width: 640px; max-width: 95vw; max-height: 90vh;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.modal-title { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 500; letter-spacing: 0.06em; color: var(--green); text-transform: uppercase; }
+.modal-sub { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.modal-sub code { background: var(--bg4); padding: 1px 5px; border-radius: 3px; font-size: 11px; color: var(--text); font-weight: 500; }
+textarea.paste-area {
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 11px; line-height: 1.5;
+  padding: 10px 12px; border-radius: 5px; resize: vertical; height: 220px;
+  outline: none; width: 100%;
+}
+textarea.paste-area:focus { border-color: var(--green); }
+.modal-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.parse-info { font-size: 11px; color: var(--text2); }
+.parse-info.ok { color: var(--green); }
+.parse-info.warn { color: var(--amber); }
+
+/* ===== MAIN CONTENT ===== */
+.main { padding: 16px 20px; }
+.empty-state {
+  text-align: center; padding: 60px 20px; color: var(--text2);
+  border: 1px dashed var(--border2); border-radius: 8px; margin-top: 8px;
+}
+.empty-state h3 { font-family: 'Inter', sans-serif; font-size: 18px; color: var(--text); margin-bottom: 8px; letter-spacing: 0.05em; }
+.empty-state p { font-size: 12px; line-height: 1.7; max-width: 400px; margin: 0 auto 16px; }
+
+/* ===== GAME GROUP ===== */
+.game-group { margin-bottom: 20px; }
+.game-header {
+  display: flex; align-items: center; gap: 10px; padding: 6px 12px;
+  background: var(--bg4); border: 1px solid var(--border);
+  border-radius: 5px 5px 0 0; margin-bottom: 0;
+}
+.game-name { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; color: var(--text); }
+.game-time { font-size: 11px; color: var(--text2); font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
+.game-count { font-size: 10px; color: var(--text2); background: var(--bg5); padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+
+/* ===== PROP TABLE ===== */
+.prop-table { width: 100%; border-collapse: collapse; }
+.prop-table th {
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 400;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2);
+  padding: 5px 10px; background: var(--bg3); border-bottom: 1px solid var(--border);
+  text-align: left; white-space: nowrap;
+}
+.prop-table th.r { text-align: right; }
+.prop-table th.c { text-align: center; }
+.prop-table td {
+  padding: 7px 10px; border-bottom: 1px solid var(--border);
+  background: var(--bg2); vertical-align: middle;
+}
+.prop-table tr:last-child td { border-bottom: none; border-radius: 0 0 5px 5px; }
+.prop-table tr:hover td { background: var(--bg3); }
+.prop-table tr.row-win td { background: rgba(45,122,79,0.06); }
+.prop-table tr.row-win:hover td { background: rgba(45,122,79,0.10); }
+.prop-table tr.row-loss td { background: rgba(192,57,43,0.06); }
+.prop-table tr.row-loss:hover td { background: rgba(192,57,43,0.10); }
+.prop-table tr.row-push td { background: rgba(180,83,9,0.05); }
+.prop-table tr.row-skip td { opacity: 0.45; }
+
+/* ===== CELL STYLES ===== */
+.cell-player { display: flex; flex-direction: column; gap: 2px; }
+.player-name { font-weight: 600; font-size: 13px; color: var(--text); white-space: nowrap; }
+.player-sub { font-size: 10px; color: var(--text2); }
+.market-tag {
+  display: inline-block; font-family: 'Inter', sans-serif; font-size: 10px;
+  letter-spacing: 0.05em; padding: 2px 6px; border-radius: 3px;
+  background: var(--bg4); color: var(--text2); border: 1px solid var(--border); white-space: nowrap;
+}
+.line-cell { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; }
+.side-o { color: var(--green); }
+.side-u { color: var(--red); }
+.odds-cell { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; white-space: nowrap; }
+.odds-pos { color: var(--green); }
+.odds-neg { color: var(--text); }
+.book-tag { font-size: 10px; color: var(--text2); margin-top: 1px; }
+.ev-cell { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; text-align: right; white-space: nowrap; }
+.ev-elite-c { color: var(--green); }
+.ev-strong-c { color: var(--blue); }
+.ev-value-c { color: var(--amber); }
+.ev-dim { color: var(--text3); }
+.proj-cell { font-size: 12px; color: var(--text2); text-align: center; }
+.proj-cell strong { color: var(--text); font-size: 13px; }
+.result-sel, .notes-in {
+  background: var(--bg2); border: 1px solid var(--border2); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 11px; padding: 4px 6px;
+  border-radius: 3px; outline: none; cursor: pointer; transition: border-color 0.15s;
+}
+.result-sel:focus, .notes-in:focus { border-color: var(--green); }
+.result-sel { width: 96px; }
+.notes-in { width: 130px; }
+.actual-cell { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; text-align: center; color: var(--text2); }
+.actual-cell.graded { color: var(--text); }
+.pnl-cell { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; text-align: right; white-space: nowrap; }
+.pnl-pos { color: var(--green); }
+.pnl-neg { color: var(--red); }
+.pnl-zero { color: var(--text2); }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ===== EXPORT EXCEL =====
+function exportExcel() {
+  if (props.length === 0) { alert('No props to export.'); return; }
+  const wb = XLSX.utils.book_new();
+
+  const dateStr = document.getElementById('trackDate').value || getTodayStr();
+
+  // ---- helpers ----
+  const pnlCalc = p => p.pnl !== null ? p.pnl : '';
+  const riskCalc = p => {
+    if (!p.odds) return '';
+    const o = parseFloat(p.odds);
+    return o > 0 ? 1 : parseFloat((100/Math.abs(o)).toFixed(4));
+  };
+  const toWinCalc = p => {
+    if (!p.odds) return '';
+    const o = parseFloat(p.odds);
+    return o > 0 ? parseFloat((o/100).toFixed(4)) : 1;
+  };
+  const evBucket = ev => ev >= 25 ? 'Elite 25%+' : ev >= 15 ? 'Strong 15-24%' : ev >= 5 ? 'Value 5-14%' : '<5%';
+
+  // ---- Sheet 1: Bet Log ----
+  const logHeaders = ['Date','Player','Market','Game','Time','Line','Side','Best Odds','Book','EV%','EV Bucket','Risk (u)','To Win (u)','Actual','Result','P&L (u)','Notes'];
+  const logRows = props.map(p => [
+    dateStr, p.player, p.market, p.game, p.gameTime,
+    p.line, p.side, p.odds, p.book,
+    p.ev, evBucket(p.ev),
+    riskCalc(p), toWinCalc(p),
+    p.actual !== null ? p.actual : '',
+    p.result || 'Pending',
+    pnlCalc(p),
+    p.notes || ''
+  ]);
+  const logWs = XLSX.utils.aoa_to_sheet([logHeaders, ...logRows]);
+  logWs['!cols'] = [8,18,10,22,10,6,6,10,10,7,14,9,9,8,9,9,20].map(w=>({wch:w}));
+  styleSheet(logWs, logHeaders.length);
+  XLSX.utils.book_append_sheet(wb, logWs, 'Bet Log');
+
+  // ---- Sheet 2: Summary ----
+  const graded = props.filter(p => p.result && p.result !== 'skip' && p.result !== 'pending' && p.result !== '');
+  const wins = graded.filter(p => p.result === 'win');
+  const losses = graded.filter(p => p.result === 'loss');
+  const pushes = graded.filter(p => p.result === 'push');
+  const totalPnl = graded.reduce((a,p)=>a+(p.pnl||0),0);
+  const totalRisk = graded.reduce((a,p)=>a+riskCalc(p),0);
+  const roi = totalRisk > 0 ? totalPnl/totalRisk : 0;
+
+  const sumData = [
+    ['PropShop MLB Tracker — Export', dateStr],
+    [],
+    ['OVERALL SUMMARY',''],
+    ['Total Props', props.length],
+    ['Graded', graded.length],
+    ['Wins', wins.length],
+    ['Losses', losses.length],
+    ['Pushes', pushes.length],
+    ['Win Rate', graded.length > 0 ? wins.length/graded.length : ''],
+    ['Total P&L (u)', parseFloat(totalPnl.toFixed(4))],
+    ['Total Risked (u)', parseFloat(totalRisk.toFixed(4))],
+    ['ROI', roi],
+    [],
+    ['EV BUCKET BREAKDOWN','Bets','W','L','Push','P&L (u)','Risk (u)','ROI'],
+    ...['Elite 25%+','Strong 15-24%','Value 5-14%'].map(bucket => {
+      const bp = graded.filter(p => evBucket(p.ev) === bucket);
+      const bw = bp.filter(p=>p.result==='win'), bl = bp.filter(p=>p.result==='loss');
+      const bpnl = bp.reduce((a,p)=>a+(p.pnl||0),0);
+      const brisk = bp.reduce((a,p)=>a+riskCalc(p),0);
+      return [bucket, bp.length, bw.length, bl.length, bp.filter(p=>p.result==='push').length,
+              parseFloat(bpnl.toFixed(4)), parseFloat(brisk.toFixed(4)),
+              brisk>0 ? parseFloat((bpnl/brisk).toFixed(4)) : ''];
+    }),
+  ];
+  const sumWs = XLSX.utils.aoa_to_sheet(sumData);
+  sumWs['!cols'] = [{wch:22},{wch:12},{wch:8},{wch:8},{wch:8},{wch:10},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, sumWs, 'Summary');
+
+  // ---- Sheet 3: Market Breakdown ----
+  const markets = [...new Set(props.map(p=>p.market))].sort();
+  const mktHeaders = ['Market','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%'];
+  const mktRows = markets.map(mkt => {
+    const mp = props.filter(p=>p.market===mkt);
+    const mg = mp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const mw = mg.filter(p=>p.result==='win'), ml = mg.filter(p=>p.result==='loss');
+    const mpnl = mg.reduce((a,p)=>a+(p.pnl||0),0);
+    const mrisk = mg.reduce((a,p)=>a+riskCalc(p),0);
+    const avgEV = mp.length > 0 ? mp.reduce((a,p)=>a+p.ev,0)/mp.length : 0;
+    return [mkt, mp.length, mw.length, ml.length, mg.filter(p=>p.result==='push').length,
+            mg.length>0 ? parseFloat((mw.length/mg.length).toFixed(4)) : '',
+            parseFloat(mpnl.toFixed(4)), parseFloat(mrisk.toFixed(4)),
+            mrisk>0 ? parseFloat((mpnl/mrisk).toFixed(4)) : '',
+            parseFloat(avgEV.toFixed(2))];
+  });
+  // Totals row
+  const tg = props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+  const tw = tg.filter(p=>p.result==='win'), trisk2 = tg.reduce((a,p)=>a+riskCalc(p),0);
+  const tpnl2 = tg.reduce((a,p)=>a+(p.pnl||0),0);
+  mktRows.push(['TOTAL', props.length, tw.length, tg.filter(p=>p.result==='loss').length,
+    tg.filter(p=>p.result==='push').length,
+    tg.length>0 ? parseFloat((tw.length/tg.length).toFixed(4)) : '',
+    parseFloat(tpnl2.toFixed(4)), parseFloat(trisk2.toFixed(4)),
+    trisk2>0 ? parseFloat((tpnl2/trisk2).toFixed(4)) : '',
+    parseFloat((props.reduce((a,p)=>a+p.ev,0)/props.length).toFixed(2))]);
+
+  const mktWs = XLSX.utils.aoa_to_sheet([mktHeaders, ...mktRows]);
+  mktWs['!cols'] = [12,7,7,7,7,10,10,10,10,10].map(w=>({wch:w}));
+  styleSheet(mktWs, mktHeaders.length);
+  XLSX.utils.book_append_sheet(wb, mktWs, 'By Market');
+
+  // ---- Sheet 4: O/U Split ----
+  const ouHeaders = ['Side','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%','Avg Odds'];
+  const ouRows = ['O','U'].map(side => {
+    const sp = props.filter(p=>p.side===side);
+    const sg = sp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const sw = sg.filter(p=>p.result==='win');
+    const spnl = sg.reduce((a,p)=>a+(p.pnl||0),0);
+    const srisk = sg.reduce((a,p)=>a+riskCalc(p),0);
+    const avgEV = sp.length>0 ? sp.reduce((a,p)=>a+p.ev,0)/sp.length : 0;
+    const avgOdds = sp.length>0 ? sp.reduce((a,p)=>a+parseFloat(p.odds||0),0)/sp.length : 0;
+    return [side==='O'?'Over':'Under', sp.length, sw.length, sg.filter(p=>p.result==='loss').length,
+            sg.filter(p=>p.result==='push').length,
+            sg.length>0 ? parseFloat((sw.length/sg.length).toFixed(4)) : '',
+            parseFloat(spnl.toFixed(4)), parseFloat(srisk.toFixed(4)),
+            srisk>0 ? parseFloat((spnl/srisk).toFixed(4)) : '',
+            parseFloat(avgEV.toFixed(2)), parseFloat(avgOdds.toFixed(1))];
+  });
+  const ouWs = XLSX.utils.aoa_to_sheet([ouHeaders, ...ouRows]);
+  ouWs['!cols'] = [10,7,7,7,7,10,10,10,10,10,10].map(w=>({wch:w}));
+  styleSheet(ouWs, ouHeaders.length);
+  XLSX.utils.book_append_sheet(wb, ouWs, 'O-U Split');
+
+  // ---- Sheet 5: Fav vs Dog ----
+  const fdHeaders = ['Type','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%','Avg Odds'];
+  const fdRows = ['dog','fav'].map(type => {
+    const fp = props.filter(p => type==='dog' ? parseFloat(p.odds||0)>0 : parseFloat(p.odds||0)<0);
+    const fg = fp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const fw = fg.filter(p=>p.result==='win');
+    const fpnl = fg.reduce((a,p)=>a+(p.pnl||0),0);
+    const frisk = fg.reduce((a,p)=>a+riskCalc(p),0);
+    const avgEV = fp.length>0 ? fp.reduce((a,p)=>a+p.ev,0)/fp.length : 0;
+    const avgOdds = fp.length>0 ? fp.reduce((a,p)=>a+parseFloat(p.odds||0),0)/fp.length : 0;
+    return [type==='dog'?'Underdog (+odds)':'Favorite (-odds)',
+            fp.length, fw.length, fg.filter(p=>p.result==='loss').length,
+            fg.filter(p=>p.result==='push').length,
+            fg.length>0 ? parseFloat((fw.length/fg.length).toFixed(4)) : '',
+            parseFloat(fpnl.toFixed(4)), parseFloat(frisk.toFixed(4)),
+            frisk>0 ? parseFloat((fpnl/frisk).toFixed(4)) : '',
+            parseFloat(avgEV.toFixed(2)), parseFloat(avgOdds.toFixed(1))];
+  });
+  const fdWs = XLSX.utils.aoa_to_sheet([fdHeaders, ...fdRows]);
+  fdWs['!cols'] = [18,7,7,7,7,10,10,10,10,10,10].map(w=>({wch:w}));
+  styleSheet(fdWs, fdHeaders.length);
+  XLSX.utils.book_append_sheet(wb, fdWs, 'Fav vs Dog');
+
+  // ---- Sheet 6: By Game ----
+  const games = [...new Set(props.map(p=>p.game))];
+  const gmHeaders = ['Game','Time','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI'];
+  const gmRows = games.map(game => {
+    const gp = props.filter(p=>p.game===game);
+    const gg = gp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const gw = gg.filter(p=>p.result==='win');
+    const gpnl = gg.reduce((a,p)=>a+(p.pnl||0),0);
+    const grisk = gg.reduce((a,p)=>a+riskCalc(p),0);
+    return [game, gp[0]?.gameTime||'', gp.length, gw.length,
+            gg.filter(p=>p.result==='loss').length, gg.filter(p=>p.result==='push').length,
+            gg.length>0 ? parseFloat((gw.length/gg.length).toFixed(4)) : '',
+            parseFloat(gpnl.toFixed(4)), parseFloat(grisk.toFixed(4)),
+            grisk>0 ? parseFloat((gpnl/grisk).toFixed(4)) : ''];
+  });
+  const gmWs = XLSX.utils.aoa_to_sheet([gmHeaders, ...gmRows]);
+  gmWs['!cols'] = [24,10,7,7,7,7,10,10,10,10].map(w=>({wch:w}));
+  styleSheet(gmWs, gmHeaders.length);
+  XLSX.utils.book_append_sheet(wb, gmWs, 'By Game');
+
+  // ---- Download ----
+  XLSX.writeFile(wb, `PropShop_MLB_${dateStr}.xlsx`);
+}
+
+function styleSheet(ws, numCols) {
+  // Style header row (row 1)
+  for (let c = 0; c < numCols; c++) {
+    const addr = XLSX.utils.encode_cell({r:0, c});
+    if (!ws[addr]) continue;
+    ws[addr].s = {
+      font: { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 10 },
+      fill: { fgColor: { rgb: '080C14' }, patternType: 'solid' },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: { bottom: { style: 'thin', color: { rgb: '10D9A0' } } }
+    };
+  }
+  // Style data rows
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let r = 1; r <= range.e.r; r++) {
+    for (let c = 0; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({r, c});
+      if (!ws[addr]) { ws[addr] = {t:'z'}; }
+      ws[addr].s = {
+        font: { name: 'Arial', sz: 10, color: { rgb: 'DDE4F0' } },
+        fill: { fgColor: { rgb: r%2===0 ? '0D1320' : '111827' }, patternType: 'solid' },
+        alignment: { vertical: 'center' },
+        border: { bottom: { style: 'hair', color: { rgb: '1A2234' } } }
+      };
+    }
+  }
+}
+
+</script>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">PropShop <em>MLB</em></div>
+  <div class="header-meta">
+    <input type="date" class="date-in" id="trackDate">
+    <span class="date-display" id="dateDisplay"></span>
+  </div>
+</div>
+
+<!-- SUMMARY BAR -->
+<div class="summary-bar">
+  <div class="s-card"><div class="s-val" id="s-total">0</div><div class="s-lbl">Props</div></div>
+  <div class="s-card"><div class="s-val teal" id="s-w">0</div><div class="s-lbl">Wins</div></div>
+  <div class="s-card"><div class="s-val red" id="s-l">0</div><div class="s-lbl">Losses</div></div>
+  <div class="s-card"><div class="s-val amber" id="s-p">0</div><div class="s-lbl">Push</div></div>
+  <div class="s-sep"></div>
+  <div class="s-card"><div class="s-val" id="s-roi" style="font-size:15px">—</div><div class="s-lbl">ROI</div></div>
+  <div class="s-card"><div class="s-val" id="s-pnl">+0.00u</div><div class="s-lbl">P&amp;L</div></div>
+  <div class="s-sep"></div>
+  <div class="ev-legend">
+    <span class="ev-badge ev-elite">Elite 25%+</span>
+    <span class="ev-badge ev-strong">Strong 15–24%</span>
+    <span class="ev-badge ev-value">Value 5–14%</span>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <button class="btn primary" onclick="openPasteModal()">+ Paste PropShop</button>
+  <div class="ctrl-sep"></div>
+  <span class="ctrl-lbl">Filter:</span>
+  <select class="ctrl-sel" id="filterMarket" onchange="renderProps()">
+    <option value="">All Markets</option>
+    <option value="IP">IP</option>
+    <option value="K">Strikeouts</option>
+    <option value="H">Hits</option>
+    <option value="TB">Total Bases</option>
+    <option value="HR">Home Runs</option>
+    <option value="RBI">RBIs</option>
+    <option value="ER">Earned Runs</option>
+    <option value="BB">Walks</option>
+    <option value="SB">Stolen Bases</option>
+  </select>
+  <select class="ctrl-sel" id="filterEV" onchange="renderProps()">
+    <option value="">All EV</option>
+    <option value="elite">Elite 25%+</option>
+    <option value="strong">Strong 15–24%</option>
+    <option value="value">Value 5–14%</option>
+  </select>
+  <select class="ctrl-sel" id="filterResult" onchange="renderProps()">
+    <option value="">All Results</option>
+    <option value="">Pending Only</option>
+    <option value="win">Wins</option>
+    <option value="loss">Losses</option>
+    <option value="push">Pushes</option>
+  </select>
+  <div class="ctrl-sep"></div>
+  <button class="btn" id="gradeBtn" onclick="autoGrade()">⟳ Auto-Grade</button>
+  <span id="gradeStatus" style="font-size:11px;font-family:Inter,sans-serif;color:var(--text2);"></span>
+  <div class="ctrl-sep"></div>
+  <button class="btn" onclick="exportExcel()" style="border-color:rgba(45,122,79,0.35);color:var(--green);">↓ Export Excel</button>
+  <div class="ctrl-sep"></div>
+  <button class="btn danger" onclick="clearAll()">Clear All</button>
+</div>
+
+<!-- PASTE MODAL -->
+<div class="modal-overlay" id="pasteModal">
+  <div class="modal">
+    <div class="modal-title">Paste PropShop Data</div>
+    <div class="modal-sub">
+      Copy the full page from PropShop (Ctrl+A → Ctrl+C on the prop table) and paste below.<br>
+      Supports all MLB markets: <code>IP</code> <code>K</code> <code>H</code> <code>TB</code> <code>HR</code> <code>RBI</code> <code>ER</code> <code>BB</code> <code>SB</code> and more.<br>
+      Only lines with <strong>&gt;5% EV</strong> will be imported.
+    </div>
+    <div class="modal-row">
+      <span class="ctrl-lbl">Min EV%:</span>
+      <input type="number" id="minEV" value="5" min="0" max="100" step="1" style="width:60px; background:var(--bg3); border:1px solid var(--border2); color:var(--text); padding:5px 8px; border-radius:4px; font-size:12px; outline:none;">
+    </div>
+    <textarea class="paste-area" id="pasteArea" placeholder="Paste PropShop text here…"></textarea>
+    <div class="parse-info" id="parseInfo"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closePasteModal()">Cancel</button>
+      <button class="btn primary" onclick="parsePaste()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainContent">
+  <div class="empty-state" id="emptyState">
+    <h3>No Props Loaded</h3>
+    <p>Click <strong>+ Paste PropShop</strong> above, copy your PropShop screen, and paste it in. Only props with >5% EV will be imported automatically.</p>
+    <button class="btn primary" onclick="openPasteModal()">+ Paste PropShop</button>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+let props = [];
+
+// ===== MARKET CONFIG =====
+const MARKET_MAP = {
+  'IP':  { label:'IP',           apiKey:'inningsPitched',  group:'pitching', isFloat:true  },
+  'K':   { label:'Strikeouts',   apiKey:'strikeOuts',      group:'pitching', isFloat:false },
+  'ER':  { label:'Earned Runs',  apiKey:'earnedRuns',      group:'pitching', isFloat:false },
+  'BB':  { label:'Walks',        apiKey:'baseOnBalls',     group:'pitching', isFloat:false },
+  'H':   { label:'Hits',         apiKey:'hits',            group:'hitting',  isFloat:false },
+  'TB':  { label:'Total Bases',  apiKey:'totalBases',      group:'hitting',  isFloat:false },
+  'HR':  { label:'Home Runs',    apiKey:'homeRuns',        group:'hitting',  isFloat:false },
+  'RBI': { label:'RBIs',         apiKey:'rbi',             group:'hitting',  isFloat:false },
+  'SB':  { label:'Stolen Bases', apiKey:'stolenBases',     group:'hitting',  isFloat:false },
+  'R':   { label:'Runs',         apiKey:'runs',            group:'hitting',  isFloat:false },
+};
+
+// Aliases for parser
+const MARKET_ALIASES = {
+  'innings pitched': 'IP',
+  'strikeouts': 'K', 'ks': 'K', 'so': 'K',
+  'hits allowed': 'H', 'hits': 'H',
+  'total bases': 'TB',
+  'home runs': 'HR',
+  'rbis': 'RBI', 'rbi': 'RBI',
+  'earned runs': 'ER',
+  'walks': 'BB', 'bases on balls': 'BB',
+  'stolen bases': 'SB',
+  'runs': 'R',
+};
+
+// Known PropShop book column order (from paste)
+const BOOK_NAMES = ['Consensus','Best Line','Fliff','Novig','ProphetX','DK','Pinnacle'];
+
+// ===== PARSE ENGINE =====
+function parsePropShopText(raw, minEV) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const results = [];
+  let i = 0;
+
+  // Helper: detect odds string like +103, -125, +144
+  const isOdds = s => /^[+-]\d{2,4}$/.test(s);
+  const isEV   = s => /^\+?\d+(\.\d+)?%$/.test(s);
+  const parseEV = s => parseFloat(s.replace('%','').replace('+',''));
+
+  // We'll do a multi-pass: find player name blocks, then extract data rows
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Detect market line — e.g. "HA" or "IP" right after player name
+    // Player blocks look like: PlayerName\nHA or PlayerName\n[market]\nGame • Time
+    // Let's look for lines that have an "HA" or market-like label followed by game info
+    const marketMatch = detectMarket(line);
+    if (marketMatch && i > 0) {
+      const playerName = lines[i-1];
+      // Skip if playerName looks like UI chrome
+      if (!looksLikePlayerName(playerName)) { i++; continue; }
+
+      const market = marketMatch;
+      let gameStr = '', gameTime = '';
+      let haProj = '', ipProj = '';
+      let j = i + 1;
+
+      // Look for game line: "Team @ Team • Date Time"
+      while (j < Math.min(i+8, lines.length)) {
+        const gl = lines[j];
+        if (gl.includes('•') && (gl.includes('@') || gl.includes('vs'))) {
+          const parts = gl.split('•');
+          gameStr = parts[0].trim();
+          gameTime = parts[1] ? parts[1].trim() : '';
+          j++;
+          break;
+        }
+        // HA / IP projection numbers
+        if (/^\d+\.\d+$/.test(gl) || /^\d+$/.test(gl)) {
+          if (!haProj) haProj = gl;
+          else if (!ipProj) ipProj = gl;
+        }
+        j++;
+      }
+
+      // Now scan for odds/EV rows
+      // Collect all tokens from the remaining lines until next player block or blank run
+      const tokens = [];
+      let k = j;
+      while (k < Math.min(j + 30, lines.length)) {
+        const tk = lines[k];
+        if (looksLikePlayerName(tk) && k > j) break;
+        if (detectMarket(tk) && k > j+2) break;
+        tokens.push(tk);
+        k++;
+      }
+
+      // Find best odds + EV pairs
+      // PropShop layout: for each book: line+odds (over row), EV%, then line+odds (under row)
+      let bestOdds = null, bestEV = -999, bestBook = '', bestSide = 'O', bestLine = null;
+
+      let t = 0;
+      let bookIdx = 0;
+      while (t < tokens.length) {
+        const tok = tokens[t];
+        // EV token
+        if (isEV(tok)) {
+          const ev = parseEV(tok);
+          if (ev >= minEV && ev > bestEV) {
+            // Look back for odds and line
+            let lookback = t - 1;
+            let foundOdds = null, foundLine = null, foundSide = 'O';
+            while (lookback >= Math.max(0, t-4)) {
+              const lb = tokens[lookback];
+              if (isOdds(lb) && !foundOdds) foundOdds = lb;
+              if (/^\d+(\.\d+)?$/.test(lb) && !foundLine) {
+                foundLine = parseFloat(lb);
+                // Determine side: look if there's a '+' odds before or after
+                if (foundOdds) foundSide = foundOdds.startsWith('+') ? 'O' : 'U';
+              }
+              lookback--;
+            }
+            // Also look ahead for odds if not found
+            if (!foundOdds && t+1 < tokens.length && isOdds(tokens[t+1])) foundOdds = tokens[t+1];
+
+            if (foundOdds) {
+              bestOdds = foundOdds;
+              bestEV = ev;
+              bestBook = BOOK_NAMES[bookIdx] || '';
+              bestSide = foundSide;
+              bestLine = foundLine;
+            }
+          }
+          bookIdx++;
+        }
+        // Line number (like 4.5 or 5.5) followed immediately by odds
+        if (/^\d+(\.\d+)?$/.test(tok) && t+1 < tokens.length && isOdds(tokens[t+1])) {
+          // could be over line
+        }
+        t++;
+      }
+
+      // Fallback: scan for any EV% above threshold with paired odds
+      if (!bestOdds || bestEV < minEV) {
+        // Try paired scan
+        for (let p = 0; p < tokens.length - 1; p++) {
+          if (isEV(tokens[p])) {
+            const ev = parseEV(tokens[p]);
+            if (ev >= minEV) {
+              // find nearest odds
+              for (let q = p-3; q <= p+3; q++) {
+                if (q >= 0 && q < tokens.length && isOdds(tokens[q])) {
+                  if (ev > bestEV) {
+                    bestEV = ev;
+                    bestOdds = tokens[q];
+                    bestSide = tokens[q].startsWith('+') ? 'O' : 'U';
+                    // line
+                    for (let r = q-2; r <= q+2; r++) {
+                      if (r >= 0 && r < tokens.length && /^\d+(\.\d+)?$/.test(tokens[r])) {
+                        bestLine = parseFloat(tokens[r]);
+                        break;
+                      }
+                    }
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (bestOdds && bestEV >= minEV) {
+        results.push({
+          id: Date.now() + Math.random(),
+          player: playerName,
+          market: market,
+          game: gameStr,
+          gameTime: gameTime,
+          line: bestLine,
+          side: bestSide,
+          odds: bestOdds,
+          book: bestBook,
+          ev: bestEV,
+          haProj: haProj,
+          ipProj: ipProj,
+          result: '',
+          notes: '',
+          actual: null,
+          pnl: null,
+        });
+      }
+
+      i = k;
+      continue;
+    }
+    i++;
+  }
+
+  return results;
+}
+
+function detectMarket(line) {
+  const upper = line.toUpperCase().trim();
+  if (MARKET_MAP[upper]) return upper;
+  const lower = line.toLowerCase().trim();
+  if (MARKET_ALIASES[lower]) return MARKET_ALIASES[lower];
+  // "HA" is a projection label, skip
+  if (upper === 'HA') return null;
+  return null;
+}
+
+function looksLikePlayerName(s) {
+  if (!s || s.length < 3 || s.length > 40) return false;
+  if (/^[+-]\d+/.test(s)) return false;  // odds
+  if (/^\d+(\.\d+)?$/.test(s)) return false;  // number
+  if (/^\+?\d+(\.\d+)?%$/.test(s)) return false;  // ev
+  if (s.includes('@') || s.includes('•')) return false;  // game
+  if (['HA','IP','K','ER','BB','H','TB','HR','RBI','SB','R','ALTS','▼ALTS'].includes(s.toUpperCase())) return false;
+  // Has at least one space (first last name) OR is a single capitalized name
+  return /^[A-Z][a-záàâãéèêíïóôõöúüçñ''\- ]+[a-záàâãéèêíïóôõöúüçñ]$/i.test(s);
+}
+
+// ===== PASTE MODAL =====
+function openPasteModal() { document.getElementById('pasteModal').classList.add('open'); document.getElementById('pasteArea').focus(); }
+function closePasteModal() { document.getElementById('pasteModal').classList.remove('open'); }
+
+document.getElementById('pasteModal').addEventListener('click', e => { if (e.target === e.currentTarget) closePasteModal(); });
+
+function parsePaste() {
+  const raw = document.getElementById('pasteArea').value;
+  const minEV = parseFloat(document.getElementById('minEV').value) || 5;
+  const info = document.getElementById('parseInfo');
+
+  if (!raw.trim()) { info.textContent = 'Paste is empty.'; info.className='parse-info warn'; return; }
+
+  const parsed = parsePropShopText(raw, minEV);
+
+  if (parsed.length === 0) {
+    info.textContent = `No props found above ${minEV}% EV. Check paste format.`;
+    info.className = 'parse-info warn';
+    return;
+  }
+
+  // Merge with existing (avoid dupes by player+market+game+line)
+  let added = 0;
+  parsed.forEach(p => {
+    const key = `${p.player}|${p.market}|${p.game}|${p.line}`;
+    const exists = props.some(e => `${e.player}|${e.market}|${e.game}|${e.line}` === key);
+    if (!exists) { props.push(p); added++; }
+  });
+
+  info.textContent = `Imported ${added} props (${parsed.length - added} duplicates skipped).`;
+  info.className = 'parse-info ok';
+
+  document.getElementById('pasteArea').value = '';
+  renderProps();
+  updateSummary();
+
+  // Auto-close after brief pause
+  setTimeout(() => closePasteModal(), 1200);
+}
+
+// ===== RENDER =====
+function renderProps() {
+  const main = document.getElementById('mainContent');
+  const empty = document.getElementById('emptyState');
+  const filterMarket = document.getElementById('filterMarket').value;
+  const filterEV = document.getElementById('filterEV').value;
+  const filterResult = document.getElementById('filterResult').value;
+
+  let filtered = props.filter(p => {
+    if (filterMarket && p.market !== filterMarket) return false;
+    if (filterEV === 'elite' && p.ev < 25) return false;
+    if (filterEV === 'strong' && (p.ev < 15 || p.ev >= 25)) return false;
+    if (filterEV === 'value' && (p.ev < 5 || p.ev >= 15)) return false;
+    if (filterResult === 'win' && p.result !== 'win') return false;
+    if (filterResult === 'loss' && p.result !== 'loss') return false;
+    if (filterResult === 'push' && p.result !== 'push') return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    empty.style.display = 'block';
+    // Remove old game groups
+    main.querySelectorAll('.game-group').forEach(el => el.remove());
+    return;
+  }
+  empty.style.display = 'none';
+  main.querySelectorAll('.game-group').forEach(el => el.remove());
+
+  // Group by game
+  const groups = {};
+  filtered.forEach(p => {
+    const key = p.game || 'Unknown Game';
+    if (!groups[key]) groups[key] = { time: p.gameTime, items: [] };
+    groups[key].items.push(p);
+  });
+
+  // Sort groups by time
+  const sortedGroups = Object.entries(groups).sort((a,b) => {
+    const ta = parseTime(a[1].time), tb = parseTime(b[1].time);
+    return ta - tb;
+  });
+
+  sortedGroups.forEach(([gameName, group]) => {
+    const div = document.createElement('div');
+    div.className = 'game-group';
+    div.innerHTML = buildGameGroup(gameName, group);
+    main.appendChild(div);
+  });
+}
+
+function parseTime(t) {
+  if (!t) return 9999;
+  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return 9999;
+  let h = parseInt(m[1]), min = parseInt(m[2]), ampm = m[3].toUpperCase();
+  if (ampm === 'PM' && h !== 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function buildGameGroup(gameName, group) {
+  const items = group.items;
+  const rows = items.map(p => buildRow(p)).join('');
+  return `
+    <div class="game-header">
+      <span class="game-name">${gameName}</span>
+      <span class="game-time">${group.time}</span>
+      <span class="game-count">${items.length} prop${items.length>1?'s':''}</span>
+    </div>
+    <table class="prop-table">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Market</th>
+          <th>Line</th>
+          <th>Best Odds</th>
+          <th class="r">EV%</th>
+          <th class="c">Proj</th>
+          <th class="c">Actual</th>
+          <th>Result</th>
+          <th>Notes</th>
+          <th class="r">P&amp;L</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function buildRow(p) {
+  const rowCls = p.result === 'win' ? 'row-win' : p.result === 'loss' ? 'row-loss' : p.result === 'push' ? 'row-push' : p.result === 'skip' ? 'row-skip' : '';
+  const evCls = p.ev >= 25 ? 'ev-elite-c' : p.ev >= 15 ? 'ev-strong-c' : p.ev >= 5 ? 'ev-value-c' : 'ev-dim';
+  const oddsCls = p.odds && p.odds.startsWith('+') ? 'odds-pos' : 'odds-neg';
+  const sideCls = p.side === 'O' ? 'side-o' : 'side-u';
+  const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.haProj || '—');
+  const actualDisp = p.actual !== null ? `<span class="actual-cell graded">${p.actual}</span>` : `<span class="actual-cell">—</span>`;
+  const pnlDisp = p.pnl !== null ? `<span class="pnl-cell ${p.pnl > 0 ? 'pnl-pos' : p.pnl < 0 ? 'pnl-neg' : 'pnl-zero'}">${p.pnl > 0 ? '+' : ''}${p.pnl.toFixed(2)}u</span>` : `<span class="pnl-cell pnl-zero">—</span>`;
+  const mInfo = MARKET_MAP[p.market] || { label: p.market };
+
+  return `<tr class="${rowCls}" id="row-${p.id}">
+    <td><div class="cell-player"><span class="player-name">${p.player}</span><span class="player-sub">${p.game}</span></div></td>
+    <td><span class="market-tag">${mInfo.label}</span></td>
+    <td><span class="line-cell"><span class="${sideCls}">${p.line !== null ? p.line : '?'} ${p.side}</span></span></td>
+    <td><div class="odds-cell ${oddsCls}">${p.odds || '—'}</div><div class="book-tag">${p.book}</div></td>
+    <td class="r"><span class="ev-cell ${evCls}">${p.ev.toFixed(1)}%</span></td>
+    <td class="proj-cell"><strong>${projDisp}</strong></td>
+    <td style="text-align:center">${actualDisp}</td>
+    <td>
+      <select class="result-sel" onchange="setResult('${p.id}',this.value)">
+        <option value="" ${!p.result?'selected':''}>Pending</option>
+        <option value="win" ${p.result==='win'?'selected':''}>✓ Win</option>
+        <option value="loss" ${p.result==='loss'?'selected':''}>✗ Loss</option>
+        <option value="push" ${p.result==='push'?'selected':''}>~ Push</option>
+        <option value="skip" ${p.result==='skip'?'selected':''}>Skip</option>
+      </select>
+    </td>
+    <td>
+    <td><input class="notes-in" type="text" value="${escHtml(p.notes||'')}" placeholder="notes…" oninput="setNotes('${p.id}',this.value)"></td>
+    <td class="r">${pnlDisp}</td>
+  </tr>`;
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ===== PROP MUTATIONS =====
+function setResult(id, val) {
+  const p = props.find(x => String(x.id) === String(id));
+  if (!p) return;
+  p.result = val;
+  // Calculate P&L
+  if (val === 'win') {
+    const odds = parseFloat(p.odds);
+    p.pnl = odds > 0 ? odds / 100 : 1.0;
+  } else if (val === 'loss') {
+    const odds = parseFloat(p.odds);
+    p.pnl = odds > 0 ? -1.0 : -(100 / Math.abs(odds));
+  } else if (val === 'push') {
+    p.pnl = 0;
+  } else {
+    p.pnl = null;
+  }
+  // Update row class
+  const row = document.getElementById('row-'+id);
+  if (row) {
+    row.className = val === 'win' ? 'row-win' : val === 'loss' ? 'row-loss' : val === 'push' ? 'row-push' : val === 'skip' ? 'row-skip' : '';
+    // Update P&L cell
+    const cells = row.querySelectorAll('td');
+    const pnlCell = cells[cells.length-1];
+    if (p.pnl !== null) {
+      pnlCell.innerHTML = `<span class="pnl-cell ${p.pnl > 0 ? 'pnl-pos' : p.pnl < 0 ? 'pnl-neg' : 'pnl-zero'}">${p.pnl > 0 ? '+' : ''}${p.pnl.toFixed(2)}u</span>`;
+    } else {
+      pnlCell.innerHTML = `<span class="pnl-cell pnl-zero">—</span>`;
+    }
+  }
+  updateSummary();
+}
+
+function setNotes(id, val) { const p = props.find(x => String(x.id) === String(id)); if (p) p.notes = val; }
+
+// ===== SUMMARY =====
+function updateSummary() {
+  const graded = props.filter(p => p.result && p.result !== 'skip');
+  const wins = graded.filter(p => p.result === 'win').length;
+  const losses = graded.filter(p => p.result === 'loss').length;
+  const pushes = graded.filter(p => p.result === 'push').length;
+  const totalPnl = props.reduce((acc, p) => acc + (p.pnl || 0), 0);
+  const wl = wins + losses;
+  const roi = wl > 0 ? ((totalPnl / wl) * 100).toFixed(1) + '%' : '—';
+
+  document.getElementById('s-total').textContent = props.length;
+  document.getElementById('s-w').textContent = wins;
+  document.getElementById('s-l').textContent = losses;
+  document.getElementById('s-p').textContent = pushes;
+  document.getElementById('s-roi').textContent = roi;
+  const pnlEl = document.getElementById('s-pnl');
+  pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2) + 'u';
+  pnlEl.className = 's-val ' + (totalPnl > 0 ? 'teal' : totalPnl < 0 ? 'red' : '');
+}
+
+// ===== AUTO-GRADE via MLB Stats API (free, no key) =====
+async function autoGrade() {
+  const btn = document.getElementById('gradeBtn');
+  const status = document.getElementById('gradeStatus');
+  const dateStr = document.getElementById('trackDate').value || getTodayStr();
+
+  if (props.length === 0) { status.textContent = 'No props to grade.'; status.className='grade-status error'; return; }
+
+  btn.disabled = true;
+  status.className = 'grade-status loading';
+  status.textContent = 'Fetching schedule…';
+
+  try {
+    // Step 1: Get schedule for the date
+    const schedUrl = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}`;
+    const schedResp = await fetch(schedUrl);
+    const schedData = await schedResp.json();
+
+    if (!schedData.dates || schedData.dates.length === 0) {
+      status.textContent = 'No games found for date.'; status.className='grade-status error';
+      btn.disabled = false; return;
+    }
+
+    const games = schedData.dates[0].games;
+    status.textContent = `Found ${games.length} games. Fetching box scores…`;
+
+    // Step 2: For each game that's Final, fetch boxscore
+    const boxscores = {};
+    let fetched = 0;
+    for (const g of games) {
+      if (g.status.abstractGameState === 'Final' || g.status.abstractGameState === 'Live') {
+        const bsUrl = `https://statsapi.mlb.com/api/v1/game/${g.gamePk}/boxscore`;
+        try {
+          const bsResp = await fetch(bsUrl);
+          const bsData = await bsResp.json();
+          boxscores[g.gamePk] = bsData;
+          fetched++;
+        } catch(e) {}
+      }
+    }
+
+    if (fetched === 0) {
+      status.textContent = 'No completed games yet.'; status.className='grade-status';
+      btn.disabled = false; return;
+    }
+
+    status.textContent = `Grading ${props.length} props…`;
+
+    // Step 3: Build player lookup across all box scores
+    const playerStats = buildPlayerLookup(boxscores);
+
+    // Step 4: Grade each prop
+    let graded = 0;
+    props.forEach(p => {
+      if (p.result) return; // Already graded manually
+      const statVal = findPlayerStat(playerStats, p.player, p.market);
+      if (statVal === null) return;
+
+      p.actual = statVal;
+      const line = p.line;
+      const side = p.side;
+
+      let result = '';
+      if (p.market === 'IP') {
+        // IP needs special handling (e.g. 4.2 means 4 and 2/3)
+        const actual = parseIP(statVal);
+        const lineF = parseFloat(line);
+        if (side === 'O') result = actual > lineF ? 'win' : actual === lineF ? 'push' : 'loss';
+        else result = actual < lineF ? 'win' : actual === lineF ? 'push' : 'loss';
+      } else {
+        const actual = parseFloat(statVal);
+        const lineF = parseFloat(line);
+        if (side === 'O') result = actual > lineF ? 'win' : actual === lineF ? 'push' : 'loss';
+        else result = actual < lineF ? 'win' : actual === lineF ? 'push' : 'loss';
+      }
+
+      p.result = result;
+      const odds = parseFloat(p.odds);
+      if (result === 'win') p.pnl = odds > 0 ? odds / 100 : 1.0;
+      else if (result === 'loss') p.pnl = odds > 0 ? -1.0 : -(100 / Math.abs(odds));
+      else if (result === 'push') p.pnl = 0;
+      graded++;
+    });
+
+    renderProps();
+    updateSummary();
+    status.textContent = `Graded ${graded} prop${graded!==1?'s':''}. ✓`;
+    status.className = 'grade-status done';
+
+  } catch(err) {
+    status.textContent = 'Error: ' + err.message;
+    status.className = 'grade-status error';
+  }
+
+  btn.disabled = false;
+}
+
+function buildPlayerLookup(boxscores) {
+  // Returns: { normalizedName: { market: value } }
+  const lookup = {};
+
+  Object.values(boxscores).forEach(bs => {
+    if (!bs.teams) return;
+    ['away', 'home'].forEach(side => {
+      const team = bs.teams[side];
+      if (!team || !team.players) return;
+      Object.values(team.players).forEach(player => {
+        const name = player.person?.fullName;
+        if (!name) return;
+        const norm = normName(name);
+        if (!lookup[norm]) lookup[norm] = { rawName: name };
+
+        // Pitching stats
+        const ps = player.stats?.pitching;
+        if (ps) {
+          lookup[norm].IP  = ps.inningsPitched;
+          lookup[norm].K   = ps.strikeOuts;
+          lookup[norm].ER  = ps.earnedRuns;
+          lookup[norm].BB  = ps.baseOnBalls;
+          lookup[norm].H_pitching = ps.hits; // hits allowed
+        }
+        // Batting stats
+        const bs2 = player.stats?.batting;
+        if (bs2) {
+          lookup[norm].H   = bs2.hits;
+          lookup[norm].TB  = bs2.totalBases;
+          lookup[norm].HR  = bs2.homeRuns;
+          lookup[norm].RBI = bs2.rbi;
+          lookup[norm].R   = bs2.runs;
+          lookup[norm].BB_bat = bs2.baseOnBalls;
+          lookup[norm].SB  = bs2.stolenBases;
+        }
+      });
+    });
+  });
+  return lookup;
+}
+
+function findPlayerStat(lookup, playerName, market) {
+  const norm = normName(playerName);
+  // Try exact
+  let entry = lookup[norm];
+  if (!entry) {
+    // Fuzzy: find closest key
+    const keys = Object.keys(lookup);
+    const match = keys.find(k => k.includes(norm) || norm.includes(k) || lastName(k) === lastName(norm));
+    if (match) entry = lookup[match];
+  }
+  if (!entry) return null;
+
+  // For H market, prefer batting hits; for BB prefer context
+  let key = market;
+  if (market === 'H') key = entry.H !== undefined ? 'H' : 'H_pitching';
+  if (market === 'BB') key = entry.BB !== undefined ? 'BB' : 'BB_bat';
+
+  const val = entry[key];
+  return val !== undefined && val !== null ? val : null;
+}
+
+function normName(n) { return n.toLowerCase().replace(/[^a-z ]/g,'').trim().replace(/\s+/g,' '); }
+function lastName(n) { const p = n.trim().split(' '); return p[p.length-1]; }
+
+function parseIP(val) {
+  // "4.2" means 4 + 2/3 innings
+  if (typeof val === 'number') return val;
+  const s = String(val);
+  const parts = s.split('.');
+  const full = parseInt(parts[0]) || 0;
+  const thirds = parseInt(parts[1]) || 0;
+  return full + thirds / 3;
+}
+
+// ===== UTILS =====
+function getTodayStr() {
+  const d = new Date();
+  return d.toISOString().split('T')[0];
+}
+
+function clearAll() {
+  if (!confirm('Clear all props?')) return;
+  props = [];
+  renderProps();
+  updateSummary();
+}
+
+// ===== DATE INIT =====
+const trackDateEl = document.getElementById('trackDate');
+const today = getTodayStr();
+trackDateEl.value = today;
+document.getElementById('dateDisplay').textContent = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+trackDateEl.addEventListener('change', () => {
+  const d = new Date(trackDateEl.value + 'T12:00:00');
+  document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+});
+
+// Init
+renderProps();
+updateSummary();
+
+// ===== EXPORT EXCEL =====
+function exportExcel() {
+  if (props.length === 0) { alert('No props to export.'); return; }
+  const wb = XLSX.utils.book_new();
+
+  const dateStr = document.getElementById('trackDate').value || getTodayStr();
+
+  // ---- helpers ----
+  const pnlCalc = p => p.pnl !== null ? p.pnl : '';
+  const riskCalc = p => {
+    if (!p.odds) return '';
+    const o = parseFloat(p.odds);
+    return o > 0 ? 1 : parseFloat((100/Math.abs(o)).toFixed(4));
+  };
+  const toWinCalc = p => {
+    if (!p.odds) return '';
+    const o = parseFloat(p.odds);
+    return o > 0 ? parseFloat((o/100).toFixed(4)) : 1;
+  };
+  const evBucket = ev => ev >= 25 ? 'Elite 25%+' : ev >= 15 ? 'Strong 15-24%' : ev >= 5 ? 'Value 5-14%' : '<5%';
+
+  // ---- Sheet 1: Bet Log ----
+  const logHeaders = ['Date','Player','Market','Game','Time','Line','Side','Best Odds','Book','EV%','EV Bucket','Risk (u)','To Win (u)','Actual','Result','P&L (u)','Notes'];
+  const logRows = props.map(p => [
+    dateStr, p.player, p.market, p.game, p.gameTime,
+    p.line, p.side, p.odds, p.book,
+    p.ev, evBucket(p.ev),
+    riskCalc(p), toWinCalc(p),
+    p.actual !== null ? p.actual : '',
+    p.result || 'Pending',
+    pnlCalc(p),
+    p.notes || ''
+  ]);
+  const logWs = XLSX.utils.aoa_to_sheet([logHeaders, ...logRows]);
+  logWs['!cols'] = [8,18,10,22,10,6,6,10,10,7,14,9,9,8,9,9,20].map(w=>({wch:w}));
+  styleSheet(logWs, logHeaders.length);
+  XLSX.utils.book_append_sheet(wb, logWs, 'Bet Log');
+
+  // ---- Sheet 2: Summary ----
+  const graded = props.filter(p => p.result && p.result !== 'skip' && p.result !== 'pending' && p.result !== '');
+  const wins = graded.filter(p => p.result === 'win');
+  const losses = graded.filter(p => p.result === 'loss');
+  const pushes = graded.filter(p => p.result === 'push');
+  const totalPnl = graded.reduce((a,p)=>a+(p.pnl||0),0);
+  const totalRisk = graded.reduce((a,p)=>a+riskCalc(p),0);
+  const roi = totalRisk > 0 ? totalPnl/totalRisk : 0;
+
+  const sumData = [
+    ['PropShop MLB Tracker — Export', dateStr],
+    [],
+    ['OVERALL SUMMARY',''],
+    ['Total Props', props.length],
+    ['Graded', graded.length],
+    ['Wins', wins.length],
+    ['Losses', losses.length],
+    ['Pushes', pushes.length],
+    ['Win Rate', graded.length > 0 ? wins.length/graded.length : ''],
+    ['Total P&L (u)', parseFloat(totalPnl.toFixed(4))],
+    ['Total Risked (u)', parseFloat(totalRisk.toFixed(4))],
+    ['ROI', roi],
+    [],
+    ['EV BUCKET BREAKDOWN','Bets','W','L','Push','P&L (u)','Risk (u)','ROI'],
+    ...['Elite 25%+','Strong 15-24%','Value 5-14%'].map(bucket => {
+      const bp = graded.filter(p => evBucket(p.ev) === bucket);
+      const bw = bp.filter(p=>p.result==='win'), bl = bp.filter(p=>p.result==='loss');
+      const bpnl = bp.reduce((a,p)=>a+(p.pnl||0),0);
+      const brisk = bp.reduce((a,p)=>a+riskCalc(p),0);
+      return [bucket, bp.length, bw.length, bl.length, bp.filter(p=>p.result==='push').length,
+              parseFloat(bpnl.toFixed(4)), parseFloat(brisk.toFixed(4)),
+              brisk>0 ? parseFloat((bpnl/brisk).toFixed(4)) : ''];
+    }),
+  ];
+  const sumWs = XLSX.utils.aoa_to_sheet(sumData);
+  sumWs['!cols'] = [{wch:22},{wch:12},{wch:8},{wch:8},{wch:8},{wch:10},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, sumWs, 'Summary');
+
+  // ---- Sheet 3: Market Breakdown ----
+  const markets = [...new Set(props.map(p=>p.market))].sort();
+  const mktHeaders = ['Market','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%'];
+  const mktRows = markets.map(mkt => {
+    const mp = props.filter(p=>p.market===mkt);
+    const mg = mp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const mw = mg.filter(p=>p.result==='win'), ml = mg.filter(p=>p.result==='loss');
+    const mpnl = mg.reduce((a,p)=>a+(p.pnl||0),0);
+    const mrisk = mg.reduce((a,p)=>a+riskCalc(p),0);
+    const avgEV = mp.length > 0 ? mp.reduce((a,p)=>a+p.ev,0)/mp.length : 0;
+    return [mkt, mp.length, mw.length, ml.length, mg.filter(p=>p.result==='push').length,
+            mg.length>0 ? parseFloat((mw.length/mg.length).toFixed(4)) : '',
+            parseFloat(mpnl.toFixed(4)), parseFloat(mrisk.toFixed(4)),
+            mrisk>0 ? parseFloat((mpnl/mrisk).toFixed(4)) : '',
+            parseFloat(avgEV.toFixed(2))];
+  });
+  // Totals row
+  const tg = props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+  const tw = tg.filter(p=>p.result==='win'), trisk2 = tg.reduce((a,p)=>a+riskCalc(p),0);
+  const tpnl2 = tg.reduce((a,p)=>a+(p.pnl||0),0);
+  mktRows.push(['TOTAL', props.length, tw.length, tg.filter(p=>p.result==='loss').length,
+    tg.filter(p=>p.result==='push').length,
+    tg.length>0 ? parseFloat((tw.length/tg.length).toFixed(4)) : '',
+    parseFloat(tpnl2.toFixed(4)), parseFloat(trisk2.toFixed(4)),
+    trisk2>0 ? parseFloat((tpnl2/trisk2).toFixed(4)) : '',
+    parseFloat((props.reduce((a,p)=>a+p.ev,0)/props.length).toFixed(2))]);
+
+  const mktWs = XLSX.utils.aoa_to_sheet([mktHeaders, ...mktRows]);
+  mktWs['!cols'] = [12,7,7,7,7,10,10,10,10,10].map(w=>({wch:w}));
+  styleSheet(mktWs, mktHeaders.length);
+  XLSX.utils.book_append_sheet(wb, mktWs, 'By Market');
+
+  // ---- Sheet 4: O/U Split ----
+  const ouHeaders = ['Side','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%','Avg Odds'];
+  const ouRows = ['O','U'].map(side => {
+    const sp = props.filter(p=>p.side===side);
+    const sg = sp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const sw = sg.filter(p=>p.result==='win');
+    const spnl = sg.reduce((a,p)=>a+(p.pnl||0),0);
+    const srisk = sg.reduce((a,p)=>a+riskCalc(p),0);
+    const avgEV = sp.length>0 ? sp.reduce((a,p)=>a+p.ev,0)/sp.length : 0;
+    const avgOdds = sp.length>0 ? sp.reduce((a,p)=>a+parseFloat(p.odds||0),0)/sp.length : 0;
+    return [side==='O'?'Over':'Under', sp.length, sw.length, sg.filter(p=>p.result==='loss').length,
+            sg.filter(p=>p.result==='push').length,
+            sg.length>0 ? parseFloat((sw.length/sg.length).toFixed(4)) : '',
+            parseFloat(spnl.toFixed(4)), parseFloat(srisk.toFixed(4)),
+            srisk>0 ? parseFloat((spnl/srisk).toFixed(4)) : '',
+            parseFloat(avgEV.toFixed(2)), parseFloat(avgOdds.toFixed(1))];
+  });
+  const ouWs = XLSX.utils.aoa_to_sheet([ouHeaders, ...ouRows]);
+  ouWs['!cols'] = [10,7,7,7,7,10,10,10,10,10,10].map(w=>({wch:w}));
+  styleSheet(ouWs, ouHeaders.length);
+  XLSX.utils.book_append_sheet(wb, ouWs, 'O-U Split');
+
+  // ---- Sheet 5: Fav vs Dog ----
+  const fdHeaders = ['Type','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%','Avg Odds'];
+  const fdRows = ['dog','fav'].map(type => {
+    const fp = props.filter(p => type==='dog' ? parseFloat(p.odds||0)>0 : parseFloat(p.odds||0)<0);
+    const fg = fp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const fw = fg.filter(p=>p.result==='win');
+    const fpnl = fg.reduce((a,p)=>a+(p.pnl||0),0);
+    const frisk = fg.reduce((a,p)=>a+riskCalc(p),0);
+    const avgEV = fp.length>0 ? fp.reduce((a,p)=>a+p.ev,0)/fp.length : 0;
+    const avgOdds = fp.length>0 ? fp.reduce((a,p)=>a+parseFloat(p.odds||0),0)/fp.length : 0;
+    return [type==='dog'?'Underdog (+odds)':'Favorite (-odds)',
+            fp.length, fw.length, fg.filter(p=>p.result==='loss').length,
+            fg.filter(p=>p.result==='push').length,
+            fg.length>0 ? parseFloat((fw.length/fg.length).toFixed(4)) : '',
+            parseFloat(fpnl.toFixed(4)), parseFloat(frisk.toFixed(4)),
+            frisk>0 ? parseFloat((fpnl/frisk).toFixed(4)) : '',
+            parseFloat(avgEV.toFixed(2)), parseFloat(avgOdds.toFixed(1))];
+  });
+  const fdWs = XLSX.utils.aoa_to_sheet([fdHeaders, ...fdRows]);
+  fdWs['!cols'] = [18,7,7,7,7,10,10,10,10,10,10].map(w=>({wch:w}));
+  styleSheet(fdWs, fdHeaders.length);
+  XLSX.utils.book_append_sheet(wb, fdWs, 'Fav vs Dog');
+
+  // ---- Sheet 6: By Game ----
+  const games = [...new Set(props.map(p=>p.game))];
+  const gmHeaders = ['Game','Time','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI'];
+  const gmRows = games.map(game => {
+    const gp = props.filter(p=>p.game===game);
+    const gg = gp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const gw = gg.filter(p=>p.result==='win');
+    const gpnl = gg.reduce((a,p)=>a+(p.pnl||0),0);
+    const grisk = gg.reduce((a,p)=>a+riskCalc(p),0);
+    return [game, gp[0]?.gameTime||'', gp.length, gw.length,
+            gg.filter(p=>p.result==='loss').length, gg.filter(p=>p.result==='push').length,
+            gg.length>0 ? parseFloat((gw.length/gg.length).toFixed(4)) : '',
+            parseFloat(gpnl.toFixed(4)), parseFloat(grisk.toFixed(4)),
+            grisk>0 ? parseFloat((gpnl/grisk).toFixed(4)) : ''];
+  });
+  const gmWs = XLSX.utils.aoa_to_sheet([gmHeaders, ...gmRows]);
+  gmWs['!cols'] = [24,10,7,7,7,7,10,10,10,10].map(w=>({wch:w}));
+  styleSheet(gmWs, gmHeaders.length);
+  XLSX.utils.book_append_sheet(wb, gmWs, 'By Game');
+
+  // ---- Download ----
+  XLSX.writeFile(wb, `PropShop_MLB_${dateStr}.xlsx`);
+}
+
+function styleSheet(ws, numCols) {
+  // Style header row (row 1)
+  for (let c = 0; c < numCols; c++) {
+    const addr = XLSX.utils.encode_cell({r:0, c});
+    if (!ws[addr]) continue;
+    ws[addr].s = {
+      font: { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 10 },
+      fill: { fgColor: { rgb: '080C14' }, patternType: 'solid' },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: { bottom: { style: 'thin', color: { rgb: '10D9A0' } } }
+    };
+  }
+  // Style data rows
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let r = 1; r <= range.e.r; r++) {
+    for (let c = 0; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({r, c});
+      if (!ws[addr]) { ws[addr] = {t:'z'}; }
+      ws[addr].s = {
+        font: { name: 'Arial', sz: 10, color: { rgb: 'DDE4F0' } },
+        fill: { fgColor: { rgb: r%2===0 ? '0D1320' : '111827' }, patternType: 'solid' },
+        alignment: { vertical: 'center' },
+        border: { bottom: { style: 'hair', color: { rgb: '1A2234' } } }
+      };
+    }
+  }
+}
+
+</script>
+</body>
+</html>
