@@ -452,8 +452,10 @@ function styleSheet(ws, numCols) {
   <select class="ctrl-sel" id="filterMarket" onchange="renderProps()">
     <option value="">All Markets</option>
     <option value="IP">IP</option>
+    <option value="OUTS">Outs</option>
     <option value="K">Strikeouts</option>
-    <option value="H">Hits</option>
+    <option value="H">Hits (Batter)</option>
+    <option value="HA">Hits Allowed</option>
     <option value="TB">Total Bases</option>
     <option value="HR">Home Runs</option>
     <option value="RBI">RBIs</option>
@@ -492,9 +494,29 @@ function styleSheet(ws, numCols) {
       Supports all MLB markets: <code>IP</code> <code>K</code> <code>H</code> <code>TB</code> <code>HR</code> <code>RBI</code> <code>ER</code> <code>BB</code> <code>SB</code> and more.<br>
       Only lines with <strong>&gt;5% EV</strong> will be imported.
     </div>
-    <div class="modal-row">
-      <span class="ctrl-lbl">Min EV%:</span>
-      <input type="number" id="minEV" value="5" min="0" max="100" step="1" style="width:60px; background:var(--bg3); border:1px solid var(--border2); color:var(--text); padding:5px 8px; border-radius:4px; font-size:12px; outline:none;">
+    <div class="modal-row" style="gap:16px;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="ctrl-lbl">Market:</span>
+        <select id="pasteMarket" style="background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:Inter,sans-serif;font-size:12px;padding:5px 8px;border-radius:4px;outline:none;">
+          <option value="">Auto-detect</option>
+          <option value="IP">IP (Innings Pitched)</option>
+          <option value="OUTS">OUTS (Outs Recorded)</option>
+          <option value="HA">HA (Hits Allowed)</option>
+          <option value="K">K (Strikeouts)</option>
+          <option value="ER">ER (Earned Runs)</option>
+          <option value="BB">BB (Walks)</option>
+          <option value="H">H (Hits)</option>
+          <option value="TB">TB (Total Bases)</option>
+          <option value="HR">HR (Home Runs)</option>
+          <option value="RBI">RBI (RBIs)</option>
+          <option value="SB">SB (Stolen Bases)</option>
+          <option value="R">R (Runs)</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="ctrl-lbl">Min EV%:</span>
+        <input type="number" id="minEV" value="5" min="0" max="100" step="1" style="width:60px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;outline:none;">
+      </div>
     </div>
     <textarea class="paste-area" id="pasteArea" placeholder="Paste PropShop text here…"></textarea>
     <div class="parse-info" id="parseInfo"></div>
@@ -521,6 +543,7 @@ let props = [];
 // ===== MARKET CONFIG =====
 const MARKET_MAP = {
   'IP':  { label:'IP',           apiKey:'inningsPitched',  group:'pitching', isFloat:true  },
+  'HA':  { label:'Hits Allowed',  apiKey:'hits',            group:'pitching', isFloat:false },
   'K':   { label:'Strikeouts',   apiKey:'strikeOuts',      group:'pitching', isFloat:false },
   'ER':  { label:'Earned Runs',  apiKey:'earnedRuns',      group:'pitching', isFloat:false },
   'BB':  { label:'Walks',        apiKey:'baseOnBalls',     group:'pitching', isFloat:false },
@@ -529,6 +552,7 @@ const MARKET_MAP = {
   'HR':  { label:'Home Runs',    apiKey:'homeRuns',        group:'hitting',  isFloat:false },
   'RBI': { label:'RBIs',         apiKey:'rbi',             group:'hitting',  isFloat:false },
   'SB':  { label:'Stolen Bases', apiKey:'stolenBases',     group:'hitting',  isFloat:false },
+  'OUTS':{ label:'Outs',          apiKey:'outs',            group:'pitching', isFloat:false },
   'R':   { label:'Runs',         apiKey:'runs',            group:'hitting',  isFloat:false },
 };
 
@@ -550,188 +574,138 @@ const MARKET_ALIASES = {
 const BOOK_NAMES = ['Consensus','Best Line','Fliff','Novig','ProphetX','DK','Pinnacle'];
 
 // ===== PARSE ENGINE =====
-function parsePropShopText(raw, minEV) {
+const MARKET_KEYS = new Set(['IP','K','ER','BB','H','HA','TB','HR','RBI','SB','R','SO','OUTS','1B','2B','3B','PA','AB']);
+const BOOK_LABELS = new Set(['fanduel','pinnacle','draftkings','betmgm','espnbet','caesars',
+  'bet365','pointsbet','betonline','bookmaker','bet105','fliff','novig','prophetx','dk','consensus']);
+
+function isPlayerName(s) {
+  if (!s || s.length < 4 || s.length > 45) return false;
+  if (MARKET_KEYS.has(s.toUpperCase())) return false;
+  if (BOOK_LABELS.has(s.toLowerCase())) return false;
+  const skipWords = new Set(['ha','alts','▼','▼alts','consensus','propshop','sports','betting',
+    'events','fromto','market','projection','set','group','by','game','run','simulation',
+    'state','search','players','or','teams','logo','of','ma','proj','from','to','ab']);
+  if (skipWords.has(s.toLowerCase())) return false;
+  if (/^[+-]\d/.test(s) || /^\d/.test(s)) return false;
+  if (/^\+?\d+(\.\d+)?%$/.test(s)) return false;
+  if (s.includes('•') || s.includes('@')) return false;
+  if (!s.includes(' ')) return false;
+  return /^[A-Z][A-Za-z0-9áàâãéèêíïóôõöúüçñÁÉÍÓÚÑ'.\- ]+[A-Za-záàâãéèêíïóôõöúüçñA-Z0-9]$/.test(s);
+}
+
+const isOddsStr  = s => /^[+-]\d{2,6}$/.test(s);
+const isLineStr  = s => /^\d+(\.\d+)?$/.test(s) && parseFloat(s) > 0 && parseFloat(s) < 30;
+const isEVStr    = s => /^\+?\d+(\.\d+)?%$/.test(s);
+const parseEVStr = s => parseFloat(s.replace('%','').replace('+',''));
+const isMerged   = s => /^\d+(\.\d+)?[+-]\d{2,4}$/.test(s);
+function splitMerged(s) {
+  const m = s.match(/^(\d+(?:\.\d+)?)([+-]\d{2,4})$/);
+  return m ? [parseFloat(m[1]), m[2]] : [null, null];
+}
+
+function findBestEV(tokens, minEV) {
+  let bestEV = -999, bestOdds = null, bestLine = null, bestSide = 'O';
+  for (let idx = 0; idx < tokens.length; idx++) {
+    const tok = tokens[idx];
+    if (!isEVStr(tok)) continue;
+    const ev = parseEVStr(tok);
+    if (ev < minEV || ev <= bestEV) continue;
+    // Look back for nearest odds then line
+    let foundOdds = null, foundLine = null;
+    for (let b = idx - 1; b >= Math.max(0, idx - 5); b--) {
+      const bt = tokens[b];
+      if (isOddsStr(bt) && foundOdds === null) { foundOdds = bt; }
+      else if (isLineStr(bt) && foundOdds !== null && foundLine === null) { foundLine = parseFloat(bt); break; }
+    }
+    if (foundOdds && foundLine !== null) {
+      bestEV = ev; bestOdds = foundOdds; bestLine = foundLine;
+      bestSide = foundOdds.startsWith('+') ? 'O' : 'U';
+    }
+  }
+  return { ev: bestEV, odds: bestOdds, line: bestLine, side: bestSide };
+}
+
+function parsePropShopText(raw, minEV, marketOverride) {
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
   const results = [];
   let i = 0;
 
-  // Helper: detect odds string like +103, -125, +144
-  const isOdds = s => /^[+-]\d{2,4}$/.test(s);
-  const isEV   = s => /^\+?\d+(\.\d+)?%$/.test(s);
-  const parseEV = s => parseFloat(s.replace('%','').replace('+',''));
-
-  // We'll do a multi-pass: find player name blocks, then extract data rows
   while (i < lines.length) {
     const line = lines[i];
+    if (!isPlayerName(line)) { i++; continue; }
 
-    // Detect market line — e.g. "HA" or "IP" right after player name
-    // Player blocks look like: PlayerName\nHA or PlayerName\n[market]\nGame • Time
-    // Let's look for lines that have an "HA" or market-like label followed by game info
-    const marketMatch = detectMarket(line);
-    if (marketMatch && i > 0) {
-      const playerName = lines[i-1];
-      // Skip if playerName looks like UI chrome
-      if (!looksLikePlayerName(playerName)) { i++; continue; }
+    // Scan ahead to find market key, projections, and game line
+    let market = null, kProj = '', ipProj = '';
+    let j = i + 1;
+    let gameStr = '', gameTime = '';
 
-      const market = marketMatch;
-      let gameStr = '', gameTime = '';
-      let haProj = '', ipProj = '';
-      let j = i + 1;
-
-      // Look for game line: "Team @ Team • Date Time"
-      while (j < Math.min(i+8, lines.length)) {
-        const gl = lines[j];
-        if (gl.includes('•') && (gl.includes('@') || gl.includes('vs'))) {
-          const parts = gl.split('•');
-          gameStr = parts[0].trim();
-          gameTime = parts[1] ? parts[1].trim() : '';
-          j++;
-          break;
-        }
-        // HA / IP projection numbers
-        if (/^\d+\.\d+$/.test(gl) || /^\d+$/.test(gl)) {
-          if (!haProj) haProj = gl;
-          else if (!ipProj) ipProj = gl;
-        }
-        j++;
+    while (j < Math.min(i + 14, lines.length)) {
+      const tok = lines[j];
+      if (tok.includes('@') && (tok.includes('•') || tok.includes('—'))) {
+        const sep = tok.includes('•') ? '•' : '—';
+        const parts = tok.split(sep);
+        gameStr = parts[0].trim();
+        gameTime = parts[1] ? parts[1].trim() : '';
+        j++; break;
       }
-
-      // Now scan for odds/EV rows
-      // Collect all tokens from the remaining lines until next player block or blank run
-      const tokens = [];
-      let k = j;
-      while (k < Math.min(j + 30, lines.length)) {
-        const tk = lines[k];
-        if (looksLikePlayerName(tk) && k > j) break;
-        if (detectMarket(tk) && k > j+2) break;
-        tokens.push(tk);
-        k++;
-      }
-
-      // Find best odds + EV pairs
-      // PropShop layout: for each book: line+odds (over row), EV%, then line+odds (under row)
-      let bestOdds = null, bestEV = -999, bestBook = '', bestSide = 'O', bestLine = null;
-
-      let t = 0;
-      let bookIdx = 0;
-      while (t < tokens.length) {
-        const tok = tokens[t];
-        // EV token
-        if (isEV(tok)) {
-          const ev = parseEV(tok);
-          if (ev >= minEV && ev > bestEV) {
-            // Look back for odds and line
-            let lookback = t - 1;
-            let foundOdds = null, foundLine = null, foundSide = 'O';
-            while (lookback >= Math.max(0, t-4)) {
-              const lb = tokens[lookback];
-              if (isOdds(lb) && !foundOdds) foundOdds = lb;
-              if (/^\d+(\.\d+)?$/.test(lb) && !foundLine) {
-                foundLine = parseFloat(lb);
-                // Determine side: look if there's a '+' odds before or after
-                if (foundOdds) foundSide = foundOdds.startsWith('+') ? 'O' : 'U';
-              }
-              lookback--;
-            }
-            // Also look ahead for odds if not found
-            if (!foundOdds && t+1 < tokens.length && isOdds(tokens[t+1])) foundOdds = tokens[t+1];
-
-            if (foundOdds) {
-              bestOdds = foundOdds;
-              bestEV = ev;
-              bestBook = BOOK_NAMES[bookIdx] || '';
-              bestSide = foundSide;
-              bestLine = foundLine;
-            }
-          }
-          bookIdx++;
-        }
-        // Line number (like 4.5 or 5.5) followed immediately by odds
-        if (/^\d+(\.\d+)?$/.test(tok) && t+1 < tokens.length && isOdds(tokens[t+1])) {
-          // could be over line
-        }
-        t++;
-      }
-
-      // Fallback: scan for any EV% above threshold with paired odds
-      if (!bestOdds || bestEV < minEV) {
-        // Try paired scan
-        for (let p = 0; p < tokens.length - 1; p++) {
-          if (isEV(tokens[p])) {
-            const ev = parseEV(tokens[p]);
-            if (ev >= minEV) {
-              // find nearest odds
-              for (let q = p-3; q <= p+3; q++) {
-                if (q >= 0 && q < tokens.length && isOdds(tokens[q])) {
-                  if (ev > bestEV) {
-                    bestEV = ev;
-                    bestOdds = tokens[q];
-                    bestSide = tokens[q].startsWith('+') ? 'O' : 'U';
-                    // line
-                    for (let r = q-2; r <= q+2; r++) {
-                      if (r >= 0 && r < tokens.length && /^\d+(\.\d+)?$/.test(tokens[r])) {
-                        bestLine = parseFloat(tokens[r]);
-                        break;
-                      }
-                    }
-                  }
-                  break;
-                }
-              }
-            }
-          }
+      if (MARKET_KEYS.has(tok.toUpperCase()) && !marketOverride) {
+        if (!market) market = tok.toUpperCase();
+        // capture projection number right after market label
+        if (j+1 < lines.length && isLineStr(lines[j+1])) {
+          if (market === tok.toUpperCase() && !kProj) kProj = lines[j+1];
+          else if (tok.toUpperCase() === 'IP') ipProj = lines[j+1];
         }
       }
-
-      if (bestOdds && bestEV >= minEV) {
-        results.push({
-          id: Date.now() + Math.random(),
-          player: playerName,
-          market: market,
-          game: gameStr,
-          gameTime: gameTime,
-          line: bestLine,
-          side: bestSide,
-          odds: bestOdds,
-          book: bestBook,
-          ev: bestEV,
-          haProj: haProj,
-          ipProj: ipProj,
-          result: '',
-          notes: '',
-          actual: null,
-          pnl: null,
-        });
-      }
-
-      i = k;
-      continue;
+      j++;
     }
-    i++;
+
+    // Apply market override if user selected one
+    if (marketOverride) market = marketOverride;
+    if (!market || !gameStr) { i++; continue; }
+
+    // Skip alts/▼
+    while (j < lines.length && ['▼','alts','▼ALTS','▼\nalts'].includes(lines[j])) j++;
+
+    // Collect tokens until next player block
+    const rawTokens = [];
+    let k = j;
+    while (k < lines.length) {
+      const tk = lines[k];
+      if (isPlayerName(tk)) break;
+      if (tk.includes('PropShop Sports Betting') || tk === 'Run Simulation') break;
+      rawTokens.push(tk);
+      k++;
+    }
+
+    // Expand merged tokens like "4.5+103" -> ["4.5", "+103"]
+    const tokens = [];
+    for (const tok of rawTokens) {
+      if (isMerged(tok)) { const [ln, od] = splitMerged(tok); tokens.push(String(ln), od); }
+      else tokens.push(tok);
+    }
+
+    // Skip consensus (first 4 line/odds/dash tokens)
+    let t = 0, skipped = 0;
+    while (t < tokens.length && skipped < 4) {
+      if (isLineStr(tokens[t]) || isOddsStr(tokens[t]) || tokens[t] === '—') skipped++;
+      t++;
+    }
+
+    const { ev, odds, line: bestLine, side } = findBestEV(tokens.slice(t), minEV);
+
+    if (odds && ev >= minEV) {
+      results.push({
+        id: Date.now() + Math.random(),
+        player: line, market, game: gameStr, gameTime,
+        line: bestLine, side, odds, book: '', ev,
+        kProj, ipProj,
+        result: '', notes: '', actual: null, pnl: null,
+      });
+    }
+
+    i = k;
   }
-
   return results;
-}
-
-function detectMarket(line) {
-  const upper = line.toUpperCase().trim();
-  if (MARKET_MAP[upper]) return upper;
-  const lower = line.toLowerCase().trim();
-  if (MARKET_ALIASES[lower]) return MARKET_ALIASES[lower];
-  // "HA" is a projection label, skip
-  if (upper === 'HA') return null;
-  return null;
-}
-
-function looksLikePlayerName(s) {
-  if (!s || s.length < 3 || s.length > 40) return false;
-  if (/^[+-]\d+/.test(s)) return false;  // odds
-  if (/^\d+(\.\d+)?$/.test(s)) return false;  // number
-  if (/^\+?\d+(\.\d+)?%$/.test(s)) return false;  // ev
-  if (s.includes('@') || s.includes('•')) return false;  // game
-  if (['HA','IP','K','ER','BB','H','TB','HR','RBI','SB','R','ALTS','▼ALTS'].includes(s.toUpperCase())) return false;
-  // Has at least one space (first last name) OR is a single capitalized name
-  return /^[A-Z][a-záàâãéèêíïóôõöúüçñ''\- ]+[a-záàâãéèêíïóôõöúüçñ]$/i.test(s);
 }
 
 // ===== PASTE MODAL =====
@@ -743,11 +717,12 @@ document.getElementById('pasteModal').addEventListener('click', e => { if (e.tar
 function parsePaste() {
   const raw = document.getElementById('pasteArea').value;
   const minEV = parseFloat(document.getElementById('minEV').value) || 5;
+  const marketOverride = document.getElementById('pasteMarket').value;
   const info = document.getElementById('parseInfo');
 
   if (!raw.trim()) { info.textContent = 'Paste is empty.'; info.className='parse-info warn'; return; }
 
-  const parsed = parsePropShopText(raw, minEV);
+  const parsed = parsePropShopText(raw, minEV, marketOverride);
 
   if (parsed.length === 0) {
     info.textContent = `No props found above ${minEV}% EV. Check paste format.`;
