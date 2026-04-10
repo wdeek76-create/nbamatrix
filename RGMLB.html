@@ -221,7 +221,7 @@ function exportExcel() {
   const riskCalc = p => {
     if (!p.odds) return '';
     const o = parseFloat(p.odds);
-    return o > 0 ? 1 : parseFloat((100/Math.abs(o)).toFixed(4));
+    return o > 0 ? 1 : parseFloat((Math.abs(o)/100).toFixed(4));
   };
   const toWinCalc = p => {
     if (!p.odds) return '';
@@ -887,7 +887,7 @@ function setResult(id, val) {
     p.pnl = odds > 0 ? odds / 100 : 1.0;
   } else if (val === 'loss') {
     const odds = parseFloat(p.odds);
-    p.pnl = odds > 0 ? -1.0 : -(100 / Math.abs(odds));
+    p.pnl = odds > 0 ? -1.0 : -(Math.abs(odds) / 100);
   } else if (val === 'push') {
     p.pnl = 0;
   } else {
@@ -1011,7 +1011,7 @@ async function autoGrade() {
       p.result = result;
       const odds = parseFloat(p.odds);
       if (result === 'win') p.pnl = odds > 0 ? odds / 100 : 1.0;
-      else if (result === 'loss') p.pnl = odds > 0 ? -1.0 : -(100 / Math.abs(odds));
+      else if (result === 'loss') p.pnl = odds > 0 ? -1.0 : -(Math.abs(odds) / 100);
       else if (result === 'push') p.pnl = 0;
       graded++;
     });
@@ -1175,7 +1175,7 @@ function exportExcel() {
   const riskCalc = p => {
     if (!p.odds) return '';
     const o = parseFloat(p.odds);
-    return o > 0 ? 1 : parseFloat((100/Math.abs(o)).toFixed(4));
+    return o > 0 ? 1 : parseFloat((Math.abs(o)/100).toFixed(4));
   };
   const toWinCalc = p => {
     if (!p.odds) return '';
