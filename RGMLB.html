@@ -669,13 +669,19 @@ function parsePropShopText(raw, minEV, marketOverride) {
     // Skip alts/▼
     while (j < lines.length && ['▼','alts','▼ALTS','▼\nalts'].includes(lines[j])) j++;
 
-    // Collect tokens until next player block
+    // Collect tokens until next player block or ALTS section
     const rawTokens = [];
     let k = j;
+    let altsCount = 0;
     while (k < lines.length) {
       const tk = lines[k];
       if (isPlayerName(tk)) break;
       if (tk.includes('PropShop Sports Betting') || tk === 'Run Simulation') break;
+      // Stop at ALTS section (second occurrence — first was already skipped above)
+      if (tk === '▼ALTS' || tk === '▼' || tk.toLowerCase() === 'alts') {
+        altsCount++;
+        if (altsCount >= 1) break;
+      }
       rawTokens.push(tk);
       k++;
     }
