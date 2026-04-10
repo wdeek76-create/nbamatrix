@@ -482,6 +482,9 @@ function styleSheet(ws, numCols) {
   <div class="ctrl-sep"></div>
   <button class="btn" onclick="exportExcel()" style="border-color:rgba(45,122,79,0.35);color:var(--green);">↓ Export Excel</button>
   <div class="ctrl-sep"></div>
+  <button class="btn" onclick="saveState()" style="border-color:rgba(37,99,168,0.35);color:var(--blue);">💾 Save</button>
+  <span id="saveStatus" style="font-size:11px;color:var(--text2);font-family:Inter,sans-serif;"></span>
+  <div class="ctrl-sep"></div>
   <button class="btn danger" onclick="clearAll()">Clear All</button>
 </div>
 
@@ -744,6 +747,7 @@ function parsePaste() {
   document.getElementById('pasteArea').value = '';
   renderProps();
   updateSummary();
+  saveState();
 
   // Auto-close after brief pause
   setTimeout(() => closePasteModal(), 1200);
@@ -903,9 +907,10 @@ function setResult(id, val) {
     }
   }
   updateSummary();
+  saveState();
 }
 
-function setNotes(id, val) { const p = props.find(x => String(x.id) === String(id)); if (p) p.notes = val; }
+function setNotes(id, val) { const p = props.find(x => String(x.id) === String(id)); if (p) { p.notes = val; saveState(); } }
 
 // ===== SUMMARY =====
 function updateSummary() {
@@ -1013,6 +1018,7 @@ async function autoGrade() {
 
     renderProps();
     updateSummary();
+    saveState();
     status.textContent = `Graded ${graded} prop${graded!==1?'s':''}. ✓`;
     status.className = 'grade-status done';
 
@@ -1110,6 +1116,36 @@ function clearAll() {
   props = [];
   renderProps();
   updateSummary();
+  saveState();
+}
+
+
+// ===== PERSISTENCE =====
+const STORAGE_KEY = 'propshop_mlb_props';
+const DATE_KEY    = 'propshop_mlb_date';
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(props));
+    localStorage.setItem(DATE_KEY, document.getElementById('trackDate').value || getTodayStr());
+    const el = document.getElementById('saveStatus');
+    if (el) { el.textContent = 'Saved'; el.style.color = 'var(--green)'; setTimeout(() => { el.textContent = ''; }, 1500); }
+  } catch(e) { console.warn('Save failed:', e); }
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const savedDate = localStorage.getItem(DATE_KEY);
+    if (saved) {
+      props = JSON.parse(saved);
+      if (savedDate) {
+        document.getElementById('trackDate').value = savedDate;
+        const d = new Date(savedDate + 'T12:00:00');
+        document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+      }
+    }
+  } catch(e) { console.warn('Load failed:', e); props = []; }
 }
 
 // ===== DATE INIT =====
@@ -1123,6 +1159,7 @@ trackDateEl.addEventListener('change', () => {
 });
 
 // Init
+loadState();
 renderProps();
 updateSummary();
 
