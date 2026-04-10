@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MLB BET TRACKER</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -454,6 +455,7 @@ html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:va
   <div class="bets-header">
     <div><span class="bets-title">Bets</span><span class="bets-count" id="t-betsCount"></span></div>
     <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn" onclick="exportTotalsXLSX()">⬇ EXPORT</button>
       <button class="btn btn-danger" onclick="clearAll('totals')">CLEAR ALL</button>
     </div>
   </div>
@@ -1977,6 +1979,108 @@ async function debugBDL(){
   out.style.color='var(--text)';
 }
 
+
+function exportTotalsXLSX(){
+  const wb = XLSX.utils.book_new();
+  const graded = totalBets.filter(b=>b.grade==='win'||b.grade==='loss'||b.grade==='push');
+
+  // ── Sheet 1: All Bets ──
+  const betRows = totalBets.map(b=>({
+    Date: b.date||'',
+    Away: b.away||'',
+    Home: b.home||'',
+    Direction: (b.ou||'').toUpperCase(),
+    Line: b.line||'',
+    Market: b.market||b.line||'',
+    Model: b.model||'',
+    'Edge%': b.edge||'',
+    Grade: b.modelGrade||'',
+    Odds: b.odds||'',
+    Book: b.book||'',
+    Result: b.grade?(b.grade==='win'?'WIN':b.grade==='loss'?'LOSS':'PUSH'):'',
+    Actual: b.actual!=null&&b.actual!=='manual'?b.actual:'',
+    'P/L (u)': b.grade?+calcPL(b.odds,b.grade).toFixed(2):'',
+    'Added At': b.addedAt||''
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(betRows), 'All Bets');
+
+  // ── Helper to build breakdown rows ──
+  function breakdownRows(label, rows){
+    if(!rows.length) return null;
+    const ov=rows.filter(b=>b.ou==='over'), un=rows.filter(b=>b.ou==='under');
+    function side(s){
+      const w=s.filter(b=>b.grade==='win').length, l=s.filter(b=>b.grade==='loss').length;
+      const pl=s.reduce((a,b)=>a+calcPL(b.odds,b.grade),0);
+      const staked=calcRisk(s);
+      const roi=staked?(pl/staked*100):null;
+      return {W:w,L:l,Profit:+pl.toFixed(2),'Win%':+(w/(w+l||1)*100).toFixed(1),ROI:roi!=null?+roi.toFixed(1):null};
+    }
+    const o=side(ov), u=side(un);
+    return {
+      Segment:label,
+      'O Profit':o.Profit,'O W':o.W,'O L':o.L,'O Win%':o['Win%'],'O ROI':o.ROI,
+      'U Profit':u.Profit,'U W':u.W,'U L':u.L,'U Win%':u['Win%'],'U ROI':u.ROI
+    };
+  }
+
+  const brkRows = [];
+  // Over/Under totals
+  brkRows.push(breakdownRows('All Overs', graded.filter(b=>b.ou==='over')));
+  brkRows.push(breakdownRows('All Unders', graded.filter(b=>b.ou==='under')));
+  brkRows.push(null); // blank row
+
+  // By grade
+  brkRows.push({Segment:'--- BY GRADE ---'});
+  [...new Set(graded.map(b=>b.modelGrade).filter(Boolean))].sort().forEach(g=>
+    brkRows.push(breakdownRows(`Grade ${g}`, graded.filter(b=>b.modelGrade===g)))
+  );
+  brkRows.push(null);
+
+  // By market line
+  brkRows.push({Segment:'--- BY MARKET LINE ---'});
+  [6.5,7,7.5,8,8.5,9,9.5].forEach(line=>
+    brkRows.push(breakdownRows(`O/U ${line}`, graded.filter(b=>b.market===line||b.line===line)))
+  );
+  brkRows.push(null);
+
+  // By edge
+  brkRows.push({Segment:'--- BY EDGE % ---'});
+  [{label:'Edge 1-2%',min:1,max:3},{label:'Edge 3-4%',min:3,max:5},
+   {label:'Edge 5-6%',min:5,max:7},{label:'Edge 7-8%',min:7,max:9},
+   {label:'Edge 9%+',min:9,max:999}].forEach(t=>
+    brkRows.push(breakdownRows(t.label, graded.filter(b=>{const e=parseFloat(b.edge);return !isNaN(e)&&e>=t.min&&e<t.max;})))
+  );
+  brkRows.push(null);
+
+  // By entry time
+  const times=[...new Set(graded.map(b=>b.addedAt).filter(Boolean))].sort();
+  if(times.length){
+    brkRows.push({Segment:'--- BY ENTRY TIME ---'});
+    times.forEach(t=>brkRows.push(breakdownRows(t, graded.filter(b=>b.addedAt===t))));
+  }
+
+  const filteredBrk = brkRows.filter(r=>r!==null);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filteredBrk), 'Breakdown');
+
+  // ── Sheet 3: Calendar Summary ──
+  const byDate={};
+  graded.forEach(b=>{
+    if(!byDate[b.date]) byDate[b.date]={date:b.date,W:0,L:0,P:0,pl:0};
+    const d=byDate[b.date];
+    if(b.grade==='win')d.W++; else if(b.grade==='loss')d.L++; else d.P++;
+    d.pl+=calcPL(b.odds,b.grade);
+  });
+  const calRows=Object.values(byDate).sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({
+    Date:d.date, W:d.W, L:d.L, P:d.P,
+    'Win%':+(d.W/(d.W+d.L||1)*100).toFixed(1),
+    'P/L (u)':+d.pl.toFixed(2)
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(calRows), 'By Date');
+
+  // Download
+  const date=new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `mlb-totals-${date}.xlsx`);
+}
 
 function delBet(scope,i){ betsFor(scope).splice(i,1); saveBets(scope); render(scope); }
 
