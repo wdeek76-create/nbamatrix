@@ -607,24 +607,40 @@ function splitMerged(s) {
 }
 
 function findBestEV(tokens, minEV) {
-  // Take the FIRST EV% found — always the Best Line column
+  // Best Line column structure (after consensus is skipped):
+  // Case A (over has EV): line odds EV% [under_slot]
+  // Case B (under has EV): — line odds EV%
+  // Case C (merged format): line+odds EV% ...
+  //
+  // Determine side by whether first non-dash token before EV% is preceded by —
   for (let idx = 0; idx < tokens.length; idx++) {
     const tok = tokens[idx];
     if (!isEVStr(tok)) continue;
     const ev = parseEVStr(tok);
     if (ev < minEV) continue;
-    // Look back for nearest odds then line
-    // Also track if we pass a '—' before finding odds — means it's the UNDER row
-    let foundOdds = null, foundLine = null, passedDash = false;
-    for (let b = idx - 1; b >= Math.max(0, idx - 6); b--) {
-      const bt = tokens[b];
-      if (bt === '—' && foundOdds === null) { passedDash = true; }
-      else if (isOddsStr(bt) && foundOdds === null) { foundOdds = bt; }
-      else if (isLineStr(bt) && foundOdds !== null && foundLine === null) { foundLine = parseFloat(bt); break; }
+
+    // Collect up to 5 tokens before this EV%
+    const pre = [];
+    for (let b = idx - 1; b >= Math.max(0, idx - 6); b--) pre.unshift(tokens[b]);
+
+    // Find odds and line in pre[], note position of any —
+    let foundOdds = null, foundLine = null, dashBeforeOdds = false;
+    let oddsIdx = -1;
+    for (let p = pre.length - 1; p >= 0; p--) {
+      if (isOddsStr(pre[p]) && foundOdds === null) { foundOdds = pre[p]; oddsIdx = p; }
+      else if (isLineStr(pre[p]) && foundOdds !== null && foundLine === null) { foundLine = parseFloat(pre[p]); break; }
     }
+    // Check if there's a — anywhere before the odds position
+    if (oddsIdx > 0) {
+      for (let p = 0; p < oddsIdx; p++) {
+        if (pre[p] === '—') { dashBeforeOdds = true; break; }
+      }
+    }
+    // If first token in pre is — and odds come after, it's the under row
+    if (pre.length > 0 && pre[0] === '—') dashBeforeOdds = true;
+
     if (foundOdds && foundLine !== null) {
-      // Side is determined by position: if a dash preceded the odds, it's the UNDER row
-      const side = passedDash ? 'U' : 'O';
+      const side = dashBeforeOdds ? 'U' : 'O';
       return { ev, odds: foundOdds, line: foundLine, side };
     }
   }
@@ -855,7 +871,7 @@ function buildRow(p) {
   const evCls = p.ev >= 25 ? 'ev-elite-c' : p.ev >= 15 ? 'ev-strong-c' : p.ev >= 5 ? 'ev-value-c' : 'ev-dim';
   const oddsCls = p.odds && p.odds.startsWith('+') ? 'odds-pos' : 'odds-neg';
   const sideCls = p.side === 'O' ? 'side-o' : 'side-u';
-  const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.haProj || '—');
+  const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.kProj || p.ipProj || '—');
   const actualDisp = p.actual !== null ? `<span class="actual-cell graded">${p.actual}</span>` : `<span class="actual-cell">—</span>`;
   const pnlDisp = p.pnl !== null ? `<span class="pnl-cell ${p.pnl > 0 ? 'pnl-pos' : p.pnl < 0 ? 'pnl-neg' : 'pnl-zero'}">${p.pnl > 0 ? '+' : ''}${p.pnl.toFixed(2)}u</span>` : `<span class="pnl-cell pnl-zero">—</span>`;
   const mInfo = MARKET_MAP[p.market] || { label: p.market };
