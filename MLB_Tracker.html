@@ -1887,19 +1887,35 @@ function submitTotalRows(){
 
   const gradeNum=g=>g?parseInt(g.split('/')[0])||0:0;
 
-  // Deduplicate: same game same date
+  // Filter out grade < 7
+  const validGrade=newBets.filter(b=>{
+    const g=gradeNum(b.modelGrade);
+    if(g>0&&g<7){ console.log(`Skipping ${b.away}@${b.home} — grade ${b.modelGrade} below 7/9`); return false; }
+    return true;
+  });
+
+  if(!validGrade.length){ alert('No bets with grade 7/9 or higher to add.'); return; }
+
+  // Deduplicate within batch (keep first occurrence)
+  const seen=new Set();
+  const dedupedBatch=validGrade.filter(b=>{
+    const key=`${b.date}|${b.away}|${b.home}`;
+    if(seen.has(key)){ console.log(`Skipping intra-batch duplicate ${b.away}@${b.home}`); return false; }
+    seen.add(key); return true;
+  });
+
+  // Deduplicate against existing bets
   // - skip if existing is 7/9+
   // - replace if existing is <7/9 and new is 7/9+
   const newBetsFiltered=[];
-  newBets.forEach(b=>{
+  dedupedBatch.forEach(b=>{
     const existing=totalBets.findIndex(e=>e.date===b.date&&e.away===b.away&&e.home===b.home);
     if(existing===-1){
-      newBetsFiltered.push(b); // no duplicate, add it
+      newBetsFiltered.push(b);
     } else {
       const exGrade=gradeNum(totalBets[existing].modelGrade);
       const newGrade=gradeNum(b.modelGrade);
       if(exGrade<7&&newGrade>=7){
-        // Replace existing with upgraded bet
         totalBets.splice(existing,1);
         newBetsFiltered.push(b);
         console.log(`Upgraded ${b.away}@${b.home} from grade ${exGrade} to ${newGrade}`);
