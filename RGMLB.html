@@ -607,12 +607,13 @@ function splitMerged(s) {
 }
 
 function findBestEV(tokens, minEV) {
-  let bestEV = -999, bestOdds = null, bestLine = null, bestSide = 'O';
+  // Take the FIRST EV% found — this is always the Best Line column
+  // which is what PropShop highlights as the recommended line
   for (let idx = 0; idx < tokens.length; idx++) {
     const tok = tokens[idx];
     if (!isEVStr(tok)) continue;
     const ev = parseEVStr(tok);
-    if (ev < minEV || ev <= bestEV) continue;
+    if (ev < minEV) continue;
     // Look back for nearest odds then line
     let foundOdds = null, foundLine = null;
     for (let b = idx - 1; b >= Math.max(0, idx - 5); b--) {
@@ -621,11 +622,10 @@ function findBestEV(tokens, minEV) {
       else if (isLineStr(bt) && foundOdds !== null && foundLine === null) { foundLine = parseFloat(bt); break; }
     }
     if (foundOdds && foundLine !== null) {
-      bestEV = ev; bestOdds = foundOdds; bestLine = foundLine;
-      bestSide = foundOdds.startsWith('+') ? 'O' : 'U';
+      return { ev, odds: foundOdds, line: foundLine, side: foundOdds.startsWith('+') ? 'O' : 'U' };
     }
   }
-  return { ev: bestEV, odds: bestOdds, line: bestLine, side: bestSide };
+  return { ev: -999, odds: null, line: null, side: 'O' };
 }
 
 function parsePropShopText(raw, minEV, marketOverride) {
