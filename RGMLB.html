@@ -485,6 +485,8 @@ function styleSheet(ws, numCols) {
   <button class="btn" onclick="saveState()" style="border-color:rgba(37,99,168,0.35);color:var(--blue);">💾 Save</button>
   <span id="saveStatus" style="font-size:11px;color:var(--text2);font-family:Inter,sans-serif;"></span>
   <div class="ctrl-sep"></div>
+  <button class="btn" onclick="clearPending()" style="border-color:rgba(245,166,35,0.35);color:var(--amber);">Clear Pending</button>
+  <button class="btn" onclick="clearSkipped()" style="border-color:rgba(107,114,128,0.35);color:var(--text2);">Clear Skipped</button>
   <button class="btn danger" onclick="clearAll()">Clear All</button>
 </div>
 
@@ -727,6 +729,7 @@ function parsePropShopText(raw, minEV, marketOverride) {
         player: line, market, game: gameStr, gameTime,
         line: bestLine, side, odds, book: '', ev,
         kProj, ipProj,
+        date: (document.getElementById('trackDate')?.value) || getTodayStr(),
         result: '', notes: '', actual: null, pnl: null,
       });
     }
@@ -786,7 +789,11 @@ function renderProps() {
   const filterEV = document.getElementById('filterEV').value;
   const filterResult = document.getElementById('filterResult').value;
 
+  const activeDate = document.getElementById('trackDate').value || getTodayStr();
+
   let filtered = props.filter(p => {
+    // Only show props for the currently selected date
+    if (p.date && p.date !== activeDate) return false;
     if (filterMarket && p.market !== filterMarket) return false;
     if (filterEV === 'elite' && p.ev < 25) return false;
     if (filterEV === 'strong' && (p.ev < 15 || p.ev >= 25)) return false;
@@ -939,7 +946,7 @@ function setNotes(id, val) { const p = props.find(x => String(x.id) === String(i
 
 // ===== SUMMARY =====
 function updateSummary() {
-  const graded = props.filter(p => p.result && p.result !== 'skip');
+  const graded = dateProps.filter(p => p.result && p.result !== 'skip');
   const wins = graded.filter(p => p.result === 'win').length;
   const losses = graded.filter(p => p.result === 'loss').length;
   const pushes = graded.filter(p => p.result === 'push').length;
@@ -947,7 +954,9 @@ function updateSummary() {
   const wl = wins + losses;
   const roi = wl > 0 ? ((totalPnl / wl) * 100).toFixed(1) + '%' : '—';
 
-  document.getElementById('s-total').textContent = props.length;
+  const curDate = document.getElementById('trackDate')?.value || getTodayStr();
+  const dateProps = props.filter(p => !p.date || p.date === curDate);
+  document.getElementById('s-total').textContent = dateProps.length;
   document.getElementById('s-w').textContent = wins;
   document.getElementById('s-l').textContent = losses;
   document.getElementById('s-p').textContent = pushes;
@@ -1147,8 +1156,20 @@ function getTodayStr() {
   return d.toISOString().split('T')[0];
 }
 
+function clearPending() {
+  const curDate = document.getElementById('trackDate')?.value || getTodayStr();
+  if (!confirm('Clear all pending props for this date?')) return;
+  props = props.filter(p => !((!p.date || p.date === curDate) && (!p.result || p.result === '')));
+  renderProps(); updateSummary(); saveState();
+}
+function clearSkipped() {
+  const curDate = document.getElementById('trackDate')?.value || getTodayStr();
+  if (!confirm('Clear all skipped props for this date?')) return;
+  props = props.filter(p => !((!p.date || p.date === curDate) && p.result === 'skip'));
+  renderProps(); updateSummary(); saveState();
+}
 function clearAll() {
-  if (!confirm('Clear all props?')) return;
+  if (!confirm('Clear ALL props across all dates?')) return;
   props = [];
   renderProps();
   updateSummary();
@@ -1192,6 +1213,8 @@ document.getElementById('dateDisplay').textContent = new Date(today + 'T12:00:00
 trackDateEl.addEventListener('change', () => {
   const d = new Date(trackDateEl.value + 'T12:00:00');
   document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  renderProps();
+  updateSummary();
 });
 
 // Init
