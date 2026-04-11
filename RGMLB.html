@@ -792,8 +792,7 @@ function renderProps() {
   const activeDate = document.getElementById('trackDate').value || getTodayStr();
 
   let filtered = props.filter(p => {
-    // Only show props for the currently selected date
-    if (p.date && p.date !== activeDate) return false;
+    if ((p.date || activeDate) !== activeDate) return false;
     if (filterMarket && p.market !== filterMarket) return false;
     if (filterEV === 'elite' && p.ev < 25) return false;
     if (filterEV === 'strong' && (p.ev < 15 || p.ev >= 25)) return false;
@@ -1161,13 +1160,13 @@ function getTodayStr() {
 function clearPending() {
   const curDate = document.getElementById('trackDate')?.value || getTodayStr();
   if (!confirm('Clear all pending props for this date?')) return;
-  props = props.filter(p => !((!p.date || p.date === curDate) && (!p.result || p.result === '')));
+  props = props.filter(p => !((p.date || curDate) === curDate && (!p.result || p.result === '')));
   renderProps(); updateSummary(); saveState();
 }
 function clearSkipped() {
   const curDate = document.getElementById('trackDate')?.value || getTodayStr();
   if (!confirm('Clear all skipped props for this date?')) return;
-  props = props.filter(p => !((!p.date || p.date === curDate) && p.result === 'skip'));
+  props = props.filter(p => !((p.date || curDate) === curDate && p.result === 'skip'));
   renderProps(); updateSummary(); saveState();
 }
 function clearAll() {
@@ -1207,13 +1206,11 @@ function loadState() {
     const toLoad = saved && JSON.parse(saved).length > 0 ? saved : localStorage.getItem(STORAGE_KEY + '_backup');
     if (toLoad) {
       props = JSON.parse(toLoad);
-      // Backfill any props that have no date with the saved date
+      // Backfill undated props with the savedDate they belong to
       if (savedDate) {
         props = props.map(p => p.date ? p : {...p, date: savedDate});
-        document.getElementById('trackDate').value = savedDate;
-        const d = new Date(savedDate + 'T12:00:00');
-        document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
       }
+      // Always open to today
     }
   } catch(e) { console.warn('Load failed:', e); props = []; }
 }
