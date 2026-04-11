@@ -1185,7 +1185,14 @@ const DATE_KEY    = 'propshop_mlb_date';
 
 function saveState() {
   try {
+    // Never overwrite existing data with empty array
+    if (props.length === 0) {
+      const existing = localStorage.getItem(STORAGE_KEY);
+      if (existing && JSON.parse(existing).length > 0) return;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(props));
+    // Keep a backup of last non-empty save
+    if (props.length > 0) localStorage.setItem(STORAGE_KEY + '_backup', JSON.stringify(props));
     localStorage.setItem(DATE_KEY, document.getElementById('trackDate').value || getTodayStr());
     const el = document.getElementById('saveStatus');
     if (el) { el.textContent = 'Saved'; el.style.color = 'var(--green)'; setTimeout(() => { el.textContent = ''; }, 1500); }
@@ -1196,8 +1203,10 @@ function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const savedDate = localStorage.getItem(DATE_KEY);
-    if (saved) {
-      props = JSON.parse(saved);
+    // Try backup if main save is empty
+    const toLoad = saved && JSON.parse(saved).length > 0 ? saved : localStorage.getItem(STORAGE_KEY + '_backup');
+    if (toLoad) {
+      props = JSON.parse(toLoad);
       // Backfill any props that have no date with the saved date
       if (savedDate) {
         props = props.map(p => p.date ? p : {...p, date: savedDate});
