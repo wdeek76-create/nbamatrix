@@ -1078,6 +1078,15 @@ function buildPlayerLookup(boxscores) {
           lookup[norm].ER  = ps.earnedRuns;
           lookup[norm].BB  = ps.baseOnBalls;
           lookup[norm].H_pitching = ps.hits; // hits allowed
+          lookup[norm].HA  = ps.hits; // hits allowed (HA market)
+          // OUTS: convert inningsPitched (e.g. 4.2 = 4+2/3 innings = 14 outs)
+          if (ps.inningsPitched != null) {
+            const ipStr = String(ps.inningsPitched);
+            const parts = ipStr.split('.');
+            const fullInnings = parseInt(parts[0]) || 0;
+            const thirds = parseInt(parts[1]) || 0;
+            lookup[norm].OUTS = fullInnings * 3 + thirds;
+          }
         }
         // Batting stats
         const bs2 = player.stats?.batting;
@@ -1112,6 +1121,8 @@ function findPlayerStat(lookup, playerName, market) {
   let key = market;
   if (market === 'H') key = entry.H !== undefined ? 'H' : 'H_pitching';
   if (market === 'BB') key = entry.BB !== undefined ? 'BB' : 'BB_bat';
+  if (market === 'HA') key = 'HA';
+  if (market === 'OUTS') key = 'OUTS';
 
   const val = entry[key];
   return val !== undefined && val !== null ? val : null;
