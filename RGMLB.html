@@ -211,8 +211,11 @@ textarea.paste-area:focus { border-color: var(--green); }
 
 <script>
 // ===== EXPORT EXCEL =====
+// Minimal XLSX writer — no dependencies
 function exportExcel() {
   if (!props.length) { alert('No props to export.'); return; }
+
+  // ── helpers ──────────────────────────────────────────
   function uRisk(p) { const o=parseFloat(p.odds); return (!isNaN(o)&&o<0)?Math.abs(o)/100:1; }
   function sgn(n)   { if(n==null)return ''; return (n>=0?'+':'')+n.toFixed(2)+'u'; }
   function pctFmt(w,t){ return t?((w/t)*100).toFixed(1)+'%':'—'; }
@@ -236,16 +239,20 @@ function exportExcel() {
       const s=stats(a); return [labelFn?labelFn(k):k,s.total,s.w+'-'+s.l+(s.pu?'/'+s.pu+'P':''),s.wr,s.pnl,s.roi];
     });
   }
+
   const settled=props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
   const ov=stats(props);
-  const sections=[];
+  const mkts=[...new Set(props.map(p=>p.market))].sort();
 
-  // SUMMARY SHEET
+  // ── build sheet data objects ──────────────────────────
+  const sheets = [];
+
+  // SUMMARY
   const sum=[
     ['ROTOGRINDERS MLB PITCHER PROPS','','','','','','',''],
     ['Export Date',new Date().toLocaleDateString(),'','','','','',''],
     [],
-    ['OVERALL'],
+    ['OVERALL RECORD'],
     ['Props','Settled','W','L','P','W%','P&L','ROI'],
     [ov.total,ov.settled,ov.w,ov.l,ov.pu,ov.wr,ov.pnl,ov.roi],
     [],
@@ -276,7 +283,6 @@ function exportExcel() {
     [],
     ['OVER vs UNDER BY MARKET'],
   ];
-  const mkts=[...new Set(props.map(p=>p.market))].sort();
   mkts.forEach(m=>{
     const mp=settled.filter(p=>p.market===m);
     if(!mp.length)return;
@@ -284,21 +290,20 @@ function exportExcel() {
     sum.push(...breakdown(mp,p=>p.side==='O'?'Over':'Under'));
     sum.push([]);
   });
-  sections.push({name:'Summary',rows:sum});
+  sheets.push({name:'Summary',rows:sum});
 
   // BET LOG
   let running=0;
   const betLog=[['#','Date','Player','Market','Game','Time','Line','Side','Odds','EV%','Proj','Actual','Result','P&L','Running P&L','Notes']];
   [...props].forEach((p,i)=>{
     running+=(p.pnl||0);
-    betLog.push([i+1,(p.gameTime||(p.gameTime||'').split('\u2022')[0]||'').trim(),
-      p.player,p.market,p.game,p.gameTime||'',p.line,p.side,p.odds,
-      p.ev?(p.ev.toFixed(1)+'%'):'',p.kProj||p.ipProj||'',
+    betLog.push([i+1,(p.gameTime||'').trim(),p.player,p.market,p.game,p.gameTime||'',
+      p.line,p.side,p.odds,p.ev?(p.ev.toFixed(1)+'%'):'',p.kProj||p.ipProj||'',
       p.actual!=null?p.actual:'',
       p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending',
       p.pnl!=null?sgn(p.pnl):'',sgn(running),p.notes||'']);
   });
-  sections.push({name:'Bet Log',rows:betLog});
+  sheets.push({name:'Bet Log',rows:betLog});
 
   // PER-MARKET SHEETS
   mkts.forEach(m=>{
@@ -306,7 +311,7 @@ function exportExcel() {
     if(!mp.length)return;
     const s=stats(mp);
     const rows=[
-      [m+' Detail'],
+      [m+' — Detail'],
       ['Total',s.total,'W',s.w,'L',s.l,'Push',s.pu,'W%',s.wr,'P&L',s.pnl,'ROI',s.roi],
       [],
       ['Over vs Under','Bets','W-L','W%','P&L','ROI'],
@@ -318,25 +323,154 @@ function exportExcel() {
       p.ev?(p.ev.toFixed(1)+'%'):'',p.kProj||p.ipProj||'',p.actual!=null?p.actual:'',
       p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending',
       p.pnl!=null?sgn(p.pnl):'']));
-    sections.push({name:m.slice(0,31),rows});
+    sheets.push({name:m.slice(0,31),rows});
   });
 
-  // RENDER TO CSV
-  const allRows=[];
-  sections.forEach(s=>{
-    allRows.push(['=== '+s.name+' ===']);
-    s.rows.forEach(r=>allRows.push(r));
-    allRows.push([],[]);
-  });
-  const csv=allRows.map(r=>r.map(v=>{
-    const s=String(v==null?'':v);
-    return (s.includes(',')||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;
-  }).join(',')).join('\n');
+  // ── XLSX builder (pure JS, no deps) ──────────────────
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  function sheetXML(rows){
+    let maxCol=0;
+    rows.forEach(r=>{ if(r.length>maxCol)maxCol=r.length; });
+    const cols=Array.from({length:maxCol},(_,i)=>String.fromCharCode(65+(i%26))+(i>=26?String.fromCharCode(65+Math.floor(i/26)-1):'')).map((c,i)=>i>=26?c[1]+c[0]:c);
+    let xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    rows.forEach((row,ri)=>{
+      if(!row||!row.length){return;}
+      xml+=`<row r="${ri+1}">`;
+      row.forEach((cell,ci)=>{
+        const col=ci<26?String.fromCharCode(65+ci):(String.fromCharCode(64+Math.floor(ci/26))+String.fromCharCode(65+(ci%26)));
+        const ref=col+(ri+1);
+        const v=cell==null?'':cell;
+        if(typeof v==='number'||(!isNaN(parseFloat(v))&&v!==''&&!String(v).startsWith('+')&&!String(v).endsWith('%')&&!String(v).endsWith('u'))){
+          xml+=`<c r="${ref}"><v>${esc(v)}</v></c>`;
+        } else {
+          xml+=`<c r="${ref}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
+        }
+      });
+      xml+='</row>';
+    });
+    xml+='</sheetData></worksheet>';
+    return xml;
+  }
+
+  function workbookXML(names){
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
+      names.map((n,i)=>`<sheet name="${esc(n)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>';
+  }
+
+  function relsXML(count){
+    let xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+    for(let i=0;i<count;i++) xml+=`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`;
+    xml+='</Relationships>';
+    return xml;
+  }
+
+  const contentTypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+    sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>';
+
+  const rootRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+
+  // ── zip it with JSZip-like pure JS ───────────────────
+  // Since we can't use JSZip, use a different approach:
+  // Build the XLSX manually using a tiny zip implementation
+
+  // Tiny CRC32
+  const crcTable=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c;}return t;})();
+  function crc32(data){let c=0xFFFFFFFF;for(let i=0;i<data.length;i++)c=crcTable[(c^data[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+
+  function str2bytes(s){
+    const bytes=[];
+    for(let i=0;i<s.length;i++){
+      const c=s.charCodeAt(i);
+      if(c<128)bytes.push(c);
+      else if(c<2048)bytes.push(0xC0|(c>>6),0x80|(c&0x3F));
+      else bytes.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));
+    }
+    return new Uint8Array(bytes);
+  }
+
+  function uint16LE(n){return[n&0xFF,(n>>8)&0xFF];}
+  function uint32LE(n){return[n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];}
+
+  function buildZip(files){
+    // files: [{name, data: Uint8Array}]
+    const entries=[];
+    let offset=0;
+    const parts=[];
+
+    files.forEach(f=>{
+      const nameBytes=str2bytes(f.name);
+      const crc=crc32(f.data);
+      const local=[
+        0x50,0x4B,0x03,0x04, // sig
+        0x14,0x00,           // version
+        0x00,0x00,           // flags
+        0x00,0x00,           // compression (stored)
+        0x00,0x00,0x00,0x00, // mod time/date
+        ...uint32LE(crc),
+        ...uint32LE(f.data.length),
+        ...uint32LE(f.data.length),
+        ...uint16LE(nameBytes.length),
+        0x00,0x00,           // extra len
+        ...nameBytes
+      ];
+      entries.push({nameBytes,crc,size:f.data.length,offset});
+      parts.push(new Uint8Array(local),f.data);
+      offset+=local.length+f.data.length;
+    });
+
+    const cdOffset=offset;
+    entries.forEach((e,i)=>{
+      const cd=[
+        0x50,0x4B,0x01,0x02,
+        0x14,0x00,0x14,0x00,
+        0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,
+        ...uint32LE(e.crc),
+        ...uint32LE(e.size),
+        ...uint32LE(e.size),
+        ...uint16LE(e.nameBytes.length),
+        0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,
+        ...uint32LE(e.offset),
+        ...e.nameBytes
+      ];
+      parts.push(new Uint8Array(cd));
+      offset+=cd.length;
+    });
+
+    const cdSize=offset-cdOffset;
+    const eocd=[
+      0x50,0x4B,0x05,0x06,
+      0x00,0x00,0x00,0x00,
+      ...uint16LE(entries.length),
+      ...uint16LE(entries.length),
+      ...uint32LE(cdSize),
+      ...uint32LE(cdOffset),
+      0x00,0x00
+    ];
+    parts.push(new Uint8Array(eocd));
+
+    const total=parts.reduce((s,p)=>s+p.length,0);
+    const out=new Uint8Array(total);
+    let pos=0;
+    parts.forEach(p=>{out.set(p,pos);pos+=p.length;});
+    return out;
+  }
+
+  const files=[
+    {name:'[Content_Types].xml',data:str2bytes(contentTypes)},
+    {name:'_rels/.rels',data:str2bytes(rootRels)},
+    {name:'xl/workbook.xml',data:str2bytes(workbookXML(sheets.map(s=>s.name)))},
+    {name:'xl/_rels/workbook.xml.rels',data:str2bytes(relsXML(sheets.length))},
+    ...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:str2bytes(sheetXML(s.rows))}))
+  ];
+
+  const zip=buildZip(files);
+  const blob=new Blob([zip],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='rotoprops_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.download='rotoprops_'+new Date().toISOString().split('T')[0]+'.xlsx';
   a.click();
   URL.revokeObjectURL(a.href);
 }
