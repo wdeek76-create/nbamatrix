@@ -853,7 +853,7 @@ function renderProps() {
 
   const activeDate = document.getElementById('trackDate').value || getTodayStr();
   let filtered = props.filter(p => {
-    if ((p.date||activeDate) !== activeDate) return false;
+    if (!p.date || p.date !== activeDate) return false;
     if (filterMarket && p.market !== filterMarket) return false;
     if (filterEV === 'elite' && p.ev < 25) return false;
     if (filterEV === 'strong' && (p.ev < 15 || p.ev >= 25)) return false;
@@ -1007,7 +1007,7 @@ function setNotes(id, val) { const p = props.find(x => String(x.id) === String(i
 // ===== SUMMARY =====
 function updateSummary() {
   const _curDate = document.getElementById('trackDate')?.value || getTodayStr();
-  const _dateProps = props.filter(p => !p.date || p.date === _curDate);
+  const _dateProps = props.filter(p => p.date === _curDate);
   document.getElementById('s-total').textContent = _dateProps.length;
   const graded = _dateProps.filter(p => p.result && p.result !== 'skip' && p.result !== '');
   const wins = graded.filter(p => p.result === 'win').length;
@@ -1216,13 +1216,13 @@ function getTodayStr() {
 function clearPending() {
   const d = document.getElementById('trackDate')?.value || getTodayStr();
   if (!confirm('Clear pending props for this date?')) return;
-  props = props.filter(p => !((p.date||d) === d && (!p.result || p.result === '')));
+  props = props.filter(p => !(p.date === d && (!p.result || p.result === '')));
   renderProps(); updateSummary(); saveState();
 }
 function clearSkipped() {
   const d = document.getElementById('trackDate')?.value || getTodayStr();
   if (!confirm('Clear skipped props for this date?')) return;
-  props = props.filter(p => !((p.date||d) === d && p.result === 'skip'));
+  props = props.filter(p => !(p.date === d && p.result === 'skip'));
   renderProps(); updateSummary(); saveState();
 }
 function clearAll() {
@@ -1253,11 +1253,9 @@ function loadState() {
     const savedDate = localStorage.getItem(DATE_KEY);
     if (saved) {
       props = JSON.parse(saved);
-      // Backfill undated props with savedDate — but NEVER override the date picker
-      // Date picker always stays on today (set by DATE INIT below)
-      if (savedDate) {
-        props = props.map(p => p.date ? p : {...p, date: savedDate});
-      }
+      // Stamp ALL undated props with savedDate so they appear on the right date
+      const fallbackDate = savedDate || getTodayStr();
+      props = props.map(p => p.date ? p : {...p, date: fallbackDate});
     }
   } catch(e) { console.warn('Load failed:', e); props = []; }
 }
