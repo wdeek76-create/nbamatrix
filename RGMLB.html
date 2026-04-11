@@ -414,6 +414,157 @@ function styleSheet(ws, numCols) {
   }
 }
 
+
+// ===== TRACKER DASHBOARD =====
+let trackerTab = 'dashboard';
+
+function setTrackerTab(tab) {
+  trackerTab = tab;
+  document.getElementById('ttDash').style.cssText = tab==='dashboard'
+    ? 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;'
+    : 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;';
+  document.getElementById('ttLog').style.cssText = tab==='betlog'
+    ? 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;'
+    : 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;';
+  renderTracker();
+}
+
+function fmtOddsT(o) { return o==null?'—':o>0?'+'+o:String(o); }
+
+function unitRisk(p) {
+  const o = parseFloat(p.odds);
+  if (isNaN(o)) return 1;
+  return o > 0 ? 1 : Math.abs(o)/100;
+}
+function unitWin(p) {
+  const o = parseFloat(p.odds);
+  if (isNaN(o)) return 1;
+  return o > 0 ? o/100 : 1;
+}
+
+function renderTracker() {
+  const el = document.getElementById('trackerBody');
+  if (!el) return;
+  const settled = props.filter(p => p.result === 'win' || p.result === 'loss' || p.result === 'push');
+  const pending = props.filter(p => !p.result || p.result === '' || p.result === 'skip');
+  const wins = settled.filter(p => p.result === 'win').length;
+  const losses = settled.filter(p => p.result === 'loss').length;
+  const pushes = settled.filter(p => p.result === 'push').length;
+  const totalPnl = settled.reduce((a,p) => a + (p.pnl||0), 0);
+  const totalRisk = settled.reduce((a,p) => a + unitRisk(p), 0);
+  const roi = totalRisk > 0 ? ((totalPnl/totalRisk)*100).toFixed(1) : '—';
+  const winRate = settled.length > 0 ? ((wins/settled.length)*100).toFixed(1) : '—';
+
+  if (trackerTab === 'dashboard') {
+    // Stat cards
+    const sc = (label, val, sub, color='var(--text)') =>
+      `<div style="background:var(--bg3);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px;">${label}</div>
+        <div style="font-size:18px;font-weight:700;color:${color};line-height:1;margin-bottom:4px;">${val}</div>
+        <div style="font-size:11px;color:var(--text2);">${sub}</div>
+      </div>`;
+
+    const pnlColor = totalPnl > 0 ? 'var(--green)' : totalPnl < 0 ? 'var(--red)' : 'var(--text)';
+    const roiColor = roi !== '—' && parseFloat(roi) >= 0 ? 'var(--green)' : 'var(--red)';
+
+    // Market breakdown
+    const markets = [...new Set(props.map(p => p.market))].sort();
+    const mktRows = markets.map(m => {
+      const mp = settled.filter(p => p.market === m);
+      if (!mp.length) return '';
+      const mw = mp.filter(p=>p.result==='win').length;
+      const ml = mp.filter(p=>p.result==='loss').length;
+      const mp2 = mp.filter(p=>p.result==='push').length;
+      const mpnl = mp.reduce((a,p)=>a+(p.pnl||0),0);
+      const mrisk = mp.reduce((a,p)=>a+unitRisk(p),0);
+      const mroi = mrisk>0?((mpnl/mrisk)*100).toFixed(1):'—';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 12px;font-size:12px;font-weight:500;">${m}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:center;">${mw}-${ml}${mp2?'-'+mp2+'P':''}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${mpnl>=0?'var(--green)':'var(--red)'};">${mpnl>=0?'+':''}${mpnl.toFixed(2)}u</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${mroi!=='—'&&parseFloat(mroi)>=0?'var(--green)':'var(--red)'};">${mroi!=='—'?(parseFloat(mroi)>=0?'+':'')+mroi+'%':'—'}</td>
+      </tr>`;
+    }).join('');
+
+    // Direction breakdown
+    const dirs = ['win','loss'].map(r => null); // just O/U
+    const oProps = settled.filter(p=>p.side==='O');
+    const uProps = settled.filter(p=>p.side==='U');
+    const dirRow = (label, arr) => {
+      if (!arr.length) return '';
+      const w=arr.filter(p=>p.result==='win').length, l=arr.filter(p=>p.result==='loss').length;
+      const pnl=arr.reduce((a,p)=>a+(p.pnl||0),0);
+      const risk=arr.reduce((a,p)=>a+unitRisk(p),0);
+      const r=risk>0?((pnl/risk)*100).toFixed(1):'—';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 12px;font-size:12px;font-weight:500;">${label}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:center;">${w}-${l}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${pnl>=0?'var(--green)':'var(--red)'};">${pnl>=0?'+':''}${pnl.toFixed(2)}u</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${r!=='—'&&parseFloat(r)>=0?'var(--green)':'var(--red)'};">${r!=='—'?(parseFloat(r)>=0?'+':'')+r+'%':'—'}</td>
+      </tr>`;
+    };
+
+    const tableHdr = `<table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="background:var(--bg3);">
+        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;letter-spacing:0.04em;">Category</th>
+        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:center;text-transform:uppercase;letter-spacing:0.04em;">W-L</th>
+        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:right;text-transform:uppercase;letter-spacing:0.04em;">P&L</th>
+        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:right;text-transform:uppercase;letter-spacing:0.04em;">ROI</th>
+      </tr></thead><tbody>`;
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:16px;">
+        ${sc('Record', wins+'W · '+losses+'L'+(pushes?' · '+pushes+'P':''), settled.length+' settled · '+pending.length+' pending')}
+        ${sc('Win Rate', winRate !== '—' ? winRate+'%' : '—', 'settled bets only')}
+        ${sc('P&L', (totalPnl>=0?'+':'')+totalPnl.toFixed(2)+'u', 'units profit/loss', pnlColor)}
+        ${sc('ROI', roi !== '—' ? (parseFloat(roi)>=0?'+':'')+roi+'%' : '—', 'units won ÷ units staked', roiColor)}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 16px 16px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;">By Market</div>
+          ${tableHdr}${mktRows}</tbody></table>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;">By Direction</div>
+          ${tableHdr}${dirRow('Over',oProps)}${dirRow('Under',uProps)}</tbody></table>
+        </div>
+      </div>`;
+  } else {
+    // BET LOG
+    const rows = [...props].reverse().map(p => {
+      const rc = p.result==='win'?'var(--green)':p.result==='loss'?'var(--red)':p.result==='push'?'var(--amber)':'var(--text2)';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:7px 12px;font-size:12px;font-weight:600;">${p.player}</td>
+        <td style="padding:7px 12px;font-size:11px;color:var(--text2);">${p.market}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.game}</td>
+        <td style="padding:7px 12px;font-size:12px;color:${p.side==='O'?'var(--green)':'var(--red)'};">${p.line} ${p.side}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.odds||'—'}</td>
+        <td style="padding:7px 12px;font-size:12px;color:var(--amber);">${p.ev?p.ev.toFixed(1)+'%':'—'}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.kProj||p.ipProj||'—'}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.actual!=null?p.actual:'—'}</td>
+        <td style="padding:7px 12px;font-size:12px;font-weight:600;color:${rc};">${p.result||'Pending'}</td>
+        <td style="padding:7px 12px;font-size:12px;font-weight:600;color:${(p.pnl||0)>0?'var(--green)':(p.pnl||0)<0?'var(--red)':'var(--text2)'};">${p.pnl!=null?((p.pnl>0?'+':'')+p.pnl.toFixed(2)+'u'):'—'}</td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="background:var(--bg3);">
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Player</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Market</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Game</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Line</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Odds</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">EV%</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Proj</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Actual</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Result</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">P&L</th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">No props loaded</td></tr>'}</tbody>
+    </table>`;
+  }
+}
+
 </script>
 </head>
 <body>
@@ -477,7 +628,10 @@ function styleSheet(ws, numCols) {
     <option value="push">Pushes</option>
   </select>
   <div class="ctrl-sep"></div>
-  <button class="btn" id="gradeBtn" onclick="autoGrade()">⟳ Auto-Grade</button>
+  <select id="gradeDate" style="font-size:12px;font-family:Inter,sans-serif;padding:5px 8px;border:1px solid var(--border2);border-radius:4px;background:var(--bg2);color:var(--text);outline:none;cursor:pointer;">
+    <option value="">Grade date...</option>
+  </select>
+  <button class="btn grade-btn" id="gradeBtn" onclick="autoGrade()">⟳ Grade</button>
   <span id="gradeStatus" style="font-size:11px;font-family:Inter,sans-serif;color:var(--text2);"></span>
   <div class="ctrl-sep"></div>
   <button class="btn" onclick="exportExcel()" style="border-color:rgba(45,122,79,0.35);color:var(--green);">↓ Export Excel</button>
@@ -607,14 +761,17 @@ function splitMerged(s) {
 }
 
 function findBestEV(tokens, minEV) {
-  // Take the FIRST EV% found — always the Best Line column
-  for (let idx = 0; idx < tokens.length; idx++) {
+  // Scan EV% tokens but only within the first ~18 tokens (main book columns)
+  // This prevents grabbing Kalshi/alt lines that appear later
+  const SCAN_LIMIT = 22;
+  let evCount = 0;
+  for (let idx = 0; idx < Math.min(tokens.length, SCAN_LIMIT); idx++) {
     const tok = tokens[idx];
     if (!isEVStr(tok)) continue;
+    evCount++;
     const ev = parseEVStr(tok);
     if (ev < minEV) continue;
     // Look back for nearest odds then line
-    // Also track if we pass a '—' before finding odds — means it's the UNDER row
     let foundOdds = null, foundLine = null, passedDash = false;
     for (let b = idx - 1; b >= Math.max(0, idx - 6); b--) {
       const bt = tokens[b];
@@ -623,7 +780,6 @@ function findBestEV(tokens, minEV) {
       else if (isLineStr(bt) && foundOdds !== null && foundLine === null) { foundLine = parseFloat(bt); break; }
     }
     if (foundOdds && foundLine !== null) {
-      // Side is determined by position: if a dash preceded the odds, it's the UNDER row
       const side = passedDash ? 'U' : 'O';
       return { ev, odds: foundOdds, line: foundLine, side };
     }
@@ -757,6 +913,7 @@ function parsePaste() {
   renderProps();
   updateSummary();
   saveState();
+  renderTracker();
 
   // Auto-close after brief pause
   setTimeout(() => closePasteModal(), 1200);
@@ -855,7 +1012,7 @@ function buildRow(p) {
   const evCls = p.ev >= 25 ? 'ev-elite-c' : p.ev >= 15 ? 'ev-strong-c' : p.ev >= 5 ? 'ev-value-c' : 'ev-dim';
   const oddsCls = p.odds && p.odds.startsWith('+') ? 'odds-pos' : 'odds-neg';
   const sideCls = p.side === 'O' ? 'side-o' : 'side-u';
-  const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.haProj || '—');
+  const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.kProj || p.ipProj || '—');
   const actualDisp = p.actual !== null ? `<span class="actual-cell graded">${p.actual}</span>` : `<span class="actual-cell">—</span>`;
   const pnlDisp = p.pnl !== null ? `<span class="pnl-cell ${p.pnl > 0 ? 'pnl-pos' : p.pnl < 0 ? 'pnl-neg' : 'pnl-zero'}">${p.pnl > 0 ? '+' : ''}${p.pnl.toFixed(2)}u</span>` : `<span class="pnl-cell pnl-zero">—</span>`;
   const mInfo = MARKET_MAP[p.market] || { label: p.market };
@@ -917,6 +1074,7 @@ function setResult(id, val) {
   }
   updateSummary();
   saveState();
+  renderTracker();
 }
 
 function setNotes(id, val) { const p = props.find(x => String(x.id) === String(id)); if (p) { p.notes = val; saveState(); } }
@@ -942,12 +1100,35 @@ function updateSummary() {
 }
 
 // ===== AUTO-GRADE via MLB Stats API (free, no key) =====
+function populateGradeDates() {
+  const sel = document.getElementById('gradeDate');
+  if (!sel) return;
+  const dates = [...new Set(props.map(p => p.gameTime ? p.gameTime.split(' ')[0] + ' ' + p.gameTime.split(' ')[1] : '').filter(Boolean))];
+  // Use game dates from gameTime or fall back to today
+  const allDates = [...new Set(props.map(p => {
+    if (p.gameTime) {
+      // e.g. "Apr-10 2:20 PM" -> use stored date or parse
+      return p.date || getTodayStr();
+    }
+    return p.date || getTodayStr();
+  }))].sort();
+  const pending = props.filter(p => !p.result || p.result === '');
+  const pendingDates = [...new Set(pending.map(p => p.date || getTodayStr()))].sort();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Grade date...</option>' +
+    pendingDates.map(d => '<option value="'+d+'"'+(d===cur?' selected':'')+'>'+d+' ('+pending.filter(p=>(p.date||getTodayStr())===d).length+' pending)</option>').join('');
+}
+
 async function autoGrade() {
   const btn = document.getElementById('gradeBtn');
   const status = document.getElementById('gradeStatus');
-  const dateStr = document.getElementById('trackDate').value || getTodayStr();
+  const sel = document.getElementById('gradeDate');
+  const selectedDate = sel?.value;
 
-  if (props.length === 0) { status.textContent = 'No props to grade.'; status.className='grade-status error'; return; }
+  if (!selectedDate) { status.textContent = 'Pick a date first.'; return; }
+  if (props.length === 0) { status.textContent = 'No props to grade.'; return; }
+
+  const dateStr = selectedDate; // already YYYY-MM-DD format
 
   btn.disabled = true;
   status.className = 'grade-status loading';
@@ -995,7 +1176,8 @@ async function autoGrade() {
     // Step 4: Grade each prop
     let graded = 0;
     props.forEach(p => {
-      if (p.result) return; // Already graded manually
+      if (p.result) return;
+      if ((p.date || dateStr) !== dateStr) return; // Only grade selected date
       const statVal = findPlayerStat(playerStats, p.player, p.market);
       if (statVal === null) return;
 
@@ -1028,6 +1210,8 @@ async function autoGrade() {
     renderProps();
     updateSummary();
     saveState();
+    saveState();
+    populateGradeDates();
     status.textContent = `Graded ${graded} prop${graded!==1?'s':''}. ✓`;
     status.className = 'grade-status done';
 
@@ -1061,7 +1245,12 @@ function buildPlayerLookup(boxscores) {
           lookup[norm].K   = ps.strikeOuts;
           lookup[norm].ER  = ps.earnedRuns;
           lookup[norm].BB  = ps.baseOnBalls;
-          lookup[norm].H_pitching = ps.hits; // hits allowed
+          lookup[norm].H_pitching = ps.hits;
+          lookup[norm].HA = ps.hits;
+          if (ps.inningsPitched != null) {
+            const _p = String(ps.inningsPitched).split('.');
+            lookup[norm].OUTS = (parseInt(_p[0])||0)*3 + (parseInt(_p[1])||0);
+          }
         }
         // Batting stats
         const bs2 = player.stats?.batting;
@@ -1096,6 +1285,8 @@ function findPlayerStat(lookup, playerName, market) {
   let key = market;
   if (market === 'H') key = entry.H !== undefined ? 'H' : 'H_pitching';
   if (market === 'BB') key = entry.BB !== undefined ? 'BB' : 'BB_bat';
+  if (market === 'HA') key = 'HA';
+  if (market === 'OUTS') key = 'OUTS';
 
   const val = entry[key];
   return val !== undefined && val !== null ? val : null;
@@ -1126,6 +1317,7 @@ function clearAll() {
   renderProps();
   updateSummary();
   saveState();
+  renderTracker();
 }
 
 
@@ -1148,11 +1340,7 @@ function loadState() {
     const savedDate = localStorage.getItem(DATE_KEY);
     if (saved) {
       props = JSON.parse(saved);
-      if (savedDate) {
-        document.getElementById('trackDate').value = savedDate;
-        const d = new Date(savedDate + 'T12:00:00');
-        document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-      }
+
     }
   } catch(e) { console.warn('Load failed:', e); props = []; }
 }
@@ -1171,6 +1359,8 @@ trackDateEl.addEventListener('change', () => {
 loadState();
 renderProps();
 updateSummary();
+populateGradeDates();
+renderTracker();
 
 // ===== EXPORT EXCEL =====
 function exportExcel() {
@@ -1377,6 +1567,173 @@ function styleSheet(ws, numCols) {
   }
 }
 
+
+// ===== TRACKER DASHBOARD =====
+let trackerTab = 'dashboard';
+
+function setTrackerTab(tab) {
+  trackerTab = tab;
+  document.getElementById('ttDash').style.cssText = tab==='dashboard'
+    ? 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;'
+    : 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;';
+  document.getElementById('ttLog').style.cssText = tab==='betlog'
+    ? 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;'
+    : 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;';
+  renderTracker();
+}
+
+function fmtOddsT(o) { return o==null?'—':o>0?'+'+o:String(o); }
+
+function unitRisk(p) {
+  const o = parseFloat(p.odds);
+  if (isNaN(o)) return 1;
+  return o > 0 ? 1 : Math.abs(o)/100;
+}
+function unitWin(p) {
+  const o = parseFloat(p.odds);
+  if (isNaN(o)) return 1;
+  return o > 0 ? o/100 : 1;
+}
+
+function renderTracker() {
+  const el = document.getElementById('trackerBody');
+  if (!el) return;
+  const settled = props.filter(p => p.result === 'win' || p.result === 'loss' || p.result === 'push');
+  const pending = props.filter(p => !p.result || p.result === '' || p.result === 'skip');
+  const wins = settled.filter(p => p.result === 'win').length;
+  const losses = settled.filter(p => p.result === 'loss').length;
+  const pushes = settled.filter(p => p.result === 'push').length;
+  const totalPnl = settled.reduce((a,p) => a + (p.pnl||0), 0);
+  const totalRisk = settled.reduce((a,p) => a + unitRisk(p), 0);
+  const roi = totalRisk > 0 ? ((totalPnl/totalRisk)*100).toFixed(1) : '—';
+  const winRate = settled.length > 0 ? ((wins/settled.length)*100).toFixed(1) : '—';
+
+  if (trackerTab === 'dashboard') {
+    // Stat cards
+    const sc = (label, val, sub, color='var(--text)') =>
+      `<div style="background:var(--bg3);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px;">${label}</div>
+        <div style="font-size:18px;font-weight:700;color:${color};line-height:1;margin-bottom:4px;">${val}</div>
+        <div style="font-size:11px;color:var(--text2);">${sub}</div>
+      </div>`;
+
+    const pnlColor = totalPnl > 0 ? 'var(--green)' : totalPnl < 0 ? 'var(--red)' : 'var(--text)';
+    const roiColor = roi !== '—' && parseFloat(roi) >= 0 ? 'var(--green)' : 'var(--red)';
+
+    // Market breakdown
+    const markets = [...new Set(props.map(p => p.market))].sort();
+    const mktRows = markets.map(m => {
+      const mp = settled.filter(p => p.market === m);
+      if (!mp.length) return '';
+      const mw = mp.filter(p=>p.result==='win').length;
+      const ml = mp.filter(p=>p.result==='loss').length;
+      const mp2 = mp.filter(p=>p.result==='push').length;
+      const mpnl = mp.reduce((a,p)=>a+(p.pnl||0),0);
+      const mrisk = mp.reduce((a,p)=>a+unitRisk(p),0);
+      const mroi = mrisk>0?((mpnl/mrisk)*100).toFixed(1):'—';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 12px;font-size:12px;font-weight:500;">${m}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:center;">${mw}-${ml}${mp2?'-'+mp2+'P':''}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${mpnl>=0?'var(--green)':'var(--red)'};">${mpnl>=0?'+':''}${mpnl.toFixed(2)}u</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${mroi!=='—'&&parseFloat(mroi)>=0?'var(--green)':'var(--red)'};">${mroi!=='—'?(parseFloat(mroi)>=0?'+':'')+mroi+'%':'—'}</td>
+      </tr>`;
+    }).join('');
+
+    // Direction breakdown
+    const dirs = ['win','loss'].map(r => null); // just O/U
+    const oProps = settled.filter(p=>p.side==='O');
+    const uProps = settled.filter(p=>p.side==='U');
+    const dirRow = (label, arr) => {
+      if (!arr.length) return '';
+      const w=arr.filter(p=>p.result==='win').length, l=arr.filter(p=>p.result==='loss').length;
+      const pnl=arr.reduce((a,p)=>a+(p.pnl||0),0);
+      const risk=arr.reduce((a,p)=>a+unitRisk(p),0);
+      const r=risk>0?((pnl/risk)*100).toFixed(1):'—';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 12px;font-size:12px;font-weight:500;">${label}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:center;">${w}-${l}</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${pnl>=0?'var(--green)':'var(--red)'};">${pnl>=0?'+':''}${pnl.toFixed(2)}u</td>
+        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${r!=='—'&&parseFloat(r)>=0?'var(--green)':'var(--red)'};">${r!=='—'?(parseFloat(r)>=0?'+':'')+r+'%':'—'}</td>
+      </tr>`;
+    };
+
+    const tableHdr = `<table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="background:var(--bg3);">
+        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;letter-spacing:0.04em;">Category</th>
+        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:center;text-transform:uppercase;letter-spacing:0.04em;">W-L</th>
+        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:right;text-transform:uppercase;letter-spacing:0.04em;">P&L</th>
+        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:right;text-transform:uppercase;letter-spacing:0.04em;">ROI</th>
+      </tr></thead><tbody>`;
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:16px;">
+        ${sc('Record', wins+'W · '+losses+'L'+(pushes?' · '+pushes+'P':''), settled.length+' settled · '+pending.length+' pending')}
+        ${sc('Win Rate', winRate !== '—' ? winRate+'%' : '—', 'settled bets only')}
+        ${sc('P&L', (totalPnl>=0?'+':'')+totalPnl.toFixed(2)+'u', 'units profit/loss', pnlColor)}
+        ${sc('ROI', roi !== '—' ? (parseFloat(roi)>=0?'+':'')+roi+'%' : '—', 'units won ÷ units staked', roiColor)}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 16px 16px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;">By Market</div>
+          ${tableHdr}${mktRows}</tbody></table>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;">By Direction</div>
+          ${tableHdr}${dirRow('Over',oProps)}${dirRow('Under',uProps)}</tbody></table>
+        </div>
+      </div>`;
+  } else {
+    // BET LOG
+    const rows = [...props].reverse().map(p => {
+      const rc = p.result==='win'?'var(--green)':p.result==='loss'?'var(--red)':p.result==='push'?'var(--amber)':'var(--text2)';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:7px 12px;font-size:12px;font-weight:600;">${p.player}</td>
+        <td style="padding:7px 12px;font-size:11px;color:var(--text2);">${p.market}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.game}</td>
+        <td style="padding:7px 12px;font-size:12px;color:${p.side==='O'?'var(--green)':'var(--red)'};">${p.line} ${p.side}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.odds||'—'}</td>
+        <td style="padding:7px 12px;font-size:12px;color:var(--amber);">${p.ev?p.ev.toFixed(1)+'%':'—'}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.kProj||p.ipProj||'—'}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.actual!=null?p.actual:'—'}</td>
+        <td style="padding:7px 12px;font-size:12px;font-weight:600;color:${rc};">${p.result||'Pending'}</td>
+        <td style="padding:7px 12px;font-size:12px;font-weight:600;color:${(p.pnl||0)>0?'var(--green)':(p.pnl||0)<0?'var(--red)':'var(--text2)'};">${p.pnl!=null?((p.pnl>0?'+':'')+p.pnl.toFixed(2)+'u'):'—'}</td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="background:var(--bg3);">
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Player</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Market</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Game</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Line</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Odds</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">EV%</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Proj</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Actual</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Result</th>
+        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">P&L</th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">No props loaded</td></tr>'}</tbody>
+    </table>`;
+  }
+}
+
 </script>
+
+<!-- TRACKER SECTION -->
+<div style="max-width:1200px;margin:24px auto 0;padding:0 20px 40px;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+    <!-- Tracker header -->
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;font-weight:600;color:var(--text);">Tracker</span>
+      <div style="display:flex;gap:4px;margin-left:8px;">
+        <button onclick="setTrackerTab('dashboard')" id="ttDash" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;">Dashboard</button>
+        <button onclick="setTrackerTab('betlog')" id="ttLog" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;">Bet Log</button>
+      </div>
+    </div>
+    <div id="trackerBody"></div>
+  </div>
+</div>
+
 </body>
 </html>
