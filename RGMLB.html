@@ -946,6 +946,8 @@ function setNotes(id, val) { const p = props.find(x => String(x.id) === String(i
 
 // ===== SUMMARY =====
 function updateSummary() {
+  const curDate = document.getElementById('trackDate')?.value || getTodayStr();
+  const dateProps = props.filter(p => !p.date || p.date === curDate);
   const graded = dateProps.filter(p => p.result && p.result !== 'skip');
   const wins = graded.filter(p => p.result === 'win').length;
   const losses = graded.filter(p => p.result === 'loss').length;
@@ -1196,7 +1198,9 @@ function loadState() {
     const savedDate = localStorage.getItem(DATE_KEY);
     if (saved) {
       props = JSON.parse(saved);
+      // Backfill any props that have no date with the saved date
       if (savedDate) {
+        props = props.map(p => p.date ? p : {...p, date: savedDate});
         document.getElementById('trackDate').value = savedDate;
         const d = new Date(savedDate + 'T12:00:00');
         document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
