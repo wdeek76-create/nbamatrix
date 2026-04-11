@@ -211,11 +211,8 @@ textarea.paste-area:focus { border-color: var(--green); }
 
 <script>
 // ===== EXPORT EXCEL =====
-// Minimal XLSX writer — no dependencies
 function exportExcel() {
   if (!props.length) { alert('No props to export.'); return; }
-
-  // ── helpers ──────────────────────────────────────────
   function uRisk(p) { const o=parseFloat(p.odds); return (!isNaN(o)&&o<0)?Math.abs(o)/100:1; }
   function sgn(n)   { if(n==null)return ''; return (n>=0?'+':'')+n.toFixed(2)+'u'; }
   function pctFmt(w,t){ return t?((w/t)*100).toFixed(1)+'%':'—'; }
@@ -243,33 +240,58 @@ function exportExcel() {
   const settled=props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
   const ov=stats(props);
   const mkts=[...new Set(props.map(p=>p.market))].sort();
-
-  // ── build sheet data objects ──────────────────────────
+  const HDR = ['Category','Bets','W-L','W%','P&L','ROI'];
   const sheets = [];
 
-  // SUMMARY
+  // SHEET 1: Summary — overall only
   const sum=[
-    ['ROTOGRINDERS MLB PITCHER PROPS','','','','','','',''],
-    ['Export Date',new Date().toLocaleDateString(),'','','','','',''],
+    ['ROTOGRINDERS MLB PITCHER PROPS'],
+    ['Export Date', new Date().toLocaleDateString()],
     [],
     ['OVERALL RECORD'],
     ['Props','Settled','W','L','P','W%','P&L','ROI'],
     [ov.total,ov.settled,ov.w,ov.l,ov.pu,ov.wr,ov.pnl,ov.roi],
-    [],
-    ['BY MARKET'],['Market','Bets','W-L','W%','P&L','ROI'],
-    ...breakdown(props,p=>p.market),
-    [],
-    ['BY DIRECTION'],['Direction','Bets','W-L','W%','P&L','ROI'],
+  ];
+  sheets.push({name:'Summary',rows:sum});
+
+  // SHEET 2: By Market
+  sheets.push({name:'By Market',rows:[
+    ['BY MARKET'],HDR,
+    ...breakdown(props,p=>p.market)
+  ]});
+
+  // SHEET 3: By Direction
+  sheets.push({name:'By Direction',rows:[
+    ['BY DIRECTION'],HDR,
     ...breakdown(settled,p=>p.side==='O'?'Over':'Under'),
     [],
-    ['BY EV BUCKET'],['EV Range','Bets','W-L','W%','P&L','ROI'],
+    ['OVER vs UNDER BY MARKET'],HDR,
+    ...(() => {
+      const rows=[];
+      mkts.forEach(m=>{
+        const mp=settled.filter(p=>p.market===m);
+        if(!mp.length)return;
+        rows.push([m+'','','','','','']);
+        rows.push(...breakdown(mp,p=>p.side==='O'?'Over':'Under'));
+        rows.push([]);
+      });
+      return rows;
+    })()
+  ]});
+
+  // SHEET 4: By EV Bucket
+  sheets.push({name:'By EV Bucket',rows:[
+    ['BY EV BUCKET'],HDR,
     ...breakdown(settled,p=>{
       if((p.ev||0)>=25)return '1_Elite 25%+';
       if((p.ev||0)>=15)return '2_Strong 15-24%';
       return '3_Value 5-14%';
-    },k=>k.slice(2)),
-    [],
-    ['BY ODDS BUCKET'],['Odds','Bets','W-L','W%','P&L','ROI'],
+    },k=>k.slice(2))
+  ]});
+
+  // SHEET 5: By Odds Bucket
+  sheets.push({name:'By Odds Bucket',rows:[
+    ['BY ODDS BUCKET'],HDR,
     ...breakdown(settled,p=>{
       const o=parseFloat(p.odds);
       if(isNaN(o))return '9_Unknown';
@@ -279,20 +301,10 @@ function exportExcel() {
       if(o<0)    return '4_-109 to -101';
       if(o<=130) return '5_+100 to +130';
       return '6_+131 or better';
-    },k=>k.slice(2)),
-    [],
-    ['OVER vs UNDER BY MARKET'],
-  ];
-  mkts.forEach(m=>{
-    const mp=settled.filter(p=>p.market===m);
-    if(!mp.length)return;
-    sum.push([m,'Bets','W-L','W%','P&L','ROI']);
-    sum.push(...breakdown(mp,p=>p.side==='O'?'Over':'Under'));
-    sum.push([]);
-  });
-  sheets.push({name:'Summary',rows:sum});
+    },k=>k.slice(2))
+  ]});
 
-  // BET LOG
+  // SHEET 6: Bet Log
   let running=0;
   const betLog=[['#','Date','Player','Market','Game','Time','Line','Side','Odds','EV%','Proj','Actual','Result','P&L','Running P&L','Notes']];
   [...props].forEach((p,i)=>{
@@ -305,174 +317,60 @@ function exportExcel() {
   });
   sheets.push({name:'Bet Log',rows:betLog});
 
-  // PER-MARKET SHEETS
-  mkts.forEach(m=>{
-    const mp=props.filter(p=>p.market===m);
-    if(!mp.length)return;
-    const s=stats(mp);
-    const rows=[
-      [m+' — Detail'],
-      ['Total',s.total,'W',s.w,'L',s.l,'Push',s.pu,'W%',s.wr,'P&L',s.pnl,'ROI',s.roi],
-      [],
-      ['Over vs Under','Bets','W-L','W%','P&L','ROI'],
-      ...breakdown(mp.filter(p=>p.result&&p.result!=='skip'&&p.result!==''),p=>p.side==='O'?'Over':'Under'),
-      [],
-      ['Player','Game','Time','Line','Side','Odds','EV%','Proj','Actual','Result','P&L']
-    ];
-    mp.forEach(p=>rows.push([p.player,p.game,p.gameTime||'',p.line,p.side,p.odds,
-      p.ev?(p.ev.toFixed(1)+'%'):'',p.kProj||p.ipProj||'',p.actual!=null?p.actual:'',
-      p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending',
-      p.pnl!=null?sgn(p.pnl):'']));
-    sheets.push({name:m.slice(0,31),rows});
-  });
-
-  // ── XLSX builder (pure JS, no deps) ──────────────────
-  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
+  // ── XLSX builder ──────────────────────────────────────
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function colLetter(i){return i<26?String.fromCharCode(65+i):String.fromCharCode(64+Math.floor(i/26))+String.fromCharCode(65+(i%26));}
   function sheetXML(rows){
-    let maxCol=0;
-    rows.forEach(r=>{ if(r.length>maxCol)maxCol=r.length; });
-    const cols=Array.from({length:maxCol},(_,i)=>String.fromCharCode(65+(i%26))+(i>=26?String.fromCharCode(65+Math.floor(i/26)-1):'')).map((c,i)=>i>=26?c[1]+c[0]:c);
     let xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
     rows.forEach((row,ri)=>{
-      if(!row||!row.length){return;}
+      if(!row||!row.length)return;
       xml+=`<row r="${ri+1}">`;
       row.forEach((cell,ci)=>{
-        const col=ci<26?String.fromCharCode(65+ci):(String.fromCharCode(64+Math.floor(ci/26))+String.fromCharCode(65+(ci%26)));
-        const ref=col+(ri+1);
+        const ref=colLetter(ci)+(ri+1);
         const v=cell==null?'':cell;
-        if(typeof v==='number'||(!isNaN(parseFloat(v))&&v!==''&&!String(v).startsWith('+')&&!String(v).endsWith('%')&&!String(v).endsWith('u'))){
-          xml+=`<c r="${ref}"><v>${esc(v)}</v></c>`;
-        } else {
-          xml+=`<c r="${ref}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
-        }
+        const s=String(v);
+        const isNum=typeof v==='number'||(s!==''&&!isNaN(Number(s))&&!s.endsWith('%')&&!s.endsWith('u')&&!s.startsWith('+')&&s!=='-');
+        if(isNum) xml+=`<c r="${ref}"><v>${esc(v)}</v></c>`;
+        else xml+=`<c r="${ref}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
       });
       xml+='</row>';
     });
-    xml+='</sheetData></worksheet>';
-    return xml;
+    return xml+'</sheetData></worksheet>';
   }
-
-  function workbookXML(names){
-    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
-      names.map((n,i)=>`<sheet name="${esc(n)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>';
-  }
-
-  function relsXML(count){
-    let xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
-    for(let i=0;i<count;i++) xml+=`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`;
-    xml+='</Relationships>';
-    return xml;
-  }
-
-  const contentTypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
-    sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>';
-
+  function wbXML(names){return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+names.map((n,i)=>`<sheet name="${esc(n)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>';}
+  function wbRels(n){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';for(let i=0;i<n;i++)x+=`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`;return x+'</Relationships>';}
+  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>';
   const rootRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
-
-  // ── zip it with JSZip-like pure JS ───────────────────
-  // Since we can't use JSZip, use a different approach:
-  // Build the XLSX manually using a tiny zip implementation
-
-  // Tiny CRC32
-  const crcTable=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c;}return t;})();
-  function crc32(data){let c=0xFFFFFFFF;for(let i=0;i<data.length;i++)c=crcTable[(c^data[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
-
-  function str2bytes(s){
-    const bytes=[];
-    for(let i=0;i<s.length;i++){
-      const c=s.charCodeAt(i);
-      if(c<128)bytes.push(c);
-      else if(c<2048)bytes.push(0xC0|(c>>6),0x80|(c&0x3F));
-      else bytes.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));
-    }
-    return new Uint8Array(bytes);
-  }
-
-  function uint16LE(n){return[n&0xFF,(n>>8)&0xFF];}
-  function uint32LE(n){return[n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];}
-
-  function buildZip(files){
-    // files: [{name, data: Uint8Array}]
-    const entries=[];
-    let offset=0;
-    const parts=[];
-
+  const crcT=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c;}return t;})();
+  function crc32(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=crcT[(c^d[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+  function s2b(s){const b=[];for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c<128)b.push(c);else if(c<2048)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return new Uint8Array(b);}
+  function u16(n){return[n&0xFF,(n>>8)&0xFF];}
+  function u32(n){return[n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];}
+  function zip(files){
+    const entries=[];let off=0;const parts=[];
     files.forEach(f=>{
-      const nameBytes=str2bytes(f.name);
-      const crc=crc32(f.data);
-      const local=[
-        0x50,0x4B,0x03,0x04, // sig
-        0x14,0x00,           // version
-        0x00,0x00,           // flags
-        0x00,0x00,           // compression (stored)
-        0x00,0x00,0x00,0x00, // mod time/date
-        ...uint32LE(crc),
-        ...uint32LE(f.data.length),
-        ...uint32LE(f.data.length),
-        ...uint16LE(nameBytes.length),
-        0x00,0x00,           // extra len
-        ...nameBytes
-      ];
-      entries.push({nameBytes,crc,size:f.data.length,offset});
-      parts.push(new Uint8Array(local),f.data);
-      offset+=local.length+f.data.length;
+      const nb=s2b(f.name);const crc=crc32(f.data);
+      const lh=[0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(crc),...u32(f.data.length),...u32(f.data.length),...u16(nb.length),0x00,0x00,...nb];
+      entries.push({nb,crc,sz:f.data.length,off});parts.push(new Uint8Array(lh),f.data);off+=lh.length+f.data.length;
     });
-
-    const cdOffset=offset;
-    entries.forEach((e,i)=>{
-      const cd=[
-        0x50,0x4B,0x01,0x02,
-        0x14,0x00,0x14,0x00,
-        0x00,0x00,0x00,0x00,
-        0x00,0x00,0x00,0x00,
-        ...uint32LE(e.crc),
-        ...uint32LE(e.size),
-        ...uint32LE(e.size),
-        ...uint16LE(e.nameBytes.length),
-        0x00,0x00,0x00,0x00,0x00,0x00,
-        0x00,0x00,0x00,0x00,
-        ...uint32LE(e.offset),
-        ...e.nameBytes
-      ];
-      parts.push(new Uint8Array(cd));
-      offset+=cd.length;
-    });
-
-    const cdSize=offset-cdOffset;
-    const eocd=[
-      0x50,0x4B,0x05,0x06,
-      0x00,0x00,0x00,0x00,
-      ...uint16LE(entries.length),
-      ...uint16LE(entries.length),
-      ...uint32LE(cdSize),
-      ...uint32LE(cdOffset),
-      0x00,0x00
-    ];
-    parts.push(new Uint8Array(eocd));
-
-    const total=parts.reduce((s,p)=>s+p.length,0);
-    const out=new Uint8Array(total);
-    let pos=0;
-    parts.forEach(p=>{out.set(p,pos);pos+=p.length;});
-    return out;
+    const cdOff=off;
+    entries.forEach(e=>{const cd=[0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.crc),...u32(e.sz),...u32(e.sz),...u16(e.nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.off),...e.nb];parts.push(new Uint8Array(cd));off+=cd.length;});
+    const cdSz=off-cdOff;
+    parts.push(new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16(entries.length),...u16(entries.length),...u32(cdSz),...u32(cdOff),0x00,0x00]));
+    const tot=parts.reduce((s,p)=>s+p.length,0);const out=new Uint8Array(tot);let pos=0;
+    parts.forEach(p=>{out.set(p,pos);pos+=p.length;});return out;
   }
-
   const files=[
-    {name:'[Content_Types].xml',data:str2bytes(contentTypes)},
-    {name:'_rels/.rels',data:str2bytes(rootRels)},
-    {name:'xl/workbook.xml',data:str2bytes(workbookXML(sheets.map(s=>s.name)))},
-    {name:'xl/_rels/workbook.xml.rels',data:str2bytes(relsXML(sheets.length))},
-    ...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:str2bytes(sheetXML(s.rows))}))
+    {name:'[Content_Types].xml',data:s2b(ct)},
+    {name:'_rels/.rels',data:s2b(rootRels)},
+    {name:'xl/workbook.xml',data:s2b(wbXML(sheets.map(s=>s.name)))},
+    {name:'xl/_rels/workbook.xml.rels',data:s2b(wbRels(sheets.length))},
+    ...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s2b(sheetXML(s.rows))}))
   ];
-
-  const zip=buildZip(files);
-  const blob=new Blob([zip],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
+  const blob=new Blob([zip(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download='rotoprops_'+new Date().toISOString().split('T')[0]+'.xlsx';
-  a.click();
-  URL.revokeObjectURL(a.href);
+  a.click();URL.revokeObjectURL(a.href);
 }
 </script>
 </head>
