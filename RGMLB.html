@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PropShop MLB Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
 :root {
   --bg: #f5f5f4;
@@ -30,7 +30,7 @@
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
-body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; }
 
 /* ===== HEADER ===== */
 .header {
@@ -40,13 +40,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-ser
   display: flex; align-items: center; justify-content: space-between;
   height: 52px; gap: 12px; flex-wrap: wrap;
 }
-.logo { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: 0.08em; color: var(--green); text-transform: uppercase; white-space: nowrap; }
+.logo { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: 0.08em; color: var(--green); text-transform: uppercase; white-space: nowrap; }
 .logo em { color: var(--text2); font-style: normal; font-weight: 400; }
 .header-meta { display: flex; align-items: center; gap: 16px; }
-.date-display { font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.06em; color: var(--text2); text-transform: uppercase; }
+.date-display { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; letter-spacing: 0.06em; color: var(--text2); text-transform: uppercase; }
 input[type="date"].date-in {
   background: var(--bg3); border: 1px solid var(--border2); color: var(--text);
-  font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.04em;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; letter-spacing: 0.04em;
   padding: 5px 8px; border-radius: 4px; outline: none; cursor: pointer;
 }
 input[type="date"].date-in:focus { border-color: var(--green); }
@@ -60,14 +60,14 @@ input[type="date"].date-in:focus { border-color: var(--green); }
   background: var(--bg3); border: 1px solid var(--border);
   border-radius: 6px; padding: 6px 16px; text-align: center; min-width: 76px;
 }
-.s-val { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 500; line-height: 1.2; color: var(--text); }
+.s-val { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 18px; font-weight: 500; line-height: 1.2; color: var(--text); }
 .s-val.teal { color: var(--green); }
 .s-val.red { color: var(--red); }
 .s-val.amber { color: var(--amber); }
 .s-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
 .s-sep { width: 1px; background: var(--border); height: 36px; margin: 0 4px; }
 .ev-legend { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; }
-.ev-badge { font-size: 10px; font-family: 'Inter', sans-serif; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; }
+.ev-badge { font-size: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; }
 .ev-elite { background: rgba(45,122,79,0.10); color: var(--green); border: 1px solid rgba(45,122,79,0.25); }
 .ev-strong { background: rgba(37,99,168,0.10); color: var(--blue); border: 1px solid rgba(37,99,168,0.22); }
 .ev-value { background: rgba(180,83,9,0.08); color: var(--amber); border: 1px solid rgba(180,83,9,0.22); }
@@ -78,7 +78,7 @@ input[type="date"].date-in:focus { border-color: var(--green); }
   padding: 8px 20px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
 }
 .btn {
-  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; font-weight: 500;
   letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 14px;
   border-radius: 4px; border: 1px solid var(--border2); background: var(--bg2);
   color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap;
@@ -88,14 +88,14 @@ input[type="date"].date-in:focus { border-color: var(--green); }
 .btn.primary:hover { background: var(--green-dim); }
 .btn.danger { background: var(--red-dim); border-color: rgba(192,57,43,0.3); color: var(--red); }
 .ctrl-sep { width: 1px; background: var(--border); height: 20px; margin: 0 2px; }
-.ctrl-lbl { font-size: 10px; color: var(--text2); font-family: 'Inter', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+.ctrl-lbl { font-size: 10px; color: var(--text2); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
 select.ctrl-sel {
   background: var(--bg2); border: 1px solid var(--border2); color: var(--text);
-  font-family: 'Inter', sans-serif; font-size: 12px; padding: 5px 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; padding: 5px 8px;
   border-radius: 4px; outline: none; cursor: pointer;
 }
 select.ctrl-sel:focus { border-color: var(--green); }
-.grade-status { font-size: 11px; color: var(--text2); font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
+.grade-status { font-size: 11px; color: var(--text2); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0.04em; }
 .grade-status.loading { color: var(--blue); }
 .grade-status.done { color: var(--green); }
 .grade-status.error { color: var(--red); }
@@ -111,12 +111,12 @@ select.ctrl-sel:focus { border-color: var(--green); }
   border-radius: 8px; padding: 24px; width: 640px; max-width: 95vw; max-height: 90vh;
   display: flex; flex-direction: column; gap: 14px;
 }
-.modal-title { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 500; letter-spacing: 0.06em; color: var(--green); text-transform: uppercase; }
+.modal-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; font-weight: 500; letter-spacing: 0.06em; color: var(--green); text-transform: uppercase; }
 .modal-sub { font-size: 12px; color: var(--text2); line-height: 1.6; }
 .modal-sub code { background: var(--bg4); padding: 1px 5px; border-radius: 3px; font-size: 11px; color: var(--text); font-weight: 500; }
 textarea.paste-area {
   background: var(--bg3); border: 1px solid var(--border2); color: var(--text);
-  font-family: 'Inter', sans-serif; font-size: 11px; line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; line-height: 1.5;
   padding: 10px 12px; border-radius: 5px; resize: vertical; height: 220px;
   outline: none; width: 100%;
 }
@@ -133,7 +133,7 @@ textarea.paste-area:focus { border-color: var(--green); }
   text-align: center; padding: 60px 20px; color: var(--text2);
   border: 1px dashed var(--border2); border-radius: 8px; margin-top: 8px;
 }
-.empty-state h3 { font-family: 'Inter', sans-serif; font-size: 18px; color: var(--text); margin-bottom: 8px; letter-spacing: 0.05em; }
+.empty-state h3 { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 18px; color: var(--text); margin-bottom: 8px; letter-spacing: 0.05em; }
 .empty-state p { font-size: 12px; line-height: 1.7; max-width: 400px; margin: 0 auto 16px; }
 
 /* ===== GAME GROUP ===== */
@@ -143,14 +143,14 @@ textarea.paste-area:focus { border-color: var(--green); }
   background: var(--bg4); border: 1px solid var(--border);
   border-radius: 5px 5px 0 0; margin-bottom: 0;
 }
-.game-name { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; color: var(--text); }
-.game-time { font-size: 11px; color: var(--text2); font-family: 'Inter', sans-serif; letter-spacing: 0.04em; }
+.game-name { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; color: var(--text); }
+.game-time { font-size: 11px; color: var(--text2); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0.04em; }
 .game-count { font-size: 10px; color: var(--text2); background: var(--bg5); padding: 2px 8px; border-radius: 10px; margin-left: auto; }
 
 /* ===== PROP TABLE ===== */
 .prop-table { width: 100%; border-collapse: collapse; }
 .prop-table th {
-  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 400;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 10px; font-weight: 400;
   letter-spacing: 0.07em; text-transform: uppercase; color: var(--text2);
   padding: 5px 10px; background: var(--bg3); border-bottom: 1px solid var(--border);
   text-align: left; white-space: nowrap;
@@ -175,18 +175,18 @@ textarea.paste-area:focus { border-color: var(--green); }
 .player-name { font-weight: 600; font-size: 13px; color: var(--text); white-space: nowrap; }
 .player-sub { font-size: 10px; color: var(--text2); }
 .market-tag {
-  display: inline-block; font-family: 'Inter', sans-serif; font-size: 10px;
+  display: inline-block; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 10px;
   letter-spacing: 0.05em; padding: 2px 6px; border-radius: 3px;
   background: var(--bg4); color: var(--text2); border: 1px solid var(--border); white-space: nowrap;
 }
-.line-cell { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; }
+.line-cell { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; }
 .side-o { color: var(--green); }
 .side-u { color: var(--red); }
-.odds-cell { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; white-space: nowrap; }
+.odds-cell { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; font-weight: 500; white-space: nowrap; }
 .odds-pos { color: var(--green); }
 .odds-neg { color: var(--text); }
 .book-tag { font-size: 10px; color: var(--text2); margin-top: 1px; }
-.ev-cell { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; text-align: right; white-space: nowrap; }
+.ev-cell { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; font-weight: 600; text-align: right; white-space: nowrap; }
 .ev-elite-c { color: var(--green); }
 .ev-strong-c { color: var(--blue); }
 .ev-value-c { color: var(--amber); }
@@ -195,375 +195,23 @@ textarea.paste-area:focus { border-color: var(--green); }
 .proj-cell strong { color: var(--text); font-size: 13px; }
 .result-sel, .notes-in {
   background: var(--bg2); border: 1px solid var(--border2); color: var(--text);
-  font-family: 'Inter', sans-serif; font-size: 11px; padding: 4px 6px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; padding: 4px 6px;
   border-radius: 3px; outline: none; cursor: pointer; transition: border-color 0.15s;
 }
 .result-sel:focus, .notes-in:focus { border-color: var(--green); }
 .result-sel { width: 96px; }
 .notes-in { width: 130px; }
-.actual-cell { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; text-align: center; color: var(--text2); }
+.actual-cell { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; font-weight: 500; text-align: center; color: var(--text2); }
 .actual-cell.graded { color: var(--text); }
-.pnl-cell { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; text-align: right; white-space: nowrap; }
+.pnl-cell { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; font-weight: 500; text-align: right; white-space: nowrap; }
 .pnl-pos { color: var(--green); }
 .pnl-neg { color: var(--red); }
 .pnl-zero { color: var(--text2); }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+
+<script>
 // ===== EXPORT EXCEL =====
-function exportExcel() {
-  if (props.length === 0) { alert('No props to export.'); return; }
-  const wb = XLSX.utils.book_new();
 
-  const dateStr = document.getElementById('trackDate').value || getTodayStr();
-
-  // ---- helpers ----
-  const pnlCalc = p => p.pnl !== null ? p.pnl : '';
-  const riskCalc = p => {
-    if (!p.odds) return '';
-    const o = parseFloat(p.odds);
-    return o > 0 ? 1 : parseFloat((Math.abs(o)/100).toFixed(4));
-  };
-  const toWinCalc = p => {
-    if (!p.odds) return '';
-    const o = parseFloat(p.odds);
-    return o > 0 ? parseFloat((o/100).toFixed(4)) : 1;
-  };
-  const evBucket = ev => ev >= 25 ? 'Elite 25%+' : ev >= 15 ? 'Strong 15-24%' : ev >= 5 ? 'Value 5-14%' : '<5%';
-
-  // ---- Sheet 1: Bet Log ----
-  const logHeaders = ['Date','Player','Market','Game','Time','Line','Side','Best Odds','Book','EV%','EV Bucket','Risk (u)','To Win (u)','Actual','Result','P&L (u)','Notes'];
-  const logRows = props.map(p => [
-    dateStr, p.player, p.market, p.game, p.gameTime,
-    p.line, p.side, p.odds, p.book,
-    p.ev, evBucket(p.ev),
-    riskCalc(p), toWinCalc(p),
-    p.actual !== null ? p.actual : '',
-    p.result || 'Pending',
-    pnlCalc(p),
-    p.notes || ''
-  ]);
-  const logWs = XLSX.utils.aoa_to_sheet([logHeaders, ...logRows]);
-  logWs['!cols'] = [8,18,10,22,10,6,6,10,10,7,14,9,9,8,9,9,20].map(w=>({wch:w}));
-  styleSheet(logWs, logHeaders.length);
-  XLSX.utils.book_append_sheet(wb, logWs, 'Bet Log');
-
-  // ---- Sheet 2: Summary ----
-  const graded = props.filter(p => p.result && p.result !== 'skip' && p.result !== 'pending' && p.result !== '');
-  const wins = graded.filter(p => p.result === 'win');
-  const losses = graded.filter(p => p.result === 'loss');
-  const pushes = graded.filter(p => p.result === 'push');
-  const totalPnl = graded.reduce((a,p)=>a+(p.pnl||0),0);
-  const totalRisk = graded.reduce((a,p)=>a+riskCalc(p),0);
-  const roi = totalRisk > 0 ? totalPnl/totalRisk : 0;
-
-  const sumData = [
-    ['PropShop MLB Tracker — Export', dateStr],
-    [],
-    ['OVERALL SUMMARY',''],
-    ['Total Props', props.length],
-    ['Graded', graded.length],
-    ['Wins', wins.length],
-    ['Losses', losses.length],
-    ['Pushes', pushes.length],
-    ['Win Rate', graded.length > 0 ? wins.length/graded.length : ''],
-    ['Total P&L (u)', parseFloat(totalPnl.toFixed(4))],
-    ['Total Risked (u)', parseFloat(totalRisk.toFixed(4))],
-    ['ROI', roi],
-    [],
-    ['EV BUCKET BREAKDOWN','Bets','W','L','Push','P&L (u)','Risk (u)','ROI'],
-    ...['Elite 25%+','Strong 15-24%','Value 5-14%'].map(bucket => {
-      const bp = graded.filter(p => evBucket(p.ev) === bucket);
-      const bw = bp.filter(p=>p.result==='win'), bl = bp.filter(p=>p.result==='loss');
-      const bpnl = bp.reduce((a,p)=>a+(p.pnl||0),0);
-      const brisk = bp.reduce((a,p)=>a+riskCalc(p),0);
-      return [bucket, bp.length, bw.length, bl.length, bp.filter(p=>p.result==='push').length,
-              parseFloat(bpnl.toFixed(4)), parseFloat(brisk.toFixed(4)),
-              brisk>0 ? parseFloat((bpnl/brisk).toFixed(4)) : ''];
-    }),
-  ];
-  const sumWs = XLSX.utils.aoa_to_sheet(sumData);
-  sumWs['!cols'] = [{wch:22},{wch:12},{wch:8},{wch:8},{wch:8},{wch:10},{wch:10},{wch:10}];
-  XLSX.utils.book_append_sheet(wb, sumWs, 'Summary');
-
-  // ---- Sheet 3: Market Breakdown ----
-  const markets = [...new Set(props.map(p=>p.market))].sort();
-  const mktHeaders = ['Market','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%'];
-  const mktRows = markets.map(mkt => {
-    const mp = props.filter(p=>p.market===mkt);
-    const mg = mp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-    const mw = mg.filter(p=>p.result==='win'), ml = mg.filter(p=>p.result==='loss');
-    const mpnl = mg.reduce((a,p)=>a+(p.pnl||0),0);
-    const mrisk = mg.reduce((a,p)=>a+riskCalc(p),0);
-    const avgEV = mp.length > 0 ? mp.reduce((a,p)=>a+p.ev,0)/mp.length : 0;
-    return [mkt, mp.length, mw.length, ml.length, mg.filter(p=>p.result==='push').length,
-            mg.length>0 ? parseFloat((mw.length/mg.length).toFixed(4)) : '',
-            parseFloat(mpnl.toFixed(4)), parseFloat(mrisk.toFixed(4)),
-            mrisk>0 ? parseFloat((mpnl/mrisk).toFixed(4)) : '',
-            parseFloat(avgEV.toFixed(2))];
-  });
-  // Totals row
-  const tg = props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-  const tw = tg.filter(p=>p.result==='win'), trisk2 = tg.reduce((a,p)=>a+riskCalc(p),0);
-  const tpnl2 = tg.reduce((a,p)=>a+(p.pnl||0),0);
-  mktRows.push(['TOTAL', props.length, tw.length, tg.filter(p=>p.result==='loss').length,
-    tg.filter(p=>p.result==='push').length,
-    tg.length>0 ? parseFloat((tw.length/tg.length).toFixed(4)) : '',
-    parseFloat(tpnl2.toFixed(4)), parseFloat(trisk2.toFixed(4)),
-    trisk2>0 ? parseFloat((tpnl2/trisk2).toFixed(4)) : '',
-    parseFloat((props.reduce((a,p)=>a+p.ev,0)/props.length).toFixed(2))]);
-
-  const mktWs = XLSX.utils.aoa_to_sheet([mktHeaders, ...mktRows]);
-  mktWs['!cols'] = [12,7,7,7,7,10,10,10,10,10].map(w=>({wch:w}));
-  styleSheet(mktWs, mktHeaders.length);
-  XLSX.utils.book_append_sheet(wb, mktWs, 'By Market');
-
-  // ---- Sheet 4: O/U Split ----
-  const ouHeaders = ['Side','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%','Avg Odds'];
-  const ouRows = ['O','U'].map(side => {
-    const sp = props.filter(p=>p.side===side);
-    const sg = sp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-    const sw = sg.filter(p=>p.result==='win');
-    const spnl = sg.reduce((a,p)=>a+(p.pnl||0),0);
-    const srisk = sg.reduce((a,p)=>a+riskCalc(p),0);
-    const avgEV = sp.length>0 ? sp.reduce((a,p)=>a+p.ev,0)/sp.length : 0;
-    const avgOdds = sp.length>0 ? sp.reduce((a,p)=>a+parseFloat(p.odds||0),0)/sp.length : 0;
-    return [side==='O'?'Over':'Under', sp.length, sw.length, sg.filter(p=>p.result==='loss').length,
-            sg.filter(p=>p.result==='push').length,
-            sg.length>0 ? parseFloat((sw.length/sg.length).toFixed(4)) : '',
-            parseFloat(spnl.toFixed(4)), parseFloat(srisk.toFixed(4)),
-            srisk>0 ? parseFloat((spnl/srisk).toFixed(4)) : '',
-            parseFloat(avgEV.toFixed(2)), parseFloat(avgOdds.toFixed(1))];
-  });
-  const ouWs = XLSX.utils.aoa_to_sheet([ouHeaders, ...ouRows]);
-  ouWs['!cols'] = [10,7,7,7,7,10,10,10,10,10,10].map(w=>({wch:w}));
-  styleSheet(ouWs, ouHeaders.length);
-  XLSX.utils.book_append_sheet(wb, ouWs, 'O-U Split');
-
-  // ---- Sheet 5: Fav vs Dog ----
-  const fdHeaders = ['Type','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%','Avg Odds'];
-  const fdRows = ['dog','fav'].map(type => {
-    const fp = props.filter(p => type==='dog' ? parseFloat(p.odds||0)>0 : parseFloat(p.odds||0)<0);
-    const fg = fp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-    const fw = fg.filter(p=>p.result==='win');
-    const fpnl = fg.reduce((a,p)=>a+(p.pnl||0),0);
-    const frisk = fg.reduce((a,p)=>a+riskCalc(p),0);
-    const avgEV = fp.length>0 ? fp.reduce((a,p)=>a+p.ev,0)/fp.length : 0;
-    const avgOdds = fp.length>0 ? fp.reduce((a,p)=>a+parseFloat(p.odds||0),0)/fp.length : 0;
-    return [type==='dog'?'Underdog (+odds)':'Favorite (-odds)',
-            fp.length, fw.length, fg.filter(p=>p.result==='loss').length,
-            fg.filter(p=>p.result==='push').length,
-            fg.length>0 ? parseFloat((fw.length/fg.length).toFixed(4)) : '',
-            parseFloat(fpnl.toFixed(4)), parseFloat(frisk.toFixed(4)),
-            frisk>0 ? parseFloat((fpnl/frisk).toFixed(4)) : '',
-            parseFloat(avgEV.toFixed(2)), parseFloat(avgOdds.toFixed(1))];
-  });
-  const fdWs = XLSX.utils.aoa_to_sheet([fdHeaders, ...fdRows]);
-  fdWs['!cols'] = [18,7,7,7,7,10,10,10,10,10,10].map(w=>({wch:w}));
-  styleSheet(fdWs, fdHeaders.length);
-  XLSX.utils.book_append_sheet(wb, fdWs, 'Fav vs Dog');
-
-  // ---- Sheet 6: By Game ----
-  const games = [...new Set(props.map(p=>p.game))];
-  const gmHeaders = ['Game','Time','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI'];
-  const gmRows = games.map(game => {
-    const gp = props.filter(p=>p.game===game);
-    const gg = gp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-    const gw = gg.filter(p=>p.result==='win');
-    const gpnl = gg.reduce((a,p)=>a+(p.pnl||0),0);
-    const grisk = gg.reduce((a,p)=>a+riskCalc(p),0);
-    return [game, gp[0]?.gameTime||'', gp.length, gw.length,
-            gg.filter(p=>p.result==='loss').length, gg.filter(p=>p.result==='push').length,
-            gg.length>0 ? parseFloat((gw.length/gg.length).toFixed(4)) : '',
-            parseFloat(gpnl.toFixed(4)), parseFloat(grisk.toFixed(4)),
-            grisk>0 ? parseFloat((gpnl/grisk).toFixed(4)) : ''];
-  });
-  const gmWs = XLSX.utils.aoa_to_sheet([gmHeaders, ...gmRows]);
-  gmWs['!cols'] = [24,10,7,7,7,7,10,10,10,10].map(w=>({wch:w}));
-  styleSheet(gmWs, gmHeaders.length);
-  XLSX.utils.book_append_sheet(wb, gmWs, 'By Game');
-
-  // ---- Download ----
-  XLSX.writeFile(wb, `PropShop_MLB_${dateStr}.xlsx`);
-}
-
-function styleSheet(ws, numCols) {
-  // Style header row (row 1)
-  for (let c = 0; c < numCols; c++) {
-    const addr = XLSX.utils.encode_cell({r:0, c});
-    if (!ws[addr]) continue;
-    ws[addr].s = {
-      font: { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 10 },
-      fill: { fgColor: { rgb: '080C14' }, patternType: 'solid' },
-      alignment: { horizontal: 'center', vertical: 'center' },
-      border: { bottom: { style: 'thin', color: { rgb: '10D9A0' } } }
-    };
-  }
-  // Style data rows
-  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  for (let r = 1; r <= range.e.r; r++) {
-    for (let c = 0; c <= range.e.c; c++) {
-      const addr = XLSX.utils.encode_cell({r, c});
-      if (!ws[addr]) { ws[addr] = {t:'z'}; }
-      ws[addr].s = {
-        font: { name: 'Arial', sz: 10, color: { rgb: 'DDE4F0' } },
-        fill: { fgColor: { rgb: r%2===0 ? '0D1320' : '111827' }, patternType: 'solid' },
-        alignment: { vertical: 'center' },
-        border: { bottom: { style: 'hair', color: { rgb: '1A2234' } } }
-      };
-    }
-  }
-}
-
-
-// ===== TRACKER DASHBOARD =====
-let trackerTab = 'dashboard';
-
-function setTrackerTab(tab) {
-  trackerTab = tab;
-  document.getElementById('ttDash').style.cssText = tab==='dashboard'
-    ? 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;'
-    : 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;';
-  document.getElementById('ttLog').style.cssText = tab==='betlog'
-    ? 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;'
-    : 'font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;';
-  renderTracker();
-}
-
-function fmtOddsT(o) { return o==null?'—':o>0?'+'+o:String(o); }
-
-function unitRisk(p) {
-  const o = parseFloat(p.odds);
-  if (isNaN(o)) return 1;
-  return o > 0 ? 1 : Math.abs(o)/100;
-}
-function unitWin(p) {
-  const o = parseFloat(p.odds);
-  if (isNaN(o)) return 1;
-  return o > 0 ? o/100 : 1;
-}
-
-function renderTracker() {
-  const el = document.getElementById('trackerBody');
-  if (!el) return;
-  const settled = props.filter(p => p.result === 'win' || p.result === 'loss' || p.result === 'push');
-  const pending = props.filter(p => !p.result || p.result === '' || p.result === 'skip');
-  const wins = settled.filter(p => p.result === 'win').length;
-  const losses = settled.filter(p => p.result === 'loss').length;
-  const pushes = settled.filter(p => p.result === 'push').length;
-  const totalPnl = settled.reduce((a,p) => a + (p.pnl||0), 0);
-  const totalRisk = settled.reduce((a,p) => a + unitRisk(p), 0);
-  const roi = totalRisk > 0 ? ((totalPnl/totalRisk)*100).toFixed(1) : '—';
-  const winRate = settled.length > 0 ? ((wins/settled.length)*100).toFixed(1) : '—';
-
-  if (trackerTab === 'dashboard') {
-    // Stat cards
-    const sc = (label, val, sub, color='var(--text)') =>
-      `<div style="background:var(--bg3);border-radius:8px;padding:12px 14px;">
-        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:6px;">${label}</div>
-        <div style="font-size:18px;font-weight:700;color:${color};line-height:1;margin-bottom:4px;">${val}</div>
-        <div style="font-size:11px;color:var(--text2);">${sub}</div>
-      </div>`;
-
-    const pnlColor = totalPnl > 0 ? 'var(--green)' : totalPnl < 0 ? 'var(--red)' : 'var(--text)';
-    const roiColor = roi !== '—' && parseFloat(roi) >= 0 ? 'var(--green)' : 'var(--red)';
-
-    // Market breakdown
-    const markets = [...new Set(props.map(p => p.market))].sort();
-    const mktRows = markets.map(m => {
-      const mp = settled.filter(p => p.market === m);
-      if (!mp.length) return '';
-      const mw = mp.filter(p=>p.result==='win').length;
-      const ml = mp.filter(p=>p.result==='loss').length;
-      const mp2 = mp.filter(p=>p.result==='push').length;
-      const mpnl = mp.reduce((a,p)=>a+(p.pnl||0),0);
-      const mrisk = mp.reduce((a,p)=>a+unitRisk(p),0);
-      const mroi = mrisk>0?((mpnl/mrisk)*100).toFixed(1):'—';
-      return `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:6px 12px;font-size:12px;font-weight:500;">${m}</td>
-        <td style="padding:6px 12px;font-size:12px;text-align:center;">${mw}-${ml}${mp2?'-'+mp2+'P':''}</td>
-        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${mpnl>=0?'var(--green)':'var(--red)'};">${mpnl>=0?'+':''}${mpnl.toFixed(2)}u</td>
-        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${mroi!=='—'&&parseFloat(mroi)>=0?'var(--green)':'var(--red)'};">${mroi!=='—'?(parseFloat(mroi)>=0?'+':'')+mroi+'%':'—'}</td>
-      </tr>`;
-    }).join('');
-
-    // Direction breakdown
-    const dirs = ['win','loss'].map(r => null); // just O/U
-    const oProps = settled.filter(p=>p.side==='O');
-    const uProps = settled.filter(p=>p.side==='U');
-    const dirRow = (label, arr) => {
-      if (!arr.length) return '';
-      const w=arr.filter(p=>p.result==='win').length, l=arr.filter(p=>p.result==='loss').length;
-      const pnl=arr.reduce((a,p)=>a+(p.pnl||0),0);
-      const risk=arr.reduce((a,p)=>a+unitRisk(p),0);
-      const r=risk>0?((pnl/risk)*100).toFixed(1):'—';
-      return `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:6px 12px;font-size:12px;font-weight:500;">${label}</td>
-        <td style="padding:6px 12px;font-size:12px;text-align:center;">${w}-${l}</td>
-        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${pnl>=0?'var(--green)':'var(--red)'};">${pnl>=0?'+':''}${pnl.toFixed(2)}u</td>
-        <td style="padding:6px 12px;font-size:12px;text-align:right;color:${r!=='—'&&parseFloat(r)>=0?'var(--green)':'var(--red)'};">${r!=='—'?(parseFloat(r)>=0?'+':'')+r+'%':'—'}</td>
-      </tr>`;
-    };
-
-    const tableHdr = `<table style="width:100%;border-collapse:collapse;">
-      <thead><tr style="background:var(--bg3);">
-        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;letter-spacing:0.04em;">Category</th>
-        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:center;text-transform:uppercase;letter-spacing:0.04em;">W-L</th>
-        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:right;text-transform:uppercase;letter-spacing:0.04em;">P&L</th>
-        <th style="padding:6px 12px;font-size:10px;color:var(--text2);text-align:right;text-transform:uppercase;letter-spacing:0.04em;">ROI</th>
-      </tr></thead><tbody>`;
-
-    el.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:16px;">
-        ${sc('Record', wins+'W · '+losses+'L'+(pushes?' · '+pushes+'P':''), settled.length+' settled · '+pending.length+' pending')}
-        ${sc('Win Rate', winRate !== '—' ? winRate+'%' : '—', 'settled bets only')}
-        ${sc('P&L', (totalPnl>=0?'+':'')+totalPnl.toFixed(2)+'u', 'units profit/loss', pnlColor)}
-        ${sc('ROI', roi !== '—' ? (parseFloat(roi)>=0?'+':'')+roi+'%' : '—', 'units won ÷ units staked', roiColor)}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 16px 16px;">
-        <div>
-          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;">By Market</div>
-          ${tableHdr}${mktRows}</tbody></table>
-        </div>
-        <div>
-          <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;">By Direction</div>
-          ${tableHdr}${dirRow('Over',oProps)}${dirRow('Under',uProps)}</tbody></table>
-        </div>
-      </div>`;
-  } else {
-    // BET LOG
-    const rows = [...props].reverse().map(p => {
-      const rc = p.result==='win'?'var(--green)':p.result==='loss'?'var(--red)':p.result==='push'?'var(--amber)':'var(--text2)';
-      return `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:7px 12px;font-size:12px;font-weight:600;">${p.player}</td>
-        <td style="padding:7px 12px;font-size:11px;color:var(--text2);">${p.market}</td>
-        <td style="padding:7px 12px;font-size:12px;">${p.game}</td>
-        <td style="padding:7px 12px;font-size:12px;color:${p.side==='O'?'var(--green)':'var(--red)'};">${p.line} ${p.side}</td>
-        <td style="padding:7px 12px;font-size:12px;">${p.odds||'—'}</td>
-        <td style="padding:7px 12px;font-size:12px;color:var(--amber);">${p.ev?p.ev.toFixed(1)+'%':'—'}</td>
-        <td style="padding:7px 12px;font-size:12px;">${p.kProj||p.ipProj||'—'}</td>
-        <td style="padding:7px 12px;font-size:12px;">${p.actual!=null?p.actual:'—'}</td>
-        <td style="padding:7px 12px;font-size:12px;font-weight:600;color:${rc};">${p.result||'Pending'}</td>
-        <td style="padding:7px 12px;font-size:12px;font-weight:600;color:${(p.pnl||0)>0?'var(--green)':(p.pnl||0)<0?'var(--red)':'var(--text2)'};">${p.pnl!=null?((p.pnl>0?'+':'')+p.pnl.toFixed(2)+'u'):'—'}</td>
-      </tr>`;
-    }).join('');
-
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse;">
-      <thead><tr style="background:var(--bg3);">
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Player</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Market</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Game</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Line</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Odds</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">EV%</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Proj</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Actual</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">Result</th>
-        <th style="padding:7px 12px;font-size:10px;color:var(--text2);text-align:left;text-transform:uppercase;">P&L</th>
-      </tr></thead>
-      <tbody>${rows||'<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">No props loaded</td></tr>'}</tbody>
-    </table>`;
-  }
-}
 
 </script>
 </head>
@@ -634,11 +282,13 @@ function renderTracker() {
   <button class="btn grade-btn" id="gradeBtn" onclick="autoGrade()">⟳ Grade</button>
   <span id="gradeStatus" style="font-size:11px;font-family:Inter,sans-serif;color:var(--text2);"></span>
   <div class="ctrl-sep"></div>
-  <button class="btn" onclick="exportExcel()" style="border-color:rgba(45,122,79,0.35);color:var(--green);">↓ Export Excel</button>
+  <button class="btn" onclick="exportExcel()" style="border-color:rgba(45,122,79,0.35);color:var(--green);">↓ Export CSV</button>
   <div class="ctrl-sep"></div>
   <button class="btn" onclick="saveState()" style="border-color:rgba(37,99,168,0.35);color:var(--blue);">💾 Save</button>
   <span id="saveStatus" style="font-size:11px;color:var(--text2);font-family:Inter,sans-serif;"></span>
   <div class="ctrl-sep"></div>
+  <button class="btn" onclick="clearPending()" style="color:var(--amber);border-color:rgba(180,83,9,0.3);">Clear Pending</button>
+  <button class="btn" onclick="clearSkipped()" style="color:var(--text2);border-color:var(--border2);">Clear Skipped</button>
   <button class="btn danger" onclick="clearAll()">Clear All</button>
 </div>
 
@@ -685,6 +335,21 @@ function renderTracker() {
 </div>
 
 <!-- MAIN -->
+<!-- TRACKER SECTION -->
+<div style="max-width:1200px;margin:24px auto 0;padding:0 20px 40px;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+    <!-- Tracker header -->
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;font-weight:600;color:var(--text);">Tracker</span>
+      <div style="display:flex;gap:4px;margin-left:8px;">
+        <button onclick="setTrackerTab('dashboard')" id="ttDash" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;">Dashboard</button>
+        <button onclick="setTrackerTab('betlog')" id="ttLog" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;">Bet Log</button>
+      </div>
+    </div>
+    <div id="trackerBody"></div>
+  </div>
+</div>
+
 <div class="main" id="mainContent">
   <div class="empty-state" id="emptyState">
     <h3>No Props Loaded</h3>
@@ -696,6 +361,9 @@ function renderTracker() {
 <script>
 // ===== STATE =====
 let props = [];
+let trackerTab = 'dashboard';
+const STORAGE_KEY = 'propshop_mlb_props';
+const DATE_KEY = 'propshop_mlb_date';
 
 // ===== MARKET CONFIG =====
 const MARKET_MAP = {
@@ -761,27 +429,47 @@ function splitMerged(s) {
 }
 
 function findBestEV(tokens, minEV) {
-  // Scan EV% tokens but only within the first ~18 tokens (main book columns)
-  // This prevents grabbing Kalshi/alt lines that appear later
+  // Only scan first 22 tokens to avoid Kalshi/alt lines
   const SCAN_LIMIT = 22;
-  let evCount = 0;
+  let lastEvIdx = -1;
+
   for (let idx = 0; idx < Math.min(tokens.length, SCAN_LIMIT); idx++) {
     const tok = tokens[idx];
     if (!isEVStr(tok)) continue;
-    evCount++;
+
     const ev = parseEVStr(tok);
-    if (ev < minEV) continue;
-    // Look back for nearest odds then line
-    let foundOdds = null, foundLine = null, passedDash = false;
-    for (let b = idx - 1; b >= Math.max(0, idx - 6); b--) {
-      const bt = tokens[b];
-      if (bt === '—' && foundOdds === null) { passedDash = true; }
-      else if (isOddsStr(bt) && foundOdds === null) { foundOdds = bt; }
-      else if (isLineStr(bt) && foundOdds !== null && foundLine === null) { foundLine = parseFloat(bt); break; }
+
+    // Count actual line/odds tokens (exclude dashes) since last EV%
+    const block = [];
+    for (let b = lastEvIdx + 1; b < idx; b++) {
+      if (isLineStr(tokens[b]) || isOddsStr(tokens[b])) block.push(tokens[b]);
     }
-    if (foundOdds && foundLine !== null) {
-      const side = passedDash ? 'U' : 'O';
-      return { ev, odds: foundOdds, line: foundLine, side };
+
+    let side, odds, line;
+    if (block.length >= 4) {
+      // Pattern: [over_line over_odds under_line under_odds ev%] -> UNDER
+      side = 'U';
+      odds = isOddsStr(block[block.length-1]) ? block[block.length-1] : null;
+      line = null;
+      for (let b = block.length-2; b >= 0; b--) {
+        if (isLineStr(block[b])) { line = parseFloat(block[b]); break; }
+      }
+    } else if (block.length >= 2) {
+      // Pattern: [over_line over_odds ev%] -> OVER
+      side = 'O';
+      odds = isOddsStr(block[block.length-1]) ? block[block.length-1] : null;
+      line = null;
+      for (let b = block.length-2; b >= 0; b--) {
+        if (isLineStr(block[b])) { line = parseFloat(block[b]); break; }
+      }
+    } else {
+      lastEvIdx = idx;
+      continue;
+    }
+
+    lastEvIdx = idx;
+    if (odds && line !== null && ev >= minEV) {
+      return { ev, odds, line, side };
     }
   }
   return { ev: -999, odds: null, line: null, side: 'O' };
@@ -1311,6 +999,16 @@ function getTodayStr() {
   return d.toISOString().split('T')[0];
 }
 
+function clearPending() {
+  if (!confirm('Clear all pending props?')) return;
+  props = props.filter(p => p.result && p.result !== '');
+  saveState(); renderProps(); updateSummary(); renderTracker(); populateGradeDates();
+}
+function clearSkipped() {
+  if (!confirm('Clear all skipped props?')) return;
+  props = props.filter(p => p.result !== 'skip');
+  saveState(); renderProps(); updateSummary(); renderTracker(); populateGradeDates();
+}
 function clearAll() {
   if (!confirm('Clear all props?')) return;
   props = [];
@@ -1322,9 +1020,6 @@ function clearAll() {
 
 
 // ===== PERSISTENCE =====
-const STORAGE_KEY = 'propshop_mlb_props';
-const DATE_KEY    = 'propshop_mlb_date';
-
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(props));
@@ -1346,231 +1041,55 @@ function loadState() {
 }
 
 // ===== DATE INIT =====
+try {
 const trackDateEl = document.getElementById('trackDate');
-const today = getTodayStr();
-trackDateEl.value = today;
-document.getElementById('dateDisplay').textContent = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-trackDateEl.addEventListener('change', () => {
-  const d = new Date(trackDateEl.value + 'T12:00:00');
-  document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-});
+if (trackDateEl) {
+  const today = getTodayStr();
+  trackDateEl.value = today;
+  const dateDisp = document.getElementById('dateDisplay');
+  if (dateDisp) dateDisp.textContent = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  trackDateEl.addEventListener('change', () => {
+    const d = new Date(trackDateEl.value + 'T12:00:00');
+    if (dateDisp) dateDisp.textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  });
+}
+} catch(e) { console.error('Date init error:', e.message); }
 
 // Init
-loadState();
-renderProps();
-updateSummary();
-populateGradeDates();
-renderTracker();
+try {
+  loadState();
+  renderProps();
+  updateSummary();
+  populateGradeDates();
+  renderTracker();
+} catch(e) {
+  console.error('Init error:', e.message, e.stack);
+}
 
 // ===== EXPORT EXCEL =====
 function exportExcel() {
-  if (props.length === 0) { alert('No props to export.'); return; }
-  const wb = XLSX.utils.book_new();
-
-  const dateStr = document.getElementById('trackDate').value || getTodayStr();
-
-  // ---- helpers ----
-  const pnlCalc = p => p.pnl !== null ? p.pnl : '';
-  const riskCalc = p => {
-    if (!p.odds) return '';
-    const o = parseFloat(p.odds);
-    return o > 0 ? 1 : parseFloat((Math.abs(o)/100).toFixed(4));
-  };
-  const toWinCalc = p => {
-    if (!p.odds) return '';
-    const o = parseFloat(p.odds);
-    return o > 0 ? parseFloat((o/100).toFixed(4)) : 1;
-  };
-  const evBucket = ev => ev >= 25 ? 'Elite 25%+' : ev >= 15 ? 'Strong 15-24%' : ev >= 5 ? 'Value 5-14%' : '<5%';
-
-  // ---- Sheet 1: Bet Log ----
-  const logHeaders = ['Date','Player','Market','Game','Time','Line','Side','Best Odds','Book','EV%','EV Bucket','Risk (u)','To Win (u)','Actual','Result','P&L (u)','Notes'];
-  const logRows = props.map(p => [
-    dateStr, p.player, p.market, p.game, p.gameTime,
-    p.line, p.side, p.odds, p.book,
-    p.ev, evBucket(p.ev),
-    riskCalc(p), toWinCalc(p),
-    p.actual !== null ? p.actual : '',
+  if (!props.length) { alert('No props to export.'); return; }
+  const headers = ['Date','Player','Market','Game','Time','Line','Side','Best Odds','EV%','Proj','Actual','Result','P&L','Notes'];
+  const rows = props.map(p => [
+    new Date().toISOString().split('T')[0],
+    p.player, p.market, p.game, p.gameTime,
+    p.line, p.side, p.odds, p.ev ? p.ev.toFixed(1)+'%' : '',
+    p.kProj || p.ipProj || '',
+    p.actual != null ? p.actual : '',
     p.result || 'Pending',
-    pnlCalc(p),
+    p.pnl != null ? p.pnl.toFixed(2) : '',
     p.notes || ''
   ]);
-  const logWs = XLSX.utils.aoa_to_sheet([logHeaders, ...logRows]);
-  logWs['!cols'] = [8,18,10,22,10,6,6,10,10,7,14,9,9,8,9,9,20].map(w=>({wch:w}));
-  styleSheet(logWs, logHeaders.length);
-  XLSX.utils.book_append_sheet(wb, logWs, 'Bet Log');
-
-  // ---- Sheet 2: Summary ----
-  const graded = props.filter(p => p.result && p.result !== 'skip' && p.result !== 'pending' && p.result !== '');
-  const wins = graded.filter(p => p.result === 'win');
-  const losses = graded.filter(p => p.result === 'loss');
-  const pushes = graded.filter(p => p.result === 'push');
-  const totalPnl = graded.reduce((a,p)=>a+(p.pnl||0),0);
-  const totalRisk = graded.reduce((a,p)=>a+riskCalc(p),0);
-  const roi = totalRisk > 0 ? totalPnl/totalRisk : 0;
-
-  const sumData = [
-    ['PropShop MLB Tracker — Export', dateStr],
-    [],
-    ['OVERALL SUMMARY',''],
-    ['Total Props', props.length],
-    ['Graded', graded.length],
-    ['Wins', wins.length],
-    ['Losses', losses.length],
-    ['Pushes', pushes.length],
-    ['Win Rate', graded.length > 0 ? wins.length/graded.length : ''],
-    ['Total P&L (u)', parseFloat(totalPnl.toFixed(4))],
-    ['Total Risked (u)', parseFloat(totalRisk.toFixed(4))],
-    ['ROI', roi],
-    [],
-    ['EV BUCKET BREAKDOWN','Bets','W','L','Push','P&L (u)','Risk (u)','ROI'],
-    ...['Elite 25%+','Strong 15-24%','Value 5-14%'].map(bucket => {
-      const bp = graded.filter(p => evBucket(p.ev) === bucket);
-      const bw = bp.filter(p=>p.result==='win'), bl = bp.filter(p=>p.result==='loss');
-      const bpnl = bp.reduce((a,p)=>a+(p.pnl||0),0);
-      const brisk = bp.reduce((a,p)=>a+riskCalc(p),0);
-      return [bucket, bp.length, bw.length, bl.length, bp.filter(p=>p.result==='push').length,
-              parseFloat(bpnl.toFixed(4)), parseFloat(brisk.toFixed(4)),
-              brisk>0 ? parseFloat((bpnl/brisk).toFixed(4)) : ''];
-    }),
-  ];
-  const sumWs = XLSX.utils.aoa_to_sheet(sumData);
-  sumWs['!cols'] = [{wch:22},{wch:12},{wch:8},{wch:8},{wch:8},{wch:10},{wch:10},{wch:10}];
-  XLSX.utils.book_append_sheet(wb, sumWs, 'Summary');
-
-  // ---- Sheet 3: Market Breakdown ----
-  const markets = [...new Set(props.map(p=>p.market))].sort();
-  const mktHeaders = ['Market','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%'];
-  const mktRows = markets.map(mkt => {
-    const mp = props.filter(p=>p.market===mkt);
-    const mg = mp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-    const mw = mg.filter(p=>p.result==='win'), ml = mg.filter(p=>p.result==='loss');
-    const mpnl = mg.reduce((a,p)=>a+(p.pnl||0),0);
-    const mrisk = mg.reduce((a,p)=>a+riskCalc(p),0);
-    const avgEV = mp.length > 0 ? mp.reduce((a,p)=>a+p.ev,0)/mp.length : 0;
-    return [mkt, mp.length, mw.length, ml.length, mg.filter(p=>p.result==='push').length,
-            mg.length>0 ? parseFloat((mw.length/mg.length).toFixed(4)) : '',
-            parseFloat(mpnl.toFixed(4)), parseFloat(mrisk.toFixed(4)),
-            mrisk>0 ? parseFloat((mpnl/mrisk).toFixed(4)) : '',
-            parseFloat(avgEV.toFixed(2))];
-  });
-  // Totals row
-  const tg = props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-  const tw = tg.filter(p=>p.result==='win'), trisk2 = tg.reduce((a,p)=>a+riskCalc(p),0);
-  const tpnl2 = tg.reduce((a,p)=>a+(p.pnl||0),0);
-  mktRows.push(['TOTAL', props.length, tw.length, tg.filter(p=>p.result==='loss').length,
-    tg.filter(p=>p.result==='push').length,
-    tg.length>0 ? parseFloat((tw.length/tg.length).toFixed(4)) : '',
-    parseFloat(tpnl2.toFixed(4)), parseFloat(trisk2.toFixed(4)),
-    trisk2>0 ? parseFloat((tpnl2/trisk2).toFixed(4)) : '',
-    parseFloat((props.reduce((a,p)=>a+p.ev,0)/props.length).toFixed(2))]);
-
-  const mktWs = XLSX.utils.aoa_to_sheet([mktHeaders, ...mktRows]);
-  mktWs['!cols'] = [12,7,7,7,7,10,10,10,10,10].map(w=>({wch:w}));
-  styleSheet(mktWs, mktHeaders.length);
-  XLSX.utils.book_append_sheet(wb, mktWs, 'By Market');
-
-  // ---- Sheet 4: O/U Split ----
-  const ouHeaders = ['Side','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%','Avg Odds'];
-  const ouRows = ['O','U'].map(side => {
-    const sp = props.filter(p=>p.side===side);
-    const sg = sp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-    const sw = sg.filter(p=>p.result==='win');
-    const spnl = sg.reduce((a,p)=>a+(p.pnl||0),0);
-    const srisk = sg.reduce((a,p)=>a+riskCalc(p),0);
-    const avgEV = sp.length>0 ? sp.reduce((a,p)=>a+p.ev,0)/sp.length : 0;
-    const avgOdds = sp.length>0 ? sp.reduce((a,p)=>a+parseFloat(p.odds||0),0)/sp.length : 0;
-    return [side==='O'?'Over':'Under', sp.length, sw.length, sg.filter(p=>p.result==='loss').length,
-            sg.filter(p=>p.result==='push').length,
-            sg.length>0 ? parseFloat((sw.length/sg.length).toFixed(4)) : '',
-            parseFloat(spnl.toFixed(4)), parseFloat(srisk.toFixed(4)),
-            srisk>0 ? parseFloat((spnl/srisk).toFixed(4)) : '',
-            parseFloat(avgEV.toFixed(2)), parseFloat(avgOdds.toFixed(1))];
-  });
-  const ouWs = XLSX.utils.aoa_to_sheet([ouHeaders, ...ouRows]);
-  ouWs['!cols'] = [10,7,7,7,7,10,10,10,10,10,10].map(w=>({wch:w}));
-  styleSheet(ouWs, ouHeaders.length);
-  XLSX.utils.book_append_sheet(wb, ouWs, 'O-U Split');
-
-  // ---- Sheet 5: Fav vs Dog ----
-  const fdHeaders = ['Type','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI','Avg EV%','Avg Odds'];
-  const fdRows = ['dog','fav'].map(type => {
-    const fp = props.filter(p => type==='dog' ? parseFloat(p.odds||0)>0 : parseFloat(p.odds||0)<0);
-    const fg = fp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-    const fw = fg.filter(p=>p.result==='win');
-    const fpnl = fg.reduce((a,p)=>a+(p.pnl||0),0);
-    const frisk = fg.reduce((a,p)=>a+riskCalc(p),0);
-    const avgEV = fp.length>0 ? fp.reduce((a,p)=>a+p.ev,0)/fp.length : 0;
-    const avgOdds = fp.length>0 ? fp.reduce((a,p)=>a+parseFloat(p.odds||0),0)/fp.length : 0;
-    return [type==='dog'?'Underdog (+odds)':'Favorite (-odds)',
-            fp.length, fw.length, fg.filter(p=>p.result==='loss').length,
-            fg.filter(p=>p.result==='push').length,
-            fg.length>0 ? parseFloat((fw.length/fg.length).toFixed(4)) : '',
-            parseFloat(fpnl.toFixed(4)), parseFloat(frisk.toFixed(4)),
-            frisk>0 ? parseFloat((fpnl/frisk).toFixed(4)) : '',
-            parseFloat(avgEV.toFixed(2)), parseFloat(avgOdds.toFixed(1))];
-  });
-  const fdWs = XLSX.utils.aoa_to_sheet([fdHeaders, ...fdRows]);
-  fdWs['!cols'] = [18,7,7,7,7,10,10,10,10,10,10].map(w=>({wch:w}));
-  styleSheet(fdWs, fdHeaders.length);
-  XLSX.utils.book_append_sheet(wb, fdWs, 'Fav vs Dog');
-
-  // ---- Sheet 6: By Game ----
-  const games = [...new Set(props.map(p=>p.game))];
-  const gmHeaders = ['Game','Time','Bets','W','L','Push','Win Rate','P&L (u)','Risk (u)','ROI'];
-  const gmRows = games.map(game => {
-    const gp = props.filter(p=>p.game===game);
-    const gg = gp.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
-    const gw = gg.filter(p=>p.result==='win');
-    const gpnl = gg.reduce((a,p)=>a+(p.pnl||0),0);
-    const grisk = gg.reduce((a,p)=>a+riskCalc(p),0);
-    return [game, gp[0]?.gameTime||'', gp.length, gw.length,
-            gg.filter(p=>p.result==='loss').length, gg.filter(p=>p.result==='push').length,
-            gg.length>0 ? parseFloat((gw.length/gg.length).toFixed(4)) : '',
-            parseFloat(gpnl.toFixed(4)), parseFloat(grisk.toFixed(4)),
-            grisk>0 ? parseFloat((gpnl/grisk).toFixed(4)) : ''];
-  });
-  const gmWs = XLSX.utils.aoa_to_sheet([gmHeaders, ...gmRows]);
-  gmWs['!cols'] = [24,10,7,7,7,7,10,10,10,10].map(w=>({wch:w}));
-  styleSheet(gmWs, gmHeaders.length);
-  XLSX.utils.book_append_sheet(wb, gmWs, 'By Game');
-
-  // ---- Download ----
-  XLSX.writeFile(wb, `PropShop_MLB_${dateStr}.xlsx`);
+  const csv = [headers, ...rows].map(r =>
+    r.map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(',')
+  ).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'PropShop_MLB_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
 }
-
-function styleSheet(ws, numCols) {
-  // Style header row (row 1)
-  for (let c = 0; c < numCols; c++) {
-    const addr = XLSX.utils.encode_cell({r:0, c});
-    if (!ws[addr]) continue;
-    ws[addr].s = {
-      font: { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 10 },
-      fill: { fgColor: { rgb: '080C14' }, patternType: 'solid' },
-      alignment: { horizontal: 'center', vertical: 'center' },
-      border: { bottom: { style: 'thin', color: { rgb: '10D9A0' } } }
-    };
-  }
-  // Style data rows
-  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  for (let r = 1; r <= range.e.r; r++) {
-    for (let c = 0; c <= range.e.c; c++) {
-      const addr = XLSX.utils.encode_cell({r, c});
-      if (!ws[addr]) { ws[addr] = {t:'z'}; }
-      ws[addr].s = {
-        font: { name: 'Arial', sz: 10, color: { rgb: 'DDE4F0' } },
-        fill: { fgColor: { rgb: r%2===0 ? '0D1320' : '111827' }, patternType: 'solid' },
-        alignment: { vertical: 'center' },
-        border: { bottom: { style: 'hair', color: { rgb: '1A2234' } } }
-      };
-    }
-  }
-}
-
-
 // ===== TRACKER DASHBOARD =====
-let trackerTab = 'dashboard';
-
 function setTrackerTab(tab) {
   trackerTab = tab;
   document.getElementById('ttDash').style.cssText = tab==='dashboard'
@@ -1719,21 +1238,6 @@ function renderTracker() {
 }
 
 </script>
-
-<!-- TRACKER SECTION -->
-<div style="max-width:1200px;margin:24px auto 0;padding:0 20px 40px;">
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-    <!-- Tracker header -->
-    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);">
-      <span style="font-size:13px;font-weight:600;color:var(--text);">Tracker</span>
-      <div style="display:flex;gap:4px;margin-left:8px;">
-        <button onclick="setTrackerTab('dashboard')" id="ttDash" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;">Dashboard</button>
-        <button onclick="setTrackerTab('betlog')" id="ttLog" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;">Bet Log</button>
-      </div>
-    </div>
-    <div id="trackerBody"></div>
-  </div>
-</div>
 
 </body>
 </html>
