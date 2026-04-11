@@ -2073,17 +2073,7 @@ function _parseRaw() {
     const already = tracker.find(t => {
       const gl = label+' '+dir+(line!=null?' '+line:'');
       const _mm = {'Game Total':'TOTAL','Team Total':'TT','1H Total':'1HTOTAL','F5 Total':'1HTOTAL','1H TT':'1HTT','F5 TT':'1HTT','1H ML':'1HML','F5 ML':'1HML','1H RL':'1HRL','F5 RL':'1HRL'};
-      const mktMatch = t.market===(_mm[p.market]||'TOTAL');
-      const dateMatch = t.date===p.date;
-      const gameMatch = t.game===gl;
-      // Fuzzy match: same dir + line + date + market + overlapping team abbrs
-      const norm = s => s.toUpperCase().replace(/[^A-Z0-9]/g,'');
-      const fuzzyMatch = mktMatch && dateMatch && t.dir===dir &&
-        (line==null || String(t.line)===String(line)) &&
-        (norm(t.game||'').includes(norm(label)) || norm(label).includes(norm(t.game||'')) ||
-         norm(t.rawGame||'').includes(norm(label.split('/')[0]||'')) ||
-         norm(t.tm||'').includes(norm(label.split('/')[0]||'')));
-      return gameMatch || fuzzyMatch;
+      return t.game===gl && t.date===p.date && t.market===(_mm[p.market]||'TOTAL');
     });
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;border:1px solid ${already?'var(--border)':'var(--border2)'};background:var(--surface);margin-bottom:5px;opacity:${already?'0.5':'1'}">
       <input type="checkbox" class="raw-check" value="${i}" ${already?'disabled':''} style="width:15px;height:15px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
