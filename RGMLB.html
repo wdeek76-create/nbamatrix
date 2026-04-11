@@ -1253,10 +1253,10 @@ function loadState() {
     const savedDate = localStorage.getItem(DATE_KEY);
     if (saved) {
       props = JSON.parse(saved);
+      // Backfill undated props with savedDate — but NEVER override the date picker
+      // Date picker always stays on today (set by DATE INIT below)
       if (savedDate) {
-        document.getElementById('trackDate').value = savedDate;
-        const d = new Date(savedDate + 'T12:00:00');
-        document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+        props = props.map(p => p.date ? p : {...p, date: savedDate});
       }
     }
   } catch(e) { console.warn('Load failed:', e); props = []; }
