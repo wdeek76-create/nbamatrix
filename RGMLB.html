@@ -211,8 +211,169 @@ textarea.paste-area:focus { border-color: var(--green); }
 
 <script>
 // ===== EXPORT EXCEL =====
+function exportExcel() {
+  if (!props.length) { alert('No props to export.'); return; }
 
+  // ── helpers ──────────────────────────────────────────────────────
+  function unitRiskE(p) { const o=parseFloat(p.odds); return (!isNaN(o)&&o<0) ? Math.abs(o)/100 : 1; }
+  function unitWinE(p)  { const o=parseFloat(p.odds); return (!isNaN(o)&&o>0) ? o/100 : 1; }
+  function pct(n,d)     { return d ? (n/d*100).toFixed(1)+'%' : '—'; }
+  function sgn(n)       { return n>=0 ? '+'+n.toFixed(2)+'u' : n.toFixed(2)+'u'; }
+  function roiFmt(bets) {
+    const risk=bets.reduce((a,p)=>a+unitRiskE(p),0);
+    const pnl=bets.reduce((a,p)=>a+(p.pnl||0),0);
+    return risk>0 ? (pnl/risk*100).toFixed(1)+'%' : '—';
+  }
+  function summaryRows(bets) {
+    const settled=bets.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const w=settled.filter(p=>p.result==='win').length;
+    const l=settled.filter(p=>p.result==='loss').length;
+    const pu=settled.filter(p=>p.result==='push').length;
+    const pnl=settled.reduce((a,p)=>a+(p.pnl||0),0);
+    const risk=settled.reduce((a,p)=>a+unitRiskE(p),0);
+    const roi=risk>0?(pnl/risk*100).toFixed(1)+'%':'—';
+    return { total:bets.length, settled:settled.length, w, l, pu,
+             wr:pct(w,settled.length), pnl:sgn(pnl), roi };
+  }
+  function breakdownTable(bets, keyFn, labelFn) {
+    const groups={};
+    bets.forEach(p=>{ const k=keyFn(p); if(!groups[k]) groups[k]=[]; groups[k].push(p); });
+    return Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,arr])=>{
+      const s=summaryRows(arr);
+      return [labelFn?labelFn(k):k, s.total, s.w+'-'+s.l+(s.pu?'-'+s.pu+'P':''), s.wr, s.pnl, s.roi];
+    });
+  }
 
+  const settled = props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+  const overall  = summaryRows(props);
+
+  // ── CSV builder (no external deps) ───────────────────────────────
+  const sheets = [];
+
+  // Sheet 1: Summary
+  const summaryData = [
+    ['RotoGrinders MLB Pitcher Props — Export', new Date().toLocaleDateString()],
+    [],
+    ['OVERALL RECORD'],
+    ['Total Props','W','L','P','W%','P&L','ROI'],
+    [overall.total, overall.w, overall.l, overall.pu, overall.wr, overall.pnl, overall.roi],
+    [],
+    ['BY MARKET','','','','','',''],
+    ['Market','Bets','W-L','W%','P&L','ROI'],
+    ...breakdownTable(props, p=>p.market, k=>k),
+    [],
+    ['BY DIRECTION','','','','','',''],
+    ['Direction','Bets','W-L','W%','P&L','ROI'],
+    ...breakdownTable(settled, p=>p.side==='O'?'Over':'Under'),
+    [],
+    ['BY EV BUCKET','','','','','',''],
+    ['Bucket','Bets','W-L','W%','P&L','ROI'],
+    ...breakdownTable(settled, p=>{
+      if(p.ev>=25) return '1_Elite 25%+';
+      if(p.ev>=15) return '2_Strong 15-24%';
+      if(p.ev>=5)  return '3_Value 5-14%';
+      return '4_Sub-5%';
+    }, k=>k.slice(2)),
+    [],
+    ['BY ODDS BUCKET','','','','','',''],
+    ['Odds Range','Bets','W-L','W%','P&L','ROI'],
+    ...breakdownTable(settled, p=>{
+      const o=parseFloat(p.odds);
+      if(isNaN(o)) return '6_Unknown';
+      if(o<=-200) return '1_-200 or worse';
+      if(o<=-150) return '2_-150 to -199';
+      if(o<=-110) return '3_-110 to -149';
+      if(o<0)     return '4_-109 to -101';
+      if(o<=130)  return '5_+100 to +130';
+      return '6_+131 or better';
+    }, k=>k.slice(2)),
+    [],
+    ['BY MARKET — OVER vs UNDER','','','','','',''],
+  ];
+
+  // Per-market O/U breakdown
+  const markets = [...new Set(props.map(p=>p.market))].sort();
+  markets.forEach(m => {
+    const mp = settled.filter(p=>p.market===m);
+    if (!mp.length) return;
+    summaryData.push([m+' — Over vs Under','Bets','W-L','W%','P&L','ROI']);
+    summaryData.push(...breakdownTable(mp, p=>p.side==='O'?'Over':'Under'));
+    summaryData.push([]);
+  });
+  sheets.push({ name: 'Summary', data: summaryData });
+
+  // Sheet 2: Bet Log with running total
+  const betLogHeaders = ['#','Date','Player','Market','Game','Time','Line','Side','Odds','EV%','Proj','Actual','Result','P&L','Running P&L','Notes'];
+  let running = 0;
+  const betLogData = [betLogHeaders,
+    ...props.map((p,i) => {
+      running += p.pnl||0;
+      return [
+        i+1,
+        p.gameTime ? p.gameTime.split('•')[0]?.trim() : '',
+        p.player, p.market, p.game,
+        p.gameTime || '',
+        p.line, p.side, p.odds,
+        p.ev ? p.ev.toFixed(1)+'%' : '',
+        p.kProj||p.ipProj||'',
+        p.actual!=null ? p.actual : '',
+        p.result ? p.result.charAt(0).toUpperCase()+p.result.slice(1) : 'Pending',
+        p.pnl!=null ? sgn(p.pnl) : '',
+        sgn(running),
+        p.notes||''
+      ];
+    })
+  ];
+  sheets.push({ name: 'Bet Log', data: betLogData });
+
+  // Sheet 3: Per-market detail
+  markets.forEach(m => {
+    const mp = props.filter(p=>p.market===m);
+    if (!mp.length) return;
+    const s = summaryRows(mp);
+    const mData = [
+      [m+' Market Detail'],
+      ['Total',s.total,'W',s.w,'L',s.l,'W%',s.wr,'P&L',s.pnl,'ROI',s.roi],
+      [],
+      ['Player','Game','Time','Line','Side','Odds','EV%','Proj','Actual','Result','P&L']
+    ];
+    mp.forEach(p => mData.push([
+      p.player, p.game, p.gameTime||'',
+      p.line, p.side, p.odds,
+      p.ev ? p.ev.toFixed(1)+'%' : '',
+      p.kProj||p.ipProj||'',
+      p.actual!=null?p.actual:'',
+      p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending',
+      p.pnl!=null?sgn(p.pnl):''
+    ]));
+    sheets.push({ name: m.slice(0,31), data: mData });
+  });
+
+  // ── render to CSV zip via multiple downloads ──────────────────────
+  // Single CSV with all sheets separated by blank rows + sheet headers
+  const allRows = [];
+  sheets.forEach(sheet => {
+    allRows.push(['=== '+sheet.name+' ===']);
+    sheet.data.forEach(row => allRows.push(row));
+    allRows.push([]);
+    allRows.push([]);
+  });
+
+  const csv = allRows.map(row =>
+    row.map(v => {
+      const s = String(v??'');
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? '"'+s.replace(/"/g,'""')+'"' : s;
+    }).join(',')
+  ).join('\n');
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'RotoGrinders_MLB_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 </script>
 </head>
 <body>
