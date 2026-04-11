@@ -414,82 +414,6 @@ function styleSheet(ws, numCols) {
   }
 }
 
-
-// ===== IMPORT EXCEL =====
-function importExcel(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const ws = wb.Sheets['Bet Log'];
-      if (!ws) { alert('No "Bet Log" sheet found in Excel file.'); return; }
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      if (rows.length < 2) { alert('No data found.'); return; }
-
-      // Headers: Date, Player, Market, Game, Time, Line, Side, Best Odds, Book, EV%, EV Bucket, Risk(u), To Win(u), Actual, Result, P&L, Notes
-      const imported = [];
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r[1]) continue; // skip empty rows
-        const date = r[0] ? String(r[0]).trim() : getTodayStr();
-        const result = (r[14]||'').toString().toLowerCase();
-        const resultVal = result.includes('win') ? 'win' : result.includes('loss') ? 'loss' : result.includes('push') ? 'push' : result.includes('skip') ? 'skip' : '';
-        const actual = (r[13] != null && r[13] !== '') ? parseFloat(r[13]) : null;
-        const pnlRaw = r[15];
-        const pnl = (pnlRaw != null && pnlRaw !== '') ? parseFloat(pnlRaw) : null;
-
-        imported.push({
-          id: Date.now() + Math.random() + i,
-          player: r[1]||'',
-          market: r[2]||'',
-          game: r[3]||'',
-          gameTime: r[4]||'',
-          line: r[5]!=null ? parseFloat(r[5]) : null,
-          side: r[6]||'O',
-          odds: r[7]!=null ? String(r[7]) : '',
-          book: r[8]||'',
-          ev: r[9]!=null ? parseFloat(r[9]) : 0,
-          kProj: '', ipProj: '',
-          date: date,
-          result: resultVal,
-          notes: r[16]||'',
-          actual: actual,
-          pnl: pnl,
-        });
-      }
-
-      if (!imported.length) { alert('No valid rows found.'); return; }
-
-      // Merge — skip exact dupes (same player+market+game+line+date)
-      let added = 0;
-      imported.forEach(p => {
-        const key = `${p.player}|${p.market}|${p.game}|${p.line}|${p.date}`;
-        const exists = props.some(e => `${e.player}|${e.market}|${e.game}|${e.line}|${e.date}` === key);
-        if (!exists) { props.push(p); added++; }
-      });
-
-      // Set date picker to the imported date
-      const importDate = imported[0]?.date;
-      if (importDate) {
-        document.getElementById('trackDate').value = importDate;
-        const d = new Date(importDate + 'T12:00:00');
-        document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-      }
-
-      renderProps();
-      updateSummary();
-      saveState();
-      alert(`Imported ${added} props (${imported.length - added} duplicates skipped).`);
-    } catch(err) {
-      alert('Import error: ' + err.message);
-    }
-    input.value = '';
-  };
-  reader.readAsArrayBuffer(file);
-}
-
 </script>
 </head>
 <body>
@@ -523,7 +447,6 @@ function importExcel(input) {
 <!-- CONTROLS -->
 <div class="controls">
   <button class="btn primary" onclick="openPasteModal()">+ Paste PropShop</button>
-  <label class="btn" style="cursor:pointer;">⬆ Import Excel<input type="file" accept=".xlsx" onchange="importExcel(this)" style="display:none"></label>
   <div class="ctrl-sep"></div>
   <span class="ctrl-lbl">Filter:</span>
   <select class="ctrl-sel" id="filterMarket" onchange="renderProps()">
@@ -562,8 +485,6 @@ function importExcel(input) {
   <button class="btn" onclick="saveState()" style="border-color:rgba(37,99,168,0.35);color:var(--blue);">💾 Save</button>
   <span id="saveStatus" style="font-size:11px;color:var(--text2);font-family:Inter,sans-serif;"></span>
   <div class="ctrl-sep"></div>
-  <button class="btn" onclick="clearPending()" style="border-color:rgba(245,166,35,0.35);color:var(--amber);">Clear Pending</button>
-  <button class="btn" onclick="clearSkipped()" style="border-color:rgba(107,114,128,0.35);color:var(--text2);">Clear Skipped</button>
   <button class="btn danger" onclick="clearAll()">Clear All</button>
 </div>
 
@@ -615,7 +536,6 @@ function importExcel(input) {
     <h3>No Props Loaded</h3>
     <p>Click <strong>+ Paste PropShop</strong> above, copy your PropShop screen, and paste it in. Only props with >5% EV will be imported automatically.</p>
     <button class="btn primary" onclick="openPasteModal()">+ Paste PropShop</button>
-  <label class="btn" style="cursor:pointer;">⬆ Import Excel<input type="file" accept=".xlsx" onchange="importExcel(this)" style="display:none"></label>
   </div>
 </div>
 
@@ -791,7 +711,6 @@ function parsePropShopText(raw, minEV, marketOverride) {
         player: line, market, game: gameStr, gameTime,
         line: bestLine, side, odds, book: '', ev,
         kProj, ipProj,
-        date: (document.getElementById('trackDate')?.value) || getTodayStr(),
         result: '', notes: '', actual: null, pnl: null,
       });
     }
@@ -851,9 +770,7 @@ function renderProps() {
   const filterEV = document.getElementById('filterEV').value;
   const filterResult = document.getElementById('filterResult').value;
 
-  const activeDate = document.getElementById('trackDate').value || getTodayStr();
   let filtered = props.filter(p => {
-    if (!p.date || p.date !== activeDate) return false;
     if (filterMarket && p.market !== filterMarket) return false;
     if (filterEV === 'elite' && p.ev < 25) return false;
     if (filterEV === 'strong' && (p.ev < 15 || p.ev >= 25)) return false;
@@ -1006,10 +923,7 @@ function setNotes(id, val) { const p = props.find(x => String(x.id) === String(i
 
 // ===== SUMMARY =====
 function updateSummary() {
-  const _curDate = document.getElementById('trackDate')?.value || getTodayStr();
-  const _dateProps = props.filter(p => p.date === _curDate);
-  document.getElementById('s-total').textContent = _dateProps.length;
-  const graded = _dateProps.filter(p => p.result && p.result !== 'skip' && p.result !== '');
+  const graded = props.filter(p => p.result && p.result !== 'skip');
   const wins = graded.filter(p => p.result === 'win').length;
   const losses = graded.filter(p => p.result === 'loss').length;
   const pushes = graded.filter(p => p.result === 'push').length;
@@ -1017,7 +931,7 @@ function updateSummary() {
   const wl = wins + losses;
   const roi = wl > 0 ? ((totalPnl / wl) * 100).toFixed(1) + '%' : '—';
 
-  // s-total set above
+  document.getElementById('s-total').textContent = props.length;
   document.getElementById('s-w').textContent = wins;
   document.getElementById('s-l').textContent = losses;
   document.getElementById('s-p').textContent = pushes;
@@ -1147,12 +1061,7 @@ function buildPlayerLookup(boxscores) {
           lookup[norm].K   = ps.strikeOuts;
           lookup[norm].ER  = ps.earnedRuns;
           lookup[norm].BB  = ps.baseOnBalls;
-          lookup[norm].H_pitching = ps.hits;
-          lookup[norm].HA  = ps.hits;
-          if (ps.inningsPitched != null) {
-            const _p = String(ps.inningsPitched).split('.');
-            lookup[norm].OUTS = (parseInt(_p[0])||0)*3 + (parseInt(_p[1])||0);
-          }
+          lookup[norm].H_pitching = ps.hits; // hits allowed
         }
         // Batting stats
         const bs2 = player.stats?.batting;
@@ -1187,8 +1096,6 @@ function findPlayerStat(lookup, playerName, market) {
   let key = market;
   if (market === 'H') key = entry.H !== undefined ? 'H' : 'H_pitching';
   if (market === 'BB') key = entry.BB !== undefined ? 'BB' : 'BB_bat';
-  if (market === 'HA') key = 'HA';
-  if (market === 'OUTS') key = 'OUTS';
 
   const val = entry[key];
   return val !== undefined && val !== null ? val : null;
@@ -1213,18 +1120,6 @@ function getTodayStr() {
   return d.toISOString().split('T')[0];
 }
 
-function clearPending() {
-  const d = document.getElementById('trackDate')?.value || getTodayStr();
-  if (!confirm('Clear pending props for this date?')) return;
-  props = props.filter(p => !(p.date === d && (!p.result || p.result === '')));
-  renderProps(); updateSummary(); saveState();
-}
-function clearSkipped() {
-  const d = document.getElementById('trackDate')?.value || getTodayStr();
-  if (!confirm('Clear skipped props for this date?')) return;
-  props = props.filter(p => !(p.date === d && p.result === 'skip'));
-  renderProps(); updateSummary(); saveState();
-}
 function clearAll() {
   if (!confirm('Clear all props?')) return;
   props = [];
@@ -1253,9 +1148,11 @@ function loadState() {
     const savedDate = localStorage.getItem(DATE_KEY);
     if (saved) {
       props = JSON.parse(saved);
-      // Stamp ALL undated props with savedDate so they appear on the right date
-      const fallbackDate = savedDate || getTodayStr();
-      props = props.map(p => p.date ? p : {...p, date: fallbackDate});
+      if (savedDate) {
+        document.getElementById('trackDate').value = savedDate;
+        const d = new Date(savedDate + 'T12:00:00');
+        document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+      }
     }
   } catch(e) { console.warn('Load failed:', e); props = []; }
 }
@@ -1268,14 +1165,10 @@ document.getElementById('dateDisplay').textContent = new Date(today + 'T12:00:00
 trackDateEl.addEventListener('change', () => {
   const d = new Date(trackDateEl.value + 'T12:00:00');
   document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-  renderProps();
-  updateSummary();
 });
 
 // Init
 loadState();
-// Immediately save back so all props have their date stamps persisted
-if (props.length > 0 && props.some(p => !p.date)) saveState();
 renderProps();
 updateSummary();
 
@@ -1482,82 +1375,6 @@ function styleSheet(ws, numCols) {
       };
     }
   }
-}
-
-
-// ===== IMPORT EXCEL =====
-function importExcel(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const ws = wb.Sheets['Bet Log'];
-      if (!ws) { alert('No "Bet Log" sheet found in Excel file.'); return; }
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      if (rows.length < 2) { alert('No data found.'); return; }
-
-      // Headers: Date, Player, Market, Game, Time, Line, Side, Best Odds, Book, EV%, EV Bucket, Risk(u), To Win(u), Actual, Result, P&L, Notes
-      const imported = [];
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r[1]) continue; // skip empty rows
-        const date = r[0] ? String(r[0]).trim() : getTodayStr();
-        const result = (r[14]||'').toString().toLowerCase();
-        const resultVal = result.includes('win') ? 'win' : result.includes('loss') ? 'loss' : result.includes('push') ? 'push' : result.includes('skip') ? 'skip' : '';
-        const actual = (r[13] != null && r[13] !== '') ? parseFloat(r[13]) : null;
-        const pnlRaw = r[15];
-        const pnl = (pnlRaw != null && pnlRaw !== '') ? parseFloat(pnlRaw) : null;
-
-        imported.push({
-          id: Date.now() + Math.random() + i,
-          player: r[1]||'',
-          market: r[2]||'',
-          game: r[3]||'',
-          gameTime: r[4]||'',
-          line: r[5]!=null ? parseFloat(r[5]) : null,
-          side: r[6]||'O',
-          odds: r[7]!=null ? String(r[7]) : '',
-          book: r[8]||'',
-          ev: r[9]!=null ? parseFloat(r[9]) : 0,
-          kProj: '', ipProj: '',
-          date: date,
-          result: resultVal,
-          notes: r[16]||'',
-          actual: actual,
-          pnl: pnl,
-        });
-      }
-
-      if (!imported.length) { alert('No valid rows found.'); return; }
-
-      // Merge — skip exact dupes (same player+market+game+line+date)
-      let added = 0;
-      imported.forEach(p => {
-        const key = `${p.player}|${p.market}|${p.game}|${p.line}|${p.date}`;
-        const exists = props.some(e => `${e.player}|${e.market}|${e.game}|${e.line}|${e.date}` === key);
-        if (!exists) { props.push(p); added++; }
-      });
-
-      // Set date picker to the imported date
-      const importDate = imported[0]?.date;
-      if (importDate) {
-        document.getElementById('trackDate').value = importDate;
-        const d = new Date(importDate + 'T12:00:00');
-        document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-      }
-
-      renderProps();
-      updateSummary();
-      saveState();
-      alert(`Imported ${added} props (${imported.length - added} duplicates skipped).`);
-    } catch(err) {
-      alert('Import error: ' + err.message);
-    }
-    input.value = '';
-  };
-  reader.readAsArrayBuffer(file);
 }
 
 </script>
