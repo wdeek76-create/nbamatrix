@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PropShop MLB Tracker</title>
+<title>RotoGrinders MLB Pitcher Props</title>
 
 <style>
 :root {
@@ -1204,7 +1204,7 @@ function renderTracker() {
       return `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:7px 12px;font-size:12px;font-weight:600;">${p.player}</td>
         <td style="padding:7px 12px;font-size:11px;color:var(--text2);">${p.market}</td>
-        <td style="padding:7px 12px;font-size:12px;">${p.game}</td>
+        <td style="padding:7px 12px;font-size:12px;">${p.game}<span style="font-size:10px;color:var(--text2);margin-left:6px">${p.gameTime||''}</span></td>
         <td style="padding:7px 12px;font-size:12px;color:${p.side==='O'?'var(--green)':'var(--red)'};">${p.line} ${p.side}</td>
         <td style="padding:7px 12px;font-size:12px;">${p.odds||'—'}</td>
         <td style="padding:7px 12px;font-size:12px;color:var(--amber);">${p.ev?p.ev.toFixed(1)+'%':'—'}</td>
