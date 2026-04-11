@@ -1274,6 +1274,8 @@ trackDateEl.addEventListener('change', () => {
 
 // Init
 loadState();
+// Immediately save back so all props have their date stamps persisted
+if (props.length > 0 && props.some(p => !p.date)) saveState();
 renderProps();
 updateSummary();
 
