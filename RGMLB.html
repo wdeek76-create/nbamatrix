@@ -609,40 +609,24 @@ function splitMerged(s) {
 }
 
 function findBestEV(tokens, minEV) {
-  // Best Line column structure (after consensus is skipped):
-  // Case A (over has EV): line odds EV% [under_slot]
-  // Case B (under has EV): — line odds EV%
-  // Case C (merged format): line+odds EV% ...
-  //
-  // Determine side by whether first non-dash token before EV% is preceded by —
+  // Take the FIRST EV% found — always the Best Line column
   for (let idx = 0; idx < tokens.length; idx++) {
     const tok = tokens[idx];
     if (!isEVStr(tok)) continue;
     const ev = parseEVStr(tok);
     if (ev < minEV) continue;
-
-    // Collect up to 5 tokens before this EV%
-    const pre = [];
-    for (let b = idx - 1; b >= Math.max(0, idx - 6); b--) pre.unshift(tokens[b]);
-
-    // Find odds and line in pre[], note position of any —
-    let foundOdds = null, foundLine = null, dashBeforeOdds = false;
-    let oddsIdx = -1;
-    for (let p = pre.length - 1; p >= 0; p--) {
-      if (isOddsStr(pre[p]) && foundOdds === null) { foundOdds = pre[p]; oddsIdx = p; }
-      else if (isLineStr(pre[p]) && foundOdds !== null && foundLine === null) { foundLine = parseFloat(pre[p]); break; }
+    // Look back for nearest odds then line
+    // Also track if we pass a '—' before finding odds — means it's the UNDER row
+    let foundOdds = null, foundLine = null, passedDash = false;
+    for (let b = idx - 1; b >= Math.max(0, idx - 6); b--) {
+      const bt = tokens[b];
+      if (bt === '—' && foundOdds === null) { passedDash = true; }
+      else if (isOddsStr(bt) && foundOdds === null) { foundOdds = bt; }
+      else if (isLineStr(bt) && foundOdds !== null && foundLine === null) { foundLine = parseFloat(bt); break; }
     }
-    // Check if there's a — anywhere before the odds position
-    if (oddsIdx > 0) {
-      for (let p = 0; p < oddsIdx; p++) {
-        if (pre[p] === '—') { dashBeforeOdds = true; break; }
-      }
-    }
-    // If first token in pre is — and odds come after, it's the under row
-    if (pre.length > 0 && pre[0] === '—') dashBeforeOdds = true;
-
     if (foundOdds && foundLine !== null) {
-      const side = dashBeforeOdds ? 'U' : 'O';
+      // Side is determined by position: if a dash preceded the odds, it's the UNDER row
+      const side = passedDash ? 'U' : 'O';
       return { ev, odds: foundOdds, line: foundLine, side };
     }
   }
@@ -790,9 +774,8 @@ function renderProps() {
   const filterResult = document.getElementById('filterResult').value;
 
   const activeDate = document.getElementById('trackDate').value || getTodayStr();
-
   let filtered = props.filter(p => {
-    if ((p.date || activeDate) !== activeDate) return false;
+    if (p.date && p.date !== activeDate) return false;
     if (filterMarket && p.market !== filterMarket) return false;
     if (filterEV === 'elite' && p.ev < 25) return false;
     if (filterEV === 'strong' && (p.ev < 15 || p.ev >= 25)) return false;
@@ -877,7 +860,7 @@ function buildRow(p) {
   const evCls = p.ev >= 25 ? 'ev-elite-c' : p.ev >= 15 ? 'ev-strong-c' : p.ev >= 5 ? 'ev-value-c' : 'ev-dim';
   const oddsCls = p.odds && p.odds.startsWith('+') ? 'odds-pos' : 'odds-neg';
   const sideCls = p.side === 'O' ? 'side-o' : 'side-u';
-  const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.kProj || p.ipProj || '—');
+  const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.haProj || '—');
   const actualDisp = p.actual !== null ? `<span class="actual-cell graded">${p.actual}</span>` : `<span class="actual-cell">—</span>`;
   const pnlDisp = p.pnl !== null ? `<span class="pnl-cell ${p.pnl > 0 ? 'pnl-pos' : p.pnl < 0 ? 'pnl-neg' : 'pnl-zero'}">${p.pnl > 0 ? '+' : ''}${p.pnl.toFixed(2)}u</span>` : `<span class="pnl-cell pnl-zero">—</span>`;
   const mInfo = MARKET_MAP[p.market] || { label: p.market };
@@ -945,9 +928,10 @@ function setNotes(id, val) { const p = props.find(x => String(x.id) === String(i
 
 // ===== SUMMARY =====
 function updateSummary() {
-  const curDate = document.getElementById('trackDate')?.value || getTodayStr();
-  const dateProps = props.filter(p => !p.date || p.date === curDate);
-  const graded = dateProps.filter(p => p.result && p.result !== 'skip');
+  const _curDate = document.getElementById('trackDate')?.value || getTodayStr();
+  const _dateProps = props.filter(p => !p.date || p.date === _curDate);
+  document.getElementById('s-total').textContent = _dateProps.length;
+  const graded = _dateProps.filter(p => p.result && p.result !== 'skip' && p.result !== '');
   const wins = graded.filter(p => p.result === 'win').length;
   const losses = graded.filter(p => p.result === 'loss').length;
   const pushes = graded.filter(p => p.result === 'push').length;
@@ -955,9 +939,7 @@ function updateSummary() {
   const wl = wins + losses;
   const roi = wl > 0 ? ((totalPnl / wl) * 100).toFixed(1) + '%' : '—';
 
-  const curDate = document.getElementById('trackDate')?.value || getTodayStr();
-  const dateProps = props.filter(p => !p.date || p.date === curDate);
-  document.getElementById('s-total').textContent = dateProps.length;
+  // s-total set above
   document.getElementById('s-w').textContent = wins;
   document.getElementById('s-l').textContent = losses;
   document.getElementById('s-p').textContent = pushes;
@@ -1087,15 +1069,11 @@ function buildPlayerLookup(boxscores) {
           lookup[norm].K   = ps.strikeOuts;
           lookup[norm].ER  = ps.earnedRuns;
           lookup[norm].BB  = ps.baseOnBalls;
-          lookup[norm].H_pitching = ps.hits; // hits allowed
-          lookup[norm].HA  = ps.hits; // hits allowed (HA market)
-          // OUTS: convert inningsPitched (e.g. 4.2 = 4+2/3 innings = 14 outs)
+          lookup[norm].H_pitching = ps.hits;
+          lookup[norm].HA  = ps.hits;
           if (ps.inningsPitched != null) {
-            const ipStr = String(ps.inningsPitched);
-            const parts = ipStr.split('.');
-            const fullInnings = parseInt(parts[0]) || 0;
-            const thirds = parseInt(parts[1]) || 0;
-            lookup[norm].OUTS = fullInnings * 3 + thirds;
+            const _p = String(ps.inningsPitched).split('.');
+            lookup[norm].OUTS = (parseInt(_p[0])||0)*3 + (parseInt(_p[1])||0);
           }
         }
         // Batting stats
@@ -1158,19 +1136,19 @@ function getTodayStr() {
 }
 
 function clearPending() {
-  const curDate = document.getElementById('trackDate')?.value || getTodayStr();
-  if (!confirm('Clear all pending props for this date?')) return;
-  props = props.filter(p => !((p.date || curDate) === curDate && (!p.result || p.result === '')));
+  const d = document.getElementById('trackDate')?.value || getTodayStr();
+  if (!confirm('Clear pending props for this date?')) return;
+  props = props.filter(p => !(p.date === d && (!p.result || p.result === '')));
   renderProps(); updateSummary(); saveState();
 }
 function clearSkipped() {
-  const curDate = document.getElementById('trackDate')?.value || getTodayStr();
-  if (!confirm('Clear all skipped props for this date?')) return;
-  props = props.filter(p => !((p.date || curDate) === curDate && p.result === 'skip'));
+  const d = document.getElementById('trackDate')?.value || getTodayStr();
+  if (!confirm('Clear skipped props for this date?')) return;
+  props = props.filter(p => !(p.date === d && p.result === 'skip'));
   renderProps(); updateSummary(); saveState();
 }
 function clearAll() {
-  if (!confirm('Clear ALL props across all dates?')) return;
+  if (!confirm('Clear all props?')) return;
   props = [];
   renderProps();
   updateSummary();
@@ -1184,14 +1162,7 @@ const DATE_KEY    = 'propshop_mlb_date';
 
 function saveState() {
   try {
-    // Never overwrite existing data with empty array
-    if (props.length === 0) {
-      const existing = localStorage.getItem(STORAGE_KEY);
-      if (existing && JSON.parse(existing).length > 0) return;
-    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(props));
-    // Keep a backup of last non-empty save
-    if (props.length > 0) localStorage.setItem(STORAGE_KEY + '_backup', JSON.stringify(props));
     localStorage.setItem(DATE_KEY, document.getElementById('trackDate').value || getTodayStr());
     const el = document.getElementById('saveStatus');
     if (el) { el.textContent = 'Saved'; el.style.color = 'var(--green)'; setTimeout(() => { el.textContent = ''; }, 1500); }
@@ -1202,15 +1173,13 @@ function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const savedDate = localStorage.getItem(DATE_KEY);
-    // Try backup if main save is empty
-    const toLoad = saved && JSON.parse(saved).length > 0 ? saved : localStorage.getItem(STORAGE_KEY + '_backup');
-    if (toLoad) {
-      props = JSON.parse(toLoad);
-      // Backfill undated props with the savedDate they belong to
+    if (saved) {
+      props = JSON.parse(saved);
       if (savedDate) {
-        props = props.map(p => p.date ? p : {...p, date: savedDate});
+        document.getElementById('trackDate').value = savedDate;
+        const d = new Date(savedDate + 'T12:00:00');
+        document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
       }
-      // Always open to today
     }
   } catch(e) { console.warn('Load failed:', e); props = []; }
 }
