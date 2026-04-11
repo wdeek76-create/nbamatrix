@@ -543,14 +543,7 @@ function parsePropShopText(raw, minEV, marketOverride) {
       else tokens.push(tok);
     }
 
-    // Skip consensus (first 4 line/odds/dash tokens)
-    let t = 0, skipped = 0;
-    while (t < tokens.length && skipped < 4) {
-      if (isLineStr(tokens[t]) || isOddsStr(tokens[t]) || tokens[t] === '—') skipped++;
-      t++;
-    }
-
-    const { ev, odds, line: bestLine, side } = findBestEV(tokens.slice(t), minEV);
+    const { ev, odds, line: bestLine, side } = findBestEV(tokens, minEV);
 
     if (odds && ev >= minEV) {
       results.push({
