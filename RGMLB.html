@@ -429,48 +429,51 @@ function splitMerged(s) {
 }
 
 function findBestEV(tokens, minEV) {
-  // Only scan first 22 tokens to avoid Kalshi/alt lines
+  // Skip consensus (first 4 data tokens)
+  const isData = s => isLineStr(s) || isOddsStr(s) || s === '—';
+  let skip = 0, t = 0;
+  while (t < tokens.length && skip < 4) {
+    if (isData(tokens[t])) skip++;
+    t++;
+  }
+  tokens = tokens.slice(t);
+
+  // Parse cells: each side (over/under) is one cell = either '—' or [line, odds]
+  // Books alternate: cell0=over, cell1=under, cell2=over, cell3=under...
+  // EV% appears after the cell it belongs to
+  // SCAN_LIMIT prevents Kalshi alts from being grabbed
   const SCAN_LIMIT = 22;
-  let lastEvIdx = -1;
+  const cells = [];
+  let i = 0;
 
-  for (let idx = 0; idx < Math.min(tokens.length, SCAN_LIMIT); idx++) {
-    const tok = tokens[idx];
-    if (!isEVStr(tok)) continue;
+  while (i < Math.min(tokens.length, SCAN_LIMIT)) {
+    const tok = tokens[i];
 
-    const ev = parseEVStr(tok);
-
-    // Count actual line/odds tokens (exclude dashes) since last EV%
-    const block = [];
-    for (let b = lastEvIdx + 1; b < idx; b++) {
-      if (isLineStr(tokens[b]) || isOddsStr(tokens[b])) block.push(tokens[b]);
-    }
-
-    let side, odds, line;
-    if (block.length >= 4) {
-      // Pattern: [over_line over_odds under_line under_odds ev%] -> UNDER
-      side = 'U';
-      odds = isOddsStr(block[block.length-1]) ? block[block.length-1] : null;
-      line = null;
-      for (let b = block.length-2; b >= 0; b--) {
-        if (isLineStr(block[b])) { line = parseFloat(block[b]); break; }
+    if (isEVStr(tok)) {
+      const ev = parseEVStr(tok);
+      if (ev >= minEV && cells.length >= 1) {
+        const last = cells[cells.length - 1];
+        if (last.line !== null && last.odds !== null) {
+          return { ev, odds: last.odds, line: last.line, side: last.side };
+        }
       }
-    } else if (block.length >= 2) {
-      // Pattern: [over_line over_odds ev%] -> OVER
-      side = 'O';
-      odds = isOddsStr(block[block.length-1]) ? block[block.length-1] : null;
-      line = null;
-      for (let b = block.length-2; b >= 0; b--) {
-        if (isLineStr(block[b])) { line = parseFloat(block[b]); break; }
-      }
-    } else {
-      lastEvIdx = idx;
-      continue;
+      cells.length = 0; // reset for next book
+      i++; continue;
     }
 
-    lastEvIdx = idx;
-    if (odds && line !== null && ev >= minEV) {
-      return { ev, odds, line, side };
+    if (tok === '—') {
+      const side = cells.length % 2 === 0 ? 'O' : 'U';
+      cells.push({ side, line: null, odds: null });
+      i++; continue;
     }
+
+    if (isLineStr(tok) && i + 1 < tokens.length && isOddsStr(tokens[i + 1])) {
+      const side = cells.length % 2 === 0 ? 'O' : 'U';
+      cells.push({ side, line: parseFloat(tok), odds: tokens[i + 1] });
+      i += 2; continue;
+    }
+
+    i++;
   }
   return { ev: -999, odds: null, line: null, side: 'O' };
 }
