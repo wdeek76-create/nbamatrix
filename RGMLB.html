@@ -1030,7 +1030,7 @@ async function autoGrade() {
 
     let fetched = 0;
     for (const g of allGames) {
-      if (g.status.abstractGameState === 'Final' || g.status.abstractGameState === 'Live') {
+      if (g.status.abstractGameState === 'Final') {
         const bsUrl = `https://statsapi.mlb.com/api/v1/game/${g.gamePk}/boxscore`;
         try {
           const bsResp = await fetch(bsUrl);
