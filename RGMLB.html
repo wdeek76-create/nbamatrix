@@ -1062,6 +1062,7 @@ try {
 
 // ===== EXPORT EXCEL =====
 function exportExcel() {
+  try {
   if (!props.length) { alert('No props to export.'); return; }
   function uRisk(p){const o=parseFloat(p.odds);return(!isNaN(o)&&o<0)?Math.abs(o)/100:1;}
   function sgn(n){if(n==null)return'';return(n>=0?'+':'')+n.toFixed(2)+'u';}
@@ -1119,6 +1120,8 @@ function exportExcel() {
   const files=[{name:'[Content_Types].xml',data:s2b(ct)},{name:'_rels/.rels',data:s2b(rr)},{name:'xl/workbook.xml',data:s2b(wbXML(sheets.map(s=>s.name)))},{name:'xl/_rels/workbook.xml.rels',data:s2b(wbRels(sheets.length))},...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s2b(wsXML(s.rows))}))];
   const blob=new Blob([mkzip(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='rotoprops_'+new Date().toISOString().split('T')[0]+'.xlsx';a.click();URL.revokeObjectURL(a.href);
+
+  } catch(e) { alert('Export error: ' + e.message); console.error('Export error:', e); }
 }
 // ===== TRACKER DASHBOARD =====
 function setTrackerTab(tab) {
