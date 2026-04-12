@@ -232,6 +232,7 @@ textarea.paste-area:focus { border-color: var(--green); }
 </div>
 
 <!-- SUMMARY BAR -->
+<div id="dailySummaryBar"></div>
 <div class="summary-bar">
   <div class="s-card"><div class="s-val" id="s-total">0</div><div class="s-lbl">Props</div></div>
   <div class="s-card"><div class="s-val teal" id="s-w">0</div><div class="s-lbl">Wins</div></div>
@@ -651,10 +652,24 @@ function renderProps() {
   empty.style.display = 'none';
   main.querySelectorAll('.game-group').forEach(el => el.remove());
 
-  // Group by DATE first, then by game within date
+  // Group by DATE first (use p.date as key = YYYY-MM-DD), then by game within date
   const dateGroups = {};
+  const moNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function dateLabel(d) {
+    if (!d) return 'Unknown';
+    const m = d.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return moNames[parseInt(m[2])]+'-'+parseInt(m[3]);
+    return d;
+  }
   filtered.forEach(p => {
-    const dateKey = p.gameTime ? p.gameTime.match(/([A-Za-z]+-\d+)/)?.[1] || 'Unknown' : 'Unknown';
+    // Use p.date if available, otherwise parse from gameTime
+    let dateKey = p.date;
+    if (!dateKey && p.gameTime) {
+      const mo = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+      const gm = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (gm && mo[gm[1]]) dateKey = new Date().getFullYear()+'-'+mo[gm[1]]+'-'+gm[2].padStart(2,'0');
+    }
+    dateKey = dateKey || 'Unknown';
     if (!dateGroups[dateKey]) dateGroups[dateKey] = {};
     const gameKey = p.game || 'Unknown Game';
     if (!dateGroups[dateKey][gameKey]) dateGroups[dateKey][gameKey] = { time: p.gameTime, items: [] };
@@ -672,7 +687,7 @@ function renderProps() {
     const dW = dateSettled.filter(p=>p.result==='win').length;
     const dL = dateSettled.filter(p=>p.result==='loss').length;
     const dPnl = dateSettled.reduce((a,p)=>a+(p.pnl||0),0);
-    dateDiv.innerHTML = `<span class="date-group-label">${dateKey}</span><span class="date-group-stats">${dW}W ${dL}L &nbsp;·&nbsp; <span style="color:${dPnl>=0?'var(--green)':'var(--red)'}">${(dPnl>=0?'+':'')+dPnl.toFixed(2)}u</span> &nbsp;·&nbsp; ${dateBets.length} props</span>`;
+    dateDiv.innerHTML = `<span class="date-group-label">${dateLabel(dateKey)}</span><span class="date-group-stats">${dW}W ${dL}L &nbsp;·&nbsp; <span style="color:${dPnl>=0?'var(--green)':'var(--red)'}">${(dPnl>=0?'+':'')+dPnl.toFixed(2)}u</span> &nbsp;·&nbsp; ${dateBets.length} props</span>`;
     main.appendChild(dateDiv);
 
     const sortedGroups = Object.entries(dateGroups[dateKey]).sort((a,b) => {
@@ -800,6 +815,8 @@ function setNotes(id, val) { const p = props.find(x => String(x.id) === String(i
 
 // ===== SUMMARY =====
 function updateSummary() {
+  const dsb = document.getElementById('dailySummaryBar');
+  if (dsb) dsb.innerHTML = buildDailySummary(props);
   const graded = props.filter(p => p.result && p.result !== 'skip');
   const wins = graded.filter(p => p.result === 'win').length;
   const losses = graded.filter(p => p.result === 'loss').length;
@@ -1525,7 +1542,6 @@ function renderTracker() {
         ${sc('P&L', (totalPnl>=0?'+':'')+totalPnl.toFixed(2)+'u', 'units profit/loss', pnlColor)}
         ${sc('ROI', roi !== '—' ? (parseFloat(roi)>=0?'+':'')+roi+'%' : '—', 'units won ÷ units staked', roiColor)}
       </div>
-      ${buildDailySummary(props)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 16px 16px;">
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;">By Market</div>
