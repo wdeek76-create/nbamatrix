@@ -835,6 +835,9 @@ async function autoGrade() {
   const pendingProps = props.filter(p => !p.result && (p.date||selectedDate) === selectedDate);
   const gameDates = [...new Set(pendingProps.map(p => parseGameDate(p)))];
   
+  // Debug
+  status.textContent = 'Pending: '+pendingProps.length+' | GameDates: '+gameDates.join(', ');
+  await new Promise(r=>setTimeout(r,2000));
   // Fetch all relevant game dates
   const allGames = [];
   const allBoxscores = {};
