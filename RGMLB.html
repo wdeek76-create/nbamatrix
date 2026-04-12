@@ -810,36 +810,60 @@ async function autoGrade() {
   if (!selectedDate) { status.textContent = 'Pick a date first.'; return; }
   if (props.length === 0) { status.textContent = 'No props to grade.'; return; }
 
-  const dateStr = selectedDate; // already YYYY-MM-DD format
-
   btn.disabled = true;
   status.className = 'grade-status loading';
   status.textContent = 'Fetching schedule…';
 
-  try {
-    // Step 1: Get schedule for the date
-    const schedUrl = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}`;
-    const schedResp = await fetch(schedUrl);
-    const schedData = await schedResp.json();
+  // Parse actual game date from props - gameTime like "Apr-11 7:15 PM" -> 2026-04-11
+  function parseGameDate(p) {
+    if (p.gameTime) {
+      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (m) {
+        const months = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+        const month = months[m[1]];
+        const day = parseInt(m[2]);
+        if (month && day) {
+          const year = new Date().getFullYear();
+          return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        }
+      }
+    }
+    return p.date || selectedDate;
+  }
 
-    if (!schedData.dates || schedData.dates.length === 0) {
-      status.textContent = 'No games found for date.'; status.className='grade-status error';
+  // Get unique game dates for pending props on selected date
+  const pendingProps = props.filter(p => !p.result && (p.date||selectedDate) === selectedDate);
+  const gameDates = [...new Set(pendingProps.map(p => parseGameDate(p)))];
+  
+  // Fetch all relevant game dates
+  const allGames = [];
+  const allBoxscores = {};
+  
+  try {
+    for (const dateStr of gameDates) {
+    const schedUrl = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}`;
+      const schedResp = await fetch(schedUrl);
+      const schedData = await schedResp.json();
+      if (schedData.dates && schedData.dates.length > 0) {
+        allGames.push(...schedData.dates[0].games);
+      }
+    }
+
+    if (allGames.length === 0) {
+      status.textContent = 'No games found.'; status.className='grade-status error';
       btn.disabled = false; return;
     }
 
-    const games = schedData.dates[0].games;
-    status.textContent = `Found ${games.length} games. Fetching box scores…`;
+    status.textContent = `Found ${allGames.length} games. Fetching box scores…`;
 
-    // Step 2: For each game that's Final, fetch boxscore
-    const boxscores = {};
     let fetched = 0;
-    for (const g of games) {
+    for (const g of allGames) {
       if (g.status.abstractGameState === 'Final' || g.status.abstractGameState === 'Live') {
         const bsUrl = `https://statsapi.mlb.com/api/v1/game/${g.gamePk}/boxscore`;
         try {
           const bsResp = await fetch(bsUrl);
           const bsData = await bsResp.json();
-          boxscores[g.gamePk] = bsData;
+          allBoxscores[g.gamePk] = bsData;
           fetched++;
         } catch(e) {}
       }
@@ -850,16 +874,14 @@ async function autoGrade() {
       btn.disabled = false; return;
     }
 
-    status.textContent = `Grading ${props.length} props…`;
-
-    // Step 3: Build player lookup across all box scores
-    const playerStats = buildPlayerLookup(boxscores);
+    status.textContent = `Grading props…`;
+    const playerStats = buildPlayerLookup(allBoxscores);
 
     // Step 4: Grade each prop
     let graded = 0;
     props.forEach(p => {
       if (p.result) return;
-      if ((p.date || dateStr) !== dateStr) return; // Only grade selected date
+      if ((p.date || selectedDate) !== selectedDate) return;
       const statVal = findPlayerStat(playerStats, p.player, p.market);
       if (statVal === null) return;
 
@@ -1090,7 +1112,7 @@ function exportExcel() {
     ]},
     {name:'By Market',rows:[['BY MARKET'],H,...bk(props,p=>p.market)]},
     {name:'By Direction',rows:(()=>{
-      const r=[['BY DIRECTION'],H,...bk(settled,p=>p.side==='O'?'Over':'Under'),[],'OVER vs UNDER BY MARKET',H];
+      const r=[['BY DIRECTION'],H,...bk(settled,p=>p.side==='O'?'Over':'Under'),[],['OVER vs UNDER BY MARKET'],H];
       mkts.forEach(m=>{const mp=settled.filter(p=>p.market===m);if(!mp.length)return;r.push([m,'','','','','']);r.push(...bk(mp,p=>p.side==='O'?'Over':'Under'));r.push([]);});
       return r;
     })()},
