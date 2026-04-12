@@ -1063,22 +1063,62 @@ try {
 // ===== EXPORT EXCEL =====
 function exportExcel() {
   if (!props.length) { alert('No props to export.'); return; }
-  const wb = XLSX.utils.book_new();
-  const headers = ['Date','Player','Market','Game','Time','Line','Side','Best Odds','EV%','Proj','Actual','Result','P&L','Notes'];
-  const rows = props.map(p => [
-    new Date().toISOString().split('T')[0],
-    p.player, p.market, p.game, p.gameTime,
-    p.line, p.side, p.odds,
-    p.ev ? p.ev.toFixed(1)+'%' : '',
-    p.kProj || p.ipProj || '',
-    p.actual != null ? p.actual : '',
-    p.result || 'Pending',
-    p.pnl != null ? parseFloat(p.pnl.toFixed(2)) : '',
-    p.notes || ''
-  ]);
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  XLSX.utils.book_append_sheet(wb, ws, 'Bet Log');
-  XLSX.writeFile(wb, 'RotoGrinders_MLB_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  function uRisk(p){const o=parseFloat(p.odds);return(!isNaN(o)&&o<0)?Math.abs(o)/100:1;}
+  function sgn(n){if(n==null)return'';return(n>=0?'+':'')+n.toFixed(2)+'u';}
+  function pct(w,t){return t?((w/t)*100).toFixed(1)+'%':'—';}
+  function roi(arr){const r=arr.reduce((a,p)=>a+uRisk(p),0),pl=arr.reduce((a,p)=>a+(p.pnl||0),0);return r>0?(pl/r*100).toFixed(1)+'%':'—';}
+  function st(arr){
+    const s=arr.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const w=s.filter(p=>p.result==='win').length,l=s.filter(p=>p.result==='loss').length,pu=s.filter(p=>p.result==='push').length;
+    const pl=s.reduce((a,p)=>a+(p.pnl||0),0);
+    return{total:arr.length,settled:s.length,w,l,pu,wr:pct(w,s.length),pnl:sgn(pl),roi:roi(s)};
+  }
+  function bk(arr,kFn,lFn){
+    const g={};arr.forEach(p=>{const k=kFn(p);if(!g[k])g[k]=[];g[k].push(p);});
+    return Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,a])=>{const s=st(a);return[lFn?lFn(k):k,s.total,s.w+'-'+s.l+(s.pu?'/'+s.pu+'P':''),s.wr,s.pnl,s.roi];});
+  }
+  const settled=props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+  const ov=st(props);
+  const mkts=[...new Set(props.map(p=>p.market))].sort();
+  const H=['Category','Bets','W-L','W%','P&L','ROI'];
+  const sheets=[
+    {name:'Summary',rows:[
+      ['ROTOGRINDERS MLB PITCHER PROPS'],['Export',new Date().toLocaleDateString()],[],
+      ['OVERALL'],['Props','Settled','W','L','P','W%','P&L','ROI'],
+      [ov.total,ov.settled,ov.w,ov.l,ov.pu,ov.wr,ov.pnl,ov.roi]
+    ]},
+    {name:'By Market',rows:[['BY MARKET'],H,...bk(props,p=>p.market)]},
+    {name:'By Direction',rows:(()=>{
+      const r=[['BY DIRECTION'],H,...bk(settled,p=>p.side==='O'?'Over':'Under'),[],'OVER vs UNDER BY MARKET',H];
+      mkts.forEach(m=>{const mp=settled.filter(p=>p.market===m);if(!mp.length)return;r.push([m,'','','','','']);r.push(...bk(mp,p=>p.side==='O'?'Over':'Under'));r.push([]);});
+      return r;
+    })()},
+    {name:'By EV Bucket',rows:[['BY EV BUCKET'],H,...bk(settled,p=>(p.ev||0)>=25?'1_Elite 25%+':(p.ev||0)>=15?'2_Strong 15-24%':'3_Value 5-14%',k=>k.slice(2))]},
+    {name:'By Odds Bucket',rows:[['BY ODDS BUCKET'],H,...bk(settled,p=>{const o=parseFloat(p.odds);if(isNaN(o))return'9_Unknown';if(o<=-200)return'1_-200 or worse';if(o<=-150)return'2_-150 to -199';if(o<=-110)return'3_-110 to -149';if(o<0)return'4_-109 to -101';if(o<=130)return'5_+100 to +130';return'6_+131 or better';},k=>k.slice(2))]},
+  ];
+  let run=0;
+  const bl=[['#','Date','Player','Market','Game','Time','Line','Side','Odds','EV%','Proj','Actual','Result','P&L','Running P&L','Notes']];
+  [...props].forEach((p,i)=>{run+=(p.pnl||0);bl.push([i+1,(p.gameTime||'').trim(),p.player,p.market,p.game,p.gameTime||'',p.line,p.side,p.odds,p.ev?(p.ev.toFixed(1)+'%'):'',p.kProj||p.ipProj||'',p.actual!=null?p.actual:'',p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending',p.pnl!=null?sgn(p.pnl):'',sgn(run),p.notes||'']);});
+  sheets.push({name:'Bet Log',rows:bl});
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function col(i){return i<26?String.fromCharCode(65+i):String.fromCharCode(64+Math.floor(i/26))+String.fromCharCode(65+(i%26));}
+  function wsXML(rows){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';rows.forEach((r,ri)=>{if(!r||!r.length)return;x+=`<row r="${ri+1}">`;r.forEach((c,ci)=>{const ref=col(ci)+(ri+1);const v=c==null?'':c;const s=String(v);const n=typeof v==='number'||(s!==''&&!isNaN(Number(s))&&!s.endsWith('%')&&!s.endsWith('u')&&!s.startsWith('+')&&s!=='-'&&s!=='—');if(n)x+=`<c r="${ref}"><v>${esc(v)}</v></c>`;else x+=`<c r="${ref}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;});x+='</row>';});return x+'</sheetData></worksheet>';}
+  function wbXML(ns){return'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+ns.map((n,i)=>`<sheet name="${esc(n)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>';}
+  function wbRels(n){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';for(let i=0;i<n;i++)x+=`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`;return x+'</Relationships>';}
+  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>';
+  const rr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  const cT=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c;}return t;})();
+  function crc(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=cT[(c^d[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+  function s2b(s){const b=[];for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c<128)b.push(c);else if(c<2048)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return new Uint8Array(b);}
+  function u16(n){return[n&0xFF,(n>>8)&0xFF];}function u32(n){return[n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];}
+  function mkzip(files){const ents=[];let off=0;const parts=[];
+    files.forEach(f=>{const nb=s2b(f.name);const cr=crc(f.data);const lh=[0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(cr),...u32(f.data.length),...u32(f.data.length),...u16(nb.length),0x00,0x00,...nb];ents.push({nb,cr,sz:f.data.length,off});parts.push(new Uint8Array(lh),f.data);off+=lh.length+f.data.length;});
+    const cdOff=off;ents.forEach(e=>{const cd=[0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.cr),...u32(e.sz),...u32(e.sz),...u16(e.nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.off),...e.nb];parts.push(new Uint8Array(cd));off+=cd.length;});
+    const cdSz=off-cdOff;parts.push(new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16(ents.length),...u16(ents.length),...u32(cdSz),...u32(cdOff),0x00,0x00]));
+    const tot=parts.reduce((s,p)=>s+p.length,0);const out=new Uint8Array(tot);let pos=0;parts.forEach(p=>{out.set(p,pos);pos+=p.length;});return out;}
+  const files=[{name:'[Content_Types].xml',data:s2b(ct)},{name:'_rels/.rels',data:s2b(rr)},{name:'xl/workbook.xml',data:s2b(wbXML(sheets.map(s=>s.name)))},{name:'xl/_rels/workbook.xml.rels',data:s2b(wbRels(sheets.length))},...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s2b(wsXML(s.rows))}))];
+  const blob=new Blob([mkzip(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='rotoprops_'+new Date().toISOString().split('T')[0]+'.xlsx';a.click();URL.revokeObjectURL(a.href);
 }
 // ===== TRACKER DASHBOARD =====
 function setTrackerTab(tab) {
@@ -1287,7 +1327,44 @@ function renderTracker() {
           <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;">By Direction</div>
           ${tableHdr}${dirRow('Over',oProps)}${dirRow('Under',uProps)}</tbody></table>
         </div>
-      </div>`;
+      </div>
+      ${(() => {
+        const mkts = [...new Set(props.map(p=>p.market))].filter(m=>settled.filter(p=>p.market===m).length>0).sort();
+        if (!mkts.length) return '';
+        let h = '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">';
+        h += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">By Market — Over vs Under</div>';
+        h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+        mkts.forEach(m => {
+          const mp = settled.filter(p=>p.market===m);
+          const overs = mp.filter(p=>p.side==='O');
+          const unders = mp.filter(p=>p.side==='U');
+          function mst(arr) {
+            const w=arr.filter(p=>p.result==='win').length, l=arr.filter(p=>p.result==='loss').length;
+            const pnl=arr.reduce((a,p)=>a+(p.pnl||0),0);
+            const risk=arr.reduce((a,p)=>a+unitRisk(p),0);
+            const wr=arr.length?(w/arr.length*100).toFixed(1)+'%':'—';
+            const roi=risk>0?(pnl/risk*100).toFixed(1)+'%':'—';
+            return {w,l,wr,pnl,roi,total:arr.length};
+          }
+          const os=mst(overs), us=mst(unders), ts=mst(mp);
+          const pnlColor=ts.pnl>=0?'var(--green)':'var(--red)';
+          function row(label,s,color) {
+            if(!s.total)return'';
+            const pc=s.pnl>=0?'var(--green)':'var(--red)';
+            return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:5px 10px;font-size:11px;color:'+color+';font-weight:500;">'+label+'</td><td style="padding:5px 10px;font-size:11px;text-align:center;">'+s.w+'-'+s.l+'</td><td style="padding:5px 10px;font-size:11px;text-align:center;">'+s.wr+'</td><td style="padding:5px 10px;font-size:11px;text-align:right;color:'+pc+';">'+(s.pnl>=0?'+':'')+s.pnl.toFixed(2)+'u</td><td style="padding:5px 10px;font-size:11px;text-align:right;color:'+pc+';">'+(parseFloat(s.roi)>=0&&s.roi!=='—'?'+':'')+s.roi+'</td></tr>';
+          }
+          h += '<div style="background:var(--bg3);border-radius:8px;overflow:hidden;">';
+          h += '<div style="padding:8px 10px;background:var(--bg4);display:flex;justify-content:space-between;align-items:center;">';
+          h += '<span style="font-size:12px;font-weight:700;color:var(--text);">'+m+'</span>';
+          h += '<span style="font-size:11px;color:'+pnlColor+';font-weight:700;">'+(ts.pnl>=0?'+':'')+ts.pnl.toFixed(2)+'u</span>';
+          h += '</div>';
+          h += '<table style="width:100%;border-collapse:collapse;">';
+          h += '<thead><tr style="background:var(--bg3)"><th style="padding:4px 10px;font-size:9px;color:var(--text2);text-align:left;text-transform:uppercase;">Side</th><th style="padding:4px 10px;font-size:9px;color:var(--text2);text-align:center;text-transform:uppercase;">W-L</th><th style="padding:4px 10px;font-size:9px;color:var(--text2);text-align:center;text-transform:uppercase;">W%</th><th style="padding:4px 10px;font-size:9px;color:var(--text2);text-align:right;text-transform:uppercase;">P&L</th><th style="padding:4px 10px;font-size:9px;color:var(--text2);text-align:right;text-transform:uppercase;">ROI</th></tr></thead>';
+          h += '<tbody>'+row('Over',os,'var(--green)')+row('Under',us,'var(--blue)')+'</tbody></table></div>';
+        });
+        h += '</div></div>';
+        return h;
+      })()}`;
   } else {
     // BET LOG
     const rows = [...props].reverse().map(p => {
