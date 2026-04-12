@@ -288,6 +288,7 @@ textarea.paste-area:focus { border-color: var(--green); }
   <select id="regradeDate" style="font-size:12px;font-family:Inter,sans-serif;padding:5px 8px;border:1px solid var(--border2);border-radius:4px;background:var(--bg2);color:var(--text);outline:none;cursor:pointer;"><option value="">Re-grade date...</option></select>
   <button class="btn" id="regradeBtn" onclick="regrade()" style="border-color:rgba(96,165,250,0.35);color:var(--blue);">↺ Re-grade</button>
   <button class="btn" onclick="debugAPI()" style="border-color:rgba(167,139,250,0.35);color:var(--text2);">🔍 API Names</button>
+  <button class="btn" onclick="repairDates()" style="border-color:rgba(251,191,36,0.35);color:var(--amber);">🔧 Fix Dates</button>
   <span id="gradeStatus" style="font-size:11px;font-family:Inter,sans-serif;color:var(--text2);"></span>
   <div class="ctrl-sep"></div>
   <button class="btn" onclick="exportExcel()" style="border-color:rgba(45,122,79,0.35);color:var(--green);">↓ Export Excel</button>
@@ -905,34 +906,57 @@ async function debugAPI() {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 }
 
+
+function repairDates() {
+  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  let fixed = 0;
+  props.forEach(p => {
+    if (p.gameTime) {
+      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (m && months[m[1]]) {
+        const correctDate = new Date().getFullYear()+'-'+months[m[1]]+'-'+m[2].padStart(2,'0');
+        if (p.date !== correctDate) {
+          p.date = correctDate;
+          fixed++;
+        }
+      }
+    }
+  });
+  if (fixed) {
+    saveState();
+    renderProps();
+    updateSummary();
+    populateGradeDates();
+    alert('Fixed dates on '+fixed+' props. Grade dropdown updated.');
+  } else {
+    alert('All prop dates already correct.');
+  }
+}
+
 async function regrade() {
   const sel = document.getElementById('regradeDate');
   const selectedDate = sel?.value;
   const status = document.getElementById('gradeStatus');
   if (!selectedDate) { status.textContent = 'Pick a re-grade date.'; return; }
   if (!confirm('Clear results for '+selectedDate+' and re-grade?')) return;
-  // Clear results for this date
+
+  // Only clear props whose stored date matches exactly
+  let cleared = 0;
   props.forEach(p => {
-    if ((p.date||selectedDate) === selectedDate || (p.gameTime||'').includes(selectedDate.replace(/\d{4}-/,'').replace(/-/,'/'))) {
-      if (p.result) { p.result = ''; p.actual = null; p.pnl = null; }
+    if (p.date === selectedDate) {
+      p.result = ''; p.actual = null; p.pnl = null;
+      cleared++;
     }
   });
-  // Also match by gameTime month/day
-  const m = selectedDate.match(/(\d{4})-(\d{2})-(\d{2})/);
-  if (m) {
-    const months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const label = months[parseInt(m[2])]+'-'+parseInt(m[3]);
-    props.forEach(p => {
-      if (p.gameTime && p.gameTime.includes(label)) {
-        p.result = ''; p.actual = null; p.pnl = null;
-      }
-    });
-  }
+
   saveState();
   renderProps();
   updateSummary();
-  // Now grade
-  document.getElementById('gradeDate').value = selectedDate;
+  status.textContent = 'Cleared '+cleared+' props. Grading...';
+
+  // Set gradeDate to the selected date and run autoGrade
+  const gradeEl = document.getElementById('gradeDate');
+  if (gradeEl) gradeEl.value = selectedDate;
   await autoGrade();
 }
 
@@ -1032,14 +1056,8 @@ async function autoGrade() {
     let debugMissed = [];
     props.forEach(p => {
       if (p.result) return;
-      // Grade if date matches OR gameTime matches the selected date
-      const dateMatch = (p.date||selectedDate) === selectedDate;
-      let gtMatch = false;
-      if (!dateMatch && p.gameTime) {
-        const m2 = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
-        if (m2) { const mo2={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'}; const mn=mo2[m2[1]]; gtMatch = mn && selectedDate.endsWith(mn+'-'+m2[2].padStart(2,'0')); }
-      }
-      if (!dateMatch && !gtMatch) return;
+      // Grade if p.date matches selectedDate
+      if (p.date !== selectedDate) return;
       const statVal = findPlayerStat(playerStats, p.player, p.market);
       if (statVal === null) { debugMissed.push(p.player+' ('+p.market+')'); return; }
 
