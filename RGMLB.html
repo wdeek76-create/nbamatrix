@@ -831,13 +831,23 @@ async function autoGrade() {
     return p.date || selectedDate;
   }
 
-  // Get unique game dates for pending props on selected date
-  const pendingProps = props.filter(p => !p.result && (p.date||selectedDate) === selectedDate);
+  // Get pending props - match by selected date OR by gameTime containing the date
+  const pendingProps = props.filter(p => {
+    if (p.result) return false;
+    if ((p.date||selectedDate) === selectedDate) return true;
+    // Also match by gameTime date
+    if (p.gameTime) {
+      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (m) {
+        const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+        const mo = months[m[1]];
+        if (mo && selectedDate.endsWith(mo+'-'+m[2].padStart(2,'0'))) return true;
+      }
+    }
+    return false;
+  });
   const gameDates = [...new Set(pendingProps.map(p => parseGameDate(p)))];
   
-  // Debug
-  status.textContent = 'Pending: '+pendingProps.length+' | GameDates: '+gameDates.join(', ');
-  await new Promise(r=>setTimeout(r,2000));
   // Fetch all relevant game dates
   const allGames = [];
   const allBoxscores = {};
@@ -877,16 +887,26 @@ async function autoGrade() {
       btn.disabled = false; return;
     }
 
-    status.textContent = `Grading props…`;
     const playerStats = buildPlayerLookup(allBoxscores);
+    const playerCount = Object.keys(playerStats).length;
+    status.textContent = `Found ${playerCount} players in box scores. Grading...`;
+
 
     // Step 4: Grade each prop
     let graded = 0;
+    let debugMissed = [];
     props.forEach(p => {
       if (p.result) return;
-      if ((p.date || selectedDate) !== selectedDate) return;
+      // Grade if date matches OR gameTime matches the selected date
+      const dateMatch = (p.date||selectedDate) === selectedDate;
+      let gtMatch = false;
+      if (!dateMatch && p.gameTime) {
+        const m2 = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+        if (m2) { const mo2={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'}; const mn=mo2[m2[1]]; gtMatch = mn && selectedDate.endsWith(mn+'-'+m2[2].padStart(2,'0')); }
+      }
+      if (!dateMatch && !gtMatch) return;
       const statVal = findPlayerStat(playerStats, p.player, p.market);
-      if (statVal === null) return;
+      if (statVal === null) { debugMissed.push(p.player+' ('+p.market+')'); return; }
 
       p.actual = statVal;
       const line = p.line;
@@ -917,9 +937,9 @@ async function autoGrade() {
     renderProps();
     updateSummary();
     saveState();
-    saveState();
     populateGradeDates();
-    status.textContent = `Graded ${graded} prop${graded!==1?'s':''}. ✓`;
+    if (debugMissed.length) status.textContent = `Graded ${graded}. Not found: ${debugMissed.slice(0,3).join(', ')}`;
+    else status.textContent = `Graded ${graded} prop${graded!==1?'s':''}. ✓`;
     status.className = 'grade-status done';
 
   } catch(err) {
@@ -950,7 +970,7 @@ function buildPlayerLookup(boxscores) {
         if (ps) {
           lookup[norm].IP  = ps.inningsPitched;
           lookup[norm].K   = ps.strikeOuts;
-          lookup[norm].ER  = ps.earnedRuns;
+          lookup[norm].ER  = ps.earnedRuns ?? ps.runs ?? null;
           lookup[norm].BB  = ps.baseOnBalls;
           lookup[norm].H_pitching = ps.hits;
           lookup[norm].HA = ps.hits;
@@ -999,7 +1019,7 @@ function findPlayerStat(lookup, playerName, market) {
   return val !== undefined && val !== null ? val : null;
 }
 
-function normName(n) { return n.toLowerCase().replace(/[^a-z ]/g,'').trim().replace(/\s+/g,' '); }
+function normName(n) { return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z ]/g,'').trim().replace(/\s+/g,' '); }
 function lastName(n) { const p = n.trim().split(' '); return p[p.length-1]; }
 
 function parseIP(val) {
