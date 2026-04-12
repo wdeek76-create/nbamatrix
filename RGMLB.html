@@ -1054,10 +1054,16 @@ async function autoGrade() {
     // Step 4: Grade each prop
     let graded = 0;
     let debugMissed = [];
+    const mo2 = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
     props.forEach(p => {
       if (p.result) return;
-      // Grade if p.date matches selectedDate
-      if (p.date !== selectedDate) return;
+      // Match by gameTime date (most reliable) or stored date
+      let propDate = p.date || selectedDate;
+      if (p.gameTime) {
+        const gm = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+        if (gm && mo2[gm[1]]) propDate = new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0');
+      }
+      if (propDate !== selectedDate) return;
       const statVal = findPlayerStat(playerStats, p.player, p.market);
       if (statVal === null) { debugMissed.push(p.player+' ('+p.market+')'); return; }
 
@@ -1079,6 +1085,7 @@ async function autoGrade() {
         else result = actual < lineF ? 'win' : actual === lineF ? 'push' : 'loss';
       }
 
+      if (!result) result = 'push'; // fallback - should not happen
       p.result = result;
       const odds = parseFloat(p.odds);
       if (result === 'win') p.pnl = odds > 0 ? odds / 100 : 1.0;
@@ -1087,11 +1094,12 @@ async function autoGrade() {
       graded++;
     });
 
+    saveState();
     renderProps();
     updateSummary();
-    saveState();
     populateGradeDates();
-    if (debugMissed.length) status.textContent = `Graded ${graded}. Not found: ${debugMissed.slice(0,3).join(', ')}`;
+    const sample = props.filter(p=>p.result&&p.date===selectedDate).slice(0,2).map(p=>p.player+':'+(p.result||'?')+' actual:'+p.actual).join(', ');
+    if (debugMissed.length) status.textContent = `Graded ${graded}. Not found: ${debugMissed.slice(0,3).join(', ')}`+(sample?' | '+ sample:'');
     else status.textContent = `Graded ${graded} prop${graded!==1?'s':''}. ✓`;
     status.className = 'grade-status done';
 
