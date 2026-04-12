@@ -137,6 +137,13 @@ textarea.paste-area:focus { border-color: var(--green); }
 .empty-state p { font-size: 12px; line-height: 1.7; max-width: 400px; margin: 0 auto 16px; }
 
 /* ===== GAME GROUP ===== */
+.date-group-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 4px 6px; margin-top: 8px; border-bottom: 2px solid var(--border2);
+  margin-bottom: 4px;
+}
+.date-group-label { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+.date-group-stats { font-size: 12px; color: var(--text2); }
 .game-group { margin-bottom: 20px; }
 .game-header {
   display: flex; align-items: center; gap: 10px; padding: 6px 12px;
@@ -278,6 +285,9 @@ textarea.paste-area:focus { border-color: var(--green); }
     <option value="">Grade date...</option>
   </select>
   <button class="btn grade-btn" id="gradeBtn" onclick="autoGrade()">⟳ Grade</button>
+  <select id="regradeDate" style="font-size:12px;font-family:Inter,sans-serif;padding:5px 8px;border:1px solid var(--border2);border-radius:4px;background:var(--bg2);color:var(--text);outline:none;cursor:pointer;"><option value="">Re-grade date...</option></select>
+  <button class="btn" id="regradeBtn" onclick="regrade()" style="border-color:rgba(96,165,250,0.35);color:var(--blue);">↺ Re-grade</button>
+  <button class="btn" onclick="debugAPI()" style="border-color:rgba(167,139,250,0.35);color:var(--text2);">🔍 API Names</button>
   <span id="gradeStatus" style="font-size:11px;font-family:Inter,sans-serif;color:var(--text2);"></span>
   <div class="ctrl-sep"></div>
   <button class="btn" onclick="exportExcel()" style="border-color:rgba(45,122,79,0.35);color:var(--green);">↓ Export Excel</button>
@@ -549,6 +559,17 @@ function parsePropShopText(raw, minEV, marketOverride) {
         player: line, market, game: gameStr, gameTime,
         line: bestLine, side, odds, book: '', ev,
         kProj, ipProj,
+        date: (() => {
+          // Derive date from gameTime e.g. "Apr-11 7:15 PM" -> "2026-04-11"
+          if (gameTime) {
+            const m = gameTime.match(/([A-Za-z]+)-(\d+)/);
+            if (m) {
+              const mo = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'}[m[1]];
+              if (mo) return new Date().getFullYear()+'-'+mo+'-'+m[2].padStart(2,'0');
+            }
+          }
+          return (document.getElementById('trackDate')?.value) || getTodayStr();
+        })(),
         result: '', notes: '', actual: null, pnl: null,
       });
     }
@@ -629,25 +650,40 @@ function renderProps() {
   empty.style.display = 'none';
   main.querySelectorAll('.game-group').forEach(el => el.remove());
 
-  // Group by game
-  const groups = {};
+  // Group by DATE first, then by game within date
+  const dateGroups = {};
   filtered.forEach(p => {
-    const key = p.game || 'Unknown Game';
-    if (!groups[key]) groups[key] = { time: p.gameTime, items: [] };
-    groups[key].items.push(p);
+    const dateKey = p.gameTime ? p.gameTime.match(/([A-Za-z]+-\d+)/)?.[1] || 'Unknown' : 'Unknown';
+    if (!dateGroups[dateKey]) dateGroups[dateKey] = {};
+    const gameKey = p.game || 'Unknown Game';
+    if (!dateGroups[dateKey][gameKey]) dateGroups[dateKey][gameKey] = { time: p.gameTime, items: [] };
+    dateGroups[dateKey][gameKey].items.push(p);
   });
 
-  // Sort groups by time
-  const sortedGroups = Object.entries(groups).sort((a,b) => {
-    const ta = parseTime(a[1].time), tb = parseTime(b[1].time);
-    return ta - tb;
-  });
+  const sortedDates = Object.keys(dateGroups).sort().reverse();
 
-  sortedGroups.forEach(([gameName, group]) => {
-    const div = document.createElement('div');
-    div.className = 'game-group';
-    div.innerHTML = buildGameGroup(gameName, group);
-    main.appendChild(div);
+  sortedDates.forEach(dateKey => {
+    // Date header
+    const dateDiv = document.createElement('div');
+    dateDiv.className = 'date-group-header';
+    const dateBets = Object.values(dateGroups[dateKey]).flatMap(g => g.items);
+    const dateSettled = dateBets.filter(p => p.result && p.result !== '' && p.result !== 'skip');
+    const dW = dateSettled.filter(p=>p.result==='win').length;
+    const dL = dateSettled.filter(p=>p.result==='loss').length;
+    const dPnl = dateSettled.reduce((a,p)=>a+(p.pnl||0),0);
+    dateDiv.innerHTML = `<span class="date-group-label">${dateKey}</span><span class="date-group-stats">${dW}W ${dL}L &nbsp;·&nbsp; <span style="color:${dPnl>=0?'var(--green)':'var(--red)'}">${(dPnl>=0?'+':'')+dPnl.toFixed(2)}u</span> &nbsp;·&nbsp; ${dateBets.length} props</span>`;
+    main.appendChild(dateDiv);
+
+    const sortedGroups = Object.entries(dateGroups[dateKey]).sort((a,b) => {
+      const ta = parseTime(a[1].time), tb = parseTime(b[1].time);
+      return ta - tb;
+    });
+    sortedGroups.forEach(([gameName, group]) => {
+      const div = document.createElement('div');
+      div.className = 'game-group';
+      div.innerHTML = buildGameGroup(gameName, group);
+      main.appendChild(div);
+    });
   });
 }
 
@@ -799,6 +835,105 @@ function populateGradeDates() {
   const cur = sel.value;
   sel.innerHTML = '<option value="">Grade date...</option>' +
     pendingDates.map(d => '<option value="'+d+'"'+(d===cur?' selected':'')+'>'+d+' ('+pending.filter(p=>(p.date||getTodayStr())===d).length+' pending)</option>').join('');
+  const rsel = document.getElementById('regradeDate');
+  if (rsel) {
+    const allDates = [...new Set(props.map(p=>p.date||getTodayStr()))].sort().reverse();
+    const rcur = rsel.value;
+    rsel.innerHTML = '<option value="">Re-grade date...</option>' + allDates.map(d=>'<option value="'+d+'"'+(d===rcur?' selected':'')+'>'+d+' ('+props.filter(p=>(p.date||getTodayStr())===d).length+' props)</option>').join('');
+  }
+}
+
+
+async function debugAPI() {
+  const sel = document.getElementById('regradeDate');
+  const selectedDate = sel?.value || document.getElementById('gradeDate')?.value;
+  if (!selectedDate) { alert('Pick a date first in Grade or Re-grade dropdown.'); return; }
+
+  // Parse game date from pending props
+  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const gameDatesSet = new Set();
+  props.forEach(p => {
+    if (p.gameTime) {
+      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (m && months[m[1]]) {
+        gameDatesSet.add(new Date().getFullYear()+'-'+months[m[1]]+'-'+m[2].padStart(2,'0'));
+      }
+    }
+  });
+  const gameDates = gameDatesSet.size ? [...gameDatesSet] : [selectedDate];
+
+  let output = 'API Player Names\n================\n';
+  for (const dateStr of gameDates) {
+    output += '\nDate: '+dateStr+'\n';
+    try {
+      const resp = await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr);
+      const data = await resp.json();
+      const games = data.dates?.[0]?.games || [];
+      output += games.length+' games found\n';
+      for (const g of games) {
+        if (g.status.abstractGameState !== 'Final') continue;
+        const bsResp = await fetch('https://statsapi.mlb.com/api/v1/game/'+g.gamePk+'/boxscore');
+        const bs = await bsResp.json();
+        const away = g.teams.away.team.name;
+        const home = g.teams.home.team.name;
+        output += '\n'+away+' @ '+home+'\n';
+        ['away','home'].forEach(side => {
+          const team = bs.teams?.[side];
+          if (!team?.players) return;
+          Object.values(team.players).forEach(p => {
+            const name = p.person?.fullName;
+            const ps = p.stats?.pitching;
+            if (name && ps && (ps.inningsPitched || ps.strikeOuts)) {
+              output += '  '+name+' — IP:'+ps.inningsPitched+' K:'+ps.strikeOuts+' ER:'+ps.earnedRuns+' H:'+ps.hits+'\n';
+            }
+          });
+        });
+      }
+    } catch(e) {
+      output += 'Error: '+e.message+'\n';
+    }
+  }
+
+  // Show in a modal
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:20px;max-width:600px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:12px;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:14px;font-weight:700;">API Pitcher Names</span><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;">✕</button></div>' +
+    '<textarea readonly style="flex:1;min-height:400px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:monospace;font-size:11px;padding:10px;resize:none;">'+output+'</textarea>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
+async function regrade() {
+  const sel = document.getElementById('regradeDate');
+  const selectedDate = sel?.value;
+  const status = document.getElementById('gradeStatus');
+  if (!selectedDate) { status.textContent = 'Pick a re-grade date.'; return; }
+  if (!confirm('Clear results for '+selectedDate+' and re-grade?')) return;
+  // Clear results for this date
+  props.forEach(p => {
+    if ((p.date||selectedDate) === selectedDate || (p.gameTime||'').includes(selectedDate.replace(/\d{4}-/,'').replace(/-/,'/'))) {
+      if (p.result) { p.result = ''; p.actual = null; p.pnl = null; }
+    }
+  });
+  // Also match by gameTime month/day
+  const m = selectedDate.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const label = months[parseInt(m[2])]+'-'+parseInt(m[3]);
+    props.forEach(p => {
+      if (p.gameTime && p.gameTime.includes(label)) {
+        p.result = ''; p.actual = null; p.pnl = null;
+      }
+    });
+  }
+  saveState();
+  renderProps();
+  updateSummary();
+  // Now grade
+  document.getElementById('gradeDate').value = selectedDate;
+  await autoGrade();
 }
 
 async function autoGrade() {
