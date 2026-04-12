@@ -1115,7 +1115,7 @@ function buildDailySummary(props) {
   if (!dates.length) return '';
   let h = '<div style="border-top:1px solid var(--border);padding:16px;">';
   h += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">Daily Summary</div>';
-  dates.slice(0, 7).forEach(function(date) {
+  dates.slice(0, 7).forEach(function(date, di) {
     const dProps = props.filter(function(p) { return (p.gameTime||'').includes(date); });
     const dSettled = dProps.filter(function(p) { return p.result && p.result !== '' && p.result !== 'skip'; });
     const dW = dSettled.filter(function(p){return p.result==='win';}).length;
@@ -1128,9 +1128,11 @@ function buildDailySummary(props) {
     const pnlStr = (dPnl>=0?'+':'')+dPnl.toFixed(2)+'u';
     const pnlColor = dPnl>0?'var(--green)':dPnl<0?'var(--red)':'var(--text2)';
     const roiStr = dRoi!=='—' ? (parseFloat(dRoi)>=0?'+':'')+dRoi : '—';
-    const copyText = '\u{1F4CA} RotoGrinders MLB Props \u2014 '+date+'\n'+dW+'W '+dL+'L'+(dPu?' '+dPu+'P':'')+' | W% '+wr+' | P&L '+pnlStr+' | ROI '+roiStr+'\n'+dProps.length+' props ('+dSettled.length+' settled, '+(dProps.length-dSettled.length)+' pending)';
-    const safeText = copyText.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);border-radius:8px;margin-bottom:6px;gap:12px;">';
+    const detailId = 'daily-detail-'+di;
+
+    h += '<div style="background:var(--bg3);border-radius:8px;margin-bottom:6px;overflow:hidden;">';
+    // Summary row
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;gap:12px;">';
     h += '<div style="font-size:12px;font-weight:600;color:var(--text);min-width:80px;">'+date+'</div>';
     h += '<div style="display:flex;gap:16px;align-items:center;flex:1;">';
     h += '<span style="font-size:12px;color:var(--text2);">'+dW+'W '+dL+'L'+(dPu?' '+dPu+'P':'')+'</span>';
@@ -1138,11 +1140,64 @@ function buildDailySummary(props) {
     h += '<span style="font-size:13px;font-weight:700;color:'+pnlColor+';">'+pnlStr+'</span>';
     h += '<span style="font-size:11px;color:var(--text2);">'+dProps.length+' props</span>';
     h += '</div>';
-    h += '<button onclick="navigator.clipboard.writeText(\''+safeText+'\').then(function(){this.textContent=\'Copied!\';var t=this;setTimeout(function(){t.textContent=\'Copy\'},1500)}.bind(this))" style="font-size:11px;font-weight:500;padding:4px 10px;border:1px solid var(--border2);border-radius:5px;background:transparent;color:var(--text2);cursor:pointer;white-space:nowrap;">Copy</button>';
+    h += '<div style="display:flex;gap:6px;">';
+    h += '<button onclick="document.getElementById(\''+detailId+'\').style.display=document.getElementById(\''+detailId+'\').style.display===\'none\'?\'block\':\'none\'" style="font-size:11px;font-weight:500;padding:4px 10px;border:1px solid var(--border2);border-radius:5px;background:transparent;color:var(--text2);cursor:pointer;">Details</button>';
+    h += '<button id="copybtn-'+di+'" onclick="copyDailySummary('+di+')" style="font-size:11px;font-weight:500;padding:4px 10px;border:1px solid var(--border2);border-radius:5px;background:transparent;color:var(--text2);cursor:pointer;white-space:nowrap;">Copy</button>';
+    h += '</div></div>';
+
+    // Detail rows
+    h += '<div id="'+detailId+'" style="display:none;border-top:1px solid var(--border);padding:8px 12px;">';
+    dProps.forEach(function(p) {
+      const rc = p.result==='win'?'var(--green)':p.result==='loss'?'var(--red)':p.result==='push'?'var(--amber)':'var(--text2)';
+      const res = p.result ? p.result.charAt(0).toUpperCase()+p.result.slice(1) : 'Pending';
+      const pnl = p.pnl!=null ? ' '+(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u' : '';
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">';
+      h += '<div style="font-size:11px;"><span style="font-weight:600;">'+p.player+'</span> <span style="color:var(--text2);">'+p.market+' '+p.line+' '+(p.side==='O'?'O':'U')+'</span></div>';
+      h += '<div style="font-size:11px;color:'+rc+';font-weight:600;">'+res+pnl+'</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+    // Store data for copy function
+    if(!window._dailyData) window._dailyData = {};
+    window._dailyData[di] = {date,dW,dL,dPu,wr,pnlStr,roiStr,dProps:dProps.map(function(p){return {player:p.player,market:p.market,line:p.line,side:p.side,result:p.result,pnl:p.pnl};}),total:dProps.length,settled:dSettled.length};
     h += '</div>';
   });
   h += '</div>';
   return h;
+}
+
+function copyDailySummary(di) {
+  const d = window._dailyData && window._dailyData[di];
+  if (!d) return;
+  let text = '\uD83D\uDCCA RotoGrinders MLB Pitcher Props \u2014 '+d.date+'\n';
+  text += d.dW+'W '+d.dL+'L'+(d.dPu?' '+d.dPu+'P':'')+' | W% '+d.wr+' | P&L '+d.pnlStr+' | ROI '+d.roiStr+'\n';
+  text += d.total+' props ('+d.settled+' settled)\n\n';
+  const wins = d.dProps.filter(p=>p.result==='win');
+  const losses = d.dProps.filter(p=>p.result==='loss');
+  if (wins.length) {
+    text += '\u2705 WINS\n';
+    wins.forEach(p=>{ text += '  '+p.player+' '+p.market+' '+p.line+' '+(p.side==='O'?'O':'U')+(p.pnl!=null?' ('+(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u)':'')+'\n'; });
+  }
+  if (losses.length) {
+    text += '\n\u274C LOSSES\n';
+    losses.forEach(p=>{ text += '  '+p.player+' '+p.market+' '+p.line+' '+(p.side==='O'?'O':'U')+(p.pnl!=null?' ('+(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u)':'')+'\n'; });
+  }
+  const pending = d.dProps.filter(p=>!p.result||p.result==='');
+  if (pending.length) {
+    text += '\n\u23F3 PENDING ('+pending.length+')\n';
+    pending.forEach(p=>{ text += '  '+p.player+' '+p.market+' '+p.line+' '+(p.side==='O'?'O':'U')+'\n'; });
+  }
+  navigator.clipboard.writeText(text).then(function() {
+    const btn = document.getElementById('copybtn-'+di);
+    if (btn) { btn.textContent='Copied!'; setTimeout(function(){btn.textContent='Copy';}, 1500); }
+  }).catch(function() {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    const btn = document.getElementById('copybtn-'+di);
+    if (btn) { btn.textContent='Copied!'; setTimeout(function(){btn.textContent='Copy';}, 1500); }
+  });
 }
 
 function renderTracker() {
