@@ -1030,7 +1030,7 @@ async function autoGrade() {
 
     let fetched = 0;
     for (const g of allGames) {
-      if (g.status.abstractGameState === 'Final') {
+      if (g.status.abstractGameState === 'Final' || g.status.abstractGameState === 'Live') {
         const bsUrl = `https://statsapi.mlb.com/api/v1/game/${g.gamePk}/boxscore`;
         try {
           const bsResp = await fetch(bsUrl);
@@ -1128,17 +1128,16 @@ function buildPlayerLookup(boxscores) {
 
         // Pitching stats
         const ps = player.stats?.pitching;
-        if (ps) {
+        // Only include pitcher if game is over OR they've recorded at least 1 out
+        const outs = ps ? (() => { const _p = String(ps.inningsPitched||0).split('.'); return (parseInt(_p[0])||0)*3+(parseInt(_p[1])||0); })() : 0;
+        if (ps && outs > 0) {
           lookup[norm].IP  = ps.inningsPitched;
           lookup[norm].K   = ps.strikeOuts;
           lookup[norm].ER  = ps.earnedRuns ?? ps.runs ?? null;
           lookup[norm].BB  = ps.baseOnBalls;
           lookup[norm].H_pitching = ps.hits;
           lookup[norm].HA = ps.hits;
-          if (ps.inningsPitched != null) {
-            const _p = String(ps.inningsPitched).split('.');
-            lookup[norm].OUTS = (parseInt(_p[0])||0)*3 + (parseInt(_p[1])||0);
-          }
+          lookup[norm].OUTS = outs;
         }
         // Batting stats
         const bs2 = player.stats?.batting;
