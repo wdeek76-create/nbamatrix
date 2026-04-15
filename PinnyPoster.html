@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pinnacle Posting</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#0a0e1a; --surface:#131929; --surface2:#1e2640; --border:#2a3354; --text:#fff; --muted:#6b7499; --gold:#ff4d2e; --gold-dim:rgba(255,77,46,0.12); --gold-border:rgba(255,77,46,0.4); }
+  body { background:var(--bg); color:var(--text); font-family:'Sora',-apple-system,sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px 16px; }
+  .container { width:100%; max-width:420px; }
+  .header { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+  .badge { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; background:var(--gold); }
+  .badge img { width:40px; height:40px; object-fit:cover; border-radius:50%; }
+  .header-title { font-size:18px; font-weight:700; }
+  .header-sub { font-size:13px; color:var(--muted); margin-top:1px; }
+  .card { background:var(--surface); border-radius:14px; margin-bottom:12px; padding:16px; }
+  .lbl { font-size:11px; color:var(--muted); font-weight:600; letter-spacing:0.05em; margin-bottom:8px; display:block; text-transform:uppercase; }
+  .rate-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .rate-val { font-size:15px; font-weight:600; color:var(--gold); }
+  .rate-edit { font-size:12px; color:var(--muted); cursor:pointer; text-decoration:underline; }
+  .input-wrap { position:relative; }
+  .currency-prefix { position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:28px; font-weight:600; color:var(--muted); pointer-events:none; z-index:1; }
+  .amount-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:0 16px 0 42px; height:60px; font-family:inherit; font-size:30px; font-weight:700; color:#fff; outline:none; }
+  .amount-input:focus { border-color:var(--gold); }
+  .amount-input::placeholder { color:#444; }
+  .result-card { background:var(--gold-dim); border:1px solid var(--gold-border); border-radius:14px; padding:20px 16px; margin-bottom:12px; display:none; }
+  .result-label { font-size:11px; color:var(--gold); font-weight:600; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:8px; }
+  .result-amount { font-size:48px; font-weight:800; color:#fff; line-height:1; margin-bottom:6px; }
+  .result-sub { font-size:13px; color:var(--muted); }
+  .also-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .also-card { background:var(--surface); border-radius:12px; padding:14px; }
+  .also-lbl { font-size:10px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; }
+  .also-val { font-size:18px; font-weight:700; color:#fff; }
+  .rate-input { background:var(--surface2); border:1px solid var(--gold-border); border-radius:10px; padding:8px 12px; font-family:inherit; font-size:16px; font-weight:600; color:#fff; outline:none; width:100%; margin-top:6px; }
+  .hint { font-size:13px; color:var(--muted); text-align:center; padding:8px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="badge" style="background:#0a0e1a;border:none;"><img src="data:image/png;base64,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" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" /></div>
+    <div>
+      <div class="header-title">Pinnacle Posting</div>
+      <div class="header-sub">USD → CAD converter</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="rate-row">
+      <span class="lbl" style="margin:0;">Exchange rate</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="rate-val">1 USD = <span id="rateDisplay">1.3795</span> CAD</span>
+        <span class="rate-edit" onclick="toggleRateEdit()">edit</span>
+      </div>
+    </div>
+    <div id="rateEditRow" style="display:none;margin-bottom:12px;">
+      <input class="rate-input" id="rateInput" type="tel" inputmode="decimal" placeholder="1.3795" />
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Rate as of April 15, 2026 — update as needed</div>
+    </div>
+    <span class="lbl">Amount in USD</span>
+    <div class="input-wrap">
+      <span class="currency-prefix">$</span>
+      <input class="amount-input" id="usdInput" type="tel" inputmode="decimal" placeholder="100" autocomplete="off" />
+    </div>
+  </div>
+
+  <div class="result-card" id="result">
+    <div class="result-label">Canadian dollars (CAD)</div>
+    <div class="result-amount" id="cadAmount">—</div>
+    <div class="result-sub" id="resultSub">—</div>
+  </div>
+
+  <div class="also-row" id="alsoRow" style="display:none;">
+    <div class="also-card">
+      <div class="also-lbl">Rate used</div>
+      <div class="also-val" id="rateUsed">—</div>
+    </div>
+    <div class="also-card">
+      <div class="also-lbl">CAD → USD</div>
+      <div class="also-val" id="cadToUsd">—</div>
+    </div>
+  </div>
+
+  <p class="hint" id="hint">Enter a USD amount above</p>
+</div>
+
+<script>
+var rate = 1.3795;
+
+document.getElementById('rateInput').value = rate;
+
+function toggleRateEdit() {
+  var row = document.getElementById('rateEditRow');
+  row.style.display = row.style.display === 'none' ? 'block' : 'none';
+}
+
+document.getElementById('rateInput').addEventListener('input', function() {
+  var v = parseFloat(this.value);
+  if (!isNaN(v) && v > 0) {
+    rate = v;
+    document.getElementById('rateDisplay').textContent = v.toFixed(4);
+    go();
+  }
+});
+
+document.getElementById('usdInput').addEventListener('input', go);
+
+function go() {
+  var raw = parseFloat(document.getElementById('usdInput').value);
+  var res = document.getElementById('result');
+  var also = document.getElementById('alsoRow');
+  var hint = document.getElementById('hint');
+
+  if (isNaN(raw) || raw <= 0) {
+    res.style.display = 'none';
+    also.style.display = 'none';
+    hint.style.display = 'block';
+    return;
+  }
+
+  var cad = raw * rate;
+  var back = raw / rate;
+
+  res.style.display = 'block';
+  also.style.display = 'grid';
+  hint.style.display = 'none';
+
+  document.getElementById('cadAmount').textContent = 'C$' + cad.toFixed(2);
+  document.getElementById('resultSub').textContent = '$' + raw.toFixed(2) + ' USD × ' + rate.toFixed(4);
+  document.getElementById('rateUsed').textContent = '1 USD = ' + rate.toFixed(4);
+  document.getElementById('cadToUsd').textContent = 'C$' + raw.toFixed(2) + ' = $' + back.toFixed(2);
+}
+</script>
+</body>
+</html>
