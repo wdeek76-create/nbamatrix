@@ -1447,7 +1447,31 @@ function renderTracker(){
     html+=statCard('Avg BatX Edge', avgROI!=='—'?'+'+avgROI+'%':'—', 'avg projected edge', 'var(--text)');
     html+='</div>';
 
+    // Market bet count summary
+    const mktSummaryKeys = [
+      {key:'TOTAL',label:'Game Total'},{key:'TT',label:'Team Total'},
+      {key:'1HTOTAL',label:'1H Total'},{key:'1HTT',label:'1H Team Total'},
+      {key:'1HML',label:'1H ML'},{key:'1HRL',label:'1H RL'},
+      {key:'1INNTOTAL',label:'1INN Total'},{key:'NRFI',label:'NRFI/YRFI'},
+    ];
+    let mktPills = '';
+    for(const {key,label} of mktSummaryKeys){
+      const all=tracker.filter(t=>t.market===key);
+      if(!all.length) continue;
+      const s=all.filter(t=>t.result==='W'||t.result==='L'||t.result==='P').length;
+      const p=all.filter(t=>!t.result||t.result==='').length;
+      mktPills+=`<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px">
+        <div style="color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase">${label}</div>
+        <div style="font-weight:700;margin-top:2px">${all.length} bets <span style="color:var(--muted);font-weight:400;font-size:11px">(${s} settled${p?' · '+p+' pending':''})</span></div>
+      </div>`;
+    }
+    html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Bets by Market</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${mktPills}</div>
+    </div>`;
+
     // Per-market deep breakdowns
+
     const MARKETS_TRACKED = [
       {key:'TOTAL',    label:'Game Total'},
       {key:'TT',       label:'Team Total'},
