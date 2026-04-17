@@ -267,7 +267,7 @@
         <div class="hs-lbl">Blend Weight</div>
       </div>
       <div class="header-stat accent-stat">
-        <div class="hs-val">+5% EV</div>
+        <div class="hs-val">+5% edge</div>
         <div class="hs-lbl">Min Edge Threshold</div>
       </div>
     </div>
@@ -282,7 +282,7 @@
 <div id="pane-calc" class="tab-pane active">
   <div id="toolbar">
     <button class="sort-btn" id="sortBtn" onclick="toggleSort()">
-      <span id="sortIcon">&#8645;</span> Sort by Blended EV
+      <span id="sortIcon">&#8645;</span> Sort by Edge
     </button>
     <label class="sort-btn" style="cursor:pointer;" title="Import RotoGrinders CSV">
       &#8593; Import RG CSV
@@ -349,7 +349,7 @@ function toggleSort() {
   if(sortActive) {
     btn.classList.add('active');
     document.getElementById('sortIcon').textContent = '↓';
-    state.textContent = 'sorted: highest blended EV first';
+    state.textContent = 'edges first, sorted by model edge';
     sortCards();
   } else {
     btn.classList.remove('active');
@@ -367,14 +367,24 @@ function toggleSort() {
 function sortCards() {
   if(!sortActive) return;
   const c = document.getElementById('container');
-  const sorted = [...fighters].sort((a,b) => {
-    const ea = evCache[a] ?? -Infinity;
-    const eb = evCache[b] ?? -Infinity;
-    return eb - ea;
+  // Split into has-edge (blended >= 5%) and rest
+  const withEdge = [], rest = [];
+  fighters.forEach(id => {
+    const ev = typeof evCache[id] === 'number' ? evCache[id] : -Infinity;
+    if(ev >= 0.05) withEdge.push(id); // 5% edge
+    else rest.push(id);
   });
-  sorted.forEach(id => {
+  withEdge.sort((a,b) => (evCache[b]||0) - (evCache[a]||0));
+  rest.sort((a,b) => (evCache[b]||0) - (evCache[a]||0));
+  [...withEdge, ...rest].forEach(id => {
     const el = document.getElementById('fc'+id);
     if(el) c.appendChild(el);
+  });
+  // Green border on edge plays
+  fighters.forEach(id => {
+    const el = document.getElementById('fc'+id);
+    if(!el) return;
+    el.style.borderColor = (evCache[id]||0) >= 0.05 ? 'rgba(74,222,128,0.3)' : '';
   });
 }
 
@@ -436,6 +446,13 @@ function calcEV(odds, prob) {
   const d=toDec(odds);
   if(!d||prob===null) return null;
   return (d-1)*prob-(1-prob);
+}
+
+function calcEdge(odds, prob) {
+  // Edge = model prob - market implied prob (no vig removed from market)
+  const mktProb = imp(odds);
+  if(!mktProb||prob===null) return null;
+  return prob - mktProb;
 }
 
 function fvA(p) {
@@ -516,12 +533,12 @@ function tmpl(id) { return `
 </div>
 <div id="res${id}" class="results-area"></div>`; }
 
-function verdHTML(evVal, side) {
-  if(evVal===null) return '';
-  const pct=(evVal*100).toFixed(1);
-  const cls=evVal>0.005?'pos':evVal<-0.005?'neg':'push';
-  const icon=evVal>0.005?'▲':evVal<-0.005?'▼':'—';
-  return `<div class="verdict ${cls}"><span class="v-side">${icon} ${side}</span><span class="v-ev">${evVal>=0?'+':''}${pct}% EV</span></div>`;
+function verdHTML(edgeVal, side) {
+  if(edgeVal===null) return '';
+  const pct=(edgeVal*100).toFixed(1);
+  const cls=edgeVal>0.005?'pos':edgeVal<-0.005?'neg':'push';
+  const icon=edgeVal>0.005?'▲':edgeVal<-0.005?'▼':'—';
+  return `<div class="verdict ${cls}"><span class="v-side">${icon} ${side}</span><span class="v-ev">${edgeVal>=0?'+':''}${pct}% edge</span></div>`;
 }
 
 function chips(op, up) {
@@ -559,8 +576,8 @@ function calc(id) {
 
   // -- 1. YOUR PROJ vs BOL line --
   const myProb = sigProb(proj, bLine, SCALE, stdDev);
-  const myEvO  = bOver  ? calcEV(bOver,  myProb.over)  : null;
-  const myEvU  = bUnder ? calcEV(bUnder, myProb.under) : null;
+  const myEvO  = bOver  ? calcEdge(bOver,  myProb.over)  : null;
+  const myEvU  = bUnder ? calcEdge(bUnder, myProb.under) : null;
 
   // -- 2. PP-implied projection vs BOL line --
   // PP's line + odds -> devig -> back-solve implied SS mean -> prob vs BOL line
@@ -570,8 +587,8 @@ function calc(id) {
     ppImplied = ppImpliedProj(pOver, pUnder, pLine, bLine, SCALE);
     if(ppImplied !== null) {
       ppProb = sigProb(ppImplied, bLine, SCALE, stdDev);
-      ppEvO  = bOver  ? calcEV(bOver,  ppProb.over)  : null;
-      ppEvU  = bUnder ? calcEV(bUnder, ppProb.under) : null;
+      ppEvO  = bOver  ? calcEdge(bOver,  ppProb.over)  : null;
+      ppEvU  = bUnder ? calcEdge(bUnder, ppProb.under) : null;
     }
   }
 
@@ -582,8 +599,8 @@ function calc(id) {
     blProb = { over: myProb.over*RG_W + ppProb.over*PP_W, under: myProb.under*RG_W + ppProb.under*PP_W };
     blProj = proj*RG_W + ppImplied*PP_W;
   }
-  const blEvO = bOver  ? calcEV(bOver,  blProb.over)  : null;
-  const blEvU = bUnder ? calcEV(bUnder, blProb.under) : null;
+  const blEvO = bOver  ? calcEdge(bOver,  blProb.over)  : null;
+  const blEvU = bUnder ? calcEdge(bUnder, blProb.under) : null;
 
   // Fair value from blended
   const fairO = fvA(blProb.over);
@@ -688,24 +705,25 @@ function buildSummary() {
 
   const fmtO = o => { if(!o && o!==0) return ''; const n=Math.round(o); return (n>0?'+':'')+n; };
 
-  // "Play down to" = worst odds where EV is still >= 5%
-  // EV = (dec-1)*prob - (1-prob) = 0.05
-  // dec-1 = (0.05 + 1 - prob) / prob = (1.05 - prob) / prob
-  // dec = 1.05/prob  =>  convert back to american
-  function playDownTo(prob) {
+  function worstPrice(prob) {
     if(!prob || prob <= 0 || prob >= 1) return null;
-    const dec = 1.05 / prob; // dec odds for exactly +5% EV
-    // convert decimal to american
-    if(dec >= 2) return Math.round((dec - 1) * 100);
-    else return Math.round(-100 / (dec - 1));
+    const dec = 1.05 / prob;
+    if(dec >= 2) return Math.round((dec-1)*100);
+    else return Math.round(-100/(dec-1));
   }
 
-  // Per fighter: pick best side only, must be +EV
-  let bets = [];
+  // market implied prob (devig'd) for display
+  function mktProb(odds) {
+    const d = toDec(odds);
+    return d ? (1/d*100).toFixed(1)+'%' : null;
+  }
+
+  // Per fighter: best side, blended >= 5% threshold
+  let plays = [];
   fighters.forEach(id => {
     const d = fighterData[id];
     if(!d) return;
-    const name = d.name || ('Fighter ' + (id+1));
+    const name = d.name || ('Fighter '+(id+1));
     const candidates = [];
     if(d.blEvO !== null && d.blProbO !== null)
       candidates.push({ id, name, side:'O', line:d.bLine, odds:d.bOver, ev:d.blEvO, prob:d.blProbO });
@@ -713,14 +731,14 @@ function buildSummary() {
       candidates.push({ id, name, side:'U', line:d.bLine, odds:d.bUnder, ev:d.blEvU, prob:d.blProbU });
     candidates.sort((a,b) => b.ev - a.ev);
     const best = candidates[0];
-    if(best && best.ev > 0.005) bets.push(best);
+    if(best && best.ev >= 0.05) plays.push(best); // 5% edge minimum
   });
-  bets.sort((a,b) => b.ev - a.ev);
+  plays.sort((a,b) => b.ev - a.ev);
 
-  edgeCount.textContent = bets.length + ' +EV bet' + (bets.length!==1?'s':'') + ' found';
+  edgeCount.textContent = plays.length + (plays.length===1 ? ' edge' : ' edges') + ' found';
 
-  if(!bets.length) {
-    list.innerHTML = '<div class="edge-empty">No +EV bets yet - fill in fighters on the Calculator tab.</div>';
+  if(!plays.length) {
+    list.innerHTML = '<div class="edge-empty">No edges above 5% yet — fill in fighters on the Calculator tab.</div>';
     copyArea.textContent = '';
     return;
   }
@@ -728,27 +746,41 @@ function buildSummary() {
   let html = '<div class="edge-list">';
   let textLines = [];
 
-  bets.forEach(b => {
-    const pct = (b.ev*100).toFixed(1);
-    const oddsStr = fmtO(parseFloat(b.odds));
-    const betLabel = b.side + b.line + (oddsStr ? ' ' + oddsStr : '');
-    const downTo = playDownTo(b.prob);
-    const downToStr = downTo !== null ? fmtO(downTo) : '';
-    const playStr = downToStr ? 'play down to ' + downToStr : '';
+  plays.forEach(b => {
+    const modelPct  = (b.prob * 100).toFixed(1);
+    const mktPct    = mktProb(b.odds);
+    const edgePct   = (b.ev * 100).toFixed(1);
+    const oddsStr   = fmtO(parseFloat(b.odds));
+    const sideWord  = b.side === 'O' ? 'OVER' : 'UNDER';
+    const betLabel  = sideWord + ' ' + b.line + (oddsStr ? ' ' + oddsStr : '');
+    const wp        = worstPrice(b.prob);
+    const wpStr     = wp !== null ? fmtO(wp) : '';
 
     html += `<div class="edge-item pos-edge">
       <div style="flex:1;">
         <div class="edge-name">${name_esc(b.name)}</div>
-        <div class="edge-bet">${betLabel}${playStr ? ' &nbsp;<span style="color:var(--amber);font-weight:600;">- ' + playStr + '</span>' : ''}</div>
+        <div class="edge-bet" style="margin-top:3px;">${betLabel}</div>
+        <div style="margin-top:4px;font-size:11px;font-family:Arial,sans-serif;color:var(--muted);">
+          Model <span style="color:#ffffff;font-weight:600;">${modelPct}%</span>
+          &nbsp;·&nbsp; Market <span style="color:#ffffff;font-weight:600;">${mktPct||'—'}</span>
+          ${wpStr ? '&nbsp;·&nbsp; <span style="color:var(--amber);font-weight:600;">worst price ' + wpStr + '</span>' : ''}
+        </div>
       </div>
-      <div class="edge-ev pos">+${pct}% EV</div>
+      <div class="edge-ev pos">+${edgePct}%</div>
     </div>`;
 
     const nameUp = b.name.toUpperCase();
-    const sideWord = b.side === 'O' ? 'OVER' : 'UNDER';
-    const betLabelUp = sideWord + ' ' + b.line + (oddsStr ? ' ' + oddsStr : '');
-    const worstPrice = playStr ? playStr.replace('play down to', 'worst price') : '';
-    textLines.push(nameUp + ' ' + betLabelUp + ' +' + pct + '% EV' + (worstPrice ? ' - ' + worstPrice : ''));
+    // Pull RG proj and PP line for reference
+    const rgProjEl = document.getElementById('proj'+b.id);
+    const rgProj   = rgProjEl ? parseFloat(rgProjEl.value) : null;
+    const ppLineEl = document.getElementById('pl'+b.id);
+    const ppLineVal = ppLineEl ? ppLineEl.value.trim() : null;
+    const refStr = [
+      rgProj ? 'RG ' + rgProj.toFixed(1) : null,
+      ppLineVal ? 'PP ' + ppLineVal : null
+    ].filter(Boolean).join(' ');
+    const worstStr = wpStr ? ' — play to ' + wpStr : '';
+    textLines.push(nameUp + ' ' + betLabel + (refStr ? ' | ' + refStr : '') + ' | +' + edgePct + '% edge' + worstStr);
   });
 
   html += '</div>';
