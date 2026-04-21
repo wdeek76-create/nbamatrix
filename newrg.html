@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RotoGrinders MLB Pitcher Props</title>
+<style>
+:root {
+  --bg: #141414;
+  --bg2: #1c1c1c;
+  --bg3: #242424;
+  --bg4: #2c2c2c;
+  --bg5: #353535;
+  --teal: #4ade80;
+  --teal-dim: rgba(74,222,128,0.12);
+  --cyan: #22d3ee;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --purple: #a78bfa;
+  --text: #f0f0f0;
+  --text2: #9ca3af;
+  --text3: #6b7280;
+  --border: #2d2d2d;
+  --border2: #3d3d3d;
+  --border3: #4d4d4d;
+  --mono: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ===== HEADER ===== */
+.top {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+}
+.brand-logo {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: linear-gradient(135deg, var(--teal), var(--cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; color: #0a0a0a;
+}
+.brand-title {
+  font-size: 14px; font-weight: 700; letter-spacing: 0.04em;
+}
+.brand-sub {
+  font-size: 11px; color: var(--text2); letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.top-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn:hover { background: var(--bg4); border-color: var(--border3); }
+.btn.primary {
+  background: var(--teal-dim);
+  border-color: rgba(74,222,128,0.35);
+  color: var(--teal);
+}
+.btn.primary:hover { background: rgba(74,222,128,0.2); }
+.btn.ghost { background: transparent; color: var(--text2); }
+.btn.ghost:hover { background: var(--bg3); color: var(--text); }
+.btn.danger { color: var(--red); border-color: rgba(248,113,113,0.3); }
+.btn.danger:hover { background: rgba(248,113,113,0.1); }
+.btn.sm { font-size: 11px; padding: 4px 9px; }
+
+/* ===== TABS ===== */
+.tabs {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  display: flex; gap: 2px;
+  overflow-x: auto;
+}
+.tab {
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.12s;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  color: var(--teal);
+  border-bottom-color: var(--teal);
+}
+.tab-badge {
+  display: inline-block;
+  background: var(--bg4);
+  color: var(--text2);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+.tab.active .tab-badge { background: rgba(74,222,128,0.15); color: var(--teal); }
+
+/* ===== CONTENT ===== */
+.wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+/* ===== KPI CARDS ===== */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.kpi {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.kpi-label {
+  font-size: 10px;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.kpi-val {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-family: var(--mono);
+}
+.kpi-sub {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 3px;
+  font-family: var(--mono);
+}
+.kpi-val.pos { color: var(--teal); }
+.kpi-val.neg { color: var(--red); }
+
+/* ===== PANELS / SECTIONS ===== */
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.panel-head {
+  padding: 10px 14px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  flex-wrap: wrap;
+}
+.panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.panel-body { padding: 14px; }
+.panel-body.compact { padding: 0; }
+
+/* ===== FILTER BAR ===== */
+.filters {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.filt-pill {
+  font-size: 11px; font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border2);
+  background: var(--bg2);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.filt-pill:hover { color: var(--text); border-color: var(--border3); }
+.filt-pill.active {
+  background: var(--teal-dim);
+  border-color: rgba(74,222,128,0.4);
+  color: var(--teal);
+}
+.filt-group {
+  display: flex; gap: 4px; align-items: center;
+  padding: 3px; background: var(--bg3); border-radius: 6px;
+}
+.filt-label {
+  font-size: 10px; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-weight: 600; padding: 0 6px 0 4px;
+}
+
+select.sel {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: inherit; font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  outline: none;
+  cursor: pointer;
+}
+select.sel:focus { border-color: var(--teal); }
+
+/* ===== TABLES ===== */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tbl th.r { text-align: right; }
+.tbl th.c { text-align: center; }
+.tbl td {
+  padding: 9px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.tbl td.r { text-align: right; }
+.tbl td.c { text-align: center; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: var(--bg3); }
+.tbl tr.row-win td { background: rgba(74,222,128,0.05); }
+.tbl tr.row-win:hover td { background: rgba(74,222,128,0.09); }
+.tbl tr.row-loss td { background: rgba(248,113,113,0.05); }
+.tbl tr.row-loss:hover td { background: rgba(248,113,113,0.09); }
+.tbl tr.row-push td { background: rgba(251,191,36,0.04); }
+.tbl tr.row-skip td { opacity: 0.45; }
+
+.mono { font-family: var(--mono); }
+.pos { color: var(--teal); }
+.neg { color: var(--red); }
+.muted { color: var(--text2); }
+.dim { color: var(--text3); }
+.amber { color: var(--amber); }
+.blue { color: var(--blue); }
+.strong { font-weight: 600; }
+
+/* ===== PLAYER / LINE CELLS ===== */
+.player-cell { display: flex; flex-direction: column; gap: 1px; }
+.player-name { font-weight: 600; font-size: 12px; color: var(--text); }
+.player-sub { font-size: 10px; color: var(--text2); }
+.mkt-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: var(--bg4);
+  color: var(--text2);
+  letter-spacing: 0.03em;
+}
+.mkt-tag.pitching { background: rgba(96,165,250,0.12); color: var(--blue); }
+.mkt-tag.hitting { background: rgba(167,139,250,0.14); color: var(--purple); }
+.line-main {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+.side-o { color: var(--teal); }
+.side-u { color: var(--red); }
+.ev-val { font-family: var(--mono); font-weight: 700; font-size: 12px; }
+.ev-elite { color: var(--teal); }
+.ev-strong { color: var(--blue); }
+.ev-value { color: var(--amber); }
+
+.result-sel, .notes-in {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: inherit; font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  outline: none;
+}
+.result-sel { width: 92px; }
+.notes-in { width: 120px; }
+.result-sel:focus, .notes-in:focus { border-color: var(--teal); }
+
+/* ===== QUICK-GRADE BUTTONS (Pending tab) ===== */
+.qg {
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s;
+  padding: 0;
+  font-family: inherit;
+}
+.qg:hover { transform: scale(1.08); }
+.qg-win { color: var(--teal); }
+.qg-win:hover { background: rgba(74,222,128,0.15); border-color: var(--teal); }
+.qg-loss { color: var(--red); }
+.qg-loss:hover { background: rgba(248,113,113,0.15); border-color: var(--red); }
+.qg-push { color: var(--amber); }
+.qg-push:hover { background: rgba(251,191,36,0.15); border-color: var(--amber); }
+.qg-skip { color: var(--text3); font-size: 12px; }
+.qg-skip:hover { background: var(--bg4); border-color: var(--border3); color: var(--text); }
+
+/* ===== EV BUCKETS (small badges used in legends) ===== */
+.ev-legend-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.ev-bd {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+.ev-bd.elite { background: rgba(74,222,128,0.1); color: var(--teal); border: 1px solid rgba(74,222,128,0.25); }
+.ev-bd.strong { background: rgba(96,165,250,0.1); color: var(--blue); border: 1px solid rgba(96,165,250,0.25); }
+.ev-bd.value { background: rgba(251,191,36,0.1); color: var(--amber); border: 1px solid rgba(251,191,36,0.25); }
+
+/* ===== MARKET BREAKDOWN GRID (daily/weekly) ===== */
+.mbd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.mbd-cell {
+  background: var(--bg3);
+  border-radius: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+}
+.mbd-cell-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+.mbd-mkt {
+  font-size: 11px; font-weight: 700; color: var(--text);
+}
+.mbd-pnl { font-family: var(--mono); font-size: 12px; font-weight: 700; }
+.mbd-stats {
+  font-size: 10px; color: var(--text2);
+  font-family: var(--mono);
+  display: flex; gap: 10px;
+}
+
+/* ===== DATE/WEEK ROWS ===== */
+.period-row {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.period-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.period-head:hover { background: var(--bg3); }
+.period-label {
+  font-size: 13px; font-weight: 700; min-width: 110px;
+}
+.period-sub {
+  font-size: 11px; color: var(--text2); font-family: var(--mono);
+}
+.period-stats {
+  display: flex; gap: 16px; align-items: center;
+  flex: 1; justify-content: flex-end; flex-wrap: wrap;
+}
+.period-stat {
+  font-size: 11px; color: var(--text2); font-family: var(--mono);
+  white-space: nowrap;
+}
+.period-pnl { font-size: 14px; font-weight: 700; font-family: var(--mono); }
+.period-toggle {
+  color: var(--text3); font-size: 11px; font-family: var(--mono);
+  transition: transform 0.15s;
+  width: 14px; text-align: center;
+}
+.period-row.open .period-toggle { transform: rotate(90deg); }
+.period-body {
+  display: none;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+.period-row.open .period-body { display: block; }
+
+/* ===== EMPTY STATE ===== */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text2);
+  background: var(--bg2);
+  border: 1px dashed var(--border2);
+  border-radius: 8px;
+}
+.empty h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+.empty p { font-size: 12px; max-width: 420px; margin: 0 auto 16px; line-height: 1.6; }
+
+/* ===== MODAL ===== */
+.modal-ov {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 1000;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-ov.open { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 20px;
+  width: 640px; max-width: 100%;
+  max-height: 90vh;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.modal-title {
+  font-size: 14px; font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.modal-sub {
+  font-size: 11px; color: var(--text2); line-height: 1.6;
+}
+.modal-sub code {
+  background: var(--bg4); padding: 1px 5px; border-radius: 3px;
+  font-size: 10px; color: var(--text);
+  font-family: var(--mono);
+}
+.paste-area {
+  background: var(--bg); border: 1px solid var(--border2); color: var(--text);
+  font-family: var(--mono); font-size: 11px; line-height: 1.4;
+  padding: 10px; border-radius: 6px; resize: vertical;
+  height: 200px; outline: none; width: 100%;
+}
+.paste-area:focus { border-color: var(--teal); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.mini-in {
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text);
+  font-family: inherit; font-size: 12px;
+  padding: 4px 8px; border-radius: 4px; outline: none;
+}
+.mini-in:focus { border-color: var(--teal); }
+.parse-info { font-size: 11px; color: var(--text2); }
+.parse-info.ok { color: var(--teal); }
+.parse-info.warn { color: var(--amber); }
+
+/* ===== STATUS ===== */
+.status { font-size: 11px; color: var(--text2); }
+.status.loading { color: var(--blue); }
+.status.ok { color: var(--teal); }
+.status.err { color: var(--red); }
+
+/* ===== LEGEND UNDER KPIs ===== */
+.legend-strip {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 8px 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 11px;
+  color: var(--text2);
+}
+.legend-strip strong { color: var(--text); font-weight: 600; margin-right: 6px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 780px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .kpi-val { font-size: 18px; }
+  .period-stats { justify-content: flex-start; }
+  .tbl th:nth-child(n+7), .tbl td:nth-child(n+7) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="top">
+  <div class="brand">
+    <div class="brand-logo">RG</div>
+    <div>
+      <div class="brand-title">RotoGrinders</div>
+      <div class="brand-sub">MLB Pitcher Props</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="btn primary" onclick="openPasteModal()">+ Paste PropShop</button>
+    <button class="btn" onclick="openGradeModal()" title="Auto-grade from MLB API">⟳ Grade</button>
+    <button class="btn ghost" onclick="exportExcel()">↓ Excel</button>
+    <button class="btn ghost" onclick="openManageModal()">⋯ Manage</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" id="tab-dash" onclick="setTab('dash')">Dashboard</button>
+  <button class="tab" id="tab-daily" onclick="setTab('daily')">Daily</button>
+  <button class="tab" id="tab-weekly" onclick="setTab('weekly')">Weekly</button>
+  <button class="tab" id="tab-pending" onclick="setTab('pending')">Pending <span class="tab-badge" id="tab-pending-count">0</span></button>
+  <button class="tab" id="tab-log" onclick="setTab('log')">Bet Log <span class="tab-badge" id="tab-log-count">0</span></button>
+</div>
+
+<div class="wrap" id="wrap"></div>
+
+<!-- PASTE MODAL -->
+<div class="modal-ov" id="pasteModal">
+  <div class="modal">
+    <div class="modal-title">Paste PropShop</div>
+    <div class="modal-sub">
+      Copy the full page from PropShop (Ctrl+A → Ctrl+C on the prop table) and paste below.
+      Supports: <code>IP</code> <code>K</code> <code>H</code> <code>TB</code> <code>HR</code> <code>RBI</code> <code>ER</code> <code>BB</code> <code>SB</code> <code>OUTS</code> <code>HA</code> <code>R</code>
+    </div>
+    <div class="modal-row">
+      <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px">
+        Market:
+        <select id="pasteMarket" class="sel">
+          <option value="">Auto-detect</option>
+          <option value="IP">IP</option>
+          <option value="OUTS">OUTS</option>
+          <option value="HA">HA (Hits Allowed)</option>
+          <option value="K">K</option>
+          <option value="ER">ER</option>
+          <option value="BB">BB</option>
+          <option value="H">H</option>
+          <option value="TB">TB</option>
+          <option value="HR">HR</option>
+          <option value="RBI">RBI</option>
+          <option value="SB">SB</option>
+          <option value="R">R</option>
+        </select>
+      </label>
+      <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px">
+        Min EV%:
+        <input type="number" id="minEV" value="5" min="0" max="100" step="1" class="mini-in" style="width:60px">
+      </label>
+    </div>
+    <textarea class="paste-area" id="pasteArea" placeholder="Paste PropShop text here…"></textarea>
+    <div class="parse-info" id="parseInfo"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closePasteModal()">Cancel</button>
+      <button class="btn primary" onclick="parsePaste()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- GRADE MODAL -->
+<div class="modal-ov" id="gradeModal">
+  <div class="modal">
+    <div class="modal-title">Auto-Grade from MLB API</div>
+    <div class="modal-sub">Grades pending props from official MLB Stats API box scores. Pick a date to grade.</div>
+    <div class="modal-row">
+      <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px">
+        Grade date:
+        <select id="gradeDate" class="sel"></select>
+      </label>
+      <button class="btn primary" onclick="autoGrade()">⟳ Grade</button>
+    </div>
+    <div class="modal-row">
+      <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px">
+        Re-grade date:
+        <select id="regradeDate" class="sel"></select>
+      </label>
+      <button class="btn" onclick="regrade()" style="color:var(--blue);border-color:rgba(96,165,250,0.35)">↺ Re-grade</button>
+      <button class="btn ghost" onclick="repairDates()">🔧 Fix Dates</button>
+      <button class="btn ghost" onclick="debugAPI()">🔍 API Names</button>
+    </div>
+    <div id="gradeStatus" class="status"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeGradeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE MODAL -->
+<div class="modal-ov" id="manageModal">
+  <div class="modal" style="width:440px">
+    <div class="modal-title">Manage Props</div>
+    <div class="modal-sub">
+      <span id="manageCount">0</span> total props in tracker.
+      <span id="saveStatus" class="status"></span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn" onclick="saveState();closeManageModal()">💾 Save to localStorage</button>
+      <button class="btn" onclick="clearPending()" style="color:var(--amber);border-color:rgba(251,191,36,0.3)">Clear Pending</button>
+      <button class="btn" onclick="clearSkipped()">Clear Skipped</button>
+      <button class="btn danger" onclick="clearAll()">⚠ Clear All</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeManageModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+let props = [];
+let currentTab = 'dash';
+let filters = { market: '', ev: '', result: '', side: '' };
+const STORAGE_KEY = 'propshop_mlb_props';
+
+// ===== MARKET CONFIG =====
+const MARKET_MAP = {
+  'IP':  { label:'IP',           apiKey:'inningsPitched',  group:'pitching', isFloat:true  },
+  'HA':  { label:'Hits Allowed', apiKey:'hits',            group:'pitching', isFloat:false },
+  'K':   { label:'K',            apiKey:'strikeOuts',      group:'pitching', isFloat:false },
+  'ER':  { label:'ER',           apiKey:'earnedRuns',      group:'pitching', isFloat:false },
+  'BB':  { label:'BB',           apiKey:'baseOnBalls',     group:'pitching', isFloat:false },
+  'H':   { label:'Hits',         apiKey:'hits',            group:'hitting',  isFloat:false },
+  'TB':  { label:'TB',           apiKey:'totalBases',      group:'hitting',  isFloat:false },
+  'HR':  { label:'HR',           apiKey:'homeRuns',        group:'hitting',  isFloat:false },
+  'RBI': { label:'RBI',          apiKey:'rbi',             group:'hitting',  isFloat:false },
+  'SB':  { label:'SB',           apiKey:'stolenBases',     group:'hitting',  isFloat:false },
+  'OUTS':{ label:'OUTS',         apiKey:'outs',            group:'pitching', isFloat:false },
+  'R':   { label:'R',            apiKey:'runs',            group:'hitting',  isFloat:false },
+};
+
+// ===== PARSER (kept intact from original) =====
+const MARKET_KEYS = new Set(['IP','K','ER','BB','H','HA','TB','HR','RBI','SB','R','SO','OUTS','1B','2B','3B','PA','AB']);
+const BOOK_LABELS = new Set(['fanduel','pinnacle','draftkings','betmgm','espnbet','caesars',
+  'bet365','pointsbet','betonline','bookmaker','bet105','fliff','novig','prophetx','dk','consensus']);
+
+function isPlayerName(s) {
+  if (!s || s.length < 4 || s.length > 45) return false;
+  if (MARKET_KEYS.has(s.toUpperCase())) return false;
+  if (BOOK_LABELS.has(s.toLowerCase())) return false;
+  const skipWords = new Set(['ha','alts','▼','▼alts','consensus','propshop','sports','betting',
+    'events','fromto','market','projection','set','group','by','game','run','simulation',
+    'state','search','players','or','teams','logo','of','ma','proj','from','to','ab']);
+  if (skipWords.has(s.toLowerCase())) return false;
+  if (/^[+-]\d/.test(s) || /^\d/.test(s)) return false;
+  if (/^\+?\d+(\.\d+)?%$/.test(s)) return false;
+  if (s.includes('•') || s.includes('@')) return false;
+  if (!s.includes(' ')) return false;
+  return /^[A-Z][A-Za-z0-9áàâãéèêíïóôõöúüçñÁÉÍÓÚÑ'.\- ]+[A-Za-záàâãéèêíïóôõöúüçñA-Z0-9]$/.test(s);
+}
+
+const isOddsStr  = s => /^[+-]\d{2,6}$/.test(s);
+const isLineStr  = s => /^\d+(\.\d+)?$/.test(s) && parseFloat(s) > 0 && parseFloat(s) < 30;
+const isEVStr    = s => /^\+?\d+(\.\d+)?%$/.test(s);
+const parseEVStr = s => parseFloat(s.replace('%','').replace('+',''));
+const isMerged   = s => /^\d+(\.\d+)?[+-]\d{2,4}$/.test(s);
+function splitMerged(s) {
+  const m = s.match(/^(\d+(?:\.\d+)?)([+-]\d{2,4})$/);
+  return m ? [parseFloat(m[1]), m[2]] : [null, null];
+}
+
+function findBestEV(tokens, minEV) {
+  const isData = s => isLineStr(s) || isOddsStr(s) || s === '—';
+  let skip = 0, t = 0;
+  while (t < tokens.length && skip < 4) {
+    if (isData(tokens[t])) skip++;
+    t++;
+  }
+  tokens = tokens.slice(t);
+
+  const SCAN_LIMIT = 22;
+  const cells = [];
+  let i = 0;
+
+  while (i < Math.min(tokens.length, SCAN_LIMIT)) {
+    const tok = tokens[i];
+
+    if (isEVStr(tok)) {
+      const ev = parseEVStr(tok);
+      if (ev >= minEV && cells.length >= 1) {
+        const last = cells[cells.length - 1];
+        if (last.line !== null && last.odds !== null) {
+          return { ev, odds: last.odds, line: last.line, side: last.side };
+        }
+      }
+      cells.length = 0;
+      i++; continue;
+    }
+
+    if (tok === '—') {
+      const side = cells.length % 2 === 0 ? 'O' : 'U';
+      cells.push({ side, line: null, odds: null });
+      i++; continue;
+    }
+
+    if (isLineStr(tok) && i + 1 < tokens.length && isOddsStr(tokens[i + 1])) {
+      const side = cells.length % 2 === 0 ? 'O' : 'U';
+      cells.push({ side, line: parseFloat(tok), odds: tokens[i + 1] });
+      i += 2; continue;
+    }
+
+    i++;
+  }
+  return { ev: -999, odds: null, line: null, side: 'O' };
+}
+
+function parsePropShopText(raw, minEV, marketOverride) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const results = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!isPlayerName(line)) { i++; continue; }
+
+    let market = null, kProj = '', ipProj = '';
+    let j = i + 1;
+    let gameStr = '', gameTime = '';
+
+    while (j < Math.min(i + 14, lines.length)) {
+      const tok = lines[j];
+      if (tok.includes('@') && (tok.includes('•') || tok.includes('—'))) {
+        const sep = tok.includes('•') ? '•' : '—';
+        const parts = tok.split(sep);
+        gameStr = parts[0].trim();
+        gameTime = parts[1] ? parts[1].trim() : '';
+        j++; break;
+      }
+      if (MARKET_KEYS.has(tok.toUpperCase()) && !marketOverride) {
+        if (!market) market = tok.toUpperCase();
+        if (j+1 < lines.length && isLineStr(lines[j+1])) {
+          if (market === tok.toUpperCase() && !kProj) kProj = lines[j+1];
+          else if (tok.toUpperCase() === 'IP') ipProj = lines[j+1];
+        }
+      }
+      j++;
+    }
+
+    if (marketOverride) market = marketOverride;
+    if (!market || !gameStr) { i++; continue; }
+
+    while (j < lines.length && ['▼','alts','▼ALTS','▼\nalts'].includes(lines[j])) j++;
+
+    const rawTokens = [];
+    let k = j;
+    let altsCount = 0;
+    while (k < lines.length) {
+      const tk = lines[k];
+      if (isPlayerName(tk)) break;
+      if (tk.includes('PropShop Sports Betting') || tk === 'Run Simulation') break;
+      if (tk === '▼ALTS' || tk === '▼' || tk.toLowerCase() === 'alts') {
+        altsCount++;
+        if (altsCount >= 1) break;
+      }
+      rawTokens.push(tk);
+      k++;
+    }
+
+    const tokens = [];
+    for (const tok of rawTokens) {
+      if (isMerged(tok)) { const [ln, od] = splitMerged(tok); tokens.push(String(ln), od); }
+      else tokens.push(tok);
+    }
+
+    const { ev, odds, line: bestLine, side } = findBestEV(tokens, minEV);
+
+    if (odds && ev >= minEV) {
+      results.push({
+        id: Date.now() + Math.random(),
+        player: line, market, game: gameStr, gameTime,
+        line: bestLine, side, odds, book: '', ev,
+        kProj, ipProj,
+        date: (() => {
+          if (gameTime) {
+            const m = gameTime.match(/([A-Za-z]+)-(\d+)/);
+            if (m) {
+              const mo = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'}[m[1]];
+              if (mo) return new Date().getFullYear()+'-'+mo+'-'+m[2].padStart(2,'0');
+            }
+          }
+          return getTodayStr();
+        })(),
+        result: '', notes: '', actual: null, pnl: null,
+      });
+    }
+
+    i = k;
+  }
+  return results;
+}
+
+// ===== HELPERS =====
+function getTodayStr() { return new Date().toISOString().split('T')[0]; }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function normName(n) { return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z ]/g,'').trim().replace(/\s+/g,' '); }
+function lastName(n) { const p = n.trim().split(' '); return p[p.length-1]; }
+function parseIP(val) {
+  if (typeof val === 'number') return val;
+  const s = String(val);
+  const parts = s.split('.');
+  const full = parseInt(parts[0]) || 0;
+  const thirds = parseInt(parts[1]) || 0;
+  return full + thirds / 3;
+}
+function unitRisk(p) {
+  const o = parseFloat(p.odds);
+  if (isNaN(o)) return 1;
+  return o > 0 ? 1 : Math.abs(o)/100;
+}
+function fmtU(n) { return (n>=0?'+':'')+n.toFixed(2)+'u'; }
+function fmtPct(w, t) { return t ? (w/t*100).toFixed(1)+'%' : '—'; }
+function evClass(ev) { return ev >= 25 ? 'ev-elite' : ev >= 15 ? 'ev-strong' : 'ev-value'; }
+function pnlClass(n) { return n > 0 ? 'pos' : n < 0 ? 'neg' : 'muted'; }
+
+// ISO week number (YYYY-Www)
+function isoWeek(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T12:00:00');
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  const week = 1 + Math.ceil((firstThursday - target) / 604800000);
+  return target.getFullYear() + '-W' + String(week).padStart(2,'0');
+}
+
+function weekRange(weekStr) {
+  // Returns { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', label: 'Apr 14 – Apr 20' }
+  const m = weekStr.match(/(\d{4})-W(\d+)/);
+  if (!m) return { start:'', end:'', label: weekStr };
+  const year = parseInt(m[1]), week = parseInt(m[2]);
+  const jan4 = new Date(year, 0, 4);
+  const jan4Day = (jan4.getDay() + 6) % 7;
+  const weekStart = new Date(jan4);
+  weekStart.setDate(jan4.getDate() - jan4Day + (week - 1) * 7);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmt = d => mo[d.getMonth()] + ' ' + d.getDate();
+  const pad = n => String(n).padStart(2,'0');
+  return {
+    start: weekStart.getFullYear()+'-'+pad(weekStart.getMonth()+1)+'-'+pad(weekStart.getDate()),
+    end: weekEnd.getFullYear()+'-'+pad(weekEnd.getMonth()+1)+'-'+pad(weekEnd.getDate()),
+    label: fmt(weekStart) + ' – ' + fmt(weekEnd)
+  };
+}
+
+function dateLabel(d) {
+  if (!d) return 'Unknown';
+  const parts = d.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!parts) return d;
+  const dt = new Date(d + 'T12:00:00');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const mos = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return days[dt.getDay()] + ', ' + mos[dt.getMonth()] + ' ' + dt.getDate();
+}
+
+// ===== STATS HELPERS =====
+function calcStats(arr) {
+  const settled = arr.filter(p => p.result === 'win' || p.result === 'loss' || p.result === 'push');
+  const w = settled.filter(p => p.result === 'win').length;
+  const l = settled.filter(p => p.result === 'loss').length;
+  const pu = settled.filter(p => p.result === 'push').length;
+  const pnl = settled.reduce((a,p) => a + (p.pnl || 0), 0);
+  const risk = settled.reduce((a,p) => a + unitRisk(p), 0);
+  const pending = arr.filter(p => !p.result || p.result === '').length;
+  return {
+    total: arr.length, settled: settled.length,
+    w, l, pu, pnl, risk, pending,
+    wr: settled.length ? (w / (w+l) * 100) : null,
+    roi: risk > 0 ? (pnl / risk * 100) : null,
+  };
+}
+
+// ===== STATE =====
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(props));
+    const el = document.getElementById('saveStatus');
+    if (el) { el.textContent = 'Saved'; el.className = 'status ok'; setTimeout(()=>{ el.textContent=''; el.className='status'; }, 1500); }
+  } catch(e) { console.warn('Save failed:', e); }
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) props = JSON.parse(saved);
+  } catch(e) { console.warn('Load failed:', e); props = []; }
+}
+
+// ===== MODALS =====
+function openPasteModal() { document.getElementById('pasteModal').classList.add('open'); setTimeout(()=>document.getElementById('pasteArea').focus(), 50); }
+function closePasteModal() { document.getElementById('pasteModal').classList.remove('open'); }
+function openGradeModal() { populateGradeDates(); document.getElementById('gradeModal').classList.add('open'); }
+function closeGradeModal() { document.getElementById('gradeModal').classList.remove('open'); }
+function openManageModal() {
+  document.getElementById('manageCount').textContent = props.length;
+  document.getElementById('manageModal').classList.add('open');
+}
+function closeManageModal() { document.getElementById('manageModal').classList.remove('open'); }
+
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-ov')) e.target.classList.remove('open');
+});
+
+// ===== PARSE IMPORT =====
+function parsePaste() {
+  const raw = document.getElementById('pasteArea').value;
+  const minEV = parseFloat(document.getElementById('minEV').value) || 5;
+  const marketOverride = document.getElementById('pasteMarket').value;
+  const info = document.getElementById('parseInfo');
+
+  if (!raw.trim()) { info.textContent = 'Paste is empty.'; info.className='parse-info warn'; return; }
+
+  const parsed = parsePropShopText(raw, minEV, marketOverride);
+  if (parsed.length === 0) {
+    info.textContent = `No props found above ${minEV}% EV. Check paste format.`;
+    info.className = 'parse-info warn';
+    return;
+  }
+
+  let added = 0;
+  parsed.forEach(p => {
+    const key = `${p.player}|${p.market}|${p.game}|${p.line}`;
+    const exists = props.some(e => `${e.player}|${e.market}|${e.game}|${e.line}` === key);
+    if (!exists) { props.push(p); added++; }
+  });
+
+  info.textContent = `Imported ${added} props (${parsed.length - added} duplicates skipped).`;
+  info.className = 'parse-info ok';
+  document.getElementById('pasteArea').value = '';
+
+  saveState();
+  render();
+  setTimeout(closePasteModal, 1000);
+}
+
+// ===== RESULT MUTATIONS =====
+function setResult(id, val) {
+  const p = props.find(x => String(x.id) === String(id));
+  if (!p) return;
+  p.result = val;
+  if (val === 'win') {
+    const odds = parseFloat(p.odds);
+    p.pnl = odds > 0 ? odds / 100 : 1.0;
+  } else if (val === 'loss') {
+    const odds = parseFloat(p.odds);
+    p.pnl = odds > 0 ? -1.0 : -(Math.abs(odds) / 100);
+  } else if (val === 'push') {
+    p.pnl = 0;
+  } else {
+    p.pnl = null;
+  }
+  saveState();
+  render();
+}
+
+function setNotes(id, val) {
+  const p = props.find(x => String(x.id) === String(id));
+  if (p) { p.notes = val; saveState(); }
+}
+
+// ===== CLEAR / FIX =====
+function clearPending() {
+  if (!confirm('Clear all pending props?')) return;
+  props = props.filter(p => p.result && p.result !== '');
+  saveState(); render();
+}
+function clearSkipped() {
+  if (!confirm('Clear all skipped props?')) return;
+  props = props.filter(p => p.result !== 'skip');
+  saveState(); render();
+}
+function clearAll() {
+  if (!confirm('Clear ALL props?')) return;
+  props = [];
+  saveState(); render();
+  closeManageModal();
+}
+
+function repairDates() {
+  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  let fixed = 0;
+  props.forEach(p => {
+    if (p.gameTime) {
+      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (m && months[m[1]]) {
+        const correctDate = new Date().getFullYear()+'-'+months[m[1]]+'-'+m[2].padStart(2,'0');
+        if (p.date !== correctDate) { p.date = correctDate; fixed++; }
+      }
+    }
+  });
+  if (fixed) {
+    saveState(); render(); populateGradeDates();
+    document.getElementById('gradeStatus').textContent = 'Fixed dates on '+fixed+' props.';
+    document.getElementById('gradeStatus').className = 'status ok';
+  } else {
+    document.getElementById('gradeStatus').textContent = 'All prop dates already correct.';
+    document.getElementById('gradeStatus').className = 'status';
+  }
+}
+
+// ===== AUTO-GRADE =====
+function populateGradeDates() {
+  const sel = document.getElementById('gradeDate');
+  const rsel = document.getElementById('regradeDate');
+  if (sel) {
+    const pending = props.filter(p => !p.result || p.result === '');
+    const pendingDates = [...new Set(pending.map(p => p.date || getTodayStr()))].sort();
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Pick date…</option>' +
+      pendingDates.map(d => `<option value="${d}"${d===cur?' selected':''}>${d} (${pending.filter(p=>(p.date||getTodayStr())===d).length} pending)</option>`).join('');
+  }
+  if (rsel) {
+    const allDates = [...new Set(props.map(p=>p.date||getTodayStr()))].sort().reverse();
+    const rcur = rsel.value;
+    rsel.innerHTML = '<option value="">Pick date…</option>' + allDates.map(d=>`<option value="${d}"${d===rcur?' selected':''}>${d} (${props.filter(p=>(p.date||getTodayStr())===d).length} props)</option>`).join('');
+  }
+}
+
+async function debugAPI() {
+  const sel = document.getElementById('regradeDate');
+  const selectedDate = sel?.value || document.getElementById('gradeDate')?.value;
+  if (!selectedDate) { alert('Pick a date first.'); return; }
+
+  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const gameDatesSet = new Set();
+  props.forEach(p => {
+    if (p.gameTime) {
+      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (m && months[m[1]]) gameDatesSet.add(new Date().getFullYear()+'-'+months[m[1]]+'-'+m[2].padStart(2,'0'));
+    }
+  });
+  const gameDates = gameDatesSet.size ? [...gameDatesSet] : [selectedDate];
+
+  let output = 'API Player Names\n================\n';
+  for (const dateStr of gameDates) {
+    output += '\nDate: '+dateStr+'\n';
+    try {
+      const resp = await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr);
+      const data = await resp.json();
+      const games = data.dates?.[0]?.games || [];
+      output += games.length+' games found\n';
+      for (const g of games) {
+        if (g.status.abstractGameState !== 'Final') continue;
+        const bsResp = await fetch('https://statsapi.mlb.com/api/v1/game/'+g.gamePk+'/boxscore');
+        const bs = await bsResp.json();
+        const away = g.teams.away.team.name;
+        const home = g.teams.home.team.name;
+        output += '\n'+away+' @ '+home+'\n';
+        ['away','home'].forEach(side => {
+          const team = bs.teams?.[side];
+          if (!team?.players) return;
+          Object.values(team.players).forEach(p => {
+            const name = p.person?.fullName;
+            const ps = p.stats?.pitching;
+            if (name && ps && (ps.inningsPitched || ps.strikeOuts)) {
+              output += '  '+name+' — IP:'+ps.inningsPitched+' K:'+ps.strikeOuts+' ER:'+ps.earnedRuns+' H:'+ps.hits+'\n';
+            }
+          });
+        });
+      }
+    } catch(e) { output += 'Error: '+e.message+'\n'; }
+  }
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-ov open';
+  modal.style.zIndex = 9999;
+  modal.innerHTML = '<div class="modal" style="width:600px"><div class="modal-title">API Pitcher Names</div><textarea readonly style="width:100%;min-height:400px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:11px;padding:10px;resize:none">'+escHtml(output)+'</textarea><div class="modal-actions"><button class="btn" onclick="this.closest(\'.modal-ov\').remove()">Close</button></div></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function regrade() {
+  const sel = document.getElementById('regradeDate');
+  const selectedDate = sel?.value;
+  const status = document.getElementById('gradeStatus');
+  if (!selectedDate) { status.textContent = 'Pick a re-grade date.'; status.className='status err'; return; }
+  if (!confirm('Clear results for '+selectedDate+' and re-grade?')) return;
+
+  let cleared = 0;
+  props.forEach(p => {
+    if (p.date === selectedDate) {
+      p.result = ''; p.actual = null; p.pnl = null;
+      cleared++;
+    }
+  });
+
+  saveState();
+  render();
+  status.textContent = 'Cleared '+cleared+' props. Grading…';
+  status.className = 'status loading';
+
+  document.getElementById('gradeDate').value = selectedDate;
+  await autoGrade();
+}
+
+async function autoGrade() {
+  const status = document.getElementById('gradeStatus');
+  const sel = document.getElementById('gradeDate');
+  const selectedDate = sel?.value;
+  if (!selectedDate) { status.textContent = 'Pick a date first.'; status.className='status err'; return; }
+  if (props.length === 0) { status.textContent = 'No props to grade.'; status.className='status err'; return; }
+
+  status.className = 'status loading';
+  status.textContent = 'Fetching schedule…';
+
+  function parseGameDate(p) {
+    if (p.gameTime) {
+      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (m) {
+        const months = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+        const month = months[m[1]];
+        const day = parseInt(m[2]);
+        if (month && day) {
+          const year = new Date().getFullYear();
+          return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        }
+      }
+    }
+    return p.date || selectedDate;
+  }
+
+  const pendingProps = props.filter(p => {
+    if (p.result) return false;
+    if ((p.date||selectedDate) === selectedDate) return true;
+    if (p.gameTime) {
+      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+      if (m) {
+        const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+        const mo = months[m[1]];
+        if (mo && selectedDate.endsWith(mo+'-'+m[2].padStart(2,'0'))) return true;
+      }
+    }
+    return false;
+  });
+  const gameDates = [...new Set(pendingProps.map(p => parseGameDate(p)))];
+
+  const allGames = [];
+  const allBoxscores = {};
+
+  try {
+    for (const dateStr of gameDates) {
+      const resp = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}`);
+      const data = await resp.json();
+      if (data.dates && data.dates.length > 0) allGames.push(...data.dates[0].games);
+    }
+
+    if (allGames.length === 0) { status.textContent='No games found.'; status.className='status err'; return; }
+    status.textContent = `Found ${allGames.length} games. Fetching box scores…`;
+
+    let fetched = 0;
+    for (const g of allGames) {
+      if (g.status.abstractGameState === 'Final' || g.status.abstractGameState === 'Live') {
+        try {
+          const bsResp = await fetch(`https://statsapi.mlb.com/api/v1/game/${g.gamePk}/boxscore`);
+          allBoxscores[g.gamePk] = await bsResp.json();
+          fetched++;
+        } catch(e) {}
+      }
+    }
+
+    if (fetched === 0) { status.textContent='No completed games yet.'; status.className='status'; return; }
+
+    const playerStats = buildPlayerLookup(allBoxscores);
+    status.textContent = `Grading…`;
+
+    let graded = 0;
+    let debugMissed = [];
+    const mo2 = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    props.forEach(p => {
+      if (p.result) return;
+      let propDate = p.date || selectedDate;
+      if (p.gameTime) {
+        const gm = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
+        if (gm && mo2[gm[1]]) propDate = new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0');
+      }
+      if (propDate !== selectedDate) return;
+      const statVal = findPlayerStat(playerStats, p.player, p.market);
+      if (statVal === null) { debugMissed.push(p.player+' ('+p.market+')'); return; }
+
+      p.actual = statVal;
+      const line = p.line, side = p.side;
+      let result = '';
+      if (p.market === 'IP') {
+        const actual = parseIP(statVal), lineF = parseFloat(line);
+        if (side === 'O') result = actual > lineF ? 'win' : actual === lineF ? 'push' : 'loss';
+        else result = actual < lineF ? 'win' : actual === lineF ? 'push' : 'loss';
+      } else {
+        const actual = parseFloat(statVal), lineF = parseFloat(line);
+        if (side === 'O') result = actual > lineF ? 'win' : actual === lineF ? 'push' : 'loss';
+        else result = actual < lineF ? 'win' : actual === lineF ? 'push' : 'loss';
+      }
+      if (!result) result = 'push';
+      p.result = result;
+      const odds = parseFloat(p.odds);
+      if (result === 'win') p.pnl = odds > 0 ? odds / 100 : 1.0;
+      else if (result === 'loss') p.pnl = odds > 0 ? -1.0 : -(Math.abs(odds) / 100);
+      else if (result === 'push') p.pnl = 0;
+      graded++;
+    });
+
+    saveState();
+    render();
+    populateGradeDates();
+    if (debugMissed.length) {
+      status.textContent = `Graded ${graded}. Not found: ${debugMissed.slice(0,3).join(', ')}${debugMissed.length>3?' +'+(debugMissed.length-3)+' more':''}`;
+      status.className = 'status';
+    } else {
+      status.textContent = `✓ Graded ${graded} prop${graded!==1?'s':''}`;
+      status.className = 'status ok';
+    }
+  } catch(err) {
+    status.textContent = 'Error: ' + err.message;
+    status.className = 'status err';
+  }
+}
+
+function buildPlayerLookup(boxscores) {
+  const lookup = {};
+  Object.values(boxscores).forEach(bs => {
+    if (!bs.teams) return;
+    ['away','home'].forEach(side => {
+      const team = bs.teams[side];
+      if (!team || !team.players) return;
+      Object.values(team.players).forEach(player => {
+        const name = player.person?.fullName;
+        if (!name) return;
+        const norm = normName(name);
+        if (!lookup[norm]) lookup[norm] = { rawName: name };
+        const ps = player.stats?.pitching;
+        const outs = ps ? (() => { const _p = String(ps.inningsPitched||0).split('.'); return (parseInt(_p[0])||0)*3+(parseInt(_p[1])||0); })() : 0;
+        if (ps && outs > 0) {
+          lookup[norm].IP = ps.inningsPitched;
+          lookup[norm].K = ps.strikeOuts;
+          lookup[norm].ER = ps.earnedRuns ?? ps.runs ?? null;
+          lookup[norm].BB = ps.baseOnBalls;
+          lookup[norm].H_pitching = ps.hits;
+          lookup[norm].HA = ps.hits;
+          lookup[norm].OUTS = outs;
+        }
+        const bs2 = player.stats?.batting;
+        if (bs2) {
+          lookup[norm].H = bs2.hits;
+          lookup[norm].TB = bs2.totalBases;
+          lookup[norm].HR = bs2.homeRuns;
+          lookup[norm].RBI = bs2.rbi;
+          lookup[norm].R = bs2.runs;
+          lookup[norm].BB_bat = bs2.baseOnBalls;
+          lookup[norm].SB = bs2.stolenBases;
+        }
+      });
+    });
+  });
+  return lookup;
+}
+
+function findPlayerStat(lookup, playerName, market) {
+  const norm = normName(playerName);
+  let entry = lookup[norm];
+  if (!entry) {
+    const keys = Object.keys(lookup);
+    const match = keys.find(k => k.includes(norm) || norm.includes(k) || lastName(k) === lastName(norm));
+    if (match) entry = lookup[match];
+  }
+  if (!entry) return null;
+  let key = market;
+  if (market === 'H') key = entry.H !== undefined ? 'H' : 'H_pitching';
+  if (market === 'BB') key = entry.BB !== undefined ? 'BB' : 'BB_bat';
+  if (market === 'HA') key = 'HA';
+  if (market === 'OUTS') key = 'OUTS';
+  const val = entry[key];
+  return val !== undefined && val !== null ? val : null;
+}
+
+// ===== TAB SWITCHING =====
+function setTab(tab) {
+  currentTab = tab;
+  ['dash','daily','weekly','pending','log'].forEach(t => {
+    const el = document.getElementById('tab-'+t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+  render();
+}
+
+// ===== FILTER UPDATES =====
+function setFilter(key, val) {
+  filters[key] = val;
+  render();
+}
+
+// ===== RENDER DISPATCH =====
+function render() {
+  const wrap = document.getElementById('wrap');
+  document.getElementById('tab-log-count').textContent = props.length;
+  const pendingCount = props.filter(p => !p.result || p.result === '').length;
+  const pCountEl = document.getElementById('tab-pending-count');
+  if (pCountEl) pCountEl.textContent = pendingCount;
+  if (props.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty">
+        <h3>No Props Loaded</h3>
+        <p>Click <strong>+ Paste PropShop</strong> above and paste your PropShop table. Props above 5% EV will be imported.</p>
+        <button class="btn primary" onclick="openPasteModal()">+ Paste PropShop</button>
+      </div>`;
+    return;
+  }
+  if (currentTab === 'dash') renderDashboard();
+  else if (currentTab === 'daily') renderDaily();
+  else if (currentTab === 'weekly') renderWeekly();
+  else if (currentTab === 'pending') renderPending();
+  else if (currentTab === 'log') renderBetLog();
+}
+
+// ===== KPI STRIP =====
+function kpiStrip(arr, label) {
+  const s = calcStats(arr);
+  const pnlC = s.pnl > 0 ? 'pos' : s.pnl < 0 ? 'neg' : '';
+  const roiC = s.roi !== null && s.roi >= 0 ? 'pos' : s.roi !== null && s.roi < 0 ? 'neg' : '';
+  const wrVal = s.wr !== null ? s.wr.toFixed(1) + '%' : '—';
+  return `
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Record</div><div class="kpi-val">${s.w}-${s.l}${s.pu?'-'+s.pu:''}</div><div class="kpi-sub">${s.settled} settled · ${s.pending} pending</div></div>
+      <div class="kpi"><div class="kpi-label">Win Rate</div><div class="kpi-val">${wrVal}</div><div class="kpi-sub">of ${s.w+s.l} decided</div></div>
+      <div class="kpi"><div class="kpi-label">P&L</div><div class="kpi-val ${pnlC}">${fmtU(s.pnl)}</div><div class="kpi-sub">units</div></div>
+      <div class="kpi"><div class="kpi-label">ROI</div><div class="kpi-val ${roiC}">${s.roi!==null?(s.roi>=0?'+':'')+s.roi.toFixed(1)+'%':'—'}</div><div class="kpi-sub">${s.risk.toFixed(1)}u risked</div></div>
+      <div class="kpi"><div class="kpi-label">Props</div><div class="kpi-val">${s.total}</div><div class="kpi-sub">${label||'all time'}</div></div>
+    </div>
+  `;
+}
+
+// ===== MARKET BREAKDOWN (inline in period bodies and dashboard) =====
+function marketBreakdownGrid(arr) {
+  const markets = [...new Set(arr.map(p => p.market))].sort();
+  if (!markets.length) return '';
+  const cells = markets.map(m => {
+    const mp = arr.filter(p => p.market === m);
+    const s = calcStats(mp);
+    const pnlC = s.pnl > 0 ? 'pos' : s.pnl < 0 ? 'neg' : 'muted';
+    const mInfo = MARKET_MAP[m] || { label:m, group:'' };
+    return `
+      <div class="mbd-cell">
+        <div class="mbd-cell-head">
+          <span class="mkt-tag ${mInfo.group}">${mInfo.label}</span>
+          <span class="mbd-pnl ${pnlC}">${fmtU(s.pnl)}</span>
+        </div>
+        <div class="mbd-stats">
+          <span>${s.w}-${s.l}${s.pu?'-'+s.pu:''}</span>
+          <span>${s.wr!==null?s.wr.toFixed(0)+'%':'—'}</span>
+          <span class="dim">${s.total} bets</span>
+        </div>
+      </div>`;
+  }).join('');
+  return `<div class="mbd-grid">${cells}</div>`;
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  const wrap = document.getElementById('wrap');
+  const s = calcStats(props);
+  const settled = props.filter(p => p.result === 'win' || p.result === 'loss' || p.result === 'push');
+
+  // By market table
+  const markets = [...new Set(props.map(p => p.market))].sort();
+  const mktRows = markets.map(m => {
+    const ms = calcStats(props.filter(p => p.market === m));
+    if (ms.settled === 0 && ms.total === 0) return '';
+    const pnlC = ms.pnl > 0 ? 'pos' : ms.pnl < 0 ? 'neg' : 'muted';
+    const roiC = ms.roi !== null && ms.roi >= 0 ? 'pos' : ms.roi !== null ? 'neg' : 'muted';
+    const mInfo = MARKET_MAP[m] || { label:m, group:'' };
+    return `<tr>
+      <td><span class="mkt-tag ${mInfo.group}">${mInfo.label}</span></td>
+      <td class="c mono">${ms.w}-${ms.l}${ms.pu?'-'+ms.pu:''}</td>
+      <td class="c mono">${ms.wr!==null?ms.wr.toFixed(1)+'%':'—'}</td>
+      <td class="r mono ${pnlC}">${fmtU(ms.pnl)}</td>
+      <td class="r mono ${roiC}">${ms.roi!==null?(ms.roi>=0?'+':'')+ms.roi.toFixed(1)+'%':'—'}</td>
+      <td class="c mono dim">${ms.total}</td>
+    </tr>`;
+  }).filter(Boolean).join('');
+
+  // By direction
+  const oStats = calcStats(props.filter(p => p.side === 'O'));
+  const uStats = calcStats(props.filter(p => p.side === 'U'));
+  const dirRow = (label, d, color) => {
+    const pnlC = d.pnl > 0 ? 'pos' : d.pnl < 0 ? 'neg' : 'muted';
+    const roiC = d.roi !== null && d.roi >= 0 ? 'pos' : d.roi !== null ? 'neg' : 'muted';
+    return `<tr>
+      <td><span style="color:${color};font-weight:600">${label}</span></td>
+      <td class="c mono">${d.w}-${d.l}${d.pu?'-'+d.pu:''}</td>
+      <td class="c mono">${d.wr!==null?d.wr.toFixed(1)+'%':'—'}</td>
+      <td class="r mono ${pnlC}">${fmtU(d.pnl)}</td>
+      <td class="r mono ${roiC}">${d.roi!==null?(d.roi>=0?'+':'')+d.roi.toFixed(1)+'%':'—'}</td>
+      <td class="c mono dim">${d.total}</td>
+    </tr>`;
+  };
+
+  // By EV bucket
+  const bucket = ev => ev >= 25 ? 'Elite (25%+)' : ev >= 15 ? 'Strong (15-24%)' : 'Value (5-14%)';
+  const evRows = ['Elite (25%+)','Strong (15-24%)','Value (5-14%)'].map(b => {
+    const bp = props.filter(p => bucket(p.ev||0) === b);
+    if (!bp.length) return '';
+    const bs = calcStats(bp);
+    const pnlC = bs.pnl > 0 ? 'pos' : bs.pnl < 0 ? 'neg' : 'muted';
+    const roiC = bs.roi !== null && bs.roi >= 0 ? 'pos' : bs.roi !== null ? 'neg' : 'muted';
+    const badgeClass = b.startsWith('Elite')?'elite':b.startsWith('Strong')?'strong':'value';
+    return `<tr>
+      <td><span class="ev-bd ${badgeClass}">${b}</span></td>
+      <td class="c mono">${bs.w}-${bs.l}${bs.pu?'-'+bs.pu:''}</td>
+      <td class="c mono">${bs.wr!==null?bs.wr.toFixed(1)+'%':'—'}</td>
+      <td class="r mono ${pnlC}">${fmtU(bs.pnl)}</td>
+      <td class="r mono ${roiC}">${bs.roi!==null?(bs.roi>=0?'+':'')+bs.roi.toFixed(1)+'%':'—'}</td>
+      <td class="c mono dim">${bs.total}</td>
+    </tr>`;
+  }).filter(Boolean).join('');
+
+  // Market × Side grid
+  const mktSideRows = markets.map(m => {
+    const mp = props.filter(p => p.market === m);
+    const overs = calcStats(mp.filter(p => p.side === 'O'));
+    const unders = calcStats(mp.filter(p => p.side === 'U'));
+    if (overs.total === 0 && unders.total === 0) return '';
+    const mInfo = MARKET_MAP[m] || { label:m, group:'' };
+    const fmt = s => {
+      if (s.total === 0) return '<td colspan="3" class="c dim">—</td>';
+      const pnlC = s.pnl > 0 ? 'pos' : s.pnl < 0 ? 'neg' : 'muted';
+      return `<td class="c mono">${s.w}-${s.l}${s.pu?'-'+s.pu:''}</td><td class="c mono">${s.wr!==null?s.wr.toFixed(0)+'%':'—'}</td><td class="r mono ${pnlC}">${fmtU(s.pnl)}</td>`;
+    };
+    return `<tr>
+      <td><span class="mkt-tag ${mInfo.group}">${mInfo.label}</span></td>
+      ${fmt(overs)}
+      ${fmt(unders)}
+    </tr>`;
+  }).filter(Boolean).join('');
+
+  wrap.innerHTML = `
+    ${kpiStrip(props)}
+    <div class="legend-strip">
+      <strong>EV Tiers:</strong>
+      <span class="ev-bd elite">Elite 25%+</span>
+      <span class="ev-bd strong">Strong 15-24%</span>
+      <span class="ev-bd value">Value 5-14%</span>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">By Market</span></div>
+      <div class="panel-body compact">
+        <table class="tbl">
+          <thead><tr><th>Market</th><th class="c">W-L</th><th class="c">W%</th><th class="r">P&L</th><th class="r">ROI</th><th class="c">Bets</th></tr></thead>
+          <tbody>${mktRows || '<tr><td colspan="6" class="c dim" style="padding:20px">No settled bets yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Over vs Under — by Market</span></div>
+      <div class="panel-body compact">
+        <table class="tbl">
+          <thead><tr>
+            <th rowspan="2" style="vertical-align:bottom">Market</th>
+            <th class="c" colspan="3" style="border-right:1px solid var(--border2)"><span class="side-o">OVERS</span></th>
+            <th class="c" colspan="3"><span class="side-u">UNDERS</span></th>
+          </tr><tr>
+            <th class="c" style="font-size:9px">W-L</th><th class="c" style="font-size:9px">W%</th><th class="r" style="font-size:9px;border-right:1px solid var(--border2)">P&L</th>
+            <th class="c" style="font-size:9px">W-L</th><th class="c" style="font-size:9px">W%</th><th class="r" style="font-size:9px">P&L</th>
+          </tr></thead>
+          <tbody>${mktSideRows || '<tr><td colspan="7" class="c dim" style="padding:20px">No settled bets yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" id="dash-bottom-row">
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">By Direction</span></div>
+        <div class="panel-body compact">
+          <table class="tbl">
+            <thead><tr><th>Side</th><th class="c">W-L</th><th class="c">W%</th><th class="r">P&L</th><th class="r">ROI</th><th class="c">Bets</th></tr></thead>
+            <tbody>
+              ${oStats.total ? dirRow('Over', oStats, 'var(--teal)') : ''}
+              ${uStats.total ? dirRow('Under', uStats, 'var(--red)') : ''}
+              ${!oStats.total && !uStats.total ? '<tr><td colspan="6" class="c dim" style="padding:20px">No bets yet</td></tr>' : ''}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">By EV Bucket</span></div>
+        <div class="panel-body compact">
+          <table class="tbl">
+            <thead><tr><th>Tier</th><th class="c">W-L</th><th class="c">W%</th><th class="r">P&L</th><th class="r">ROI</th><th class="c">Bets</th></tr></thead>
+            <tbody>${evRows || '<tr><td colspan="6" class="c dim" style="padding:20px">No bets yet</td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Mobile: stack the 2-column row
+  if (window.innerWidth < 780) {
+    document.getElementById('dash-bottom-row').style.gridTemplateColumns = '1fr';
+  }
+}
+
+// ===== DAILY VIEW =====
+function renderDaily() {
+  const wrap = document.getElementById('wrap');
+
+  // Group by date
+  const byDate = {};
+  props.forEach(p => {
+    const d = p.date || 'Unknown';
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(p);
+  });
+  const dates = Object.keys(byDate).sort().reverse();
+
+  const rows = dates.map((d, idx) => {
+    const dp = byDate[d];
+    const s = calcStats(dp);
+    const pnlC = s.pnl > 0 ? 'pos' : s.pnl < 0 ? 'neg' : 'muted';
+    const rowId = 'day-'+idx;
+    return `
+      <div class="period-row ${idx === 0 ? 'open' : ''}" id="${rowId}">
+        <div class="period-head" onclick="document.getElementById('${rowId}').classList.toggle('open')">
+          <div>
+            <div class="period-label">${dateLabel(d)}</div>
+            <div class="period-sub">${d}</div>
+          </div>
+          <div class="period-stats">
+            <span class="period-stat">${s.w}W ${s.l}L${s.pu?' '+s.pu+'P':''}</span>
+            <span class="period-stat">${s.wr!==null?s.wr.toFixed(0)+'%':'—'} W%</span>
+            <span class="period-stat">${s.total} props${s.pending?' · '+s.pending+' pending':''}</span>
+            <span class="period-pnl ${pnlC}">${fmtU(s.pnl)}</span>
+            <span class="period-toggle">▶</span>
+          </div>
+        </div>
+        <div class="period-body">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:6px">Market Breakdown</div>
+          ${marketBreakdownGrid(dp)}
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin:16px 0 8px">Bets (${dp.length})</div>
+          ${renderPropTable(dp, true)}
+        </div>
+      </div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    ${kpiStrip(props)}
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Daily Summary</span>
+        <span class="muted" style="font-size:11px">${dates.length} day${dates.length!==1?'s':''}</span>
+      </div>
+    </div>
+    ${rows || '<div class="empty"><p>No bets to summarize.</p></div>'}
+  `;
+}
+
+// ===== WEEKLY VIEW =====
+function renderWeekly() {
+  const wrap = document.getElementById('wrap');
+
+  // Group by ISO week
+  const byWeek = {};
+  props.forEach(p => {
+    const w = isoWeek(p.date || getTodayStr());
+    if (!byWeek[w]) byWeek[w] = [];
+    byWeek[w].push(p);
+  });
+  const weeks = Object.keys(byWeek).sort().reverse();
+
+  const rows = weeks.map((w, idx) => {
+    const wp = byWeek[w];
+    const s = calcStats(wp);
+    const pnlC = s.pnl > 0 ? 'pos' : s.pnl < 0 ? 'neg' : 'muted';
+    const rowId = 'week-'+idx;
+    const wr = weekRange(w);
+    const daysInWeek = [...new Set(wp.map(p => p.date || 'Unknown'))].length;
+
+    return `
+      <div class="period-row ${idx === 0 ? 'open' : ''}" id="${rowId}">
+        <div class="period-head" onclick="document.getElementById('${rowId}').classList.toggle('open')">
+          <div>
+            <div class="period-label">${wr.label}</div>
+            <div class="period-sub">Week ${w.split('-W')[1]} · ${daysInWeek} day${daysInWeek!==1?'s':''}</div>
+          </div>
+          <div class="period-stats">
+            <span class="period-stat">${s.w}W ${s.l}L${s.pu?' '+s.pu+'P':''}</span>
+            <span class="period-stat">${s.wr!==null?s.wr.toFixed(0)+'%':'—'} W%</span>
+            <span class="period-stat">${s.total} props${s.pending?' · '+s.pending+' pending':''}</span>
+            <span class="period-pnl ${pnlC}">${fmtU(s.pnl)}</span>
+            <span class="period-toggle">▶</span>
+          </div>
+        </div>
+        <div class="period-body">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:6px">Market Breakdown</div>
+          ${marketBreakdownGrid(wp)}
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin:16px 0 8px">Daily Breakdown</div>
+          ${renderWeekDaySummary(wp)}
+        </div>
+      </div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    ${kpiStrip(props)}
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Weekly Summary</span>
+        <span class="muted" style="font-size:11px">${weeks.length} week${weeks.length!==1?'s':''}</span>
+      </div>
+    </div>
+    ${rows || '<div class="empty"><p>No bets to summarize.</p></div>'}
+  `;
+}
+
+function renderWeekDaySummary(arr) {
+  const byDate = {};
+  arr.forEach(p => {
+    const d = p.date || 'Unknown';
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(p);
+  });
+  const dates = Object.keys(byDate).sort();
+  const rows = dates.map(d => {
+    const s = calcStats(byDate[d]);
+    const pnlC = s.pnl > 0 ? 'pos' : s.pnl < 0 ? 'neg' : 'muted';
+    return `<tr>
+      <td><span class="strong">${dateLabel(d)}</span><span class="dim" style="margin-left:6px">${d}</span></td>
+      <td class="c mono">${s.w}-${s.l}${s.pu?'-'+s.pu:''}</td>
+      <td class="c mono">${s.wr!==null?s.wr.toFixed(0)+'%':'—'}</td>
+      <td class="r mono ${pnlC}">${fmtU(s.pnl)}</td>
+      <td class="c mono dim">${s.total}</td>
+    </tr>`;
+  }).join('');
+  return `<table class="tbl" style="background:var(--bg3);border-radius:6px;overflow:hidden">
+    <thead><tr><th>Day</th><th class="c">W-L</th><th class="c">W%</th><th class="r">P&L</th><th class="c">Bets</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ===== PENDING VIEW =====
+function renderPending() {
+  const wrap = document.getElementById('wrap');
+  const pending = props.filter(p => !p.result || p.result === '');
+
+  if (pending.length === 0) {
+    wrap.innerHTML = `
+      ${kpiStrip(props)}
+      <div class="empty">
+        <h3>🎉 No Pending Bets</h3>
+        <p>All your props have been graded. Nothing to grade manually.</p>
+      </div>`;
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  pending.forEach(p => {
+    const d = p.date || 'Unknown';
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(p);
+  });
+
+  // Separate past/today (ready to grade) from future (upcoming)
+  const today = getTodayStr();
+  const pastDates = Object.keys(byDate).filter(d => d <= today).sort().reverse();
+  const futureDates = Object.keys(byDate).filter(d => d > today).sort();
+
+  // Pending-specific KPI strip
+  const pendingRisk = pending.reduce((a,p) => a + unitRisk(p), 0);
+  const pendingPotWin = pending.reduce((a,p) => {
+    const o = parseFloat(p.odds);
+    if (isNaN(o)) return a;
+    return a + (o > 0 ? o/100 : 1);
+  }, 0);
+  const avgEV = pending.length ? pending.reduce((a,p)=>a+(p.ev||0),0) / pending.length : 0;
+  const byMarketCount = {};
+  pending.forEach(p => { byMarketCount[p.market] = (byMarketCount[p.market]||0) + 1; });
+  const topMarket = Object.entries(byMarketCount).sort((a,b)=>b[1]-a[1])[0];
+
+  const pendingKpi = `
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Pending</div><div class="kpi-val">${pending.length}</div><div class="kpi-sub">bets to grade</div></div>
+      <div class="kpi"><div class="kpi-label">At Risk</div><div class="kpi-val mono">${pendingRisk.toFixed(2)}u</div><div class="kpi-sub">total staked</div></div>
+      <div class="kpi"><div class="kpi-label">Potential Win</div><div class="kpi-val pos mono">+${pendingPotWin.toFixed(2)}u</div><div class="kpi-sub">if all win</div></div>
+      <div class="kpi"><div class="kpi-label">Avg EV</div><div class="kpi-val mono">${avgEV.toFixed(1)}%</div><div class="kpi-sub">across pending</div></div>
+      <div class="kpi"><div class="kpi-label">Top Market</div><div class="kpi-val">${topMarket?topMarket[0]:'—'}</div><div class="kpi-sub">${topMarket?topMarket[1]+' bets':''}</div></div>
+    </div>
+  `;
+
+  function renderDateSection(dateKey, isPast) {
+    const dp = byDate[dateKey];
+    // Market breakdown (counts)
+    const byMkt = {};
+    dp.forEach(p => { byMkt[p.market] = (byMkt[p.market]||0) + 1; });
+    const mktPills = Object.entries(byMkt).sort((a,b)=>b[1]-a[1]).map(([m,c]) => {
+      const mInfo = MARKET_MAP[m] || { label:m, group:'' };
+      return `<span class="mkt-tag ${mInfo.group}" style="margin-right:4px">${mInfo.label} × ${c}</span>`;
+    }).join('');
+
+    const rowId = `pend-${dateKey.replace(/[^\w]/g,'')}`;
+    const dateRisk = dp.reduce((a,p) => a + unitRisk(p), 0);
+
+    return `
+      <div class="period-row open" id="${rowId}">
+        <div class="period-head" onclick="document.getElementById('${rowId}').classList.toggle('open')">
+          <div>
+            <div class="period-label">${dateLabel(dateKey)}${isPast?'':' <span class="muted" style="font-size:11px;font-weight:400">(upcoming)</span>'}</div>
+            <div class="period-sub">${dateKey}</div>
+          </div>
+          <div class="period-stats">
+            <span class="period-stat">${dp.length} pending</span>
+            <span class="period-stat">${dateRisk.toFixed(2)}u at risk</span>
+            ${isPast ? `<button class="btn sm primary" onclick="event.stopPropagation();gradeDateFromPending('${dateKey}')">⟳ Auto-grade</button>` : ''}
+            <span class="period-toggle">▶</span>
+          </div>
+        </div>
+        <div class="period-body">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:8px">Markets</div>
+          <div style="margin-bottom:14px">${mktPills}</div>
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:8px">Bets — click ✓ / ✗ / ~ to grade quickly</div>
+          ${renderPendingTable(dp)}
+        </div>
+      </div>
+    `;
+  }
+
+  const pastSections = pastDates.map(d => renderDateSection(d, true)).join('');
+  const futureSections = futureDates.map(d => renderDateSection(d, false)).join('');
+
+  wrap.innerHTML = `
+    ${pendingKpi}
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Pending Bets</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="muted" style="font-size:11px">${pastDates.length} past · ${futureDates.length} upcoming</span>
+          <button class="btn sm" onclick="openGradeModal()">⟳ Auto-grade</button>
+        </div>
+      </div>
+    </div>
+    ${pastSections ? `<div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin:14px 4px 8px">Ready to Grade</div>${pastSections}` : ''}
+    ${futureSections ? `<div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin:20px 4px 8px">Upcoming</div>${futureSections}` : ''}
+  `;
+}
+
+// Pending table with quick-grade buttons
+function renderPendingTable(arr) {
+  const rows = arr.map(p => {
+    const sideCls = p.side === 'O' ? 'side-o' : 'side-u';
+    const oddsC = p.odds && p.odds.startsWith('+') ? 'pos' : '';
+    const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.kProj || p.ipProj || '—');
+    const mInfo = MARKET_MAP[p.market] || { label:p.market, group:'' };
+    const o = parseFloat(p.odds);
+    const potWin = isNaN(o) ? 0 : (o > 0 ? o/100 : 1);
+    const risk = isNaN(o) ? 1 : (o > 0 ? 1 : Math.abs(o)/100);
+    return `<tr id="pend-row-${p.id}">
+      <td>
+        <div class="player-cell">
+          <span class="player-name">${escHtml(p.player)}</span>
+          <span class="player-sub">${escHtml(p.game||'')}${p.gameTime?' · '+escHtml(p.gameTime):''}</span>
+        </div>
+      </td>
+      <td><span class="mkt-tag ${mInfo.group}">${mInfo.label}</span></td>
+      <td><span class="line-main ${sideCls}">${p.line!==null?p.line:'?'} ${p.side}</span></td>
+      <td class="mono ${oddsC}">${p.odds||'—'}</td>
+      <td class="r"><span class="ev-val ${evClass(p.ev||0)}">${(p.ev||0).toFixed(1)}%</span></td>
+      <td class="c mono dim">${projDisp}</td>
+      <td class="c mono dim" title="Risk ${risk.toFixed(2)}u / Win ${potWin.toFixed(2)}u">${risk.toFixed(1)} / +${potWin.toFixed(1)}</td>
+      <td>
+        <div style="display:flex;gap:3px">
+          <button class="qg qg-win" onclick="setResult('${p.id}','win')" title="Win (+${potWin.toFixed(2)}u)">✓</button>
+          <button class="qg qg-loss" onclick="setResult('${p.id}','loss')" title="Loss (-${risk.toFixed(2)}u)">✗</button>
+          <button class="qg qg-push" onclick="setResult('${p.id}','push')" title="Push">~</button>
+          <button class="qg qg-skip" onclick="setResult('${p.id}','skip')" title="Skip / void">⊘</button>
+        </div>
+      </td>
+      <td><input class="notes-in" type="text" value="${escHtml(p.notes||'')}" placeholder="notes…" oninput="setNotes('${p.id}', this.value)"></td>
+    </tr>`;
+  }).join('');
+
+  return `<div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr>
+        <th>Player</th><th>Mkt</th><th>Line</th><th>Odds</th><th class="r">EV</th>
+        <th class="c">Proj</th><th class="c" title="Risk / Potential Win">Risk/Win</th><th>Grade</th><th>Notes</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// Auto-grade a specific date from the Pending tab
+async function gradeDateFromPending(dateStr) {
+  // Open grade modal, set date, trigger grade
+  openGradeModal();
+  const sel = document.getElementById('gradeDate');
+  if (sel) {
+    // Ensure the date is in the dropdown (it should be since it has pending props)
+    sel.value = dateStr;
+    if (sel.value !== dateStr) {
+      // Fallback: add option
+      const opt = document.createElement('option');
+      opt.value = dateStr; opt.textContent = dateStr;
+      opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+  await autoGrade();
+}
+
+// ===== BET LOG =====
+function renderBetLog() {
+  const wrap = document.getElementById('wrap');
+
+  // Apply filters
+  let filtered = [...props];
+  if (filters.market) filtered = filtered.filter(p => p.market === filters.market);
+  if (filters.side) filtered = filtered.filter(p => p.side === filters.side);
+  if (filters.ev === 'elite') filtered = filtered.filter(p => (p.ev||0) >= 25);
+  else if (filters.ev === 'strong') filtered = filtered.filter(p => (p.ev||0) >= 15 && (p.ev||0) < 25);
+  else if (filters.ev === 'value') filtered = filtered.filter(p => (p.ev||0) >= 5 && (p.ev||0) < 15);
+  if (filters.result === 'pending') filtered = filtered.filter(p => !p.result || p.result === '');
+  else if (filters.result) filtered = filtered.filter(p => p.result === filters.result);
+
+  const markets = [...new Set(props.map(p => p.market))].sort();
+  const marketOpts = markets.map(m => `<option value="${m}"${filters.market===m?' selected':''}>${m}</option>`).join('');
+
+  // Sort: most recent first by date, then gameTime
+  filtered.sort((a,b) => (b.date || '').localeCompare(a.date || '') || (a.gameTime || '').localeCompare(b.gameTime || ''));
+
+  wrap.innerHTML = `
+    ${kpiStrip(filtered, filtered.length !== props.length ? 'filtered' : 'all time')}
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Bet Log</span>
+        <span class="muted" style="font-size:11px">${filtered.length} of ${props.length} shown</span>
+      </div>
+      <div class="panel-body">
+        <div class="filters">
+          <div class="filt-group">
+            <span class="filt-label">Market</span>
+            <select class="sel" onchange="setFilter('market', this.value)">
+              <option value="">All</option>${marketOpts}
+            </select>
+          </div>
+          <div class="filt-group">
+            <span class="filt-label">Side</span>
+            <button class="filt-pill ${filters.side===''?'active':''}" onclick="setFilter('side','')">All</button>
+            <button class="filt-pill ${filters.side==='O'?'active':''}" onclick="setFilter('side','O')">Over</button>
+            <button class="filt-pill ${filters.side==='U'?'active':''}" onclick="setFilter('side','U')">Under</button>
+          </div>
+          <div class="filt-group">
+            <span class="filt-label">EV</span>
+            <button class="filt-pill ${filters.ev===''?'active':''}" onclick="setFilter('ev','')">All</button>
+            <button class="filt-pill ${filters.ev==='elite'?'active':''}" onclick="setFilter('ev','elite')">Elite</button>
+            <button class="filt-pill ${filters.ev==='strong'?'active':''}" onclick="setFilter('ev','strong')">Strong</button>
+            <button class="filt-pill ${filters.ev==='value'?'active':''}" onclick="setFilter('ev','value')">Value</button>
+          </div>
+          <div class="filt-group">
+            <span class="filt-label">Result</span>
+            <button class="filt-pill ${filters.result===''?'active':''}" onclick="setFilter('result','')">All</button>
+            <button class="filt-pill ${filters.result==='pending'?'active':''}" onclick="setFilter('result','pending')">Pending</button>
+            <button class="filt-pill ${filters.result==='win'?'active':''}" onclick="setFilter('result','win')">Wins</button>
+            <button class="filt-pill ${filters.result==='loss'?'active':''}" onclick="setFilter('result','loss')">Losses</button>
+            <button class="filt-pill ${filters.result==='push'?'active':''}" onclick="setFilter('result','push')">Pushes</button>
+          </div>
+        </div>
+        ${renderPropTable(filtered, false)}
+      </div>
+    </div>
+  `;
+}
+
+// ===== PROP TABLE (shared) =====
+function renderPropTable(arr, compact) {
+  if (arr.length === 0) {
+    return '<div class="empty" style="margin:0;padding:30px"><p>No props match these filters.</p></div>';
+  }
+  const rows = arr.map(p => {
+    const rowCls = p.result === 'win' ? 'row-win' : p.result === 'loss' ? 'row-loss' : p.result === 'push' ? 'row-push' : p.result === 'skip' ? 'row-skip' : '';
+    const sideCls = p.side === 'O' ? 'side-o' : 'side-u';
+    const oddsC = p.odds && p.odds.startsWith('+') ? 'pos' : '';
+    const projDisp = p.market === 'IP' ? (p.ipProj || '—') : (p.kProj || p.ipProj || '—');
+    const actualDisp = p.actual !== null && p.actual !== undefined ? p.actual : '—';
+    const pnlDisp = p.pnl !== null && p.pnl !== undefined ? `<span class="${pnlClass(p.pnl)} mono strong">${fmtU(p.pnl)}</span>` : '<span class="dim">—</span>';
+    const mInfo = MARKET_MAP[p.market] || { label:p.market, group:'' };
+    return `<tr class="${rowCls}">
+      <td>
+        <div class="player-cell">
+          <span class="player-name">${escHtml(p.player)}</span>
+          <span class="player-sub">${escHtml(p.game||'')}${p.gameTime?' · '+escHtml(p.gameTime):''}</span>
+        </div>
+      </td>
+      <td><span class="mkt-tag ${mInfo.group}">${mInfo.label}</span></td>
+      <td><span class="line-main ${sideCls}">${p.line!==null?p.line:'?'} ${p.side}</span></td>
+      <td class="mono ${oddsC}">${p.odds||'—'}</td>
+      <td class="r"><span class="ev-val ${evClass(p.ev||0)}">${(p.ev||0).toFixed(1)}%</span></td>
+      <td class="c mono dim">${projDisp}</td>
+      <td class="c mono strong">${actualDisp}</td>
+      <td>
+        <select class="result-sel" onchange="setResult('${p.id}', this.value)">
+          <option value="" ${!p.result?'selected':''}>Pending</option>
+          <option value="win" ${p.result==='win'?'selected':''}>✓ Win</option>
+          <option value="loss" ${p.result==='loss'?'selected':''}>✗ Loss</option>
+          <option value="push" ${p.result==='push'?'selected':''}>~ Push</option>
+          <option value="skip" ${p.result==='skip'?'selected':''}>Skip</option>
+        </select>
+      </td>
+      <td><input class="notes-in" type="text" value="${escHtml(p.notes||'')}" placeholder="notes…" oninput="setNotes('${p.id}', this.value)"></td>
+      <td class="r">${pnlDisp}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr>
+        <th>Player</th><th>Mkt</th><th>Line</th><th>Odds</th><th class="r">EV</th>
+        <th class="c">Proj</th><th class="c">Actual</th><th>Result</th><th>Notes</th><th class="r">P&L</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// ===== EXCEL EXPORT =====
+function exportExcel() {
+  try {
+    if (!props.length) { alert('No props to export.'); return; }
+    function sgn(n){if(n==null)return'';return(n>=0?'+':'')+n.toFixed(2)+'u';}
+    function pct(w,t){return t?((w/t)*100).toFixed(1)+'%':'—';}
+    function roi(arr){const r=arr.reduce((a,p)=>a+unitRisk(p),0),pl=arr.reduce((a,p)=>a+(p.pnl||0),0);return r>0?(pl/r*100).toFixed(1)+'%':'—';}
+    function st(arr){
+      const s=arr.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+      const w=s.filter(p=>p.result==='win').length,l=s.filter(p=>p.result==='loss').length,pu=s.filter(p=>p.result==='push').length;
+      const pl=s.reduce((a,p)=>a+(p.pnl||0),0);
+      return{total:arr.length,settled:s.length,w,l,pu,wr:pct(w,s.length),pnl:sgn(pl),roi:roi(s)};
+    }
+    function bk(arr,kFn,lFn){
+      const g={};arr.forEach(p=>{const k=kFn(p);if(!g[k])g[k]=[];g[k].push(p);});
+      return Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,a])=>{const s=st(a);return[lFn?lFn(k):k,s.total,s.w+'-'+s.l+(s.pu?'/'+s.pu+'P':''),s.wr,s.pnl,s.roi];});
+    }
+    const settled=props.filter(p=>p.result&&p.result!=='skip'&&p.result!=='');
+    const ov=st(props);
+    const mkts=[...new Set(props.map(p=>p.market))].sort();
+    const H=['Category','Bets','W-L','W%','P&L','ROI'];
+
+    // Daily rows
+    const byDate={};
+    props.forEach(p=>{const d=p.date||'?';if(!byDate[d])byDate[d]=[];byDate[d].push(p);});
+    const dailyRows=[['Date','Bets','W-L','W%','P&L','ROI']].concat(Object.entries(byDate).sort((a,b)=>b[0].localeCompare(a[0])).map(([d,a])=>{const s=st(a);return[d,s.total,s.w+'-'+s.l+(s.pu?'/'+s.pu+'P':''),s.wr,s.pnl,s.roi];}));
+
+    // Weekly rows
+    const byWeek={};
+    props.forEach(p=>{const w=isoWeek(p.date||getTodayStr());if(!byWeek[w])byWeek[w]=[];byWeek[w].push(p);});
+    const weeklyRows=[['Week','Range','Bets','W-L','W%','P&L','ROI']].concat(Object.entries(byWeek).sort((a,b)=>b[0].localeCompare(a[0])).map(([w,a])=>{const s=st(a);const wr=weekRange(w);return[w,wr.label,s.total,s.w+'-'+s.l+(s.pu?'/'+s.pu+'P':''),s.wr,s.pnl,s.roi];}));
+
+    // Bet log
+    const betLog=[['Date','Player','Mkt','Game','Time','Line','Side','Odds','EV%','Proj','Actual','Result','P&L','Notes']];
+    [...props].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(p=>{
+      betLog.push([p.date||'',p.player,p.market,p.game||'',p.gameTime||'',p.line,p.side,p.odds,p.ev?p.ev.toFixed(1)+'%':'',p.market==='IP'?(p.ipProj||''):(p.kProj||p.ipProj||''),p.actual!=null?p.actual:'',p.result||'pending',p.pnl!=null?sgn(p.pnl):'',p.notes||'']);
+    });
+
+    const sheets=[
+      {name:'Summary',rows:[
+        ['ROTOGRINDERS MLB PITCHER PROPS'],['Export',new Date().toLocaleDateString()],[],
+        ['OVERALL'],['Props','Settled','W','L','P','W%','P&L','ROI'],
+        [ov.total,ov.settled,ov.w,ov.l,ov.pu,ov.wr,ov.pnl,ov.roi]
+      ]},
+      {name:'Daily',rows:dailyRows},
+      {name:'Weekly',rows:weeklyRows},
+      {name:'By Market',rows:[['BY MARKET'],H,...bk(props,p=>p.market)]},
+      {name:'By Direction',rows:(()=>{
+        const r=[['BY DIRECTION'],H,...bk(settled,p=>p.side==='O'?'Over':'Under'),[],['OVER vs UNDER BY MARKET'],H];
+        mkts.forEach(m=>{const mp=settled.filter(p=>p.market===m);if(!mp.length)return;r.push([m,'','','','','']);r.push(...bk(mp,p=>p.side==='O'?'Over':'Under'));r.push([]);});
+        return r;
+      })()},
+      {name:'By EV Bucket',rows:[['BY EV BUCKET'],H,...bk(settled,p=>(p.ev||0)>=25?'1_Elite 25%+':(p.ev||0)>=15?'2_Strong 15-24%':'3_Value 5-14%',k=>k.slice(2))]},
+      {name:'Bet Log',rows:betLog},
+    ];
+
+    function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');}
+    function cell(v,r,c){if(v==null||v==='')return'';const col=String.fromCharCode(65+c)+(r+1);if(typeof v==='number'||(typeof v==='string'&&/^-?\d+(\.\d+)?$/.test(v)))return`<c r="${col}"><v>${v}</v></c>`;return`<c r="${col}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;}
+    function wsXML(rows){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';rows.forEach((row,ri)=>{x+=`<row r="${ri+1}">`;row.forEach((v,ci)=>{x+=cell(v,ri,ci);});x+='</row>';});return x+'</sheetData></worksheet>';}
+    function wbXML(ns){return'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+ns.map((n,i)=>`<sheet name="${esc(n)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>';}
+    function wbRels(n){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';for(let i=0;i<n;i++)x+=`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`;return x+'</Relationships>';}
+    const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>';
+    const rr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+    const cT=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c;}return t;})();
+    function crc(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=cT[(c^d[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+    function s2b(s){const b=[];for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c<128)b.push(c);else if(c<2048)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return new Uint8Array(b);}
+    function u16(n){return[n&0xFF,(n>>8)&0xFF];}function u32(n){return[n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];}
+    function mkzip(files){const ents=[];let off=0;const parts=[];
+      files.forEach(f=>{const nb=s2b(f.name);const cr=crc(f.data);const lh=[0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(cr),...u32(f.data.length),...u32(f.data.length),...u16(nb.length),0x00,0x00,...nb];ents.push({nb,cr,sz:f.data.length,off});parts.push(new Uint8Array(lh),f.data);off+=lh.length+f.data.length;});
+      const cdOff=off;ents.forEach(e=>{const cd=[0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.cr),...u32(e.sz),...u32(e.sz),...u16(e.nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.off),...e.nb];parts.push(new Uint8Array(cd));off+=cd.length;});
+      const cdSz=off-cdOff;parts.push(new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16(ents.length),...u16(ents.length),...u32(cdSz),...u32(cdOff),0x00,0x00]));
+      const tot=parts.reduce((s,p)=>s+p.length,0);const out=new Uint8Array(tot);let pos=0;parts.forEach(p=>{out.set(p,pos);pos+=p.length;});return out;}
+    const files=[{name:'[Content_Types].xml',data:s2b(ct)},{name:'_rels/.rels',data:s2b(rr)},{name:'xl/workbook.xml',data:s2b(wbXML(sheets.map(s=>s.name)))},{name:'xl/_rels/workbook.xml.rels',data:s2b(wbRels(sheets.length))},...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s2b(wsXML(s.rows))}))];
+    const blob=new Blob([mkzip(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='rotoprops_'+new Date().toISOString().split('T')[0]+'.xlsx';a.click();URL.revokeObjectURL(a.href);
+  } catch(e) { alert('Export error: ' + e.message); console.error(e); }
+}
+
+// ===== INIT =====
+try {
+  loadState();
+  render();
+} catch(e) {
+  console.error('Init error:', e);
+}
+</script>
+</body>
+</html>
