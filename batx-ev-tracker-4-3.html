@@ -680,6 +680,41 @@ function filterBetLog() {
 
 function deleteTrack(id){tracker=tracker.filter(t=>t.id!==id);localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();}
 function updateResult(id,val){const t=tracker.find(x=>x.id===id);if(t){t.result=val;localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();}}
+function editTrack(id){
+  const t=tracker.find(x=>x.id===id);
+  if(!t) return;
+  // Remove existing modal if any
+  document.getElementById('editModal')?.remove();
+  const m=document.createElement('div');
+  m.id='editModal';
+  m.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+  m.innerHTML=`<div style="background:#1e2128;border:1px solid #363c47;border-radius:12px;padding:20px;min-width:280px;display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:14px;font-weight:700;color:#e4e8f0">Edit Bet</div>
+    <div style="font-size:11px;color:#8892a4">${t.game}</div>
+    <label style="font-size:11px;color:#8892a4">Odds<input id="ei-odds" value="${t.odds??''}" style="display:block;width:100%;margin-top:4px;background:#13151a;border:1px solid #363c47;border-radius:6px;color:#e4e8f0;padding:6px 8px;font-size:13px;box-sizing:border-box"/></label>
+    <label style="font-size:11px;color:#8892a4">Line<input id="ei-line" value="${t.line??''}" style="display:block;width:100%;margin-top:4px;background:#13151a;border:1px solid #363c47;border-radius:6px;color:#e4e8f0;padding:6px 8px;font-size:13px;box-sizing:border-box"/></label>
+    <label style="font-size:11px;color:#8892a4">Book<input id="ei-book" value="${t.book??''}" style="display:block;width:100%;margin-top:4px;background:#13151a;border:1px solid #363c47;border-radius:6px;color:#e4e8f0;padding:6px 8px;font-size:13px;box-sizing:border-box"/></label>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button onclick="saveEdit(${id})" style="flex:1;background:#3dd6f5;color:#0a0c10;border:none;border-radius:6px;padding:8px;font-weight:700;cursor:pointer">Save</button>
+      <button onclick="document.getElementById('editModal').remove()" style="flex:1;background:transparent;color:#8892a4;border:1px solid #363c47;border-radius:6px;padding:8px;cursor:pointer">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+}
+function saveEdit(id){
+  const t=tracker.find(x=>x.id===id);
+  if(!t) return;
+  const odds=document.getElementById('ei-odds').value.trim();
+  const line=document.getElementById('ei-line').value.trim();
+  const book=document.getElementById('ei-book').value.trim();
+  if(odds!=='') t.odds=parseInt(odds);
+  if(line!=='') t.line=parseFloat(line);
+  if(book!=='') t.book=book;
+  localStorage.setItem('batxEvTracker',JSON.stringify(tracker));
+  document.getElementById('editModal')?.remove();
+  renderTracker();
+}
 function clearPending(){if(confirm('Clear all pending bets?')){tracker=tracker.filter(t=>t.result&&t.result!=='');localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();populateGradeDates();}}
 function clearTracker(){if(confirm('Clear all?')){tracker=[];localStorage.setItem('batxEvTracker','[]');renderTracker();}}
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
@@ -1566,7 +1601,7 @@ function renderTracker(){
     for(const t of tracker){
       const resColor=t.result==='W'?'var(--green)':t.result==='L'?'var(--red)':t.result==='P'?'var(--muted)':'var(--hint)';
       const resLabel=t.result==='W'?'WIN ✓':t.result==='L'?'LOSS ✗':t.result==='P'?'PUSH —':'Pending';
-      html+=`<div class="track-row"><div class="tv">${t.game}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date}${t.time?' · '+t.time:''}</span></div><div class="tv" style="font-size:11px;color:var(--muted)">${MKT_LABELS[t.market]||t.market||'—'}</div><div class="tv">${t.book||'—'}</div><div class="tv">${t.odds!=null?fmtOdds(t.odds):'—'}</div><div class="tv amber">${t.fairPrice!=null?fmtOdds(t.fairPrice):'—'}</div><div class="tv">${t.proj??'—'}</div><div class="tv">${t.roi!=null?'+'+t.roi.toFixed(1)+'%':'—'}</div><div class="tv" style="font-size:11px;font-weight:700;color:var(--muted)">${t.finalTotal!=null?t.finalTotal:'—'}</div><div class="tv" onclick="event.stopPropagation()"><select class="result-sel" onchange="updateResult(${t.id},this.value)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:${resColor};font-size:11px;font-weight:700;padding:2px 4px;outline:none"><option value="" ${!t.result?'selected':''}>Pending</option><option value="W" ${t.result==='W'?'selected':''}>WIN</option><option value="L" ${t.result==='L'?'selected':''}>LOSS</option><option value="P" ${t.result==='P'?'selected':''}>PUSH</option></select></div><div onclick="event.stopPropagation()"><button class="del-btn" onclick="deleteTrack(${t.id})">✕</button></div></div>`;
+      html+=`<div class="track-row"><div class="tv">${t.game}<span style="font-size:10px;color:var(--muted);margin-left:6px">${t.date}${t.time?' · '+t.time:''}</span></div><div class="tv" style="font-size:11px;color:var(--muted)">${MKT_LABELS[t.market]||t.market||'—'}</div><div class="tv">${t.book||'—'}</div><div class="tv">${t.odds!=null?fmtOdds(t.odds):'—'}</div><div class="tv amber">${t.fairPrice!=null?fmtOdds(t.fairPrice):'—'}</div><div class="tv">${t.proj??'—'}</div><div class="tv">${t.roi!=null?'+'+t.roi.toFixed(1)+'%':'—'}</div><div class="tv" style="font-size:11px;font-weight:700;color:var(--muted)">${t.finalTotal!=null?t.finalTotal:'—'}</div><div class="tv" onclick="event.stopPropagation()"><select class="result-sel" onchange="updateResult(${t.id},this.value)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:${resColor};font-size:11px;font-weight:700;padding:2px 4px;outline:none"><option value="" ${!t.result?'selected':''}>Pending</option><option value="W" ${t.result==='W'?'selected':''}>WIN</option><option value="L" ${t.result==='L'?'selected':''}>LOSS</option><option value="P" ${t.result==='P'?'selected':''}>PUSH</option></select></div><div onclick="event.stopPropagation()"><button onclick="editTrack(${t.id})" style="background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--muted);font-size:10px;padding:2px 6px;cursor:pointer;margin-right:4px">✎ Edit</button><button class="del-btn" onclick="deleteTrack(${t.id})">✕</button></div></div>`;
     }
     html+=`</div>`;
     html+=`<div class="manual-add">
