@@ -1,0 +1,387 @@
+// === Bat X EV Tracker — Doubleheader Patch ===
+(function(){
+  'use strict';
+
+  function _parseTimeMin(t) {
+    if (!t) return 0;
+    const m = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!m) return 0;
+    let h = parseInt(m[1]); const min = parseInt(m[2]); const ap = m[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h*60 + min;
+  }
+  function _buildGameNoMap(items) {
+    const byDateGame = {};
+    items.forEach(r => {
+      const g = r.game || r.tm || ''; if (!g || !r.time) return;
+      const k = (r.date||'') + '|' + g;
+      if (!byDateGame[k]) byDateGame[k] = new Set();
+      byDateGame[k].add(r.time);
+    });
+    const rank = {};
+    Object.entries(byDateGame).forEach(([k, set]) => {
+      if (set.size < 2) return;
+      const sorted = [...set].sort((a,b) => _parseTimeMin(a) - _parseTimeMin(b));
+      rank[k] = {}; sorted.forEach((t,i) => { rank[k][t] = i+1; });
+    });
+    return rank;
+  }
+  function _gameNoFor(item, rankMap) {
+    const g = item.game || item.tm || '';
+    const k = (item.date||'') + '|' + g;
+    return (rankMap[k] && item.time) ? rankMap[k][item.time] : null;
+  }
+  window._parseTimeMin = _parseTimeMin;
+  window._buildGameNoMap = _buildGameNoMap;
+  window._gameNoFor = _gameNoFor;
+
+  // Replace parseEV: same body, NO time normalization at the end
+  if (typeof parseEV === 'function') {
+    window.parseEV = function(text) {
+      const rows = [];
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      for (let i = 0; i < lines.length; i++) {
+        const parts = lines[i].split(/\t/);
+        if (parts.length < 10) continue;
+        const book = BOOKS.find(b => b.toLowerCase() === parts[0].trim().toLowerCase());
+        if (!book) continue;
+        const marketRaw = (parts[3]||'').trim();
+        const marketKey = MARKET_MAP[marketRaw.toLowerCase()];
+        if (!marketKey) continue;
+        const date=(parts[1]||'').trim(), time=(parts[2]||'').trim(), teamFull=(parts[4]||'').trim(), gameRaw=(parts[6]||'').trim();
+        const isMLRL = ['F5 ML','F5 RL','1H ML','1H RL'].includes(marketKey);
+        let over={}, under={}, batx=null, suggested=null, fair=null, winPct=null, ev=null, roi=null;
+        if (isMLRL) {
+          const isRL = marketKey==='F5 RL'||marketKey==='1H RL';
+          if (isRL) {
+            const sm=(parts[9]||'').trim().match(/^([+-][\d.]+)\s*\(([+-]\d+)\)$/);
+            if (sm) over = { line: parseFloat(sm[1]), odds: parseInt(sm[2]) };
+          } else {
+            const mm=(parts[12]||'').trim().match(/^([+-]\d+)$/);
+            if (mm) over = { odds: parseInt(mm[1]) };
+          }
+          batx=parts[13]?parseFloat(parts[13]):null; suggested=(parts[14]||'').trim()||null;
+          fair=parts[15]?parseInt(parts[15]):null; winPct=parts[16]?parseFloat(parts[16].replace('%','')):null;
+          ev=parts[17]?parseFloat(parts[17].replace(/[$,]/g,'')):null; roi=parts[18]?parseFloat(parts[18].replace('%','')):null;
+        } else {
+          over=parseOdds(parts[10]); under=parseOdds(parts[11]);
+          batx=parts[13]?parseFloat(parts[13]):null; suggested=(parts[14]||'').trim()||null;
+          fair=parts[15]?parseInt(parts[15]):null; winPct=parts[16]?parseFloat(parts[16].replace('%','')):null;
+          ev=parts[17]?parseFloat(parts[17].replace(/[$,]/g,'')):null; roi=parts[18]?parseFloat(parts[18].replace('%','')):null;
+        }
+        if (!gameRaw) continue;
+        const gp=gameRaw.split('@');
+        const game = gp.length===2 ? gp[0].trim()+'/'+gp[1].trim() : gameRaw.replace('@','/');
+        const isTT=['Team Total','F5 TT','1H TT'].includes(marketKey);
+        const isML=['F5 ML','1H ML'].includes(marketKey);
+        const isRL=['F5 RL','1H RL'].includes(marketKey);
+        rows.push({
+          market:marketKey, game,
+          team: (isTT||isML||isRL) ? teamFull : null,
+          book, date, time,
+          over_line: over.line??null, over_odds: over.odds??null,
+          under_line: under.line??null, under_odds: under.odds??null,
+          batx_proj: batx, suggested_bet: suggested,
+          fair_price: fair, win_pct: winPct, ev, roi
+        });
+      }
+      // No time normalization. Doubleheaders need their distinct times.
+      return rows;
+    };
+  }
+
+  // Replace dedupe: include date+time in key
+  window.dedupe = function(rows) {
+    const best = {};
+    rows.forEach(r => {
+      const anchor = r.team ? r.team : r.game;
+      const key = r.market+'|'+anchor+'|'+r.suggested_bet+'|'+(r.date||'')+'|'+(r.time||'');
+      if (!best[key] || (r.roi??-Infinity) > (best[key].roi??-Infinity)) best[key] = r;
+    });
+    return Object.values(best);
+  };
+
+  // Patch _parseRaw: tag _gameNo and rebuild list with G# labels
+  if (typeof _parseRaw === 'function') {
+    const _orig = _parseRaw;
+    window._parseRaw = function() {
+      _orig.apply(this, arguments);
+      if (!window._rawPlays || !window._rawPlays.length) return;
+      const rank = _buildGameNoMap(window._rawPlays.map(p => ({date:p.date, time:p.time, game:p.game, tm:p.tm})));
+      window._rawPlays.forEach(p => { p._gameNo = _gameNoFor(p, rank); });
+      const list = document.getElementById('rawPlaysList'); if (!list) return;
+      list.innerHTML = window._rawPlays.map((p,i) => {
+        const dir = p.suggested_bet||'';
+        const col = dir==='OVER'?'var(--green)':dir==='UNDER'?'#60a5fa':'var(--text)';
+        const isTeamMkt = ['Team Total','1H TT','F5 TT'].includes(p.market);
+        let label = isTeamMkt?(p.team||p.tm):p.tm;
+        if (p._gameNo) label += ' (G'+p._gameNo+')';
+        const line = p.over_line ?? p.under_line;
+        const odds = dir==='OVER'?p.over_odds:dir==='UNDER'?p.under_odds:p.over_odds;
+        const _mm = {'Game Total':'TOTAL','Team Total':'TT','1H Total':'1HTOTAL','F5 Total':'1HTOTAL','1H TT':'1HTT','F5 TT':'1HTT','1H ML':'1HML','F5 ML':'1HML','1H RL':'1HRL','F5 RL':'1HRL'};
+        const mktType = _mm[p.market]||'TOTAL';
+        const gl = label+' '+dir+(line!=null?' '+line:'');
+        const already = tracker.find(t => t.game===gl && t.date===p.date && t.market===mktType && (t.time||'')===(p.time||''));
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;border:1px solid '+(already?'var(--border)':'var(--border2)')+';background:var(--surface);margin-bottom:5px;opacity:'+(already?'0.5':'1')+'">'
+          +'<input type="checkbox" class="raw-check" value="'+i+'" '+(already?'disabled':'')+' style="width:15px;height:15px;accent-color:var(--green);cursor:pointer;flex-shrink:0">'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+label+' <span style="color:'+col+'">'+dir+'</span>'+(line!=null?' '+line:'')+'</div>'
+          +'<div style="font-size:11px;color:var(--muted);margin-top:1px">'+p.game+' · '+p.market+' · '+p.date+' '+p.time+'</div></div>'
+          +'<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700">'+(odds!=null?(odds>0?'+':'')+odds:'—')+'</div>'
+          +'<div style="font-size:11px;color:var(--green);font-weight:600">+'+(p.roi||0).toFixed(1)+'%</div></div>'
+          +(already?'<div style="font-size:10px;color:var(--muted)">✓</div>':'')
+          +'</div>';
+      }).join('');
+    };
+  }
+
+  // Replace trackRawSelected: G# label + time-aware dedup, persist gameNo
+  window.trackRawSelected = function() {
+    const checked = [...document.querySelectorAll('.raw-check:checked')];
+    if (!checked.length) { alert('Select at least one play'); return; }
+    let added = 0;
+    for (const cb of checked) {
+      const p = window._rawPlays?.find(x => x._id === cb.value); if (!p) continue;
+      const _mm = {'Game Total':'TOTAL','Team Total':'TT','1H Total':'1HTOTAL','F5 Total':'1HTOTAL','1H TT':'1HTT','F5 TT':'1HTT','1H ML':'1HML','F5 ML':'1HML','1H RL':'1HRL','F5 RL':'1HRL','1INN Total':'1INNTOTAL','1INN TT':'1INNTT','1INN ML':'1INNML','1INN RL':'1INNRL'};
+      const mktType = _mm[p.market]||'TOTAL';
+      const rawG = p.game||p.tm||'';
+      const gp = rawG.toUpperCase().split(/[/@]/);
+      const dir = p.suggested_bet||'';
+      const isTeamMkt = ['Team Total','1H TT','F5 TT'].includes(p.market);
+      let label = isTeamMkt?(p.team||p.tm):p.tm;
+      if (p._gameNo) label += ' (G'+p._gameNo+')';
+      const line = dir==='OVER'?p.over_line:dir==='UNDER'?p.under_line:p.over_line;
+      const odds = dir==='OVER'?p.over_odds:dir==='UNDER'?p.under_odds:p.over_odds;
+      const gameLabel = label+' '+dir+(line!=null?' '+line:'');
+      if (tracker.find(t => t.game===gameLabel && t.date===p.date && t.market===mktType && (t.time||'')===(p.time||''))) continue;
+      tracker.unshift({
+        id: Date.now()+added, date: p.date, time: p.time,
+        game: gameLabel, rawGame: rawG,
+        awayTeam:(gp[0]||'').replace(/[^A-Z]/g,''), homeTeam:(gp[1]||'').replace(/[^A-Z]/g,''),
+        team: p.team||null, dir, tm: p.tm,
+        gameNo: p._gameNo||null,
+        market: mktType, marketLabel: p.market||mktType,
+        book: p.book||'', odds, line, proj: p.batx_proj,
+        roi: p.roi, fairPrice: p.fair_price||null,
+        tracked_at: new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
+        result: '', books: p.books||[]
+      });
+      added++;
+    }
+    if (added) {
+      localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
+      const s = document.getElementById('rawStatus'); if (s) s.textContent = added+' plays tracked!';
+      document.querySelectorAll('.raw-check').forEach(cb => cb.checked = false);
+      renderTracker();
+    } else {
+      alert('All selected plays already tracked');
+    }
+  };
+
+  // Patch runFilter: include date+time in dedup key, tag _gameNo, use G# in auto-track labels
+  if (typeof runFilter === 'function') {
+    window.runFilter = function() {
+      if (!parsed) return;
+      const minRoi = parseFloat(document.getElementById('minRoi').value)||5;
+      const minMargin = parseFloat(document.getElementById('minMargin').value)||0;
+      const seen = {}; const plays = [];
+      for (const b of parsed) {
+        const mktType = classifyMarket(b.market||b.MARKET||'');
+        let dir = (b.suggested_bet||'').toUpperCase();
+        if (!dir) {
+          if (b.over_odds!=null && b.under_odds!=null) continue;
+          if (b.over_odds!=null) dir='OVER'; else if (b.under_odds!=null) dir='UNDER'; else continue;
+        }
+        const roi = b.roi??b.expected_roi??null;
+        if (roi!=null && roi < minRoi) continue;
+        const proj = b.batx_proj??b.the_bat_x_projection??null;
+        const tm = b.tm||b.game||''; const book = b.book||b.site||'';
+        const date = b.date||''; const time = b.time||'';
+        const isMLMkt = ['1HML','F5ML','ML'].includes(mktType);
+        const isRLMkt = ['1HRL','F5RL','RL'].includes(mktType);
+        let line=null, odds=null;
+        if (isMLMkt) { odds = b.over_odds??b.ml_odds??null; }
+        else if (isRLMkt) { line=b.over_line??null; odds=b.over_odds??null; }
+        else if (dir==='OVER') { line=b.over_line??null; odds=b.over_odds??null; }
+        else if (dir==='UNDER'){ line=b.under_line??null; odds=b.under_odds??null; }
+        else { odds = b.ml_odds??b.ml??null; }
+        if (minMargin>0 && proj!=null && line!=null) {
+          const margin = dir==='OVER'?proj-line:dir==='UNDER'?line-proj:999;
+          if (margin < minMargin) continue;
+        }
+        // Key includes date+time so doubleheaders stay separate
+        const dk = tm+'|'+mktType+'|'+(b.team||'')+'|'+dir+'|'+date+'|'+time;
+        if (!seen[dk]) {
+          seen[dk] = { tm, game:b.game||tm, team:b.team||'', market:b.market||'', mktType, dir, proj, line, date, time, books:[], isDupe:false };
+          plays.push(seen[dk]);
+        } else if (line!=null && seen[dk].line!=null && line!==seen[dk].line) {
+          seen[dk].isDupe = true;
+        }
+        seen[dk].books.push({ book, odds, implied:oddsToImplied(odds), roi, line, fairPrice: b.fair_price??null });
+      }
+      plays.sort((a,b)=>Math.max(...b.books.map(x=>x.roi??0))-Math.max(...a.books.map(x=>x.roi??0)));
+      // Tag G# for doubleheaders
+      const _rank = _buildGameNoMap(plays.map(p => ({date:p.date, time:p.time, game:p.game||p.tm, tm:p.tm})));
+      plays.forEach(p => { p._gameNo = _gameNoFor({date:p.date, time:p.time, game:p.game||p.tm, tm:p.tm}, _rank); });
+      lastPlays = plays;
+      const total = plays.reduce((s,p)=>s+p.books.length,0);
+      document.getElementById('skipped').textContent = parsed.length?plays.length+' plays · '+total+' book entries · '+(parsed.length-total)+' filtered out':'';
+      // Auto-track best book per play, with G# in label and time in dedup
+      let autoSaved = 0;
+      for (const p of plays) {
+        const best = p.books.reduce((a,b)=>b.roi!=null&&(a===null||(b.roi??-99)>(a.roi??-99))?b:a, null);
+        if (!best) continue;
+        const isML2 = ['1HML','F5ML','ML'].includes(p.mktType);
+        const isRL2 = ['1HRL','F5RL','RL'].includes(p.mktType);
+        const isTT2 = ['TT','F5TT','1HTT'].includes(p.mktType);
+        let nameBase = isTT2?(p.team||p.tm):p.tm;
+        if (p._gameNo) nameBase += ' (G'+p._gameNo+')';
+        let gameLabel;
+        if (isTT2) gameLabel = nameBase+' '+p.dir+(p.line!=null?' '+p.line:'');
+        else if (isML2) gameLabel = nameBase+' '+p.dir+' ML';
+        else if (isRL2) gameLabel = nameBase+' '+p.dir+(p.line!=null?' '+p.line:'')+' RL';
+        else gameLabel = nameBase+' '+p.dir+(p.line!=null?' '+p.line:'');
+        if (tracker.find(t => t.game===gameLabel && t.date===p.date && t.market===p.mktType && (t.time||'')===(p.time||''))) continue;
+        const rawG2 = p.game||p.tm||''; const gp2 = rawG2.toUpperCase().split(/[/@]/);
+        tracker.unshift({
+          id: Date.now()+autoSaved, date: p.date, time: p.time,
+          game: gameLabel, rawGame: rawG2,
+          awayTeam:(gp2[0]||'').replace(/[^A-Z]/g,''), homeTeam:(gp2[1]||'').replace(/[^A-Z]/g,''),
+          team: p.team||null, dir: p.dir, tm: p.tm,
+          gameNo: p._gameNo||null,
+          market: p.mktType, marketLabel: p.market||p.mktType,
+          book: best.book, odds: best.odds, line: p.line,
+          proj: p.proj??p.batx_proj, roi: best.roi, fairPrice: best.fairPrice??best.fair_price??null,
+          tracked_at: new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),
+          result: '', books: p.books
+        });
+        autoSaved++;
+      }
+      if (autoSaved) { localStorage.setItem('batxEvTracker', JSON.stringify(tracker)); renderTracker(); }
+      renderResults(plays);
+    };
+  }
+
+  // Patch gradeDate: pick correct DH game by gameNo or closest start time
+  if (typeof gradeDate === 'function') {
+    window.gradeDate = async function(selectedDate, setStatus) {
+      setStatus('Finding pending bets...');
+      const pending = tracker.filter(t => (!t.result||t.result==='') && t.date===selectedDate);
+      if (!pending.length) { setStatus('No pending bets for '+selectedDate); return; }
+      const dateStr = parseDateMMDD(selectedDate);
+      if (!dateStr) { setStatus('Bad date: '+selectedDate); return; }
+      setStatus('Fetching scores...');
+      let games = [];
+      try {
+        let resp;
+        try { resp = await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore'); }
+        catch(e) { resp = await fetch('https://corsproxy.io/?url='+encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&hydrate=linescore')); }
+        const data = await resp.json();
+        games = (data.dates?.[0]?.games)||[];
+      } catch(e) { setStatus('Fetch error: '+e.message); return; }
+      setStatus(games.length+' games found, grading...');
+      if (!games.length) return;
+      function _apiMin(gm){
+        if (!gm.gameDate) return null;
+        const d = new Date(gm.gameDate);
+        const et = new Date(d.getTime() - 4*60*60*1000);
+        return et.getUTCHours()*60 + et.getUTCMinutes();
+      }
+      let graded = 0;
+      for (const t of pending) {
+        const src = t.rawGame||t.tm||t.game||'';
+        const teams = gameToTeams(src);
+        if (teams.length < 2) continue;
+        const candidates = games.filter(g => {
+          const ha=teamAbbr(g,'home'), aa=teamAbbr(g,'away');
+          return teams.some(x=>x===ha||MLB_API_ABBR[x]===ha) && teams.some(x=>x===aa||MLB_API_ABBR[x]===aa);
+        });
+        if (!candidates.length) continue;
+        let g;
+        if (candidates.length === 1) g = candidates[0];
+        else if (t.gameNo) {
+          const sorted = [...candidates].sort((a,b)=>(_apiMin(a)||0)-(_apiMin(b)||0));
+          g = sorted[Math.min(t.gameNo - 1, sorted.length - 1)];
+        } else {
+          const betMin = _parseTimeMin(t.time);
+          if (betMin) {
+            g = candidates.reduce((best,c)=>{
+              const cm=_apiMin(c)||0, bm=_apiMin(best)||0;
+              return Math.abs(cm-betMin) < Math.abs(bm-betMin) ? c : best;
+            }, candidates[0]);
+          } else g = candidates[0];
+        }
+        const isFinal = (g.status?.detailedState||'').toLowerCase().includes('final');
+        const ls = g.linescore;
+        const mkt = t.market||'TOTAL';
+        const line = parseFloat(t.line)||0;
+        const homeAbbr = teamAbbr(g,'home');
+        const awayAbbr = teamAbbr(g,'away');
+        function isTeamHome(s){
+          const hn=g.teams?.home?.team?.name||'', an=g.teams?.away?.team?.name||'';
+          if (hn===s) return true; if (an===s) return false;
+          const a = toAbbr(s||'');
+          return a===homeAbbr || MLB_API_ABBR[a]===homeAbbr;
+        }
+        function f5runs(){ const inn=(ls?.innings||[]).slice(0,5);
+          return { h:inn.reduce((s,i)=>s+(parseInt(i.home?.runs)||0),0), a:inn.reduce((s,i)=>s+(parseInt(i.away?.runs)||0),0), ok:inn.length>=5||isFinal };
+        }
+        const score = side => parseInt(side==='home'?g.teams?.home?.score:g.teams?.away?.score)||0;
+        function betTeamIsHome(teamName){
+          let tn = teamName;
+          if (!tn || tn==='undefined') {
+            tn = (t.game||'').replace(/\s*\(G\d+\)\s*/g,'').replace(/\s+(OVER|UNDER|YES|NO)\s+[\d.]+.*/i,'').trim();
+          } else { tn = tn.replace(/\s*\(G\d+\)\s*/g,'').trim(); }
+          const hn=g.teams?.home?.team?.name||'', an=g.teams?.away?.team?.name||'';
+          if (hn===tn) return true; if (an===tn) return false;
+          const ba = toAbbr(tn||'');
+          const mH = homeAbbr===ba || MLB_API_ABBR[ba]===homeAbbr;
+          const mA = awayAbbr===ba || MLB_API_ABBR[ba]===awayAbbr;
+          return mH&&!mA?true:!mH&&mA?false:homeAbbr===ba;
+        }
+        let result = null;
+        if (mkt==='TOTAL'){ if(!isFinal) continue; const tot=score('home')+score('away'); result=tot>line?(t.dir==='OVER'?'W':'L'):tot<line?(t.dir==='UNDER'?'W':'L'):'P'; t.finalTotal=tot; }
+        else if (mkt==='TT'){ if(!isFinal) continue; const isH=betTeamIsHome(t.team); const r=isH?score('home'):score('away'); result=r>line?(t.dir==='OVER'?'W':'L'):r<line?(t.dir==='UNDER'?'W':'L'):'P'; t.finalTotal=r; }
+        else if (mkt==='1INNTOTAL'){ const i1=(ls?.innings||[])[0]; if(!i1&&!isFinal) continue; const h=parseInt(i1?.home?.runs)||0, a=parseInt(i1?.away?.runs)||0, tot=h+a; result=tot>line?(t.dir==='OVER'?'W':'L'):tot<line?(t.dir==='UNDER'?'W':'L'):'P'; t.finalTotal=tot; }
+        else if (mkt==='1INNTT'){ const i1=(ls?.innings||[])[0]; if(!i1&&!isFinal) continue; const h=parseInt(i1?.home?.runs)||0, a=parseInt(i1?.away?.runs)||0; const isH=betTeamIsHome(t.team); const r=isH?h:a; result=r>line?(t.dir==='OVER'?'W':'L'):r<line?(t.dir==='UNDER'?'W':'L'):'P'; t.finalTotal=r; }
+        else if (mkt==='1INNML'){ const i1=(ls?.innings||[])[0]; if(!i1&&!isFinal) continue; const h=parseInt(i1?.home?.runs)||0, a=parseInt(i1?.away?.runs)||0; const isH=isTeamHome(t.dir); result=h===a?'P':(isH?h>a:a>h)?'W':'L'; }
+        else if (mkt==='1INNRL'){ const i1=(ls?.innings||[])[0]; if(!i1&&!isFinal) continue; const h=parseInt(i1?.home?.runs)||0, a=parseInt(i1?.away?.runs)||0; const isH=isTeamHome(t.dir); const diff=(isH?h-a:a-h)+line; result=diff>0?'W':diff<0?'L':'P'; }
+        else if (mkt==='1HTOTAL'||mkt==='F5TOTAL'){ const {h,a,ok}=f5runs(); if(!ok) continue; const tot=h+a; result=tot>line?(t.dir==='OVER'?'W':'L'):tot<line?(t.dir==='UNDER'?'W':'L'):'P'; t.finalTotal=tot; }
+        else if (mkt==='1HTT'||mkt==='F5TT'){ const {h,a,ok}=f5runs(); if(!ok) continue; const isH=betTeamIsHome(t.team); const r=isH?h:a; result=r>line?(t.dir==='OVER'?'W':'L'):r<line?(t.dir==='UNDER'?'W':'L'):'P'; t.finalTotal=r; }
+        else if (mkt==='1HML'||mkt==='F5ML'){ const {h,a,ok}=f5runs(); if(!ok) continue; const isH=isTeamHome(t.dir); result=h===a?'P':(isH?h>a:a>h)?'W':'L'; }
+        else if (mkt==='1HRL'||mkt==='F5RL'){ const {h,a,ok}=f5runs(); if(!ok) continue; const isH=isTeamHome(t.dir); const diff=(isH?h-a:a-h)+line; result=diff>0?'W':diff<0?'L':'P'; }
+        if (result) { t.result = result; graded++; }
+      }
+      localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
+      setStatus(graded+' bets graded!');
+    };
+  }
+
+  // Backfill _gameNo on existing tracker entries on every render
+  if (typeof renderTracker === 'function') {
+    const _origRender = renderTracker;
+    window.renderTracker = function() {
+      try {
+        const items = tracker.map(t => ({date:t.date, time:t.time, game:t.rawGame||t.tm, tm:t.tm}));
+        const rank = _buildGameNoMap(items);
+        let mut = false;
+        tracker.forEach(t => {
+          const gn = _gameNoFor({date:t.date, time:t.time, game:t.rawGame||t.tm, tm:t.tm}, rank);
+          if (gn && !t.gameNo) {
+            t.gameNo = gn;
+            if (!/\(G\d+\)/.test(t.game||'')) {
+              t.game = (t.game||'').replace(/^([\s\S]+?)(\s+(?:OVER|UNDER|YES|NO)\b)/, (_, n, r) => n + ' (G'+gn+')' + r);
+            }
+            mut = true;
+          }
+        });
+        if (mut) localStorage.setItem('batxEvTracker', JSON.stringify(tracker));
+      } catch(e) { console.warn('gameNo backfill skipped:', e); }
+      return _origRender.apply(this, arguments);
+    };
+    // Force one re-render now so existing entries get tagged immediately
+    try { renderTracker(); } catch(e) {}
+  }
+
+  console.log('[BatX patch] Doubleheader fix loaded');
+})();
