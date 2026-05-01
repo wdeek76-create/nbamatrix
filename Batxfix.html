@@ -1770,7 +1770,10 @@ async function gradeDate(selectedDate, setStatus){
     if(matchingGames.length<=1){
       g=matchingGames[0];
     } else {
-      // Doubleheader — pick game whose start time is closest to bet time
+      // Doubleheader — use gameNumber from API (1=early, 2=late)
+      // Sort API games by gameNumber
+      const sorted=matchingGames.slice().sort((a,b)=>(a.gameNumber||1)-(b.gameNumber||1));
+      // Parse bet time to ET minutes
       function parseTimeMin(tStr){
         if(!tStr) return 9999;
         const m=tStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -1781,20 +1784,24 @@ async function gradeDate(selectedDate, setStatus){
         return h*60+mn;
       }
       const betMin=parseTimeMin(t.time||'');
-      // Sort matching games by their API start time
-      const withTimes=matchingGames.map(mg=>{
-        const gt=mg.gameDate||''; // ISO string e.g. "2024-04-21T17:05:00Z"
-        const d=new Date(gt);
-        const apiMin=isNaN(d)?9999:d.getUTCHours()*60+d.getUTCMinutes(); // UTC; close enough for ordering
-        return {mg,apiMin};
-      }).sort((a,b)=>a.apiMin-b.apiMin);
-      // Pick the game whose rank (G1=earliest, G2=later) best matches bet time rank
-      // Simple approach: if bet time <= midpoint of two game times → G1, else G2
       if(betMin===9999){
-        g=matchingGames[0]; // no time info, default to first
+        g=sorted[0];
       } else {
-        const mid=(withTimes[0].apiMin+withTimes[withTimes.length-1].apiMin)/2;
-        g=betMin<=mid ? withTimes[0].mg : withTimes[withTimes.length-1].mg;
+        // Convert API gameDate (UTC) to ET minutes for comparison
+        const apiMins=sorted.map(mg=>{
+          const d=new Date(mg.gameDate||'');
+          if(isNaN(d)) return 9999;
+          // ET = UTC - 4 (EDT) or UTC - 5 (EST); use -4 for baseball season
+          const etMin=((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
+          return etMin;
+        });
+        // Find which API game time is closest to bet time
+        let bestIdx=0, bestDiff=9999;
+        apiMins.forEach((am,i)=>{
+          const diff=Math.abs(am-betMin);
+          if(diff<bestDiff){bestDiff=diff;bestIdx=i;}
+        });
+        g=sorted[bestIdx];
       }
     }
     if(!g) continue;
