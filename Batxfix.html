@@ -1766,6 +1766,7 @@ async function gradeDate(selectedDate, setStatus){
       const ha=teamAbbr(g,'home'), aa=teamAbbr(g,'away');
       return teams.some(x=>x===ha||MLB_API_ABBR[x]===ha) && teams.some(x=>x===aa||MLB_API_ABBR[x]===aa);
     });
+    if(matchingGames.length>1) alert('Found '+matchingGames.length+' games for '+src);
     let g;
     if(matchingGames.length<=1){
       g=matchingGames[0];
