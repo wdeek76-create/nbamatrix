@@ -4,61 +4,48 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SBK Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0d0d0d;
-  --s1:#161616;
-  --s2:#1e1e1e;
-  --s3:#252525;
-  --s4:#2d2d2d;
-  --b0:rgba(255,255,255,0.05);
-  --b1:rgba(255,255,255,0.09);
-  --b2:rgba(255,255,255,0.14);
-  --t0:#fff;
-  --t1:rgba(255,255,255,0.6);
-  --t2:rgba(255,255,255,0.35);
-  --t3:rgba(255,255,255,0.18);
-  --green:#32d74b;
-  --gd:rgba(50,215,75,0.12);
-  --red:#ff453a;
-  --rd:rgba(255,69,58,0.1);
-  --blue:#5ac8fa;
-  --amber:#ffd60a;
-  --r:10px;
+  --bg:#0d0d0d;--s1:#161616;--s2:#1e1e1e;--s3:#252525;--s4:#2d2d2d;
+  --b0:rgba(255,255,255,0.05);--b1:rgba(255,255,255,0.09);--b2:rgba(255,255,255,0.14);
+  --t0:#fff;--t1:rgba(255,255,255,0.55);--t2:rgba(255,255,255,0.3);--t3:rgba(255,255,255,0.16);
+  --green:#32d74b;--gd:rgba(50,215,75,0.1);
+  --red:#ff453a;--rd:rgba(255,69,58,0.1);
+  --blue:#5ac8fa;--amber:#ffd60a;--r:10px;
 }
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t0);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:13px;line-height:1.4}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t0);min-height:100vh;-webkit-font-smoothing:antialiased}
 
-/* ── Header ─────────── */
-.hdr{height:48px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;background:rgba(22,22,22,0.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--b0);position:sticky;top:0;z-index:99}
-.logo{font-size:14px;font-weight:700;letter-spacing:-.3px;color:var(--t0)}
-.logo span{color:var(--green)}
+/* Header */
+.hdr{height:48px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;background:rgba(22,22,22,0.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--b0);position:sticky;top:0;z-index:99}
+.logo{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.logo em{color:var(--green);font-style:normal}
 .seg{display:flex;background:var(--s3);border-radius:7px;padding:2px;gap:2px}
-.seg button{font:inherit;font-size:12px;font-weight:500;padding:4px 13px;border:none;border-radius:5px;background:none;color:var(--t1);cursor:pointer;transition:.12s}
-.seg button.on{background:var(--s4);color:var(--t0);box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.seg button{font:inherit;font-size:12px;font-weight:500;padding:4px 14px;border:none;border-radius:5px;background:none;color:var(--t1);cursor:pointer;transition:.12s}
+.seg button.on{background:var(--s4);color:var(--t0);box-shadow:0 1px 4px rgba(0,0,0,.4)}
 
-/* ── Summary ────────── */
-.sum{display:flex;gap:6px;padding:9px 18px;border-bottom:1px solid var(--b0);flex-wrap:wrap;align-items:center}
-.chip{font-size:12px;font-weight:500;padding:4px 11px;border-radius:20px;background:var(--s2);color:var(--t1);border:1px solid var(--b1)}
+/* Summary */
+.sum{display:flex;gap:6px;padding:8px 18px;border-bottom:1px solid var(--b0);flex-wrap:wrap;align-items:center}
+.chip{font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--s2);color:var(--t1);border:1px solid var(--b1)}
 .chip b{color:var(--t0);font-weight:600}
 .chip.g{color:var(--green);background:var(--gd);border-color:rgba(50,215,75,.2)}
 .chip.r{color:var(--red);background:var(--rd);border-color:rgba(255,69,58,.18)}
 
-/* ── Daily ──────────── */
+/* Daily summary */
 .daily{padding:8px 18px;border-bottom:1px solid var(--b0);display:flex;flex-direction:column;gap:4px}
-.drow{display:flex;align-items:center;gap:14px;padding:8px 12px;background:var(--s1);border:1px solid var(--b0);border-radius:8px}
-.ddate{font-size:13px;font-weight:600;letter-spacing:-.2px;min-width:60px}
+.drow{display:flex;align-items:center;gap:14px;padding:7px 12px;background:var(--s1);border:1px solid var(--b0);border-radius:8px}
+.ddate{font-size:13px;font-weight:600;letter-spacing:-.2px;min-width:62px}
 .dstats{display:flex;gap:14px;flex:1;font-size:12px;color:var(--t1)}
-.dcopy{font-family:inherit;font-size:11px;font-weight:500;padding:3px 9px;border-radius:5px;border:1px solid var(--b1);background:none;color:var(--t1);cursor:pointer;transition:.12s}
+.dcopy{font:inherit;font-size:11px;font-weight:500;padding:3px 9px;border-radius:5px;border:1px solid var(--b1);background:none;color:var(--t1);cursor:pointer;transition:.12s}
 .dcopy:hover{background:var(--s3);color:var(--t0)}
 
-/* ── Controls ───────── */
-.ctl{display:flex;gap:5px;padding:9px 18px;background:var(--s1);border-bottom:1px solid var(--b0);flex-wrap:wrap;align-items:center}
-.btn{font:inherit;font-size:11px;font-weight:500;padding:5px 11px;border-radius:6px;border:1px solid var(--b1);background:var(--s2);color:var(--t1);cursor:pointer;transition:.12s;white-space:nowrap;letter-spacing:-.1px}
+/* Controls */
+.ctl{display:flex;gap:5px;padding:8px 18px;background:var(--s1);border-bottom:1px solid var(--b0);flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-size:11px;font-weight:500;padding:5px 11px;border-radius:6px;border:1px solid var(--b1);background:var(--s2);color:var(--t1);cursor:pointer;transition:.12s;white-space:nowrap}
 .btn:hover{background:var(--s3);color:var(--t0)}
 .btn.g{background:var(--gd);border-color:rgba(50,215,75,.25);color:var(--green)}
-.btn.r{background:var(--rd);border-color:rgba(255,69,58,.18);color:var(--red)}
+.btn.r{background:var(--rd);border-color:rgba(255,69,58,.2);color:var(--red)}
 .btn.b{background:rgba(90,200,250,.08);border-color:rgba(90,200,250,.22);color:var(--blue)}
 .btn.a{background:rgba(255,214,10,.07);border-color:rgba(255,214,10,.2);color:var(--amber)}
 select.sel{font:inherit;font-size:11px;font-weight:500;padding:5px 9px;border-radius:6px;border:1px solid var(--b1);background:var(--s2);color:var(--t0);outline:none;cursor:pointer}
@@ -66,64 +53,58 @@ select.sel{font:inherit;font-size:11px;font-weight:500;padding:5px 9px;border-ra
 .stxt.ok{color:var(--green)}
 .stxt.err{color:var(--red)}
 
-/* ── Paste ──────────── */
+/* Paste */
 .paste{padding:10px 18px;border-bottom:1px solid var(--b0)}
 textarea{width:100%;min-height:88px;background:var(--s2);border:1px solid var(--b1);border-radius:8px;color:var(--t0);font:inherit;font-size:12px;padding:10px 12px;resize:vertical;outline:none;transition:border-color .15s}
 textarea:focus{border-color:rgba(50,215,75,.35)}
 .pact{display:flex;gap:6px;margin-top:7px;align-items:center}
 
-/* ── Tabs ───────────── */
+/* Tabs */
 .tabs{display:flex;padding:0 18px;border-bottom:1px solid var(--b0)}
-.tab{font:inherit;font-size:12px;font-weight:500;padding:11px 14px;border:none;border-bottom:2px solid transparent;background:none;color:var(--t1);cursor:pointer;transition:.12s;letter-spacing:-.1px}
+.tab{font:inherit;font-size:12px;font-weight:500;padding:11px 14px;border:none;border-bottom:2px solid transparent;background:none;color:var(--t1);cursor:pointer;transition:.12s}
 .tab.on{color:var(--t0);border-bottom-color:var(--green)}
 
-/* ── Body ───────────── */
+/* Body */
 .body{padding:14px 18px}
 .empty{text-align:center;padding:60px;color:var(--t2);font-size:13px}
 
-/* ── Date group ─────── */
-.dg-hdr{display:flex;justify-content:space-between;align-items:center;padding:12px 0 7px;border-bottom:1px solid var(--b1);margin-bottom:7px}
-.dg-lbl{font-size:13px;font-weight:600;letter-spacing:-.3px}
-.dg-meta{font-size:11px;color:var(--t1)}
+/* Date group */
+.dghdr{display:flex;justify-content:space-between;align-items:center;padding:12px 0 7px;border-bottom:1px solid var(--b1);margin-bottom:8px;margin-top:4px}
+.dglbl{font-size:13px;font-weight:600;letter-spacing:-.3px}
+.dgmeta{font-size:11px;color:var(--t1)}
 
-/* ── Game group ─────── */
-.gg{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);margin-bottom:7px;overflow:hidden}
-.gg-hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--s2);border-bottom:1px solid var(--b0)}
-.gg-name{font-size:12px;font-weight:600;letter-spacing:-.2px}
-.gg-meta{font-size:11px;color:var(--t1)}
-
-/* ── Prop rows ──────── */
-.pr-hdr{display:grid;grid-template-columns:170px 44px 55px 60px 56px 48px 90px 56px;gap:10px;padding:5px 14px;align-items:center}
-.pr-hdr span{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
-.pr{display:grid;grid-template-columns:170px 44px 55px 60px 56px 48px 90px 56px;gap:10px;padding:9px 14px;border-top:1px solid var(--b0);align-items:center;transition:background .1s}
-.pr:hover{background:rgba(255,255,255,.02)}
-.pr-name{font-size:13px;font-weight:600;letter-spacing:-.3px;color:var(--t0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pr-proj{font-size:12px;color:var(--t1);font-weight:500}
-.pr-mkt{font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;background:var(--s3);color:var(--t1);display:inline-block;letter-spacing:.02em;white-space:nowrap}
-.pr-line{font-size:13px;font-weight:600;letter-spacing:-.2px}
-.pr-line.O{color:var(--green)}
-.pr-line.U{color:var(--blue)}
-.pr-odds{font-size:11px;color:var(--t2)}
-.pr-ev{font-size:12px;font-weight:700}
-.pr-ev.p{color:var(--green)}
-.pr-ev.n{color:var(--red)}
-.pr-act{font-size:12px;color:var(--t1)}
+/* Prop table */
+.ptbl{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);overflow:hidden;margin-bottom:10px}
+.phdr{display:grid;grid-template-columns:150px 38px 50px 68px 58px 50px 88px 58px;gap:10px;padding:5px 14px;background:var(--s2)}
+.phdr span{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
+.prow{display:grid;grid-template-columns:150px 38px 50px 68px 58px 50px 88px 58px;gap:10px;padding:9px 14px;border-top:1px solid var(--b0);align-items:center;transition:background .1s}
+.prow:hover{background:rgba(255,255,255,.02)}
+.pname{font-size:13px;font-weight:600;letter-spacing:-.3px;color:var(--t0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pproj{font-size:12px;color:var(--t1);font-weight:500}
+.pmkt{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--s3);color:var(--t1);display:inline-block;white-space:nowrap}
+.pline{font-size:13px;font-weight:600;letter-spacing:-.2px}
+.pline.O{color:var(--green)}
+.pline.U{color:var(--blue)}
+.podds{font-size:11px;color:var(--t2)}
+.pev{font-size:12px;font-weight:700}
+.pev.p{color:var(--green)}
+.pev.n{color:var(--red)}
 .rsel{font:inherit;font-size:11px;font-weight:500;padding:4px 7px;border-radius:6px;border:1px solid var(--b1);background:var(--s2);color:var(--t1);cursor:pointer;outline:none;width:100%;transition:.12s}
 .rsel.win{border-color:rgba(50,215,75,.35);color:var(--green);background:var(--gd)}
 .rsel.loss{border-color:rgba(255,69,58,.25);color:var(--red);background:var(--rd)}
 .rsel.push{border-color:rgba(255,214,10,.25);color:var(--amber)}
-.pr-pnl{font-size:12px;font-weight:600;text-align:right;letter-spacing:-.2px}
-.pr-pnl.p{color:var(--green)}
-.pr-pnl.n{color:var(--red)}
+.ppnl{font-size:12px;font-weight:600;text-align:right;letter-spacing:-.2px}
+.ppnl.p{color:var(--green)}
+.ppnl.n{color:var(--red)}
 
-/* ── Dashboard ──────── */
-.dsh-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}
-.dsh-card{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);padding:14px 16px}
-.dsh-card .lbl{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
-.dsh-card .val{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1}
-.dsh-card .sub{font-size:11px;color:var(--t1);margin-top:3px}
+/* Dashboard */
+.dgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}
+.dcard{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);padding:14px 16px}
+.dcard .lbl{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.dcard .val{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1}
+.dcard .sub{font-size:11px;color:var(--t1);margin-top:3px}
 .slbl{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 7px}
-.bk-wrap{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);overflow:hidden;margin-bottom:9px}
+.bwrap{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);overflow:hidden;margin-bottom:9px}
 .bkt{width:100%;border-collapse:collapse}
 .bkt th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--t2);padding:7px 12px;text-align:left;border-bottom:1px solid var(--b0);background:var(--s2)}
 .bkt th:not(:first-child){text-align:right}
@@ -132,35 +113,36 @@ textarea:focus{border-color:rgba(50,215,75,.35)}
 .bkt td:not(:first-child){text-align:right}
 .bkt tr:last-child td{border-bottom:none}
 .bg2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.ou-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
-.ou-card{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);overflow:hidden}
-.ou-card-hdr{display:flex;justify-content:space-between;padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--b0);font-size:12px;font-weight:600}
-.ou-card table{width:100%;border-collapse:collapse}
-.ou-card td{font-size:11px;padding:6px 12px;border-bottom:1px solid var(--b0);color:var(--t1)}
-.ou-card td:first-child{color:var(--t0);font-weight:500}
-.ou-card td:not(:first-child){text-align:right}
-.ou-card tr:last-child td{border-bottom:none}
+.ougrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.oucard{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);overflow:hidden}
+.ouchdr{display:flex;justify-content:space-between;padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--b0);font-size:12px;font-weight:600}
+.oucard table{width:100%;border-collapse:collapse}
+.oucard td{font-size:11px;padding:6px 12px;border-bottom:1px solid var(--b0);color:var(--t1)}
+.oucard td:first-child{color:var(--t0);font-weight:500}
+.oucard td:not(:first-child){text-align:right}
+.oucard tr:last-child td{border-bottom:none}
 
-/* ── Bet log ─────────── */
-.log-hdr{display:grid;grid-template-columns:26px 62px 1fr 46px 74px 54px 54px 1fr;gap:8px;padding:5px 14px;background:var(--s2);border-radius:8px 8px 0 0}
-.log-hdr span{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
-.log-row{display:grid;grid-template-columns:26px 62px 1fr 46px 74px 54px 54px 1fr;gap:8px;padding:8px 14px;border-top:1px solid var(--b0);font-size:12px;align-items:center}
-.log-row:hover{background:rgba(255,255,255,.02)}
+/* Bet Log */
+.ltbl{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);overflow:hidden}
+.lhdr{display:grid;grid-template-columns:26px 58px 1fr 44px 60px 58px 38px 50px 70px 72px;gap:8px;padding:6px 14px;background:var(--s2)}
+.lhdr span{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
+.lrow{display:grid;grid-template-columns:26px 58px 1fr 44px 60px 58px 38px 50px 70px 72px;gap:8px;padding:9px 14px;border-top:1px solid var(--b0);font-size:12px;align-items:center}
+.lrow:hover{background:rgba(255,255,255,.02)}
 </style>
 </head>
 <body>
 
 <div class="hdr">
-  <div class="logo"><span>SBK</span> TRACKER</div>
+  <div class="logo"><em>SBK</em> TRACKER</div>
   <div class="seg">
     <button class="on" onclick="setSport('mlb')">MLB</button>
     <button onclick="setSport('nba')">NBA</button>
   </div>
-  <div style="font-size:11px;color:var(--t1)" id="dateDisplay"></div>
+  <span style="font-size:11px;color:var(--t1)" id="dateDisplay"></span>
 </div>
 
-<div id="dailySummaryBar"></div>
-<div class="sum" id="summaryBar"></div>
+<div id="dailyBar"></div>
+<div class="sum" id="sumBar"></div>
 
 <div class="ctl">
   <select class="sel" id="filterResult" onchange="renderAll()">
@@ -176,9 +158,9 @@ textarea:focus{border-color:rgba(50,215,75,.35)}
   <button class="btn b" onclick="regrade()">↺ Re-grade</button>
   <button class="btn a" onclick="repairDates()">Fix Dates</button>
   <button class="btn" onclick="debugAPI()">API Names</button>
-  <button class="btn" onclick="exportExcel()">↓ Export</button>
+  <button class="btn" onclick="exportXLSX()">↓ Export</button>
   <button class="btn" onclick="saveState()">Save</button>
-  <button class="btn r" onclick="if(confirm('Clear all?\')){props=[];saveState();renderAll();}">Clear All</button>
+  <button class="btn r" onclick="if(confirm('Clear all?')){props=[];saveState();renderAll();}">Clear All</button>
   <span class="stxt" id="gradeStatus"></span>
 </div>
 
@@ -192,653 +174,355 @@ textarea:focus{border-color:rgba(50,215,75,.35)}
 </div>
 
 <div class="tabs">
-  <button class="tab on" onclick="setTrackerTab('plays')">Plays</button>
-  <button class="tab" onclick="setTrackerTab('dashboard')">Dashboard</button>
-  <button class="tab" onclick="setTrackerTab('log')">Bet Log (<span id="logCount">0</span>)</button>
+  <button class="tab on" onclick="setTab('plays')">Plays</button>
+  <button class="tab" onclick="setTab('dashboard')">Dashboard</button>
+  <button class="tab" onclick="setTab('log')">Bet Log (<span id="logCount">0</span>)</button>
 </div>
 
-<div class="body"><div id="trackerBody"></div></div>
+<div class="body"><div id="body"></div></div>
 
 <script>
-
-
 // ── State ──────────────────────────────────────────────
-let sport = 'mlb';
-let props = [];
-let trackerTab = 'plays';
+let sport='mlb', props=[], tab='plays';
 
-// ── Sport Toggle ───────────────────────────────────────
-function setSport(s) {
-  sport = s;
-  document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase() === s));
+function setSport(s){
+  sport=s;
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===s));
   renderAll();
 }
-
-// ── Tab ────────────────────────────────────────────────
-function setTrackerTab(t) {
-  trackerTab = t;
-  document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('on', ['plays','dashboard','log'][i] === t));
+function setTab(t){
+  tab=t;
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['plays','dashboard','log'][i]===t));
   renderAll();
 }
-
-// ── Show/hide paste ────────────────────────────────────
-function showPaste() {
-  const p = document.getElementById('pastePanel');
-  p.style.display = p.style.display === 'none' ? 'block' : 'none';
-  if (p.style.display === 'block') { setTimeout(()=>document.getElementById('pasteBox').focus(),50); }
-}
-
-// ── Persist ────────────────────────────────────────────
-function saveState() {
-  try { localStorage.setItem('sbkTracker', JSON.stringify(props)); } catch(e){}
-}
-function loadState() {
-  try { const d = localStorage.getItem('sbkTracker'); if(d) props = JSON.parse(d); } catch(e){}
-}
+function saveState(){try{localStorage.setItem('sbk',JSON.stringify(props));}catch(e){}}
+function loadState(){try{const d=localStorage.getItem('sbk');if(d)props=JSON.parse(d);}catch(e){}}
+function getTodayStr(){return new Date().toISOString().split('T')[0];}
+function sgn(n){return n==null?'':(n>=0?'+':'')+n.toFixed(2)+'u';}
+function uRisk(p){const o=parseFloat(p.odds);return(!isNaN(o)&&o<0)?Math.abs(o)/100:1;}
+function normName(n){return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z ]/g,'').trim().replace(/\s+/g,' ');}
 
 // ── Helpers ────────────────────────────────────────────
-function getTodayStr() {
-  return new Date().toISOString().split('T')[0];
+function parseIP(v){const s=String(v).split('.');return(parseInt(s[0])||0)*3+(parseInt(s[1])||0);}
+
+function gradeResult(p,actual){
+  const line=parseFloat(p.line);
+  let result;
+  if(p.market==='OUTS'){const a=parseIP(actual);result=a>line?'win':a<line?'loss':'push';}
+  else{const a=parseFloat(actual);result=p.side==='O'?(a>line?'win':a<line?'loss':'push'):(a<line?'win':a>line?'loss':'push');}
+  p.actual=actual; p.result=result;
+  const odds=parseFloat(p.odds);
+  if(result==='win') p.pnl=odds>0?odds/100:1;
+  else if(result==='loss') p.pnl=odds<0?-(Math.abs(odds)/100):-1;
+  else p.pnl=0;
 }
-function sgn(n) { return n == null ? '' : (n >= 0 ? '+' : '') + n.toFixed(2) + 'u'; }
-function uRisk(p) { const o = parseFloat(p.odds); return (!isNaN(o) && o < 0) ? Math.abs(o)/100 : 1; }
-
-function normName(n) { return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z ]/g,'').trim().replace(/\s+/g,' '); }
-
-function parseIP(val) {
-  // "4.2" means 4 + 2/3 innings
-  if (typeof val === 'number') return val;
-  const s = String(val);
-  const parts = s.split('.');
-  const full = parseInt(parts[0]) || 0;
-  const thirds = parseInt(parts[1]) || 0;
-  return full + thirds / 3;
-}
-
-function buildPlayerLookup(boxscores) {
-  // Returns: { normalizedName: { market: value } }
-  const lookup = {};
-
-  Object.values(boxscores).forEach(bs => {
-    if (!bs.teams) return;
-    ['away', 'home'].forEach(side => {
-      const team = bs.teams[side];
-      if (!team || !team.players) return;
-      Object.values(team.players).forEach(player => {
-        const name = player.person?.fullName;
-        if (!name) return;
-        const norm = normName(name);
-        if (!lookup[norm]) lookup[norm] = { rawName: name };
-
-        // Pitching stats
-        const ps = player.stats?.pitching;
-        if (ps) {
-          lookup[norm].IP  = ps.inningsPitched;
-          lookup[norm].K   = ps.strikeOuts;
-          lookup[norm].ER  = ps.earnedRuns ?? ps.runs ?? null;
-          lookup[norm].BB  = ps.baseOnBalls;
-          lookup[norm].H_pitching = ps.hits;
-          lookup[norm].HA = ps.hits;
-          if (ps.inningsPitched != null) {
-            const _p = String(ps.inningsPitched).split('.');
-            lookup[norm].OUTS = (parseInt(_p[0])||0)*3 + (parseInt(_p[1])||0);
-          }
-        }
-        // Batting stats
-        const bs2 = player.stats?.batting;
-        if (bs2) {
-          lookup[norm].H   = bs2.hits;
-          lookup[norm].TB  = bs2.totalBases;
-          lookup[norm].HR  = bs2.homeRuns;
-          lookup[norm].RBI = bs2.rbi;
-          lookup[norm].R   = bs2.runs;
-          lookup[norm].BB_bat = bs2.baseOnBalls;
-          lookup[norm].SB  = bs2.stolenBases;
-        }
-      });
-    });
-  });
-  return lookup;
-}
-
-function findPlayerStat(lookup, playerName, market) {
-  const norm = normName(playerName);
-  // Try exact
-  let entry = lookup[norm];
-  if (!entry) {
-    // Fuzzy: find closest key
-    const keys = Object.keys(lookup);
-    const match = keys.find(k => k.includes(norm) || norm.includes(k) || lastName(k) === lastName(norm));
-    if (match) entry = lookup[match];
-  }
-  if (!entry) return null;
-
-  // For H market, prefer batting hits; for BB prefer context
-  let key = market;
-  if (market === 'H') key = entry.H !== undefined ? 'H' : 'H_pitching';
-  if (market === 'BB') key = entry.BB !== undefined ? 'BB' : 'BB_bat';
-  if (market === 'HA') key = 'HA';
-  if (market === 'OUTS') key = 'OUTS';
-
-  const val = entry[key];
-  return val !== undefined && val !== null ? val : null;
-}
-
-function parseGameDate(p) {
-    if (p.gameTime) {
-      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
-      if (m) {
-        const months = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
-        const month = months[m[1]];
-        const day = parseInt(m[2]);
-        if (month && day) {
-          const year = new Date().getFullYear();
-          return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        }
-      }
-    }
-    return p.date || selectedDate;
-  }
 
 // ── MLB Parser ─────────────────────────────────────────
-function parseMLB(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const results = [];
+function parseMLB(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const results=[];
+  const bestIdx=lines.findIndex(l=>l==='Best Line');
+  if(bestIdx<0) return results;
+  let i=bestIdx+1;
+  const MMAP={'Outs':'OUTS','BB':'BB','ER':'ER','K':'K','Hits':'HA'};
 
-  // Find Best Line section
-  const bestIdx = lines.findIndex(l => l === 'Best Line');
-  if (bestIdx < 0) return results;
+  while(i<lines.length){
+    const nameLine=lines[i];
+    if(!nameLine||!/^[A-Z][a-z]/.test(nameLine)){i++;continue;}
+    const player=nameLine.replace(/\s*[A-Z]{1,2}$/,'').trim();
+    if(!player||player.split(' ').length<2){i++;continue;}
+    const gameLine=lines[i+1]||'';
+    if(!/[A-Z]{2,3}(vs|@)[A-Z]{2,3}/.test(gameLine)){i++;continue;}
+    const statLine=lines[i+2]||'';
+    let proj=null,market=null;
+    const sm=statLine.match(/^([\d.]+)(Outs|BB|ER|K|Hits)$/i);
+    const so=statLine.match(/^(Outs|BB|ER|K|Hits)$/i);
+    if(sm){proj=parseFloat(sm[1]);market=MMAP[sm[2]]||sm[2].toUpperCase();}
+    else if(so){market=MMAP[so[1]]||so[1].toUpperCase();}
+    else{i++;continue;}
+    let j=i+3;
+    if(lines[j]&&/^\d+\s*PC$/.test(lines[j]))j++;
 
-  let i = bestIdx + 1;
-  const MARKET_MAP = { 'Outs':'OUTS','BB':'BB','ER':'ER','K':'K','Hits':'HA' };
-
-  while (i < lines.length) {
-    // Player name line: "Bailey OberP" - ends with position letter
-    const nameLine = lines[i];
-    if (!nameLine || !/^[A-Z][a-z]/.test(nameLine)) { i++; continue; }
-    // Strip trailing position (P, RP, SP, etc)
-    const player = nameLine.replace(/\s*[A-Z]{1,2}$/, '').trim();
-    if (!player || player.split(' ').length < 2) { i++; continue; }
-
-    // Game line: "MINvsTOR" or "TOR@MIN"
-    const gameLine = lines[i+1] || '';
-    if (!gameLine || !/[A-Z]{2,3}(vs|@)[A-Z]{2,3}/.test(gameLine)) { i++; continue; }
-
-    // Stat+Market: "17.27Outs" "1.68BB" "4.05K" etc OR just "K" "Outs" etc (no proj)
-    const statLine = lines[i+2] || '';
-    let proj = null, market = null;
-    const statWithProj = statLine.match(/^([\d.]+)(Outs|BB|ER|K|Hits)$/i);
-    const statOnly = statLine.match(/^(Outs|BB|ER|K|Hits)$/i);
-    if (statWithProj) {
-      proj = parseFloat(statWithProj[1]);
-      market = MARKET_MAP[statWithProj[2]] || statWithProj[2].toUpperCase();
-    } else if (statOnly) {
-      market = MARKET_MAP[statOnly[1]] || statOnly[1].toUpperCase();
-    } else {
-      i++; continue;
+    // Normalize split lines e.g. "o17.5" + "(-125)" -> "o17.5(-125)"
+    const norm=[];
+    while(j<lines.length){
+      const l=lines[j];
+      if(/^[A-Z][a-z]+\s[A-Z][a-z]+/.test(l)&&j>i+4)break;
+      if(l==='0')break;
+      const lo=l.match(/^([ou])([\d.]+)$/),no=(lines[j+1]||'').match(/^\(([+-]\d+)\)$/);
+      if(lo&&no){norm.push(l+'('+no[1]+')');j+=2;}else{norm.push(l);j++;}
     }
 
-    // Skip "93 PC" confidence line if present
-    let j = i + 3;
-    if (lines[j] && /^\d+\s*PC$/.test(lines[j])) j++;
-
-    // Parse EV/line pairs
-    // Format: "+13.1%" then "o17.5(+104)" on NEXT line
-    // OR: "—" (skip)
-    // OR: " " empty (skip)
-    let bestEV = null, bestOdds = null, bestLine = null, bestSide = null;
-
-    // Pre-normalize: join split "o17.5" + "(-125)" into "o17.5(-125)"
-    const normLines = [];
-    let jj = j;
-    while (jj < lines.length) {
-      const l = lines[jj];
-      if (/^[A-Z][a-z]+\s[A-Z][a-z]+/.test(l) && jj > i + 4) break;
-      if (l === '0') break;
-      const lineOnly = l.match(/^([ou])([\d.]+)$/);
-      const nextOdds = (lines[jj+1]||'').match(/^\(([+-]\d+)\)$/);
-      if (lineOnly && nextOdds) {
-        normLines.push(l + '(' + nextOdds[1] + ')');
-        jj += 2;
-      } else {
-        normLines.push(l);
-        jj++;
-      }
-    }
-    j = jj;
-
-    let ni = 0;
-    while (ni < normLines.length) {
-      const l = normLines[ni];
-      if (/^[A-Z][a-z]+\s[A-Z][a-z]+/.test(l)) break;
-      const evMatch = l.match(/^([+-][\d.]+)%$/);
-      if (evMatch) {
-        const evVal = parseFloat(evMatch[1]);
-        const nextL = normLines[ni+1] || '';
-        const lineMatch = nextL.match(/^([ou])([\d.]+)\(([+-]\d+)\)$/);
-        if (lineMatch) {
-          if (evVal > 0 && (bestEV === null || evVal > bestEV)) {
-            bestEV = evVal;
-            bestSide = lineMatch[1].toUpperCase();
-            bestLine = parseFloat(lineMatch[2]);
-            bestOdds = lineMatch[3];
-          }
-          ni += 2; continue;
+    let bestEV=null,bestOdds=null,bestLine=null,bestSide=null;
+    let ni=0;
+    while(ni<norm.length){
+      const l=norm[ni];
+      const em=l.match(/^([+-][\d.]+)%$/);
+      if(em){
+        const ev=parseFloat(em[1]);
+        const nl=norm[ni+1]||'';
+        const lm=nl.match(/^([ou])([\d.]+)\(([+-]\d+)\)$/);
+        if(lm){
+          if(ev>0&&(bestEV===null||ev>bestEV)){bestEV=ev;bestSide=lm[1].toUpperCase();bestLine=parseFloat(lm[2]);bestOdds=lm[3];}
+          ni+=2;continue;
         }
       }
       ni++;
     }
 
-    if (bestEV !== null && bestEV > 0) {
-      // Parse date/time from game line e.g. "5/1 2:21 PM" embedded in gameLine
-      // gameLine format: "MINvsTOR" — time comes from the player card section above Best Line
-      // Find time by looking for this game in the pre-Best Line section
-      const gameKey = gameLine.trim();
-      let gameTime = '';
-      let dateStr = getTodayStr();
-
-      // Search pre-Best Line for matching game + time
-      for (let k = 0; k < bestIdx; k++) {
-        if (lines[k].includes('•') && lines[k+1] && lines[k+1].includes('•')) {
-          // "MINvsTOR• 7:41 PM" or "MINvsTOR• 5/1 2:21 PM"
-          const glMatch = lines[k+1].match(/^(.+?)•\s*(.+)$/);
-          if (glMatch) {
-            const gl = glMatch[1].replace(/\s/g,'');
-            const timeRaw = glMatch[2].trim();
-            if (gl === gameKey.replace(/\s/g,'')) {
-              const dateTimeMatch = timeRaw.match(/(\d+)\/(\d+)\s+([\d:]+\s*[AP]M)/i);
-              const timeOnlyMatch = timeRaw.match(/([\d:]+\s*[AP]M)/i);
-              const moNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-              if (dateTimeMatch) {
-                const mo = parseInt(dateTimeMatch[1]);
-                const dy = parseInt(dateTimeMatch[2]);
-                dateStr = new Date().getFullYear()+'-'+String(mo).padStart(2,'0')+'-'+String(dy).padStart(2,'0');
-                gameTime = moNames[mo]+'-'+dy+' '+dateTimeMatch[3];
-              } else if (timeOnlyMatch) {
-                const now = new Date();
-                gameTime = moNames[now.getMonth()+1]+'-'+now.getDate()+' '+timeOnlyMatch[1];
-              }
+    if(bestEV!==null&&bestEV>0){
+      // Find game time from pre-Best Line section
+      const gameKey=gameLine.trim();
+      let gameTime='',dateStr=getTodayStr();
+      const moNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      for(let k=0;k<bestIdx;k++){
+        if(lines[k]&&lines[k].includes('•')&&lines[k+1]&&lines[k+1].includes('•')){
+          const gm=lines[k+1].match(/^(.+?)\u2022\s*(.+)$/)||lines[k+1].match(/^(.+?)•\s*(.+)$/);
+          if(gm){
+            const gl=gm[1].replace(/\s/g,'');
+            if(gl===gameKey.replace(/\s/g,'')){
+              const tr=gm[2].trim();
+              const dtm=tr.match(/(\d+)\/(\d+)\s+([\d:]+\s*[AP]M)/i);
+              const tom=tr.match(/([\d:]+\s*[AP]M)/i);
+              if(dtm){const mo=parseInt(dtm[1]),dy=parseInt(dtm[2]);dateStr=new Date().getFullYear()+'-'+String(mo).padStart(2,'0')+'-'+String(dy).padStart(2,'0');gameTime=moNames[mo]+'-'+dy+' '+dtm[3];}
+              else if(tom){const now=new Date();gameTime=moNames[now.getMonth()+1]+'-'+now.getDate()+' '+tom[1];}
               break;
             }
           }
         }
       }
-
-      results.push({
-        id: Date.now() + Math.random(),
-        sport: 'mlb',
-        player, market, game: gameKey, gameTime,
-        line: bestLine, side: bestSide, odds: bestOdds,
-        ev: bestEV, proj,
-        date: dateStr,
-        result: '', actual: null, pnl: null, notes: ''
-      });
+      results.push({id:Date.now()+Math.random(),sport:'mlb',player,market,game:gameKey,gameTime,line:bestLine,side:bestSide,odds:bestOdds,ev:bestEV,proj,date:dateStr,result:'',actual:null,pnl:null});
     }
-
-    i = j;
+    i=j;
   }
   return results;
 }
 
 // ── NBA Parser ─────────────────────────────────────────
-function parseNBA(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const results = [];
+function parseNBA(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const results=[];
+  const bestIdx=lines.findIndex(l=>l==='Best Line');
+  if(bestIdx<0) return results;
+  let i=bestIdx+1;
+  const NMKTS={PTS:'PTS',REB:'REB',AST:'AST',PRA:'PRA',PR:'PR',PA:'PA',RA:'RA','3PM':'3PM',BLK:'BLK',STL:'STL',TO:'TO',BLKST:'BLKST'};
 
-  const bestIdx = lines.findIndex(l => l === 'Best Line');
-  if (bestIdx < 0) return results;
-
-  let i = bestIdx + 1;
-  const NBA_MARKETS = {
-    'PTS':'PTS','REB':'REB','AST':'AST','PRA':'PRA','PR':'PR','PA':'PA',
-    'RA':'RA','3PM':'3PM','BLK':'BLK','STL':'STL','TO':'TO','BLKST':'BLKST'
-  };
-
-  while (i < lines.length) {
-    // Player name (repeated twice in Sharpr NBA)
-    const name1 = lines[i];
-    if (!name1 || !/^[A-Z][a-z]/.test(name1)) { i++; continue; }
-    const player = name1.trim();
-    if (!player || player.length < 3) { i++; continue; }
-
-    // Skip duplicate name, position line
-    let j = i + 1;
-    if (lines[j] && lines[j] === player) j++;
-    // Position: "• F-G" or "F-G"
-    if (lines[j] && /^[•\s]*[A-Z-]+$/.test(lines[j]) && lines[j].length < 8) j++;
-    // Team blocks: "PHI", "PHI", "vs"/"@", "BOS", "BOS" then "• 8:10 PM"
-    // Find game time
-    let awayTeam = '', homeTeam = '', gameTime = '', dateStr = getTodayStr();
-    // Collect team tokens
-    const teamTokens = [];
-    while (j < lines.length && teamTokens.length < 6) {
-      const l = lines[j];
-      if (/^\d+\.\d+$/.test(l)) break; // proj
-      if (/^[•\s]*[\d:]+\s*[AP]M/i.test(l)) {
-        const tm = l.match(/([\d:]+\s*[AP]M)/i);
-        if (tm) {
-          gameTime = `${new Date().toLocaleString('en',{month:'short'})}-${new Date().getDate()} ${tm[1]}`;
-        }
-        j++; break;
-      }
-      teamTokens.push(l); j++;
+  while(i<lines.length){
+    const name=lines[i];
+    if(!name||!/^[A-Z][a-z]/.test(name)){i++;continue;}
+    const player=name.trim();
+    if(!player||player.length<3){i++;continue;}
+    let j=i+1;
+    if(lines[j]===player)j++;
+    if(lines[j]&&/^[•\s]*[A-Z\-]+$/.test(lines[j])&&lines[j].length<8)j++;
+    let awayTeam='',homeTeam='',gameTime='',dateStr=getTodayStr();
+    const moNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const toks=[];
+    while(j<lines.length&&toks.length<7){
+      const l=lines[j];
+      if(/^\d+\.\d+$/.test(l))break;
+      if(/^[•\s]*[\d:]+\s*[AP]M/i.test(l)){const tm=l.match(/([\d:]+\s*[AP]M)/i);if(tm){const now=new Date();gameTime=moNames[now.getMonth()+1]+'-'+now.getDate()+' '+tm[1];}j++;break;}
+      toks.push(l);j++;
     }
-    // teamTokens like ["PHI","PHI","vs","BOS","BOS"] or ["BOS","BOS","@","PHI","PHI"]
-    const vsIdx = teamTokens.findIndex(t => t==='vs'||t==='@');
-    if (vsIdx >= 0) {
-      awayTeam = teamTokens[vsIdx-1] || teamTokens[0] || '';
-      homeTeam = teamTokens[vsIdx+1] || '';
+    const vi=toks.findIndex(t=>t==='vs'||t==='@');
+    if(vi>=0){awayTeam=toks[vi-1]||toks[0]||'';homeTeam=toks[vi+1]||'';}
+    const gameLabel=awayTeam&&homeTeam?awayTeam+'/'+homeTeam:player;
+    let proj=null,market=null;
+    if(lines[j]&&/^\d+\.\d+$/.test(lines[j])){proj=parseFloat(lines[j]);j++;}
+    if(lines[j]&&NMKTS[lines[j]]){market=NMKTS[lines[j]];j++;}
+    if(!market){i=j;continue;}
+    if(lines[j]&&/\d+\s*mins?/i.test(lines[j]))j++;
+
+    // Normalize split lines
+    const norm=[];
+    while(j<lines.length){
+      const l=lines[j];
+      if(/^[A-Z][a-z]+\s[A-Z]/.test(l)&&j>i+5)break;
+      if(l==='0')break;
+      const lo=l.match(/^([ou])([\d.]+)$/),no=(lines[j+1]||'').match(/^\(([+-]\d+)\)$/);
+      if(lo&&no){norm.push(l+'('+no[1]+')');j+=2;}else{norm.push(l);j++;}
     }
-    const gameLabel = awayTeam && homeTeam ? `${awayTeam}/${homeTeam}` : player;
 
-    // Proj: "3.85" then market "REB"
-    let proj = null, market = null;
-    if (lines[j] && /^\d+\.\d+$/.test(lines[j])) {
-      proj = parseFloat(lines[j]); j++;
-    }
-    if (lines[j] && NBA_MARKETS[lines[j]]) {
-      market = NBA_MARKETS[lines[j]]; j++;
-    }
-    if (!market) { i = j; continue; }
-
-    // Skip mins line: "39 mins"
-    if (lines[j] && /\d+\s*mins?/i.test(lines[j])) j++;
-
-    // Parse EV/line pairs
-    let bestEV = null, bestOdds = null, bestLine = null, bestSide = null;
-
-    while (j < lines.length) {
-      const l = lines[j];
-      if (/^[A-Z][a-z]+\s[A-Z]/.test(l) && j > i+5) break;
-      if (l === '0') { j++; break; }
-
-      const evMatch = l.match(/^([+-]\d+\.?\d*)%$/);
-      if (evMatch) {
-        const evVal = parseFloat(evMatch[1]);
-        const nextLine = lines[j+1] || '';
-        const lineMatch = nextLine.match(/^([ou])([\d.]+)$/);
-        const oddsLine = lines[j+2] || '';
-        const oddsMatch = oddsLine.match(/^\(([+-]\d+)\)$/);
-        if (lineMatch && oddsMatch) {
-          if (evVal > 0 && (bestEV === null || evVal > bestEV)) {
-            bestEV = evVal;
-            bestSide = lineMatch[1].toUpperCase();
-            bestLine = parseFloat(lineMatch[2]);
-            bestOdds = oddsMatch[1];
-          }
-          j += 3; continue;
-        }
-        // Also handle "o6.5\n(+134)\nNovig" format already combined
-        const lineMatch2 = nextLine.match(/^([ou])([\d.]+)\(([+-]\d+)\)$/);
-        if (lineMatch2) {
-          if (evVal > 0 && (bestEV === null || evVal > bestEV)) {
-            bestEV = evVal;
-            bestSide = lineMatch2[1].toUpperCase();
-            bestLine = parseFloat(lineMatch2[2]);
-            bestOdds = lineMatch2[3];
-          }
-          j += 2; continue;
+    let bestEV=null,bestOdds=null,bestLine=null,bestSide=null;
+    let ni=0;
+    while(ni<norm.length){
+      const l=norm[ni];
+      const em=l.match(/^([+-][\d.]+)%$/);
+      if(em){
+        const ev=parseFloat(em[1]);
+        const nl=norm[ni+1]||'';
+        const lm=nl.match(/^([ou])([\d.]+)\(([+-]\d+)\)$/);
+        if(lm){
+          if(ev>0&&(bestEV===null||ev>bestEV)){bestEV=ev;bestSide=lm[1].toUpperCase();bestLine=parseFloat(lm[2]);bestOdds=lm[3];}
+          ni+=2;continue;
         }
       }
-      j++;
+      ni++;
     }
 
-    if (bestEV !== null && bestEV > 0) {
-      results.push({
-        id: Date.now() + Math.random(),
-        sport: 'nba',
-        player, market, game: gameLabel, gameTime,
-        line: bestLine, side: bestSide, odds: bestOdds,
-        ev: bestEV, proj,
-        date: dateStr,
-        result: '', actual: null, pnl: null, notes: ''
-      });
+    if(bestEV!==null&&bestEV>0){
+      results.push({id:Date.now()+Math.random(),sport:'nba',player,market,game:gameLabel,gameTime,line:bestLine,side:bestSide,odds:bestOdds,ev:bestEV,proj,date:dateStr,result:'',actual:null,pnl:null});
     }
-
-    i = j;
+    i=j;
   }
   return results;
 }
 
 // ── Parse paste ────────────────────────────────────────
-function parsePaste() {
-  const text = document.getElementById('pasteBox').value.trim();
-  const status = document.getElementById('parseStatus');
-  if (!text) { status.textContent = 'Nothing to parse.'; return; }
-
-  // Auto-detect sport from paste content, fall back to toggle
-  let detectedSport = sport;
-  if (text.includes('Pitcher K') || text.includes('Pitcher Hits') || text.includes('EROuts') || /\d+\.\d+(Outs|BB|ER|K|Hits)/.test(text)) {
-    detectedSport = 'mlb';
-  } else if (text.includes('Points') || text.includes('Rebounds') || text.includes('Assists') || /\bPTS\b|\bREB\b|\bAST\b|\bPRA\b/.test(text)) {
-    detectedSport = 'nba';
-  }
-  const newPlays = detectedSport === 'mlb' ? parseMLB(text) : parseNBA(text);
-
-  // Dupe check
-  let added = 0;
-  newPlays.forEach(p => {
-    const dupe = props.find(t => t.player === p.player && t.market === p.market && t.date === p.date && t.line === p.line && t.side === p.side);
-    if (!dupe) { props.unshift(p); added++; }
+function parsePaste(){
+  const text=document.getElementById('pasteBox').value.trim();
+  const status=document.getElementById('parseStatus');
+  if(!text){status.textContent='Nothing to paste.';return;}
+  let detected=sport;
+  if(text.includes('Pitcher K')||text.includes('EROuts')||/\d+\.\d+(Outs|BB|ER|K|Hits)/.test(text))detected='mlb';
+  else if(text.includes('Points')||text.includes('Rebounds')||/\bPTS\b|\bREB\b|\bAST\b|\bPRA\b/.test(text))detected='nba';
+  const newPlays=detected==='mlb'?parseMLB(text):parseNBA(text);
+  let added=0;
+  newPlays.forEach(p=>{
+    const dupe=props.find(t=>t.player===p.player&&t.market===p.market&&t.date===p.date&&t.line===p.line&&t.side===p.side);
+    if(!dupe){props.unshift(p);added++;}
   });
-
-  saveState();
-  renderAll();
-  if (newPlays.length === 0) {
-    status.textContent = 'Parser found 0 plays. Check format.';
-    status.className = 'stxt err';
-  } else {
-    status.textContent = `Added ${added} of ${newPlays.length} plays (${newPlays.length - added} dupes).`;
-    status.className = 'stxt ok';
-    document.getElementById('pasteBox').value = '';
-    document.getElementById('pastePanel').style.display = 'none';
-  }
+  saveState();renderAll();
+  if(newPlays.length===0){status.textContent='Parser found 0 plays.';status.className='stxt err';}
+  else{status.textContent='Added '+added+' of '+newPlays.length+' plays.';status.className='stxt ok';document.getElementById('pasteBox').value='';}
 }
 
 // ── Render ─────────────────────────────────────────────
-function renderAll() {
-  updateSummaryBar();
-  updateMarketFilter();
-  populateGradeDates();
-  document.getElementById('logCount').textContent = props.filter(p => p.sport === sport).length;
-
-  if (trackerTab === 'plays') renderPlays();
-  else if (trackerTab === 'dashboard') renderDashboard();
+function renderAll(){
+  updateSum();updateMarketFilter();populateGradeDates();
+  document.getElementById('logCount').textContent=props.filter(p=>p.sport===sport).length;
+  if(tab==='plays')renderPlays();
+  else if(tab==='dashboard')renderDashboard();
   else renderLog();
 }
 
-function getFiltered() {
-  let f = props.filter(p => p.sport === sport);
-  const res = document.getElementById('filterResult').value;
-  const mkt = document.getElementById('filterMarket').value;
-  if (res === 'pending') f = f.filter(p => !p.result);
-  else if (res) f = f.filter(p => p.result === res);
-  if (mkt) f = f.filter(p => p.market === mkt);
+function getFiltered(){
+  let f=props.filter(p=>p.sport===sport);
+  const res=document.getElementById('filterResult').value;
+  const mkt=document.getElementById('filterMarket').value;
+  if(res==='pending')f=f.filter(p=>!p.result||p.result==='');
+  else if(res)f=f.filter(p=>p.result===res);
+  if(mkt)f=f.filter(p=>p.market===mkt);
   return f;
 }
 
-function updateMarketFilter() {
-  const sel = document.getElementById('filterMarket');
-  const cur = sel.value;
-  const mkts = [...new Set(props.filter(p=>p.sport===sport).map(p=>p.market))].sort();
-  sel.innerHTML = '<option value="">All Markets</option>' + mkts.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m}</option>`).join('');
+function updateMarketFilter(){
+  const sel=document.getElementById('filterMarket');
+  const cur=sel.value;
+  const mkts=[...new Set(props.filter(p=>p.sport===sport).map(p=>p.market))].sort();
+  sel.innerHTML='<option value="">All Markets</option>'+mkts.map(m=>'<option value="'+m+'"'+(m===cur?' selected':'')+'>'+m+'</option>').join('');
 }
 
-function updateSummaryBar() {
-  const sp = props.filter(p => p.sport === sport);
-  const settled = sp.filter(p => p.result && p.result !== '');
-  const w = settled.filter(p=>p.result==='win').length;
-  const l = settled.filter(p=>p.result==='loss').length;
-  const pnl = settled.reduce((a,p)=>a+(p.pnl||0),0);
-  const risk = settled.reduce((a,p)=>a+uRisk(p),0);
-  const roi = risk > 0 ? (pnl/risk*100).toFixed(1) : null;
-  const bar = document.getElementById('summaryBar');
-  bar.innerHTML = `
-    <span class="chip"><b>${sp.length}</b> PLAYS</span>
-    <span class="chip"><b>${w}W · ${l}L</b></span>
-    <span class="chip ${settled.length?(w/settled.length*100)>=55?'green':'':''}">${settled.length?(w/settled.length*100).toFixed(1)+'%':'—'} W%</span>
-    <span class="chip ${pnl>=0?'green':'red'}">${sgn(pnl)} P&L</span>
-    <span class="chip ${roi&&parseFloat(roi)>=0?'green':'red'}">${roi?(roi>=0?'+':'')+roi+'%':'—'} ROI</span>
-    <span class="chip">${sp.filter(p=>!p.result).length} pending</span>
-  `;
+function updateSum(){
+  const sp=props.filter(p=>p.sport===sport);
+  const settled=sp.filter(p=>p.result&&p.result!=='');
+  const w=settled.filter(p=>p.result==='win').length;
+  const l=settled.filter(p=>p.result==='loss').length;
+  const pnl=settled.reduce((a,p)=>a+(p.pnl||0),0);
+  const risk=settled.reduce((a,p)=>a+uRisk(p),0);
+  const roi=risk>0?(pnl/risk*100).toFixed(1):null;
+  const wr=settled.length?(w/settled.length*100).toFixed(1):null;
+  document.getElementById('sumBar').innerHTML=
+    '<span class="chip"><b>'+sp.length+'</b> plays</span>'+
+    '<span class="chip"><b>'+w+'W · '+l+'L</b></span>'+
+    '<span class="chip'+(wr&&parseFloat(wr)>=55?' g':'')+'">'+( wr?wr+'%':'—')+' W%</span>'+
+    '<span class="chip'+(pnl>=0?' g':' r')+'">'+sgn(pnl)+' P&L</span>'+
+    '<span class="chip'+(roi&&parseFloat(roi)>=0?' g':' r')+'">'+( roi?(parseFloat(roi)>=0?'+':'')+roi+'%':'—')+' ROI</span>'+
+    '<span class="chip">'+sp.filter(p=>!p.result||p.result==='').length+' pending</span>';
 
-  // Daily summary
-  const dsb = document.getElementById('dailySummaryBar');
-  dsb.innerHTML = buildDailySummary(sp);
-}
-
-function buildDailySummary(allProps) {
-  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-  const moNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  function dateLabel(d) {
-    if (!d) return '?';
-    const m = d.match(/\d{4}-(\d{2})-(\d{2})/);
-    return m ? moNames[parseInt(m[1])]+'-'+parseInt(m[2]) : d;
-  }
-  const dates = [...new Set(allProps.map(p=>p.date).filter(Boolean))].sort().reverse();
-  if (!dates.length) return '';
-  let h = '<div class="daily">';
-  dates.slice(0,5).forEach((date,di) => {
-    const dp = allProps.filter(p=>p.date===date);
-    const ds = dp.filter(p=>p.result&&p.result!=='');
-    const dw = ds.filter(p=>p.result==='win').length;
-    const dl = ds.filter(p=>p.result==='loss').length;
-    const dpu = ds.filter(p=>p.result==='push').length;
-    const dpnl = ds.reduce((a,p)=>a+(p.pnl||0),0);
-    const drisk = ds.reduce((a,p)=>a+uRisk(p),0);
-    const droi = drisk>0?(dpnl/drisk*100).toFixed(1)+'%':'—';
-    const wr = ds.length?(dw/ds.length*100).toFixed(1)+'%':'—';
-    const pc = dpnl>=0?'var(--green)':'var(--red)';
-    h += `<div class="drow">
-      <div style="font-size:12px;font-weight:700;min-width:70px;">${dateLabel(date)}</div>
-      <div style="display:flex;gap:14px;align-items:center;flex:1;font-size:11px;color:var(--text2);">
-        <span>${dw}W ${dl}L${dpu?' '+dpu+'P':''}</span>
-        <span>${wr} W%</span>
-        <span style="color:${pc};font-weight:700;">${sgn(dpnl)}</span>
-        <span>${dp.length} plays</span>
-      </div>
-      <button class="dcopy" onclick="copyDailySummary(${di})" id="copybtn-${di}" style="font-size:10px;padding:3px 8px;border:1px solid var(--border2);border-radius:4px;background:none;color:var(--text2);cursor:pointer;">Copy</button>
-    </div>`;
-    window._dailyData = window._dailyData || {};
-    window._dailyData[di] = {date:dateLabel(date),dw,dl,dpu,wr,pnl:sgn(dpnl),roi:droi,total:dp.length,settled:ds.length,
-      plays:dp.map(p=>({player:p.player,market:p.market,line:p.line,side:p.side,result:p.result,pnl:p.pnl}))};
+  // Daily bar
+  const moN=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function dl(d){const m=d?.match(/\d{4}-(\d{2})-(\d{2})/);return m?moN[parseInt(m[1])]+'-'+parseInt(m[2]):d||'?';}
+  const dates=[...new Set(sp.map(p=>p.date).filter(Boolean))].sort().reverse();
+  if(!dates.length){document.getElementById('dailyBar').innerHTML='';return;}
+  window._dd={};
+  let bar='<div class="daily">';
+  dates.slice(0,5).forEach((d,di)=>{
+    const dp=sp.filter(p=>p.date===d);
+    const ds=dp.filter(p=>p.result&&p.result!=='');
+    const dw=ds.filter(p=>p.result==='win').length,dl2=ds.filter(p=>p.result==='loss').length;
+    const dpu=ds.filter(p=>p.result==='push').length;
+    const dpnl=ds.reduce((a,p)=>a+(p.pnl||0),0);
+    const drisk=ds.reduce((a,p)=>a+uRisk(p),0);
+    const droi=drisk>0?(dpnl/drisk*100).toFixed(1)+'%':'—';
+    const wr2=ds.length?(dw/ds.length*100).toFixed(1)+'%':'—';
+    const pc=dpnl>=0?'var(--green)':'var(--red)';
+    window._dd[di]={date:dl(d),dw,dl:dl2,dpu,wr:wr2,pnl:sgn(dpnl),roi:droi,total:dp.length,settled:ds.length,plays:dp.map(p=>({player:p.player,market:p.market,line:p.line,side:p.side,result:p.result,pnl:p.pnl}))};
+    bar+='<div class="drow"><span class="ddate">'+dl(d)+'</span><div class="dstats"><span>'+dw+'W '+dl2+'L'+(dpu?' '+dpu+'P':'')+'</span><span>'+wr2+' W%</span><span style="color:'+pc+';font-weight:600">'+sgn(dpnl)+'</span><span>'+dp.length+' plays</span></div><button class="dcopy" onclick="copyDay('+di+')">Copy</button></div>';
   });
-  h += '</div>';
-  return h;
+  document.getElementById('dailyBar').innerHTML=bar+'</div>';
 }
 
-function copyDailySummary(di) {
-  const d = window._dailyData?.[di]; if (!d) return;
-  let t = `📊 SBK Tracker — ${d.date}\n${d.dw}W ${d.dl}L | W% ${d.wr} | P&L ${d.pnl} | ROI ${d.roi}\n${d.total} plays (${d.settled} settled)\n`;
-  const wins = d.plays.filter(p=>p.result==='win');
-  const losses = d.plays.filter(p=>p.result==='loss');
-  if (wins.length) { t += '\n✅ WINS\n'; wins.forEach(p=>{ t+=`  ${p.player} ${p.market} ${p.line} ${p.side==='O'?'O':'U'}${p.pnl!=null?' ('+(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u)':''}\n`; }); }
-  if (losses.length) { t += '\n❌ LOSSES\n'; losses.forEach(p=>{ t+=`  ${p.player} ${p.market} ${p.line} ${p.side==='O'?'O':'U'}${p.pnl!=null?' ('+(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u)':''}\n`; }); }
-  navigator.clipboard.writeText(t).then(()=>{ const b=document.getElementById('copybtn-'+di); if(b){b.textContent='Copied!';setTimeout(()=>b.textContent='Copy',1500);} }).catch(()=>{ const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta); });
+function copyDay(di){
+  const d=window._dd?.[di];if(!d)return;
+  let t='📊 SBK Tracker — '+d.date+'\n'+d.dw+'W '+d.dl+'L | W% '+d.wr+' | P&L '+d.pnl+' | ROI '+d.roi+'\n'+d.total+' plays ('+d.settled+' settled)\n';
+  const wins=d.plays.filter(p=>p.result==='win'),losses=d.plays.filter(p=>p.result==='loss'),pend=d.plays.filter(p=>!p.result||p.result==='');
+  if(wins.length){t+='\n✅ WINS\n';wins.forEach(p=>{t+='  '+p.player+' '+p.market+' '+p.line+' '+(p.side==='O'?'O':'U')+(p.pnl!=null?' ('+(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u)':'')+'\n';});}
+  if(losses.length){t+='\n❌ LOSSES\n';losses.forEach(p=>{t+='  '+p.player+' '+p.market+' '+p.line+' '+(p.side==='O'?'O':'U')+(p.pnl!=null?' ('+(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u)':'')+'\n';});}
+  if(pend.length){t+='\n⏳ PENDING ('+pend.length+')\n';pend.forEach(p=>{t+='  '+p.player+' '+p.market+' '+p.line+' '+(p.side==='O'?'O':'U')+'\n';});}
+  navigator.clipboard.writeText(t).then(()=>{}).catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);});
 }
 
-// ── Plays view ─────────────────────────────────────────
-function renderPlays() {
-  const el = document.getElementById('trackerBody');
-  const filtered = getFiltered();
-  if (!filtered.length) { el.innerHTML = '<div class="empty">No plays — paste from Sharpr to get started</div>'; return; }
-
-  const moNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  function dateLabel(d) { const m=d?.match(/\d{4}-(\d{2})-(\d{2})/); return m?moNames[parseInt(m[1])]+'-'+parseInt(m[2]):d||'?'; }
-
-  // Group by date then game
-  const dateGroups = {};
-  filtered.forEach(p => {
-    const dk = p.date || getTodayStr();
-    if (!dateGroups[dk]) dateGroups[dk] = {};
-    const gk = p.game || '?';
-    if (!dateGroups[dk][gk]) dateGroups[dk][gk] = { time: p.gameTime, items: [] };
-    dateGroups[dk][gk].items.push(p);
-  });
-
-  let html = '';
-  Object.keys(dateGroups).sort().reverse().forEach(dk => {
-    const dp = Object.values(dateGroups[dk]).flatMap(g=>g.items);
-    const ds = dp.filter(p=>p.result);
-    const dw = ds.filter(p=>p.result==='win').length;
-    const dl = ds.filter(p=>p.result==='loss').length;
-    const dpnl = ds.reduce((a,p)=>a+(p.pnl||0),0);
-    const pc = dpnl>=0?'var(--green)':'var(--red)';
-    html += `<div class="dg-hdr"><span class="dg-lbl">${dateLabel(dk)}</span><span class="dg-meta">${dw}W ${dl}L &nbsp;·&nbsp; <span style="color:${pc}">${sgn(dpnl)}</span> &nbsp;·&nbsp; ${dp.length} plays</span></div>`;
-
-    // Sort games by time
-    const sortedGames = Object.entries(dateGroups[dk]).sort((a,b) => parseTimeVal(a[1].time) - parseTimeVal(b[1].time));
-    sortedGames.forEach(([gk, group]) => {
-      const gSettled = group.items.filter(p=>p.result);
-      const gW = gSettled.filter(p=>p.result==='win').length;
-      const gL = gSettled.filter(p=>p.result==='loss').length;
-      const gPnl = gSettled.reduce((a,p)=>a+(p.pnl||0),0);
-      html += `<div class="gg">
-        <div class="gg-hdr">
-          <span class="gg-name">${gk}</span>
-          <span class="gg-meta">${group.time||''} &nbsp;·&nbsp; ${gW}W ${gL}L &nbsp; <span style="color:${gPnl>=0?'var(--green)':'var(--red)'}">${sgn(gPnl)}</span></span>
-        </div>
-        <div class="pr-hdr"><span>PLAYER</span><span>PROJ</span><span>MKT</span><span>LINE</span><span>ODDS</span><span>EV%</span><span>RESULT</span><span style="text-align:right">P&L</span></div>`;
-      group.items.forEach(p => {
-        const rc = p.result==='win'?'var(--green)':p.result==='loss'?'var(--red)':p.result==='push'?'var(--amber)':'var(--text3)';
-        html += `<div class="pr">
-          <div class="player-cell">
-            <span class="player">${p.player}</span>
-            <span class="player-sub">${p.proj!=null?p.proj+' proj':''}</span>
-          </div>
-          <span><span class="mkt-badge">${p.market}</span></span>
-          <span class="line-side ${p.side}">${p.line} ${p.side==='O'?'o':'u'}</span>
-          <span class="odds">${p.odds}</span>
-          <span class="pr-ev ${p.ev>0?'p':'n'}">${p.ev>0?'+':''}${p.ev.toFixed(1)}%</span>
-          <select class="rsel ${p.result||''}" data-id="${p.id}" onchange="setResult(this)">
-            <option value=""${!p.result?' selected':''}>Pending</option>
-            <option value="win"${p.result==='win'?' selected':''}>✓ Win ${p.actual!=null?p.actual:''}</option>
-            <option value="loss"${p.result==='loss'?' selected':''}>✗ Loss ${p.actual!=null?p.actual:''}</option>
-            <option value="push"${p.result==='push'?' selected':''}>~ Push</option>
-            <option value="skip"${p.result==='skip'?' selected':''}>Skip</option>
-          </select>
-          <span class="pr-pr-pnl ${(p.pnl||0)>=0?'p':'n'}">${p.pnl!=null?sgn(p.pnl):''}</span>
-        </div>`;
-      });
-      html += '</div>';
+// ── Plays ──────────────────────────────────────────────
+function renderPlays(){
+  const el=document.getElementById('body');
+  const filtered=getFiltered();
+  if(!filtered.length){el.innerHTML='<div class="empty">No plays — paste from Sharpr above</div>';return;}
+  const moN=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function dl(d){const m=d?.match(/\d{4}-(\d{2})-(\d{2})/);return m?moN[parseInt(m[1])]+'-'+parseInt(m[2]):d||'?';}
+  const dg={};
+  filtered.forEach(p=>{const dk=p.date||getTodayStr();if(!dg[dk])dg[dk]=[];dg[dk].push(p);});
+  let h='';
+  Object.keys(dg).sort().reverse().forEach(dk=>{
+    const dp=dg[dk];
+    const ds=dp.filter(p=>p.result&&p.result!=='skip');
+    const dw=ds.filter(p=>p.result==='win').length,dl2=ds.filter(p=>p.result==='loss').length;
+    const dpnl=ds.reduce((a,p)=>a+(p.pnl||0),0);
+    const pc=dpnl>=0?'var(--green)':'var(--red)';
+    h+='<div class="dghdr"><span class="dglbl">'+dl(dk)+'</span><span class="dgmeta">'+dw+'W '+dl2+'L &nbsp;·&nbsp; <span style="color:'+pc+'">'+sgn(dpnl)+'</span> &nbsp;·&nbsp; '+dp.length+' plays</span></div>';
+    h+='<div class="ptbl"><div class="phdr"><span>PLAYER</span><span>PROJ</span><span>MKT</span><span>LINE</span><span>ODDS</span><span>EV%</span><span>RESULT</span><span style="text-align:right">P&L</span></div>';
+    [...dp].sort((a,b)=>(b.ev||0)-(a.ev||0)).forEach(p=>{
+      const rc=p.result==='win'?'var(--green)':p.result==='loss'?'var(--red)':p.result==='push'?'var(--amber)':'var(--t2)';
+      h+='<div class="prow">'+
+        '<span class="pname">'+p.player+'</span>'+
+        '<span class="pproj">'+(p.proj??'—')+'</span>'+
+        '<span><span class="pmkt">'+p.market+'</span></span>'+
+        '<span class="pline '+p.side+'">'+(p.side==='O'?'o':'u')+p.line+'</span>'+
+        '<span class="podds">'+p.odds+'</span>'+
+        '<span class="pev '+(p.ev>0?'p':'n')+'">'+(p.ev>0?'+':'')+p.ev.toFixed(1)+'%</span>'+
+        '<select class="rsel '+(p.result||'')+'" data-id="'+p.id+'" onchange="setResult(this)">'+
+          '<option value=""'+(!p.result?' selected':'')+'>Pending</option>'+
+          '<option value="win"'+(p.result==='win'?' selected':'')+'>Win'+(p.actual!=null?' · '+p.actual:'')+'</option>'+
+          '<option value="loss"'+(p.result==='loss'?' selected':'')+'>Loss'+(p.actual!=null?' · '+p.actual:'')+'</option>'+
+          '<option value="push"'+(p.result==='push'?' selected':'')+'>Push</option>'+
+          '<option value="skip"'+(p.result==='skip'?' selected':'')+'>Skip</option>'+
+        '</select>'+
+        '<span class="ppnl '+(( p.pnl||0)>=0?'p':'n')+'">'+(p.pnl!=null?sgn(p.pnl):'')+'</span>'+
+      '</div>';
     });
+    h+='</div>';
   });
-
-  el.innerHTML = html;
+  el.innerHTML=h;
 }
 
-function parseTimeVal(t) {
-  if (!t) return 9999;
-  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!m) return 9999;
-  let h = parseInt(m[1]), mn = parseInt(m[2]);
-  if (m[3].toUpperCase()==='PM' && h!==12) h+=12;
-  if (m[3].toUpperCase()==='AM' && h===12) h=0;
-  return h*60+mn;
-}
-
-function setResult(sel) {
-  const id = parseFloat(sel.dataset.id);
-  const p = props.find(x=>x.id===id);
-  if (!p) return;
-  p.result = sel.value;
-  sel.className = 'result-sel ' + p.result;
-  if (p.result==='win') { const o=parseFloat(p.odds); p.pnl=o>0?o/100:1; }
-  else if (p.result==='loss') { const o=parseFloat(p.odds); p.pnl=o<0?-(Math.abs(o)/100):-1; }
-  else if (p.result==='push') p.pnl=0;
+function setResult(sel){
+  const id=parseFloat(sel.dataset.id);
+  const p=props.find(x=>x.id===id);if(!p)return;
+  p.result=sel.value;sel.className='rsel '+p.result;
+  const odds=parseFloat(p.odds);
+  if(p.result==='win')p.pnl=odds>0?odds/100:1;
+  else if(p.result==='loss')p.pnl=odds<0?-(Math.abs(odds)/100):-1;
+  else if(p.result==='push')p.pnl=0;
   else p.pnl=null;
-  saveState();
-  updateSummaryBar();
+  saveState();updateSum();
 }
 
 // ── Dashboard ──────────────────────────────────────────
-function renderDashboard() {
-  const el = document.getElementById('trackerBody');
-  const sp = props.filter(p=>p.sport===sport);
-  const settled = sp.filter(p=>p.result&&p.result!==''&&p.result!=='skip');
-  const w=settled.filter(p=>p.result==='win').length;
-  const l=settled.filter(p=>p.result==='loss').length;
-  const pu=settled.filter(p=>p.result==='push').length;
+function renderDashboard(){
+  const el=document.getElementById('body');
+  const sp=props.filter(p=>p.sport===sport);
+  const settled=sp.filter(p=>p.result&&p.result!=='skip');
+  const w=settled.filter(p=>p.result==='win').length,l=settled.filter(p=>p.result==='loss').length,pu=settled.filter(p=>p.result==='push').length;
   const pnl=settled.reduce((a,p)=>a+(p.pnl||0),0);
   const risk=settled.reduce((a,p)=>a+uRisk(p),0);
   const roi=risk>0?(pnl/risk*100).toFixed(1):null;
@@ -846,9 +530,8 @@ function renderDashboard() {
   const pc=pnl>=0?'var(--green)':'var(--red)';
   const rc=roi&&parseFloat(roi)>=0?'var(--green)':'var(--red)';
 
-  function bkTable(arr, keyFn, labelFn) {
-    const g={};
-    arr.forEach(p=>{const k=keyFn(p);if(!g[k])g[k]=[];g[k].push(p);});
+  function bk(arr,kFn){
+    const g={};arr.forEach(p=>{const k=kFn(p);if(!g[k])g[k]=[];g[k].push(p);});
     return Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,a])=>{
       const s=a.filter(p=>p.result&&p.result!=='skip');
       const sw=s.filter(p=>p.result==='win').length,sl=s.filter(p=>p.result==='loss').length;
@@ -856,460 +539,312 @@ function renderDashboard() {
       const sr=s.reduce((a,p)=>a+uRisk(p),0);
       const roi2=sr>0?(sp2/sr*100).toFixed(1)+'%':'—';
       const pc2=sp2>=0?'var(--green)':'var(--red)';
-      return `<tr><td>${labelFn?labelFn(k):k}</td><td>${sw}-${sl}</td><td style="color:${pc2}">${(sp2>=0?'+':'')+sp2.toFixed(2)}u</td><td style="color:${pc2}">${roi2}</td></tr>`;
+      return '<tr><td>'+k+'</td><td>'+sw+'-'+sl+'</td><td style="color:'+pc2+'">'+(sp2>=0?'+':'')+sp2.toFixed(2)+'u</td><td style="color:'+pc2+'">'+roi2+'</td></tr>';
     }).join('');
   }
 
-  const overs = settled.filter(p=>p.side==='O');
-  const unders = settled.filter(p=>p.side==='U');
-  const mkts = [...new Set(sp.map(p=>p.market))].sort();
+  const mkts=[...new Set(sp.map(p=>p.market))].sort();
+  const overs=settled.filter(p=>p.side==='O'),unders=settled.filter(p=>p.side==='U');
 
-  let ouCards = mkts.map(m=>{
-    const mp=settled.filter(p=>p.market===m);
-    if(!mp.length)return'';
+  const ouCards=mkts.map(m=>{
+    const mp=settled.filter(p=>p.market===m);if(!mp.length)return'';
     const os=mp.filter(p=>p.side==='O'),us=mp.filter(p=>p.side==='U');
     const mp2=mp.reduce((a,p)=>a+(p.pnl||0),0);
     const pc3=mp2>=0?'var(--green)':'var(--red)';
-    function mrow(arr,label,color){
+    function mr(arr,lbl,col){
       if(!arr.length)return'';
       const w2=arr.filter(p=>p.result==='win').length,l2=arr.filter(p=>p.result==='loss').length;
       const pnl2=arr.reduce((a,p)=>a+(p.pnl||0),0);
       const r2=arr.reduce((a,p)=>a+uRisk(p),0);
       const roi3=r2>0?(pnl2/r2*100).toFixed(1)+'%':'—';
       const pc4=pnl2>=0?'var(--green)':'var(--red)';
-      return `<tr><td style="color:${color}">${label}</td><td>${w2}-${l2}</td><td>${(w2/(w2+l2)*100||0).toFixed(1)}%</td><td style="color:${pc4}">${(pnl2>=0?'+':'')+pnl2.toFixed(2)}u</td><td style="color:${pc4}">${roi3}</td></tr>`;
+      return '<tr><td style="color:'+col+'">'+lbl+'</td><td>'+w2+'-'+l2+'</td><td>'+(arr.length?(w2/arr.length*100).toFixed(1):'—')+'%</td><td style="color:'+pc4+'">'+(pnl2>=0?'+':'')+pnl2.toFixed(2)+'u</td><td style="color:'+pc4+'">'+roi3+'</td></tr>';
     }
-    return `<div class="ou-card"><div class="ou-card-hdr"><span>${m}</span><span style="color:${pc3}">${(mp2>=0?'+':'')+mp2.toFixed(2)}u</span></div><table><thead><tr><td>Side</td><td>W-L</td><td>W%</td><td>P&L</td><td>ROI</td></tr></thead><tbody>${mrow(os,'Over','var(--green)')}${mrow(us,'Under','var(--blue)')}</tbody></table></div>`;
+    return '<div class="oucard"><div class="ouchdr"><span>'+m+'</span><span style="color:'+pc3+'">'+(mp2>=0?'+':'')+mp2.toFixed(2)+'u</span></div><table><thead><tr><td>Side</td><td>W-L</td><td>W%</td><td>P&L</td><td>ROI</td></tr></thead><tbody>'+mr(os,'Over','var(--green)')+mr(us,'Under','var(--blue)')+'</tbody></table></div>';
   }).join('');
 
   // Edge buckets
-  const edgeBuckets = [
-    {label:'1-4%',   min:1,  max:5},
-    {label:'5-9%',   min:5,  max:10},
-    {label:'10-14%', min:10, max:15},
-    {label:'15-19%', min:15, max:20},
-    {label:'20%+',   min:20, max:999},
-  ];
-
-  function ebStats(arr) {
+  const EBS=[{l:'1-4%',min:1,max:5},{l:'5-9%',min:5,max:10},{l:'10-14%',min:10,max:15},{l:'15-19%',min:15,max:20},{l:'20%+',min:20,max:999}];
+  function ebst(arr){
     const s=arr.filter(p=>p.result&&p.result!=='skip');
-    const w=s.filter(p=>p.result==='win').length, l=s.filter(p=>p.result==='loss').length;
+    const w2=s.filter(p=>p.result==='win').length,l2=s.filter(p=>p.result==='loss').length;
     const pnl2=s.reduce((a,p)=>a+(p.pnl||0),0);
-    const risk=s.reduce((a,p)=>a+uRisk(p),0);
-    const wr2=s.length?(w/s.length*100).toFixed(1)+'%':'—';
-    const roi2=risk>0?(pnl2/risk*100).toFixed(1)+'%':'—';
+    const r2=s.reduce((a,p)=>a+uRisk(p),0);
     const pc2=pnl2>=0?'var(--green)':'var(--red)';
-    return `<td>${arr.length}</td><td>${w}-${l}</td><td>${wr2}</td><td style="color:${pc2}">${pnl2>=0?'+':''}${pnl2.toFixed(2)}u</td><td style="color:${pc2}">${roi2}</td>`;
+    return '<td>'+arr.length+'</td><td>'+w2+'-'+l2+'</td><td>'+(s.length?(w2/s.length*100).toFixed(1):'—')+'%</td><td style="color:'+pc2+'">'+(pnl2>=0?'+':'')+pnl2.toFixed(2)+'u</td><td style="color:'+pc2+'">'+(r2>0?(pnl2/r2*100).toFixed(1)+'%':'—')+'</td>';
   }
-
-  const ebRows = edgeBuckets.map(b => {
-    const ba = settled.filter(p=>(p.ev||0)>=b.min&&(p.ev||0)<b.max);
-    const bo = ba.filter(p=>p.side==='O');
-    const bu = ba.filter(p=>p.side==='U');
-    return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="font-weight:600;color:var(--text);padding:6px 8px">${b.label}</td>${ebStats(ba)}
-      <td style="color:var(--text3);padding:6px 8px;font-size:10px">O</td>${ebStats(bo)}
-      <td style="color:var(--text3);padding:6px 8px;font-size:10px">U</td>${ebStats(bu)}
-    </tr>`;
+  const th='<th>N</th><th>W-L</th><th>W%</th><th>P&L</th><th>ROI</th>';
+  const ebRows=EBS.map(b=>{
+    const ba=settled.filter(p=>(p.ev||0)>=b.min&&(p.ev||0)<b.max);
+    const bo=ba.filter(p=>p.side==='O'),bu=ba.filter(p=>p.side==='U');
+    return '<tr style="border-bottom:1px solid var(--b0)"><td style="font-weight:600;color:var(--t0)">'+b.l+'</td>'+ebst(ba)+'<td style="color:var(--green);font-size:10px;padding:0 8px">O</td>'+ebst(bo)+'<td style="color:var(--blue);font-size:10px;padding:0 8px">U</td>'+ebst(bu)+'</tr>';
   }).join('');
 
-  // Edge buckets per market
-  const ebMarketCards = mkts.map(m => {
-    const ms = settled.filter(p=>p.market===m);
-    if (!ms.length) return '';
-    const rows = edgeBuckets.map(b => {
-      const ba=ms.filter(p=>(p.ev||0)>=b.min&&(p.ev||0)<b.max);
-      const bo=ba.filter(p=>p.side==='O'), bu=ba.filter(p=>p.side==='U');
-      if (!ba.length) return '';
-      return `<tr style="border-bottom:1px solid var(--border)">
-        <td style="font-weight:600;color:var(--text);padding:5px 8px">${b.label}</td>${ebStats(ba)}
-        <td style="color:var(--green);padding:5px 8px;font-size:10px">O</td>${ebStats(bo)}
-        <td style="color:var(--blue);padding:5px 8px;font-size:10px">U</td>${ebStats(bu)}
-      </tr>`;
-    }).join('');
-    if (!rows.trim()) return '';
-    return `<div style="background:var(--bg3);border-radius:8px;overflow:hidden;margin-bottom:8px">
-      <div style="padding:7px 10px;background:var(--bg4);font-size:11px;font-weight:700">${m}</div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px;font-family:-apple-system,sans-serif">
-        <thead><tr style="border-bottom:1px solid var(--border)">
-          <th style="padding:4px 8px;text-align:left;color:var(--text3);font-size:9px;text-transform:uppercase">BUCKET</th>
-          <th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">N</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W-L</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W%</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">P&L</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">ROI</th>
-          <th style="padding:4px 8px;color:var(--text3);font-size:9px"></th>
-          <th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">N</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W-L</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W%</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">P&L</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">ROI</th>
-          <th style="padding:4px 8px;color:var(--text3);font-size:9px"></th>
-          <th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">N</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W-L</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W%</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">P&L</th><th style="padding:4px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">ROI</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>
-    </div>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div class="dsh-grid">
-      <div class="dsh-card"><div class="lbl">Record</div><div class="val">${w}W · ${l}L</div><div class="sub">${settled.length} settled · ${sp.filter(p=>!p.result).length} pending</div></div>
-      <div class="dsh-card"><div class="lbl">Win Rate</div><div class="val">${wr?wr+'%':'—'}</div><div class="sub">settled only</div></div>
-      <div class="dsh-card"><div class="lbl">P&L</div><div class="val" style="color:${pc}">${sgn(pnl)}</div><div class="sub">units profit/loss</div></div>
-      <div class="dsh-card"><div class="lbl">ROI</div><div class="val" style="color:${rc}">${roi?(parseFloat(roi)>=0?'+':'')+roi+'%':'—'}</div><div class="sub">units won ÷ staked</div></div>
-    </div>
-    <div class="bg2">
-      <div>
-        <div class="slbl">By Market</div>
-        <div class="bk-wrap"><table class="bkt"><thead><tr><th>Market</th><th>W-L</th><th>P&L</th><th>ROI</th></tr></thead><tbody>${bkTable(sp,p=>p.market)}</tbody></table></div>
-      <div>
-        <div class="slbl">By Direction</div>
-        <div class="bk-wrap"><table class="bkt"><thead><tr><th>Side</th><th>W-L</th><th>P&L</th><th>ROI</th></tr></thead><tbody>${bkTable(settled,p=>p.side==='O'?'Over':'Under')}</tbody></table></div>
-    </div>
-    <div class="slbl" style="margin-top:20px;">By Market — Over vs Under</div>
-    <div class="ou-grid">${ouCards}</div>
-    <div class="slbl" style="margin-top:20px;">By Edge Bucket — All · Over · Under</div>
-    <div style="overflow-x:auto;margin-bottom:16px"><table style="width:100%;border-collapse:collapse;font-size:11px;font-family:-apple-system,sans-serif;background:var(--bg3);border-radius:8px;overflow:hidden">
-      <thead><tr style="border-bottom:1px solid var(--border)">
-        <th style="padding:6px 8px;text-align:left;color:var(--text3);font-size:9px;text-transform:uppercase">BUCKET</th>
-        <th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">N</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W-L</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W%</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">P&L</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">ROI</th>
-        <th style="padding:6px 8px;color:var(--green);font-size:9px">O</th>
-        <th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">N</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W-L</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W%</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">P&L</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">ROI</th>
-        <th style="padding:6px 8px;color:var(--blue);font-size:9px">U</th>
-        <th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">N</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W-L</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">W%</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">P&L</th><th style="padding:6px 8px;color:var(--text3);font-size:9px;text-transform:uppercase">ROI</th>
-      </tr></thead>
-      <tbody>${ebRows}</tbody>
-    </table></div>
-    <div class="slbl">By Edge Bucket — Per Market</div>
-    ${ebMarketCards}
-  `;
+  el.innerHTML=
+    '<div class="dgrid">'+
+      '<div class="dcard"><div class="lbl">Record</div><div class="val">'+w+'W · '+l+'L</div><div class="sub">'+settled.length+' settled · '+sp.filter(p=>!p.result||p.result==='').length+' pending</div></div>'+
+      '<div class="dcard"><div class="lbl">Win Rate</div><div class="val">'+(wr?wr+'%':'—')+'</div><div class="sub">settled only</div></div>'+
+      '<div class="dcard"><div class="lbl">P&L</div><div class="val" style="color:'+pc+'">'+sgn(pnl)+'</div><div class="sub">units profit/loss</div></div>'+
+      '<div class="dcard"><div class="lbl">ROI</div><div class="val" style="color:'+rc+'">'+(roi?(parseFloat(roi)>=0?'+':'')+roi+'%':'—')+'</div><div class="sub">units won ÷ staked</div></div>'+
+    '</div>'+
+    '<div class="bg2">'+
+      '<div><div class="slbl">By Market</div><div class="bwrap"><table class="bkt"><thead><tr><th>Market</th><th>W-L</th><th>P&L</th><th>ROI</th></tr></thead><tbody>'+bk(sp,p=>p.market)+'</tbody></table></div></div>'+
+      '<div><div class="slbl">By Direction</div><div class="bwrap"><table class="bkt"><thead><tr><th>Side</th><th>W-L</th><th>P&L</th><th>ROI</th></tr></thead><tbody>'+bk(settled,p=>p.side==='O'?'Over':'Under')+'</tbody></table></div></div>'+
+    '</div>'+
+    '<div class="slbl">By Market — Over vs Under</div><div class="ougrid">'+ouCards+'</div>'+
+    '<div class="slbl">By Edge Bucket — All · Over · Under</div>'+
+    '<div class="bwrap" style="overflow-x:auto"><table class="bkt" style="min-width:700px"><thead><tr><th>Bucket</th>'+th+'<th style="color:var(--green)">O</th>'+th+'<th style="color:var(--blue)">U</th>'+th+'</tr></thead><tbody>'+ebRows+'</tbody></table></div>';
 }
 
 // ── Bet Log ────────────────────────────────────────────
-function renderLog() {
-  const el = document.getElementById('trackerBody');
-  const sp = [...props.filter(p=>p.sport===sport)].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  if (!sp.length) { el.innerHTML = '<div class="empty">No plays yet</div>'; return; }
-
-  let running = 0;
-  let html = `<div class="log-row hdr"><span>#</span><span>Date</span><span>Player</span><span>Mkt</span><span>Line</span><span>Odds</span><span>EV%</span><span>Result</span><span>P&L / Running</span></div>`;
-  sp.forEach((p,i) => {
-    running += p.pnl||0;
-    const rc = p.result==='win'?'var(--green)':p.result==='loss'?'var(--red)':p.result==='push'?'var(--amber)':'var(--text2)';
-    const moNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const dm=p.date?.match(/\d{4}-(\d{2})-(\d{2})/);
-    const dl=dm?moNames[parseInt(dm[1])]+'-'+parseInt(dm[2]):p.date||'?';
-    html += `<div class="log-row">
-      <span style="color:var(--text3)">${i+1}</span>
-      <span style="color:var(--text2)">${dl}</span>
-      <span>${p.player}</span>
-      <span><span class="mkt-badge">${p.market}</span></span>
-      <span class="line-side ${p.side}">${p.line} ${p.side}</span>
-      <span class="odds">${p.odds}</span>
-      <span class="pr-ev ${p.ev>0?'p':'n'}">${p.ev>0?'+':''}${p.ev.toFixed(1)}%</span>
-      <span style="color:${rc};font-weight:600;">${p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending'}</span>
-      <span><span class="pr-pr-pnl ${(p.pnl||0)>=0?'p':'n'}">${p.pnl!=null?sgn(p.pnl):''}</span> <span style="color:var(--text3);font-size:10px;">${sgn(running)}</span></span>
-    </div>`;
+function renderLog(){
+  const el=document.getElementById('body');
+  const sp=[...props.filter(p=>p.sport===sport)].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!sp.length){el.innerHTML='<div class="empty">No plays yet</div>';return;}
+  const moN=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function dl(d){const m=d?.match(/\d{4}-(\d{2})-(\d{2})/);return m?moN[parseInt(m[1])]+'-'+parseInt(m[2]):d||'?';}
+  let running=0;
+  let h='<div class="ltbl">'+
+    '<div class="lhdr"><span>#</span><span>DATE</span><span>PLAYER</span><span>MKT</span><span>LINE</span><span>ODDS</span><span>PROJ</span><span>ACT</span><span>RESULT</span><span style="text-align:right">P&L / RUN</span></div>';
+  sp.forEach((p,i)=>{
+    running+=(p.pnl||0);
+    const rc=p.result==='win'?'var(--green)':p.result==='loss'?'var(--red)':p.result==='push'?'var(--amber)':'var(--t1)';
+    const runc=running>=0?'var(--green)':'var(--red)';
+    h+='<div class="lrow">'+
+      '<span style="color:var(--t3);font-size:11px">'+(i+1)+'</span>'+
+      '<span style="color:var(--t1)">'+dl(p.date)+'</span>'+
+      '<span style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.player+'</span>'+
+      '<span><span class="pmkt">'+p.market+'</span></span>'+
+      '<span class="pline '+p.side+'">'+(p.side==='O'?'o':'u')+p.line+'</span>'+
+      '<span style="color:var(--t1)">'+p.odds+'</span>'+
+      '<span style="color:var(--t1)">'+(p.proj??'—')+'</span>'+
+      '<span style="color:'+rc+'">'+(p.actual!=null?p.actual:'—')+'</span>'+
+      '<span style="color:'+rc+';font-weight:600">'+(p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending')+'</span>'+
+      '<div style="text-align:right">'+
+        '<div style="color:'+rc+';font-weight:600;font-size:12px">'+(p.pnl!=null?sgn(p.pnl):'—')+'</div>'+
+        '<div style="color:'+runc+';font-size:10px;opacity:.65;margin-top:1px">'+sgn(running)+'</div>'+
+      '</div>'+
+    '</div>';
   });
-  el.innerHTML = html;
+  el.innerHTML=h+'</div>';
 }
 
-// ── Grade ──────────────────────────────────────────────
-function populateGradeDates() {
-  const pending = props.filter(p=>p.sport===sport&&!p.result);
-  const all = props.filter(p=>p.sport===sport);
-  const pendingDates = [...new Set(pending.map(p=>p.date||getTodayStr()))].sort().reverse();
-  const allDates = [...new Set(all.map(p=>p.date||getTodayStr()))].sort().reverse();
-
-  const gsel = document.getElementById('gradeDate');
-  const cur = gsel.value;
-  gsel.innerHTML = '<option value="">Grade date...</option>' + pendingDates.map(d=>`<option value="${d}"${d===cur?' selected':''}>${d} (${pending.filter(p=>(p.date||getTodayStr())===d).length} pending)</option>`).join('');
-
-  const rsel = document.getElementById('regradeDate');
-  const rcur = rsel.value;
-  rsel.innerHTML = '<option value="">Re-grade date...</option>' + allDates.map(d=>`<option value="${d}"${d===rcur?' selected':''}>${d} (${all.filter(p=>(p.date||getTodayStr())===d).length} plays)</option>`).join('');
+// ── Grade Dates ────────────────────────────────────────
+function populateGradeDates(){
+  const pending=props.filter(p=>p.sport===sport&&(!p.result||p.result===''));
+  const all=props.filter(p=>p.sport===sport);
+  const pd=[...new Set(pending.map(p=>p.date||getTodayStr()))].sort().reverse();
+  const ad=[...new Set(all.map(p=>p.date||getTodayStr()))].sort().reverse();
+  const gs=document.getElementById('gradeDate'),gc=gs.value;
+  gs.innerHTML='<option value="">Grade date...</option>'+pd.map(d=>'<option value="'+d+'"'+(d===gc?' selected':'')+'>'+d+' ('+pending.filter(p=>(p.date||getTodayStr())===d).length+' pending)</option>').join('');
+  const rs=document.getElementById('regradeDate'),rc=rs.value;
+  rs.innerHTML='<option value="">Re-grade date...</option>'+ad.map(d=>'<option value="'+d+'"'+(d===rc?' selected':'')+'>'+d+' ('+all.filter(p=>(p.date||getTodayStr())===d).length+' plays)</option>').join('');
 }
 
-function repairDates() {
-  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-  let fixed = 0;
-  props.forEach(p => {
-    if (p.gameTime) {
-      const m = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
-      if (m && months[m[1]]) {
-        const correct = new Date().getFullYear()+'-'+months[m[1]]+'-'+m[2].padStart(2,'0');
-        if (p.date !== correct) { p.date = correct; fixed++; }
-      }
-    }
-  });
-  if (fixed) { saveState(); renderAll(); alert('Fixed '+fixed+' dates.'); }
-  else alert('All dates already correct.');
+function repairDates(){
+  const mo={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  let n=0;
+  props.forEach(p=>{if(p.gameTime){const m=p.gameTime.match(/([A-Za-z]+)-(\d+)/);if(m&&mo[m[1]]){const c=new Date().getFullYear()+'-'+mo[m[1]]+'-'+m[2].padStart(2,'0');if(p.date!==c){p.date=c;n++;}}}});
+  if(n){saveState();renderAll();alert('Fixed '+n+' dates.');}else alert('All dates correct.');
 }
 
-async function regrade() {
-  const sel = document.getElementById('regradeDate');
-  const selectedDate = sel?.value;
-  const status = document.getElementById('gradeStatus');
-  if (!selectedDate) { status.textContent = 'Pick a re-grade date.'; return; }
-  if (!confirm('Clear results for '+selectedDate+' and re-grade?')) return;
-  let cleared = 0;
-  props.forEach(p => { if (p.sport===sport && p.date===selectedDate && p.result) { p.result=''; p.actual=null; p.pnl=null; cleared++; } });
-  saveState(); renderAll();
-  document.getElementById('gradeDate').value = selectedDate;
+async function regrade(){
+  const sel=document.getElementById('regradeDate');
+  const d=sel?.value;
+  const status=document.getElementById('gradeStatus');
+  if(!d){status.textContent='Pick a re-grade date.';return;}
+  if(!confirm('Clear results for '+d+' and re-grade?'))return;
+  let n=0;
+  props.forEach(p=>{if(p.sport===sport&&p.date===d&&p.result){p.result='';p.actual=null;p.pnl=null;n++;}});
+  saveState();renderAll();
+  document.getElementById('gradeDate').value=d;
   await autoGrade();
 }
 
-async function autoGrade() {
-  const sel = document.getElementById('gradeDate');
-  const selectedDate = sel?.value;
-  const btn = document.getElementById('gradeBtn');
-  const status = document.getElementById('gradeStatus');
-  if (!selectedDate) { status.textContent = 'Pick a date.'; return; }
-  btn.disabled = true;
-
-  if (sport === 'nba') {
-    await autoGradeNBA(selectedDate, status);
-  } else {
-    await autoGradeMLB(selectedDate, status);
-  }
-  btn.disabled = false;
+async function autoGrade(){
+  const sel=document.getElementById('gradeDate');
+  const selectedDate=sel?.value;
+  const btn=document.getElementById('gradeBtn');
+  const status=document.getElementById('gradeStatus');
+  if(!selectedDate){status.textContent='Pick a date.';return;}
+  btn.disabled=true;
+  if(sport==='nba')await gradeNBA(selectedDate,status);
+  else await gradeMLB(selectedDate,status);
+  btn.disabled=false;
 }
 
-function gradeResult(p, actual) {
-  const line = parseFloat(p.line);
-  let result;
-  if (p.market === 'OUTS') {
-    const a = parseIP(actual);
-    result = a > line ? 'win' : a < line ? 'loss' : 'push';
-  } else {
-    const a = parseFloat(actual);
-    result = p.side === 'O' ? (a > line ? 'win' : a < line ? 'loss' : 'push')
-                            : (a < line ? 'win' : a > line ? 'loss' : 'push');
-  }
-  p.actual = actual;
-  p.result = result;
-  const odds = parseFloat(p.odds);
-  if (result === 'win') p.pnl = odds > 0 ? odds/100 : 1;
-  else if (result === 'loss') p.pnl = odds < 0 ? -(Math.abs(odds)/100) : -1;
-  else p.pnl = 0;
-}
-
-// ── MLB Grader (MLB Stats API) ─────────────────────────
-async function autoGradeMLB(selectedDate, status) {
-  status.textContent = 'Fetching MLB schedule…'; status.className = 'stxt';
-  const mo2 = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-  const pendingProps = props.filter(p => p.sport==='mlb' && !p.result && p.date===selectedDate);
-  const gameDatesSet = new Set([selectedDate]);
-  pendingProps.forEach(p => {
-    if (p.gameTime) {
-      const gm = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
-      if (gm && mo2[gm[1]]) gameDatesSet.add(new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0'));
-    }
+// ── MLB Grader ─────────────────────────────────────────
+function buildPlayerLookup(boxscores){
+  const lookup={};
+  Object.values(boxscores).forEach(bs=>{
+    if(!bs.teams)return;
+    ['away','home'].forEach(side=>{
+      const team=bs.teams[side];
+      if(!team?.players)return;
+      Object.values(team.players).forEach(player=>{
+        const name=player.person?.fullName;
+        if(!name)return;
+        const norm=normName(name);
+        const ps=player.stats?.pitching;
+        if(!ps)return;
+        const outs=(()=>{const p2=String(ps.inningsPitched||0).split('.');return(parseInt(p2[0])||0)*3+(parseInt(p2[1])||0);})();
+        if(outs===0)return;
+        lookup[norm]={K:ps.strikeOuts,OUTS:outs,HA:ps.hits,ER:ps.earnedRuns??ps.runs??null,BB:ps.baseOnBalls,IP:ps.inningsPitched};
+      });
+    });
   });
-  try {
-    const allGames = [];
-    for (const dateStr of [...gameDatesSet]) {
-      const resp = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}`);
-      const data = await resp.json();
-      if (data.dates?.[0]?.games) allGames.push(...data.dates[0].games);
-    }
-    const boxscores = {};
-    for (const g of allGames) {
-      if (g.status.abstractGameState === 'Final' || g.status.abstractGameState === 'Live') {
-        try { const br = await fetch(`https://statsapi.mlb.com/api/v1/game/${g.gamePk}/boxscore`); boxscores[g.gamePk] = await br.json(); } catch(e){}
-      }
-    }
-    if (!Object.keys(boxscores).length) { status.textContent = 'No completed MLB games yet.'; return; }
-    const playerStats = buildPlayerLookup(boxscores);
-    let graded=0, missed=[];
-    props.forEach(p => {
-      if (p.result || p.sport !== 'mlb') return;
-      let propDate = p.date || selectedDate;
-      if (p.gameTime) { const gm = p.gameTime.match(/([A-Za-z]+)-(\d+)/); if (gm && mo2[gm[1]]) propDate = new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0'); }
-      if (propDate !== selectedDate) return;
-      const statVal = findPlayerStat(playerStats, p.player, p.market);
-      if (statVal === null) { missed.push(p.player+' ('+p.market+')'); return; }
-      gradeResult(p, statVal);
-      graded++;
-    });
-    saveState(); renderAll();
-    status.textContent = graded ? `Graded ${graded} MLB props. ✓` + (missed.length ? ` Not found: ${missed.slice(0,2).join(', ')}` : '') : `Graded 0. Not found: ${missed.slice(0,3).join(', ')}`;
-    status.className = graded ? 'status ok' : 'status';
-  } catch(e) { status.textContent = 'MLB grade error: '+e.message; status.className='status err'; }
+  return lookup;
 }
 
-// ── NBA Grader (Ball Don't Lie API) ───────────────────
-async function autoGradeNBA(selectedDate, status) {
-  const BDL_KEY = '9cdb249f-9635-4cca-a998-37c7b98a9372';
-  const BDL = 'https://api.balldontlie.io/v1';
-  const headers = { 'Authorization': BDL_KEY };
-
-  status.textContent = 'Fetching NBA games…'; status.className = 'stxt';
-
-  try {
-    // Step 1: get games for date - use selectedDate AND any gameTime-derived dates
-    const mo2 = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-    const pendingProps = props.filter(p => p.sport==='nba' && !p.result && p.date===selectedDate);
-    const gameDatesSet = new Set([selectedDate]);
-    pendingProps.forEach(p => {
-      if (p.gameTime) {
-        const gm = p.gameTime.match(/([A-Za-z]+)-(\d+)/);
-        if (gm && mo2[gm[1]]) gameDatesSet.add(new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0'));
-      }
-    });
-
-    // Fetch games for each relevant date
-    let allGames = [];
-    for (const dateStr of [...gameDatesSet]) {
-      const resp = await fetch(`${BDL}/games?dates[]=${dateStr}&per_page=100`, {headers});
-      const data = await resp.json();
-      if (data.data) allGames.push(...data.data);
-    }
-
-    if (!allGames.length) { status.textContent = 'No NBA games found for date.'; return; }
-
-    // Step 2: filter to finished games only
-    const finishedGames = allGames.filter(g => g.status === 'Final');
-    if (!finishedGames.length) { status.textContent = 'No finished NBA games yet.'; return; }
-
-    status.textContent = `Found ${finishedGames.length} finished games. Fetching stats…`;
-
-    // Step 3: fetch box scores for each finished game
-    // BDL stats endpoint: GET /stats?game_ids[]=X&per_page=100
-    const gameIds = finishedGames.map(g => g.id);
-    const statsResp = await fetch(`${BDL}/stats?${gameIds.map(id=>`game_ids[]=${id}`).join('&')}&per_page=500`, {headers});
-    const statsData = await statsResp.json();
-
-    if (!statsData.data?.length) { status.textContent = 'No NBA stats returned.'; return; }
-
-    // Step 4: build player lookup { normName: { pts, reb, ast, fg3m, ... } }
-    const lookup = {};
-    statsData.data.forEach(s => {
-      const name = s.player?.first_name + ' ' + s.player?.last_name;
-      if (!name.trim() || name.trim() === ' ') return;
-      const norm = normName(name);
-      lookup[norm] = {
-        PTS: s.pts ?? 0,
-        REB: s.reb ?? 0,
-        AST: s.ast ?? 0,
-        '3PM': s.fg3m ?? 0,
-        BLK: s.blk ?? 0,
-        STL: s.stl ?? 0,
-        TO: s.turnover ?? 0,
-        PRA: (s.pts??0) + (s.reb??0) + (s.ast??0),
-        PR:  (s.pts??0) + (s.reb??0),
-        PA:  (s.pts??0) + (s.ast??0),
-        RA:  (s.reb??0) + (s.ast??0),
-        BLKST: (s.blk??0) + (s.stl??0),
-      };
-    });
-
-    // Step 5: grade pending NBA props
-    let graded=0, missed=[];
-    props.forEach(p => {
-      if (p.result || p.sport !== 'nba') return;
-      let propDate = p.date || selectedDate;
-      if (p.gameTime) { const gm = p.gameTime.match(/([A-Za-z]+)-(\d+)/); if (gm && mo2[gm[1]]) propDate = new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0'); }
-      if (propDate !== selectedDate) return;
-
-      // Find player in lookup (exact then fuzzy)
-      const norm = normName(p.player);
-      let entry = lookup[norm];
-      if (!entry) {
-        // Fuzzy: last name match
-        const lastName = norm.split(' ').slice(-1)[0];
-        const key = Object.keys(lookup).find(k => k.endsWith(' '+lastName) || k.startsWith(norm.split(' ')[0]));
-        if (key) entry = lookup[key];
-      }
-      if (!entry) { missed.push(p.player); return; }
-
-      const statVal = entry[p.market];
-      if (statVal == null) { missed.push(p.player+' ('+p.market+')'); return; }
-
-      gradeResult(p, statVal);
-      graded++;
-    });
-
-    saveState(); renderAll();
-    status.textContent = graded ? `Graded ${graded} NBA props. ✓` + (missed.length ? ` Not found: ${missed.slice(0,2).join(', ')}` : '') : `Graded 0. Not found: ${missed.slice(0,3).join(', ')}`;
-    status.className = graded ? 'status ok' : 'status';
-  } catch(e) { status.textContent = 'NBA grade error: '+e.message; status.className='status err'; }
+function findPlayerStat(lookup,name,market){
+  const norm=normName(name);
+  let entry=lookup[norm];
+  if(!entry){const keys=Object.keys(lookup);const k=keys.find(k2=>k2.endsWith(' '+norm.split(' ').slice(-1)[0])||norm.endsWith(' '+k2.split(' ').slice(-1)[0]));if(k)entry=lookup[k];}
+  if(!entry)return null;
+  const v=entry[market];
+  return v!=null?v:null;
 }
 
-async function debugAPI() {
-  const sel = document.getElementById('regradeDate');
-  const gsel = document.getElementById('gradeDate');
-  const selectedDate = sel?.value || gsel?.value;
-  if (!selectedDate) { alert('Pick a date first.'); return; }
-
-  const mo = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-  const gameDatesSet = new Set([selectedDate]);
-  props.filter(p=>p.sport===sport).forEach(p => {
-    if (p.gameTime) { const m=p.gameTime.match(/([A-Za-z]+)-(\d+)/); if(m&&mo[m[1]])gameDatesSet.add(new Date().getFullYear()+'-'+mo[m[1]]+'-'+m[2].padStart(2,'0')); }
-  });
-
-  let out = 'API Pitcher Names\n=================\n';
-  for (const d of [...gameDatesSet]) {
-    out += '\nDate: '+d+'\n';
-    try {
-      const data = await (await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d)).json();
-      const games = data.dates?.[0]?.games||[];
-      out += games.length+' games\n';
-      for (const g of games) {
-        if (g.status.abstractGameState!=='Final') continue;
-        const bs = await (await fetch('https://statsapi.mlb.com/api/v1/game/'+g.gamePk+'/boxscore')).json();
-        out += '\n'+g.teams.away.team.name+' @ '+g.teams.home.team.name+'\n';
-        ['away','home'].forEach(side=>{
-          Object.values(bs.teams?.[side]?.players||{}).forEach(pl=>{
-            const ps=pl.stats?.pitching;
-            const outs=ps?(()=>{const p2=String(ps.inningsPitched||0).split('.');return(parseInt(p2[0])||0)*3+(parseInt(p2[1])||0);})():0;
-            if(ps&&outs>0)out+=`  ${pl.person.fullName} — IP:${ps.inningsPitched} K:${ps.strikeOuts} ER:${ps.earnedRuns} H:${ps.hits}\n`;
-          });
-        });
+async function gradeMLB(selectedDate,status){
+  status.textContent='Fetching MLB schedule…';status.className='stxt';
+  const mo2={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const pending=props.filter(p=>p.sport==='mlb'&&(!p.result||p.result==='')&&p.date===selectedDate);
+  const datesSet=new Set([selectedDate]);
+  pending.forEach(p=>{if(p.gameTime){const gm=p.gameTime.match(/([A-Za-z]+)-(\d+)/);if(gm&&mo2[gm[1]])datesSet.add(new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0'));}});
+  try{
+    const allGames=[];
+    for(const d of [...datesSet]){
+      const r=await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d);
+      const data=await r.json();
+      if(data.dates?.[0]?.games)allGames.push(...data.dates[0].games);
+    }
+    const bs={};
+    for(const g of allGames){
+      if(g.status.abstractGameState==='Final'||g.status.abstractGameState==='Live'){
+        try{const r=await fetch('https://statsapi.mlb.com/api/v1/game/'+g.gamePk+'/boxscore');bs[g.gamePk]=await r.json();}catch(e){}
       }
-    } catch(e){out+='Error: '+e.message+'\n';}
-  }
+    }
+    if(!Object.keys(bs).length){status.textContent='No completed MLB games.';return;}
+    const lookup=buildPlayerLookup(bs);
+    let graded=0,missed=[];
+    props.forEach(p=>{
+      if(p.result||p.sport!=='mlb')return;
+      let pd=p.date||selectedDate;
+      if(p.gameTime){const gm=p.gameTime.match(/([A-Za-z]+)-(\d+)/);if(gm&&mo2[gm[1]])pd=new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0');}
+      if(pd!==selectedDate)return;
+      const sv=findPlayerStat(lookup,p.player,p.market);
+      if(sv===null){missed.push(p.player+' ('+p.market+')');return;}
+      gradeResult(p,sv);graded++;
+    });
+    saveState();renderAll();
+    status.textContent=graded?'Graded '+graded+' MLB props. ✓'+(missed.length?' Not found: '+missed.slice(0,2).join(', '):''):'Graded 0. Not found: '+missed.slice(0,3).join(', ');
+    status.className=graded?'stxt ok':'stxt';
+  }catch(e){status.textContent='MLB error: '+e.message;status.className='stxt err';}
+}
 
+// ── NBA Grader ─────────────────────────────────────────
+async function gradeNBA(selectedDate,status){
+  const BDL='https://api.balldontlie.io/v1';
+  const HDR={'Authorization':'9cdb249f-9635-4cca-a998-37c7b98a9372'};
+  status.textContent='Fetching NBA games…';status.className='stxt';
+  const mo2={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const pending=props.filter(p=>p.sport==='nba'&&(!p.result||p.result==='')&&p.date===selectedDate);
+  const datesSet=new Set([selectedDate]);
+  pending.forEach(p=>{if(p.gameTime){const gm=p.gameTime.match(/([A-Za-z]+)-(\d+)/);if(gm&&mo2[gm[1]])datesSet.add(new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0'));}});
+  try{
+    let allGames=[];
+    for(const d of [...datesSet]){
+      const r=await fetch(BDL+'/games?dates[]='+d+'&per_page=100',{headers:HDR});
+      const data=await r.json();if(data.data)allGames.push(...data.data);
+    }
+    const finished=allGames.filter(g=>g.status==='Final');
+    if(!finished.length){status.textContent='No finished NBA games yet.';return;}
+    const ids=finished.map(g=>g.id);
+    const sr=await fetch(BDL+'/stats?'+ids.map(id=>'game_ids[]='+id).join('&')+'&per_page=500',{headers:HDR});
+    const sd=await sr.json();
+    if(!sd.data?.length){status.textContent='No NBA stats returned.';return;}
+    const lookup={};
+    sd.data.forEach(s=>{
+      const name=(s.player?.first_name||'')+' '+(s.player?.last_name||'');
+      const norm=normName(name.trim());
+      if(!norm)return;
+      lookup[norm]={PTS:s.pts??0,REB:s.reb??0,AST:s.ast??0,'3PM':s.fg3m??0,BLK:s.blk??0,STL:s.stl??0,TO:s.turnover??0,PRA:(s.pts??0)+(s.reb??0)+(s.ast??0),PR:(s.pts??0)+(s.reb??0),PA:(s.pts??0)+(s.ast??0),RA:(s.reb??0)+(s.ast??0),BLKST:(s.blk??0)+(s.stl??0)};
+    });
+    let graded=0,missed=[];
+    props.forEach(p=>{
+      if(p.result||p.sport!=='nba')return;
+      let pd=p.date||selectedDate;
+      if(p.gameTime){const gm=p.gameTime.match(/([A-Za-z]+)-(\d+)/);if(gm&&mo2[gm[1]])pd=new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0');}
+      if(pd!==selectedDate)return;
+      const norm=normName(p.player);
+      let entry=lookup[norm];
+      if(!entry){const k=Object.keys(lookup).find(k2=>k2.endsWith(' '+norm.split(' ').slice(-1)[0]));if(k)entry=lookup[k];}
+      if(!entry){missed.push(p.player);return;}
+      const sv=entry[p.market];
+      if(sv==null){missed.push(p.player+' ('+p.market+')');return;}
+      gradeResult(p,sv);graded++;
+    });
+    saveState();renderAll();
+    status.textContent=graded?'Graded '+graded+' NBA props. ✓'+(missed.length?' Not found: '+missed.slice(0,2).join(', '):''):'Graded 0. Not found: '+missed.slice(0,3).join(', ');
+    status.className=graded?'stxt ok':'stxt';
+  }catch(e){status.textContent='NBA error: '+e.message;status.className='stxt err';}
+}
+
+// ── Debug API ──────────────────────────────────────────
+async function debugAPI(){
+  const d=document.getElementById('regradeDate')?.value||document.getElementById('gradeDate')?.value;
+  if(!d){alert('Pick a date first.');return;}
+  let out='API Pitcher Names\n=================\n\nDate: '+d+'\n';
+  try{
+    const data=await(await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d)).json();
+    const games=data.dates?.[0]?.games||[];
+    out+=games.length+' games\n';
+    for(const g of games){
+      if(g.status.abstractGameState!=='Final')continue;
+      const bs=await(await fetch('https://statsapi.mlb.com/api/v1/game/'+g.gamePk+'/boxscore')).json();
+      out+='\n'+g.teams.away.team.name+' @ '+g.teams.home.team.name+'\n';
+      ['away','home'].forEach(side=>{Object.values(bs.teams?.[side]?.players||{}).forEach(pl=>{const ps=pl.stats?.pitching;const outs=ps?(()=>{const p2=String(ps.inningsPitched||0).split('.');return(parseInt(p2[0])||0)*3+(parseInt(p2[1])||0);})():0;if(ps&&outs>0)out+='  '+pl.person.fullName+' — IP:'+ps.inningsPitched+' K:'+ps.strikeOuts+' ER:'+ps.earnedRuns+' H:'+ps.hits+'\n';});});
+    }
+  }catch(e){out+='Error: '+e.message;}
   const modal=document.createElement('div');
-  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-  modal.innerHTML='<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:20px;max-width:600px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;font-weight:700;">API Names</span><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;">✕</button></div><textarea readonly style="flex:1;min-height:400px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:monospace;font-size:11px;padding:10px;resize:none;">'+out+'</textarea></div>';
-  document.body.appendChild(modal);
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML='<div style="background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:18px;max-width:580px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:10px"><div style="display:flex;justify-content:space-between"><span style="font-size:13px;font-weight:600">API Names</span><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:var(--t1);font-size:18px;cursor:pointer">✕</button></div><textarea readonly style="flex:1;min-height:380px;background:var(--s3);border:1px solid var(--b1);border-radius:6px;color:var(--t0);font-family:monospace;font-size:11px;padding:10px;resize:none">'+out+'</textarea></div>';
+  document.body.appendChild(modal);modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
 }
 
 // ── Export ─────────────────────────────────────────────
-function exportExcel() {
-  const sp = props.filter(p=>p.sport===sport);
-  if (!sp.length) { alert('No plays.'); return; }
-
-  const settled = sp.filter(p=>p.result&&p.result!=='skip');
+function exportXLSX(){
+  const sp=props.filter(p=>p.sport===sport);
+  if(!sp.length){alert('No plays.');return;}
+  const settled=sp.filter(p=>p.result&&p.result!=='skip');
   function st(arr){const s=arr.filter(p=>p.result&&p.result!=='skip');const w=s.filter(p=>p.result==='win').length,l=s.filter(p=>p.result==='loss').length;const pnl=s.reduce((a,p)=>a+(p.pnl||0),0);const r=s.reduce((a,p)=>a+uRisk(p),0);return{w,l,wr:s.length?(w/s.length*100).toFixed(1)+'%':'—',pnl:(pnl>=0?'+':'')+pnl.toFixed(2)+'u',roi:r>0?(pnl/r*100).toFixed(1)+'%':'—',total:arr.length,settled:s.length};}
-  function bk(arr,kFn,lFn){const g={};arr.forEach(p=>{const k=kFn(p);if(!g[k])g[k]=[];g[k].push(p);});return Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,a])=>{const s=st(a);return[lFn?lFn(k):k,s.total,s.w+'-'+s.l,s.wr,s.pnl,s.roi];});}
-  const ov=st(sp);
-  const H=['Category','Plays','W-L','W%','P&L','ROI'];
-  const mkts=[...new Set(sp.map(p=>p.market))].sort();
+  function bk(arr,kFn){const g={};arr.forEach(p=>{const k=kFn(p);if(!g[k])g[k]=[];g[k].push(p);});return Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,a])=>{const s=st(a);return[k,s.total,s.w+'-'+s.l,s.wr,s.pnl,s.roi];});}
+  const ov=st(sp);const H=['Category','Plays','W-L','W%','P&L','ROI'];
   const sheets=[
-    {name:'Summary',rows:[['SBK TRACKER — '+sport.toUpperCase()],['Export',new Date().toLocaleDateString()],[],['OVERALL'],['Plays','Settled','W','L','W%','P&L','ROI'],[ov.total,ov.settled,ov.w,ov.l,ov.wr,ov.pnl,ov.roi],[],['BY MARKET'],H,...bk(sp,p=>p.market),[],['BY DIRECTION'],H,...bk(settled,p=>p.side==='O'?'Over':'Under'),[],['BY EV BUCKET'],H,...bk(settled,p=>(p.ev||0)>=25?'1_Elite 25%+':(p.ev||0)>=15?'2_Strong 15-24%':'3_Value 5-14%',k=>k.slice(2))]},
-    {name:'Bet Log',rows:(()=>{let r=0;const rows=[['#','Date','Player','Market','Game','Time','Line','Side','Odds','EV%','Proj','Actual','Result','P&L','Running P&L']];[...sp].forEach((p,i)=>{r+=(p.pnl||0);rows.push([i+1,p.date||'',p.player,p.market,p.game,p.gameTime||'',p.line,p.side,p.odds,p.ev?(p.ev.toFixed(1)+'%'):'',p.proj??'',p.actual??'',p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending',p.pnl!=null?(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u':'',(r>=0?'+':'')+r.toFixed(2)+'u']);});return rows;})()},
+    {name:'Summary',rows:[['SBK TRACKER — '+sport.toUpperCase()],['Export',new Date().toLocaleDateString()],[],['OVERALL'],['Plays','Settled','W','L','W%','P&L','ROI'],[ov.total,ov.settled,ov.w,ov.l,ov.wr,ov.pnl,ov.roi],[],['BY MARKET'],H,...bk(sp,p=>p.market),[],['BY DIRECTION'],H,...bk(settled,p=>p.side==='O'?'Over':'Under')]},
+    {name:'Bet Log',rows:(()=>{let r=0;const rows=[['#','Date','Player','Market','Line','Side','Odds','EV%','Proj','Actual','Result','P&L','Running P&L']];[...sp].forEach((p,i)=>{r+=(p.pnl||0);rows.push([i+1,p.date||'',p.player,p.market,p.line,p.side,p.odds,p.ev?(p.ev.toFixed(1)+'%'):'',p.proj??'',p.actual??'',p.result?p.result.charAt(0).toUpperCase()+p.result.slice(1):'Pending',p.pnl!=null?(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u':'',(r>=0?'+':'')+r.toFixed(2)+'u']);});return rows;})()},
   ];
-
-  // XLSX builder
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function col(i){return i<26?String.fromCharCode(65+i):String.fromCharCode(64+Math.floor(i/26))+String.fromCharCode(65+(i%26));}
-  function wsXML(rows){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';rows.forEach((r,ri)=>{if(!r?.length)return;x+=`<row r="${ri+1}">`;r.forEach((c,ci)=>{const ref=col(ci)+(ri+1);const v=c==null?'':c;const s=String(v);const n=typeof v==='number'||(s!==''&&!isNaN(Number(s))&&!s.endsWith('%')&&!s.endsWith('u')&&!s.startsWith('+')&&s!=='-'&&s!=='—');if(n)x+=`<c r="${ref}"><v>${esc(v)}</v></c>`;else x+=`<c r="${ref}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;});x+='</row>';});return x+'</sheetData></worksheet>';}
-  function wbXML(ns){return'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+ns.map((n,i)=>`<sheet name="${esc(n)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>';}
-  function wbRels(n){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';for(let i=0;i<n;i++)x+=`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`;return x+'</Relationships>';}
-  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>';
+  function wsXML(rows){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';rows.forEach((r,ri)=>{if(!r?.length)return;x+='<row r="'+(ri+1)+'\">';r.forEach((c,ci)=>{const ref=col(ci)+(ri+1);const v=c==null?'':c;const s=String(v);const n=typeof v==='number'||(s!==''&&!isNaN(Number(s))&&!s.endsWith('%')&&!s.endsWith('u')&&!s.startsWith('+')&&s!=='-'&&s!=='—');if(n)x+='<c r="'+ref+'"><v>'+esc(v)+'</v></c>';else x+='<c r="'+ref+'" t="inlineStr"><is><t>'+esc(v)+'</t></is></c>';});x+='</row>';});return x+'</sheetData></worksheet>';}
+  function wbXML(ns){return'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+ns.map((n,i)=>'<sheet name="'+esc(n)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('')+'</sheets></workbook>';}
+  function wbRels(n){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';for(let i=0;i<n;i++)x+='<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>';return x+'</Relationships>';}
+  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((_,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('')+'</Types>';
   const rr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
   const cT=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c;}return t;})();
   function crc(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=cT[(c^d[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
   function s2b(s){const b=[];for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c<128)b.push(c);else if(c<2048)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return new Uint8Array(b);}
   function u16(n){return[n&0xFF,(n>>8)&0xFF];}function u32(n){return[n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];}
   function mkzip(files){const ents=[];let off=0;const parts=[];files.forEach(f=>{const nb=s2b(f.name);const cr=crc(f.data);const lh=[0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(cr),...u32(f.data.length),...u32(f.data.length),...u16(nb.length),0x00,0x00,...nb];ents.push({nb,cr,sz:f.data.length,off});parts.push(new Uint8Array(lh),f.data);off+=lh.length+f.data.length;});const cdOff=off;ents.forEach(e=>{const cd=[0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.cr),...u32(e.sz),...u32(e.sz),...u16(e.nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.off),...e.nb];parts.push(new Uint8Array(cd));off+=cd.length;});const cdSz=off-cdOff;parts.push(new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16(ents.length),...u16(ents.length),...u32(cdSz),...u32(cdOff),0x00,0x00]));const tot=parts.reduce((s,p)=>s+p.length,0);const out=new Uint8Array(tot);let pos=0;parts.forEach(p=>{out.set(p,pos);pos+=p.length;});return out;}
-  const files=[{name:'[Content_Types].xml',data:s2b(ct)},{name:'_rels/.rels',data:s2b(rr)},{name:'xl/workbook.xml',data:s2b(wbXML(sheets.map(s=>s.name)))},{name:'xl/_rels/workbook.xml.rels',data:s2b(wbRels(sheets.length))},...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s2b(wsXML(s.rows))}))];
+  const files=[{name:'[Content_Types].xml',data:s2b(ct)},{name:'_rels/.rels',data:s2b(rr)},{name:'xl/workbook.xml',data:s2b(wbXML(sheets.map(s=>s.name)))},{name:'xl/_rels/workbook.xml.rels',data:s2b(wbRels(sheets.length))},...sheets.map((s,i)=>({name:'xl/worksheets/sheet'+(i+1)+'.xml',data:s2b(wsXML(s.rows))}))];
   const blob=new Blob([mkzip(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sbk_'+sport+'_'+new Date().toISOString().split('T')[0]+'.xlsx';a.click();URL.revokeObjectURL(a.href);
 }
 
 // ── Init ───────────────────────────────────────────────
 loadState();
-document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+document.getElementById('dateDisplay').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
 renderAll();
-
-
 </script>
 </body>
 </html>
