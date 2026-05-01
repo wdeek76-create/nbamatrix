@@ -1770,8 +1770,6 @@ async function gradeDate(selectedDate, setStatus){
     if(matchingGames.length<=1){
       g=matchingGames[0];
     } else {
-      // Doubleheader — use bet time to determine which game
-      // API always returns games in chronological order (G1 first, G2 second)
       const _parseTMin = s => {
         if(!s) return -1;
         const mx=s.trim().match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -1782,21 +1780,18 @@ async function gradeDate(selectedDate, setStatus){
         return h*60+mn;
       };
       const betMin=_parseTMin(t.time||'');
-      // Get all distinct times for this matchup on this date
       const allTimes=[...new Set(
         tracker.filter(x=>x.date===t.date&&x.tm===t.tm)
                .map(x=>_parseTMin(x.time||'')).filter(x=>x>=0)
       )].sort((a,b)=>a-b);
+      let rank;
       if(allTimes.length>=2){
-        // Multiple game times tracked — rank determines which API game to use
-        const rank=betMin<=allTimes[0]?0:1;
-        g=matchingGames[rank]||matchingGames[0];
+        rank=betMin<=allTimes[0]?0:1;
       } else {
-        // Only one time — 12:35 PM (755) is clearly afternoon=G1, 5:35 PM (1055) is evening=G2
-        // Threshold: before 3pm (900 min) = G1, after = G2
-        const rank=betMin<900?0:1;
-        g=matchingGames[rank]||matchingGames[0];
+        rank=betMin<900?0:1;
       }
+      alert('DH: '+t.tm+' '+t.time+' betMin='+betMin+' rank='+rank+' G'+(rank+1)+' score: away='+matchingGames[rank]?.teams?.away?.score+' home='+matchingGames[rank]?.teams?.home?.score);
+      g=matchingGames[rank]||matchingGames[0];
     }
     if(!g) continue;
     const isFinal=(g.status?.detailedState||'').toLowerCase().includes('final');
