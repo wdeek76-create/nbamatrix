@@ -537,7 +537,7 @@ function runFilter() {
     else if(isRLMkt2) gameLabel = p.tm+' '+p.dir+(p.line!=null?' '+p.line:'')+' RL';
     else gameLabel = p.tm+' '+p.dir+(p.line!=null?' '+p.line:'');
     // skip if already tracked for this date+game+market
-    if (tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType)) continue;
+    if (tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType&&(t.time||'')===(p.time||''))) continue;
     const rawG2 = p.game||p.tm||'';
     const gp2 = rawG2.toUpperCase().split(/[/@]/);
     const entry = {
@@ -1918,7 +1918,7 @@ function trackSelectedPlays(){
     const gp=rawG.toUpperCase().split(/[/@]/);
     const label=(p.mktType==='TT'||p.mktType==='1HTT')?(p.team||p.tm):p.tm;
     const gameLabel=label+' '+p.dir+(p.line!=null?' '+p.line:'');
-    if(tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType)) continue;
+    if(tracker.find(t=>t.game===gameLabel&&t.date===p.date&&t.market===p.mktType&&(t.time||'')===(p.time||''))) continue;
     const best=p.books?.[0]||{};
     const entry={
       id:Date.now()+added,
@@ -2189,7 +2189,7 @@ function trackRawSelected() {
     const line = dir==='OVER' ? p.over_line : p.under_line;
     const odds = dir==='OVER' ? p.over_odds : dir==='UNDER' ? p.under_odds : p.over_odds;
     const gameLabel = label+' '+dir+(line!=null?' '+line:'');
-    if(tracker.find(t => t.game===gameLabel && t.date===p.date && t.market===p.mktType)) continue;
+    if(tracker.find(t => t.game===gameLabel && t.date===p.date && t.market===p.mktType && (t.time||'')===(p.time||''))) continue;
     const entry = {
       id: Date.now()+added,
       date: p.date, time: p.time,
