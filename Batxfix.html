@@ -1770,10 +1770,9 @@ async function gradeDate(selectedDate, setStatus){
     if(matchingGames.length<=1){
       g=matchingGames[0];
     } else {
-      // Doubleheader — use gameNumber from API (1=early, 2=late)
-      // Sort API games by gameNumber
-      const sorted=matchingGames.slice().sort((a,b)=>(a.gameNumber||1)-(b.gameNumber||1));
-      // Parse bet time to ET minutes
+      // Doubleheader — sort by gameDate (API returns in chronological order but sort to be safe)
+      const sorted=matchingGames.slice().sort((a,b)=>new Date(a.gameDate||0)-new Date(b.gameDate||0));
+      // Parse bet time (ET) to minutes
       function parseTimeMin(tStr){
         if(!tStr) return 9999;
         const m=tStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -1784,24 +1783,21 @@ async function gradeDate(selectedDate, setStatus){
         return h*60+mn;
       }
       const betMin=parseTimeMin(t.time||'');
-      if(betMin===9999){
+      if(betMin===9999||sorted.length<2){
         g=sorted[0];
       } else {
-        // Convert API gameDate (UTC) to ET minutes for comparison
-        const apiMins=sorted.map(mg=>{
+        // Get ET minutes for each game (UTC-4 for EDT)
+        const etMins=sorted.map(mg=>{
           const d=new Date(mg.gameDate||'');
           if(isNaN(d)) return 9999;
-          // ET = UTC - 4 (EDT) or UTC - 5 (EST); use -4 for baseball season
-          const etMin=((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
-          return etMin;
+          return ((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
         });
-        // Find which API game time is closest to bet time
-        let bestIdx=0, bestDiff=9999;
-        apiMins.forEach((am,i)=>{
-          const diff=Math.abs(am-betMin);
-          if(diff<bestDiff){bestDiff=diff;bestIdx=i;}
-        });
-        g=sorted[bestIdx];
+        // All bet times for this matchup on this date — to determine if this bet is G1 or G2
+        const sameBets=bets.filter(x=>x.date===t.date&&(x.rawGame||x.game||'').replace(/\s+/g,'')===((t.rawGame||t.game||'').replace(/\s+/g,'')));
+        const betTimes=[...new Set(sameBets.map(x=>parseTimeMin(x.time||'')))].filter(x=>x<9999).sort((a,b)=>a-b);
+        // Which time rank is this bet? (0=earliest=G1, 1=later=G2)
+        const betRank=betTimes.indexOf(betMin);
+        g=betRank<=0?sorted[0]:sorted[sorted.length>1?1:0];
       }
     }
     if(!g) continue;
