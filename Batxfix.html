@@ -1316,7 +1316,7 @@ function exportXLSX(){
 
 
 function exportTracker(){const blob=new Blob([JSON.stringify(tracker,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='batx-tracker-'+new Date().toISOString().slice(0,10)+'.json';a.click();}
-function importTracker(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!Array.isArray(d))throw new Error('Invalid');if(tracker.length>0&&!confirm('Merge? Cancel to replace.')){tracker=d;}else{const ids=new Set(tracker.map(t=>t.id));tracker=[...tracker,...d.filter(t=>!ids.has(t.id))];}localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();input.value='';}catch(err){alert('Could not load: '+err.message);}};r.readAsText(f);}
+function importTracker(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!Array.isArray(d))throw new Error('Invalid');const choice=tracker.length>0?confirm('OK = Replace all\nCancel = Merge (skip duplicates)'):true;if(choice){tracker=d;}else{const ids=new Set(tracker.map(t=>t.id));tracker=[...tracker,...d.filter(t=>!ids.has(t.id))];}localStorage.setItem('batxEvTracker',JSON.stringify(tracker));renderTracker();alert('Imported '+d.length+' bets');input.value='';}catch(err){alert('Could not load: '+err.message);}};r.readAsText(f);}
 function addManual(){
   const g=v=>document.getElementById(v)?.value?.trim();
   const n=v=>{const x=parseFloat(g(v));return isNaN(x)?null:x;};
@@ -1766,36 +1766,49 @@ async function gradeDate(selectedDate, setStatus){
       const ha=teamAbbr(g,'home'), aa=teamAbbr(g,'away');
       return teams.some(x=>x===ha||MLB_API_ABBR[x]===ha) && teams.some(x=>x===aa||MLB_API_ABBR[x]===aa);
     });
+    // Parse a time string like "5:35 PM" to minutes since midnight
+    const _parseTMin = s => {
+      if(!s) return -1;
+      const mx=s.trim().match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if(!mx) return -1;
+      let h=+mx[1],mn=+mx[2],ap=mx[3].toUpperCase();
+      if(ap==='PM'&&h!==12) h+=12;
+      if(ap==='AM'&&h===12) h=0;
+      return h*60+mn;
+    };
     let g;
     if(matchingGames.length<=1){
       g=matchingGames[0];
     } else {
-      // Doubleheader — sort by gameDate (API returns in chronological order but sort to be safe)
+      // Doubleheader — sort games chronologically
       const sorted=matchingGames.slice().sort((a,b)=>new Date(a.gameDate||0)-new Date(b.gameDate||0));
-      // Parse bet time (ET) to minutes
-      function parseTimeMin(tStr){
-        if(!tStr) return 9999;
-        const m=tStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-        if(!m) return 9999;
-        let h=parseInt(m[1]),mn=parseInt(m[2]),ap=m[3].toUpperCase();
-        if(ap==='PM'&&h!==12) h+=12;
-        if(ap==='AM'&&h===12) h=0;
-        return h*60+mn;
-      }
-      const betMin=parseTimeMin((t.time||'').trim());
-      if(betMin===9999||sorted.length<2){
+      const betMin=_parseTMin(t.time||'');
+      if(betMin<0){
         g=sorted[0];
       } else {
-        // Pick the API game whose ET start time is closest to the bet time
-        let bestIdx=0, bestDiff=9999;
+        // Try matching by gameDate UTC→ET
+        let bestIdx=-1,bestDiff=99999;
         sorted.forEach((mg,i)=>{
           const d=new Date(mg.gameDate||'');
-          if(isNaN(d)) return;
-          const etMin=((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
-          const diff=Math.abs(etMin-betMin);
+          if(isNaN(d.getTime())) return;
+          const gMin=((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
+          const diff=Math.abs(gMin-betMin);
           if(diff<bestDiff){bestDiff=diff;bestIdx=i;}
         });
-        g=sorted[bestIdx];
+        if(bestIdx>=0){
+          g=sorted[bestIdx];
+        } else {
+          // gameDate unavailable — use all tracker entries for this matchup to determine G1/G2
+          // Find all distinct times for this tm+date across whole tracker
+          const allTimes=[...new Set(
+            tracker.filter(x=>x.date===t.date&&x.tm===t.tm)
+                   .map(x=>_parseTMin(x.time||'')).filter(x=>x>=0)
+          )].sort((a,b)=>a-b);
+          // If only one time in tracker, check if it's clearly an afternoon or evening game
+          // afternoon (<17*60=1020) → G1, evening → G2
+          const rank=allTimes.length>1?allTimes.indexOf(betMin):(betMin<1020?0:1);
+          g=sorted[Math.max(0,rank)]||sorted[0];
+        }
       }
     }
     if(!g) continue;
