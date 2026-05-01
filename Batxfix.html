@@ -318,7 +318,7 @@ textarea.invalid{border-color:rgba(248,113,113,0.4);}
     <button class="tracker-btn" id="autoGradeBtn" onclick="autoGrade()" style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.25);color:var(--blue)">▶ Grade</button>
     <select id="regradeDate" class="tk" style="min-width:120px"><option value="">Re-grade date...</option></select>
     <button class="screenshot-btn" id="regradeBtn" onclick="regrade()">↺ Re-grade</button>
-    <button class="screenshot-btn" onclick="(async()=>{const d=parseDateMMDD(document.getElementById('regradeDate').value||'03/31');let r;try{r=await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d+'&hydrate=linescore');}catch(e){r=await fetch('https://corsproxy.io/?url='+encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d+'&hydrate=linescore'));}const data=await r.json();const games=(data.dates?.[0]?.games)||[];alert(games.map(g=>g.teams.away.team.name+' @ '+g.teams.home.team.name+' | away:'+g.teams.away.score+' home:'+g.teams.home.score+' | G'+g.gameNumber+' | '+g.gameDate).join('\n'));})()">🔍 API</button>
+    <button class="screenshot-btn" onclick="(async()=>{const d=parseDateMMDD(document.getElementById('regradeDate').value||'03/31');let r;try{r=await fetch('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d+'&hydrate=linescore');}catch(e){r=await fetch('https://corsproxy.io/?url='+encodeURIComponent('https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+d+'&hydrate=linescore'));}const data=await r.json();const games=(data.dates?.[0]?.games)||[];alert(games.map(g=>g.teams.away.team.name+' @ '+g.teams.home.team.name+' | away:'+g.teams.away.score+' home:'+g.teams.home.score+' | gameNumber:'+g.gameNumber+' | gameDate:'+g.gameDate).join('\n'));})()">🔍 API</button>
     <span id="gradeStatus" style="font-size:12px;color:var(--muted)"></span>
     <label class="screenshot-btn" style="cursor:pointer">⬆ Import<input type="file" accept=".json" onchange="importTracker(this)" style="display:none"></label>
   </div>
@@ -1786,29 +1786,29 @@ async function gradeDate(selectedDate, setStatus){
       if(betMin<0){
         g=sorted[0];
       } else {
-        // Try matching by gameDate UTC→ET
-        let bestIdx=-1,bestDiff=99999;
-        sorted.forEach((mg,i)=>{
-          const d=new Date(mg.gameDate||'');
-          if(isNaN(d.getTime())) return;
-          const gMin=((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
-          const diff=Math.abs(gMin-betMin);
-          if(diff<bestDiff){bestDiff=diff;bestIdx=i;}
-        });
-        if(bestIdx>=0){
-          g=sorted[bestIdx];
+        // Sort by gameNumber (1=G1, 2=G2) - most reliable for doubleheaders
+        const byGameNum=matchingGames.slice().sort((a,b)=>(a.gameNumber||1)-(b.gameNumber||1));
+        // Get all distinct bet times for this matchup across whole tracker
+        const allTimes=[...new Set(
+          tracker.filter(x=>x.date===t.date&&x.tm===t.tm)
+                 .map(x=>_parseTMin(x.time||'')).filter(x=>x>=0)
+        )].sort((a,b)=>a-b);
+        let gameIdx=0;
+        if(allTimes.length>=2){
+          // Multiple times tracked — rank this bet's time
+          gameIdx=betMin<=allTimes[0]?0:1;
         } else {
-          // gameDate unavailable — use all tracker entries for this matchup to determine G1/G2
-          // Find all distinct times for this tm+date across whole tracker
-          const allTimes=[...new Set(
-            tracker.filter(x=>x.date===t.date&&x.tm===t.tm)
-                   .map(x=>_parseTMin(x.time||'')).filter(x=>x>=0)
-          )].sort((a,b)=>a-b);
-          // If only one time in tracker, check if it's clearly an afternoon or evening game
-          // afternoon (<17*60=1020) → G1, evening → G2
-          const rank=allTimes.length>1?allTimes.indexOf(betMin):(betMin<1020?0:1);
-          g=sorted[Math.max(0,rank)]||sorted[0];
+          // Only one time — use gameDate UTC→ET to find closest game
+          let bestDiff=99999;
+          byGameNum.forEach((mg,i)=>{
+            const d=new Date(mg.gameDate||'');
+            if(isNaN(d.getTime())) return;
+            const gMin=((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
+            const diff=Math.abs(gMin-betMin);
+            if(diff<bestDiff){bestDiff=diff;gameIdx=i;}
+          });
         }
+        g=byGameNum[gameIdx]||byGameNum[0];
       }
     }
     if(!g) continue;
