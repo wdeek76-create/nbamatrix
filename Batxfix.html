@@ -1786,18 +1786,16 @@ async function gradeDate(selectedDate, setStatus){
       if(betMin===9999||sorted.length<2){
         g=sorted[0];
       } else {
-        // Get ET minutes for each game (UTC-4 for EDT)
-        const etMins=sorted.map(mg=>{
+        // Pick the API game whose ET start time is closest to the bet time
+        let bestIdx=0, bestDiff=9999;
+        sorted.forEach((mg,i)=>{
           const d=new Date(mg.gameDate||'');
-          if(isNaN(d)) return 9999;
-          return ((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
+          if(isNaN(d)) return;
+          const etMin=((d.getUTCHours()-4+24)%24)*60+d.getUTCMinutes();
+          const diff=Math.abs(etMin-betMin);
+          if(diff<bestDiff){bestDiff=diff;bestIdx=i;}
         });
-        // All bet times for this matchup on this date — to determine if this bet is G1 or G2
-        const sameBets=pending.filter(x=>x.date===t.date&&(x.rawGame||x.tm||'').replace(/\s+/g,'')===(( t.rawGame||t.tm||'').replace(/\s+/g,'')));
-        const betTimes=[...new Set(sameBets.map(x=>parseTimeMin((x.time||'').trim())))].filter(x=>x<9999).sort((a,b)=>a-b);
-        // Which time rank is this bet? (0=earliest=G1, 1=later=G2)
-        const betRank=betTimes.indexOf(betMin);
-        g=betRank<=0?sorted[0]:sorted[sorted.length>1?1:0];
+        g=sorted[bestIdx];
       }
     }
     if(!g) continue;
