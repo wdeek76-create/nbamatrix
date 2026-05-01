@@ -777,50 +777,89 @@ async function gradeMLB(selectedDate,status){
   }catch(e){status.textContent='MLB error: '+e.message;status.className='stxt err';}
 }
 
-// ── NBA Grader ─────────────────────────────────────────
+// ── NBA Grader (matches NBA Matrix logic) ──────────────
 async function gradeNBA(selectedDate,status){
-  const BDL='https://api.balldontlie.io/v1';
+  const BASE='https://api.balldontlie.io/nba/v1';
   const HDR={'Authorization':'9cdb249f-9635-4cca-a998-37c7b98a9372'};
-  status.textContent='Fetching NBA games…';status.className='stxt';
   const mo2={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+
+  // Build set of ISO dates from pending props
   const pending=props.filter(p=>p.sport==='nba'&&(!p.result||p.result==='')&&p.date===selectedDate);
   const datesSet=new Set([selectedDate]);
-  pending.forEach(p=>{if(p.gameTime){const gm=p.gameTime.match(/([A-Za-z]+)-(\d+)/);if(gm&&mo2[gm[1]])datesSet.add(new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0'));}});
+  pending.forEach(p=>{
+    if(p.gameTime){const gm=p.gameTime.match(/([A-Za-z]+)-(\d+)/);if(gm&&mo2[gm[1]])datesSet.add(new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0'));}
+  });
+
   try{
-    let allGames=[];
-    for(const d of [...datesSet]){
-      const r=await fetch(BDL+'/games?dates[]='+d+'&per_page=100',{headers:HDR});
-      const data=await r.json();if(data.data)allGames.push(...data.data);
-    }
-    const finished=allGames.filter(g=>g.status==='Final');
-    if(!finished.length){status.textContent='No finished NBA games yet.';return;}
-    const ids=finished.map(g=>g.id);
-    const sr=await fetch(BDL+'/stats?'+ids.map(id=>'game_ids[]='+id).join('&')+'&per_page=500',{headers:HDR});
-    const sd=await sr.json();
-    if(!sd.data?.length){status.textContent='No NBA stats returned.';return;}
+    // Fetch all pages of stats for each date (with cursor pagination)
     const lookup={};
-    sd.data.forEach(s=>{
-      const name=(s.player?.first_name||'')+' '+(s.player?.last_name||'');
-      const norm=normName(name.trim());
-      if(!norm)return;
-      lookup[norm]={PTS:s.pts??0,REB:s.reb??0,AST:s.ast??0,'3PM':s.fg3m??0,BLK:s.blk??0,STL:s.stl??0,TO:s.turnover??0,PRA:(s.pts??0)+(s.reb??0)+(s.ast??0),PR:(s.pts??0)+(s.reb??0),PA:(s.pts??0)+(s.ast??0),RA:(s.reb??0)+(s.ast??0),BLKST:(s.blk??0)+(s.stl??0)};
-    });
-    let graded=0,missed=[];
+    for(const isoDate of [...datesSet]){
+      status.textContent='Fetching NBA stats for '+isoDate+'…';
+      let cursor=null,page=0;
+      while(page<10){
+        const url=BASE+'/stats?dates[]='+isoDate+'&per_page=100'+(cursor?'&cursor='+cursor:'');
+        const r=await fetch(url,{headers:HDR});
+        if(!r.ok)break;
+        const data=await r.json();
+        (data.data||[]).forEach(s=>{
+          if(!s.player)return;
+          // DNP check — store min for voiding
+          const minRaw=(s.min||'0').toString();
+          const mp=minRaw.split(':');
+          const minVal=mp.length>1?parseInt(mp[0])+parseInt(mp[1])/60:parseFloat(minRaw);
+          const nm=normName((s.player.first_name||'')+' '+(s.player.last_name||''));
+          if(!nm)return;
+          lookup[nm]={
+            PTS:s.pts??0,REB:s.reb??0,AST:s.ast??0,'3PM':s.fg3m??0,
+            BLK:s.blk??0,STL:s.stl??0,TO:s.turnover??0,
+            PRA:(s.pts??0)+(s.reb??0)+(s.ast??0),
+            PR:(s.pts??0)+(s.reb??0),PA:(s.pts??0)+(s.ast??0),
+            RA:(s.reb??0)+(s.ast??0),BLKST:(s.blk??0)+(s.stl??0),
+            _min:minVal
+          };
+        });
+        page++;
+        if(data.meta?.next_cursor)cursor=data.meta.next_cursor;
+        else break;
+      }
+    }
+
+    if(!Object.keys(lookup).length){status.textContent='No NBA stats found — games may not be final yet.';return;}
+
+    let graded=0,voided=0,missed=[];
     props.forEach(p=>{
       if(p.result||p.sport!=='nba')return;
       let pd=p.date||selectedDate;
       if(p.gameTime){const gm=p.gameTime.match(/([A-Za-z]+)-(\d+)/);if(gm&&mo2[gm[1]])pd=new Date().getFullYear()+'-'+mo2[gm[1]]+'-'+gm[2].padStart(2,'0');}
       if(pd!==selectedDate)return;
-      const norm=normName(p.player);
-      let entry=lookup[norm];
-      if(!entry){const k=Object.keys(lookup).find(k2=>k2.endsWith(' '+norm.split(' ').slice(-1)[0]));if(k)entry=lookup[k];}
+
+      const nm=normName(p.player);
+      let entry=lookup[nm];
+      // Fallback: last name + first initial match
+      if(!entry){
+        const lastName=nm.split(' ').slice(-1)[0];
+        const firstInit=nm[0];
+        const k=Object.keys(lookup).find(k2=>k2.endsWith(' '+lastName)&&k2[0]===firstInit);
+        if(k)entry=lookup[k];
+      }
       if(!entry){missed.push(p.player);return;}
+
+      // DNP void
+      if(entry._min<0.5){
+        p.result='push';p.pnl=0;p.actual=0;
+        voided++;graded++;return;
+      }
+
       const sv=entry[p.market];
       if(sv==null){missed.push(p.player+' ('+p.market+')');return;}
       gradeResult(p,sv);graded++;
     });
+
     saveState();renderAll();
-    status.textContent=graded?'Graded '+graded+' NBA props. ✓'+(missed.length?' Not found: '+missed.slice(0,2).join(', '):''):'Graded 0. Not found: '+missed.slice(0,3).join(', ');
+    let msg=graded?'Graded '+graded+' NBA props. ✓':'Graded 0.';
+    if(voided)msg+=' '+voided+' DNP voided.';
+    if(missed.length)msg+=' Not found: '+missed.slice(0,3).join(', ');
+    status.textContent=msg;
     status.className=graded?'stxt ok':'stxt';
   }catch(e){status.textContent='NBA error: '+e.message;status.className='stxt err';}
 }
