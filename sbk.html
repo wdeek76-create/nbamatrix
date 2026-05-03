@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -116,8 +116,8 @@ textarea:focus{border-color:rgba(0,212,170,.35)}
 .ougrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .oucard{background:var(--s1);border:1px solid var(--b0);border-radius:var(--r);overflow:hidden}
 .ouchdr{display:flex;justify-content:space-between;padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--b0);font-size:12px;font-weight:600}
-.oucard table{width:100%;border-collapse:collapse}
-.oucard td{font-size:12px;padding:10px 16px;border-bottom:1px solid var(--b0);color:var(--t1)}
+.oucard table{width:100%;border-collapse:collapse;table-layout:fixed}
+.oucard td{font-size:12px;padding:10px 14px;border-bottom:1px solid var(--b0);color:var(--t1);white-space:nowrap}
 .oucard td:first-child{color:var(--t0);font-weight:600}
 .oucard td:not(:first-child){text-align:right}
 .oucard tr:last-child td{border-bottom:none}
@@ -160,7 +160,7 @@ textarea:focus{border-color:rgba(0,212,170,.35)}
   <button class="btn" onclick="debugAPI()">API Names</button>
   <button class="btn" onclick="exportXLSX()">↓ Export</button>
   <button class="btn" onclick="saveState()">Save</button>
-  <button class="btn r" onclick="if(confirm('Clear all?')){props=[];saveState();renderAll();}">Clear All</button>
+  <button class="btn r" onclick="props=[];saveState();renderAll();">Clear All</button>
   <span class="stxt" id="gradeStatus"></span>
 </div>
 
@@ -208,7 +208,7 @@ function parseIP(v){const s=String(v).split('.');return(parseInt(s[0])||0)*3+(pa
 function gradeResult(p,actual){
   const line=parseFloat(p.line);
   let result;
-  if(p.market==='OUTS'){const a=parseIP(actual);result=a>line?'win':a<line?'loss':'push';}
+  if(p.market==='OUTS'){const a=parseIP(actual);result=p.side==='O'?(a>line?'win':a<line?'loss':'push'):(a<line?'win':a>line?'loss':'push');}
   else{const a=parseFloat(actual);result=p.side==='O'?(a>line?'win':a<line?'loss':'push'):(a<line?'win':a>line?'loss':'push');}
   p.actual=actual; p.result=result;
   const odds=parseFloat(p.odds);
@@ -219,114 +219,83 @@ function gradeResult(p,actual){
 
 // ── MLB Parser ─────────────────────────────────────────
 function parseMLB(text) {
-  const MMAP = {'Outs':'OUTS','BB':'BB','ER':'ER','K':'K','Hits':'HA'};
-  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
-  const results = [];
-  const bestIdx = lines.findIndex(l=>l==='Best Line');
-  if (bestIdx<0) return results;
-  let i = bestIdx+1;
+  const MMAP={'Outs':'OUTS','BB':'BB','ER':'ER','K':'K','Hits':'HA'};
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const results=[];
+  const bestIdx=lines.findIndex(l=>l==='Best Line');
+  if(bestIdx<0)return results;
 
-  // Pre-scan for game times from card section above Best Line
-  const timeMap = {};
-  for (let k=0;k<bestIdx;k++) {
-    // Format: "MINvsTOR• 7:41 PM" or "MINvsTOR• 5/1 2:21 PM"
-    const m = lines[k].match(/^([A-Z]{2,3}(?:vs|@)[A-Z]{2,3}[A-Z]*)•\s*(.+)$/);
-    if (m) timeMap[m[1].replace(/\s/g,'')] = m[2].trim();
+  const timeMap={};
+  for(let k=0;k<bestIdx;k++){
+    const m=lines[k].match(/^(.+?)•\s*(.+)$/);
+    if(m){const gl=m[1].replace(/\s/g,'');timeMap[gl]=m[2].trim();}
   }
 
-  while (i<lines.length) {
-    const l = lines[i];
-    if (!/^[A-Z][a-z]/.test(l)) { i++; continue; }
-    const player = l.replace(/\s*[A-Z]{1,2}$/, '').trim();
-    if (!player || player.split(' ').length<2) { i++; continue; }
+  function isPName(s){if(!s||!s.includes(' ')||s.length<4)return false;if(!/^[A-Z]/.test(s))return false;if(/^(FanDuel|DraftKings|ProphetX|BetOnline|Novig|Fliff|Best Line)$/i.test(s))return false;return true;}
 
-    let j = i+1;
-    // Skip duplicate name
-    if (lines[j]===l) j++;
-    // Skip position "P"
-    if (lines[j] && /^[A-Z]{1,2}$/.test(lines[j]) && lines[j].length<=2) j++;
-    // Skip team tokens until proj found
-    let proj=null, market=null, gameKey='';
-    const teamToks = [];
-    while (j<lines.length) {
-      const tok = lines[j];
-      // Combined proj+market "4.76K"
-      const cm = tok.match(/^(\d+\.\d+)(Outs|BB|ER|K|Hits)$/i);
-      if (cm) { proj=parseFloat(cm[1]); market=MMAP[cm[2]]||cm[2].toUpperCase(); j++; break; }
-      // Just proj number
-      if (/^\d+\.\d+$/.test(tok)) { proj=parseFloat(tok); j++; break; }
-      // Market only line
-      if (/^(Outs|BB|ER|K|Hits)$/i.test(tok) && teamToks.length>0) { market=MMAP[tok]||tok.toUpperCase(); j++; break; }
-      // Build game key from team tokens
-      if (/^[A-Z]{2,3}$/.test(tok)) teamToks.push(tok);
-      if ((tok==='vs'||tok==='@') && teamToks.length>=1) gameKey=tok;
+  let i=bestIdx+1;
+  while(i<lines.length){
+    const l=lines[i];
+    if(!isPName(l)){i++;continue;}
+    const player=l.replace(/\s*[A-Z]{1,2}$/,'').trim();
+    if(!player||player.split(' ').length<2){i++;continue;}
+    let j=i+1;
+    if(lines[j]===l)j++;
+    if(lines[j]&&/^[A-Z]{1,2}$/.test(lines[j]))j++;
+
+    let proj=null,market=null,teamToks=[];
+    while(j<lines.length){
+      const tok=lines[j];
+      const cm=tok.match(/^(\d+\.?\d*)(Outs|BB|ER|K|Hits)$/i);
+      if(cm){proj=parseFloat(cm[1]);market=MMAP[cm[2]]||cm[2].toUpperCase();j++;break;}
+      if(/^\d+\.?\d*$/.test(tok)){proj=parseFloat(tok);j++;break;}
+      if(isPName(tok)&&tok!==l)break;
+      if(/^[A-Z]{2,3}$/.test(tok))teamToks.push(tok);
       j++;
     }
-    // Market on next line after proj
-    if (!market && lines[j] && /^(Outs|BB|ER|K|Hits)$/i.test(lines[j])) {
-      market=MMAP[lines[j]]||lines[j].toUpperCase(); j++;
+    if(!market&&lines[j]&&/^(Outs|BB|ER|K|Hits)$/i.test(lines[j])){market=MMAP[lines[j]]||lines[j].toUpperCase();j++;}
+    if(lines[j]&&/^\d+\s*PC$/.test(lines[j]))j++;
+    if(!market){i++;continue;}
+
+    const teams=teamToks.filter(t=>t!=='vs'&&t!=='@'&&t.length>=2);
+    const gameLabel=teams.length>=2?teams[0]+'/'+teams[teams.length-1]:teams[0]||'';
+
+    let gameTime='',dateStr=getTodayStr();
+    const rawTime=Object.entries(timeMap).find(([k])=>teams.some(t=>k.includes(t)));
+    if(rawTime){
+      const tr=rawTime[1];
+      const moN=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dtm=tr.match(/(\d+)\/(\d+)\s+([\d:]+\s*[AP]M)/i);
+      const tom=tr.match(/([\d:]+\s*[AP]M)/i);
+      if(dtm){const mn=parseInt(dtm[1]),dy=parseInt(dtm[2]);dateStr=new Date().getFullYear()+'-'+String(mn).padStart(2,'0')+'-'+String(dy).padStart(2,'0');gameTime=moN[mn]+'-'+dy+' '+dtm[3];}
+      else if(tom){const now=new Date();gameTime=moN[now.getMonth()+1]+'-'+now.getDate()+' '+tom[1];}
     }
-    if (!market) { i=j; continue; }
 
-    // Build game label
-    const teams = teamToks.filter(t=>t!=='vs'&&t!=='@');
-    const gameLabel = teams.length>=2 ? teams[0]+'/'+(teams[teams.length-1]) : teams[0]||'';
-
-    // Skip confidence "91 PC"
-    if (lines[j] && /^\d+\s*PC$/.test(lines[j])) j++;
-
-    // Normalize split o/u lines
-    const normLines = [];
-    let k=j;
-    while (k<lines.length) {
+    const norm=[];let k=j;
+    while(k<lines.length){
       const tok=lines[k];
-      if (/^[A-Z][a-z]+\s[A-Z]/.test(tok)&&k>j+1) break;
-      if (tok==='0') break;
+      if(isPName(tok)&&k>j+1)break;
       const lo=tok.match(/^([ou])([\d.]+)$/);
       const no=(lines[k+1]||'').match(/^\(([+-]\d+)\)$/);
-      if (lo&&no) { normLines.push(tok+'('+no[1]+')'); k+=2; }
-      else { normLines.push(tok); k++; }
+      if(lo&&no){norm.push(tok+'('+no[1]+')');k+=2;}else{norm.push(tok);k++;}
     }
 
     let bestEV=null,bestOdds=null,bestLine=null,bestSide=null;
     let ni=0;
-    while (ni<normLines.length) {
-      const tok=normLines[ni];
+    while(ni<norm.length){
+      const tok=norm[ni];
       const em=tok.match(/^([+-][\d.]+)%$/);
-      if (em) {
+      if(em){
         const ev=parseFloat(em[1]);
-        const nx=normLines[ni+1]||'';
+        const nx=norm[ni+1]||'';
         const lm=nx.match(/^([ou])([\d.]+)\(([+-]\d+)\)$/);
-        if (lm&&ev>0&&(bestEV===null||ev>bestEV)) {
-          bestEV=ev; bestSide=lm[1].toUpperCase(); bestLine=parseFloat(lm[2]); bestOdds=lm[3];
-        }
-        if (lm) { ni+=2; continue; }
+        if(lm&&ev>0&&bestEV===null){bestEV=ev;bestSide=lm[1].toUpperCase();bestLine=parseFloat(lm[2]);bestOdds=lm[3];}
+        if(lm){ni+=2;continue;}
       }
       ni++;
     }
-
-    if (bestEV!==null&&bestEV>0) {
-      // Get game time from pre-scan
-      const gk = gameLabel.replace('/',teams[0].length===teamToks[0]?.length?'vs':'@');
-      let gameTime='', dateStr=getTodayStr();
-      const rawTime = Object.entries(timeMap).find(([k])=>k.includes(teams[0])||k.includes(teams[teams.length-1]));
-      if (rawTime) {
-        const tr=rawTime[1];
-        const mo={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-        const moNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        const dtm=tr.match(/(\d+)\/(\d+)\s+([\d:]+\s*[AP]M)/i);
-        const tom=tr.match(/([\d:]+\s*[AP]M)/i);
-        if (dtm) {
-          const mn=parseInt(dtm[1]),dy=parseInt(dtm[2]);
-          dateStr=new Date().getFullYear()+'-'+String(mn).padStart(2,'0')+'-'+String(dy).padStart(2,'0');
-          gameTime=moNames[mn]+'-'+dy+' '+dtm[3];
-        } else if (tom) {
-          const now=new Date();
-          gameTime=moNames[now.getMonth()+1]+'-'+now.getDate()+' '+tom[1];
-        }
-      }
-      results.push({id:Date.now()+Math.random(),sport:'mlb',player,market,game:gameLabel,gameTime,
-        line:bestLine,side:bestSide,odds:bestOdds,ev:bestEV,proj,date:dateStr,result:'',actual:null,pnl:null,notes:''});
+    if(bestEV!==null&&bestEV>0){
+      results.push({id:Date.now()+Math.random(),sport:'mlb',player,market,game:gameLabel,gameTime,line:bestLine,side:bestSide,odds:bestOdds,ev:bestEV,proj,date:dateStr,result:'',actual:null,pnl:null,notes:''});
     }
     i=k;
   }
@@ -334,71 +303,73 @@ function parseMLB(text) {
 }
 
 // ── NBA Parser ─────────────────────────────────────────
-function parseNBA(text){
+function parseNBA(text) {
+  const NM={'PTS':'PTS','REB':'REB','AST':'AST','PRA':'PRA','PR':'PR','PA':'PA','RA':'RA','3PM':'3PM','BLK':'BLK','STL':'STL','TO':'TO','BLKST':'BLKST'};
   const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
   const results=[];
   const bestIdx=lines.findIndex(l=>l==='Best Line');
-  if(bestIdx<0) return results;
+  if(bestIdx<0)return results;
+
+  function isPName(s){if(!s||!s.includes(' ')||s.length<4)return false;if(!/^[A-Z]/.test(s))return false;if(/^(FanDuel|DraftKings|ProphetX|BetOnline|Novig|Fliff|Caesars|PointsBet|WynnBET|Unibet|Barstool|Betway)$/i.test(s))return false;return true;}
+
+  const timeMap={};
+  for(let k=0;k<bestIdx;k++){
+    const m=lines[k].match(/^•\s*([\d:]+\s*[AP]M)$/i);
+    if(m){for(let p=k-1;p>=Math.max(0,k-8);p--){if(isPName(lines[p])){timeMap[lines[p].trim()]=m[1].trim();break;}}}
+  }
+
   let i=bestIdx+1;
-  const NMKTS={PTS:'PTS',REB:'REB',AST:'AST',PRA:'PRA',PR:'PR',PA:'PA',RA:'RA','3PM':'3PM',BLK:'BLK',STL:'STL',TO:'TO',BLKST:'BLKST'};
-
   while(i<lines.length){
-    const name=lines[i];
-    if(!name||!/^[A-Z][a-z]/.test(name)){i++;continue;}
-    const player=name.trim();
-    if(!player||player.length<3){i++;continue;}
+    const l=lines[i];
+    if(!isPName(l)){i++;continue;}
+    const player=l.trim();
     let j=i+1;
-    if(lines[j]===player)j++;
-    if(lines[j]&&/^[•\s]*[A-Z\-]+$/.test(lines[j])&&lines[j].length<8)j++;
-    let awayTeam='',homeTeam='',gameTime='',dateStr=getTodayStr();
-    const moNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const toks=[];
-    while(j<lines.length&&toks.length<7){
-      const l=lines[j];
-      if(/^\d+\.\d+$/.test(l))break;
-      if(/^[•\s]*[\d:]+\s*[AP]M/i.test(l)){const tm=l.match(/([\d:]+\s*[AP]M)/i);if(tm){const now=new Date();gameTime=moNames[now.getMonth()+1]+'-'+now.getDate()+' '+tm[1];}j++;break;}
-      toks.push(l);j++;
-    }
-    const vi=toks.findIndex(t=>t==='vs'||t==='@');
-    if(vi>=0){awayTeam=toks[vi-1]||toks[0]||'';homeTeam=toks[vi+1]||'';}
-    const gameLabel=awayTeam&&homeTeam?awayTeam+'/'+homeTeam:player;
-    let proj=null,market=null;
-    if(lines[j]&&/^\d+\.\d+$/.test(lines[j])){proj=parseFloat(lines[j]);j++;}
-    if(lines[j]&&NMKTS[lines[j]]){market=NMKTS[lines[j]];j++;}
-    if(!market){i=j;continue;}
-    if(lines[j]&&/\d+\s*mins?/i.test(lines[j]))j++;
+    if(lines[j]===l)j++;
+    if(lines[j]&&/^[A-Z][A-Z-]{0,4}$/.test(lines[j])&&lines[j].length<=5)j++;
 
-    // Normalize split lines
-    const norm=[];
+    let proj=null,market=null;
     while(j<lines.length){
-      const l=lines[j];
-      if(/^[A-Z][a-z]+\s[A-Z]/.test(l)&&j>i+5)break;
-      if(l==='0')break;
-      const lo=l.match(/^([ou])([\d.]+)$/),no=(lines[j+1]||'').match(/^\(([+-]\d+)\)$/);
-      if(lo&&no){norm.push(l+'('+no[1]+')');j+=2;}else{norm.push(l);j++;}
+      const tok=lines[j];
+      if(/^\d+\.?\d*$/.test(tok)){proj=parseFloat(tok);j++;break;}
+      if(isPName(tok)&&tok!==l)break;
+      j++;
+    }
+    if(!market&&lines[j]&&NM[lines[j]]){market=NM[lines[j]];j++;}
+    if(lines[j]&&/^\d+\.?\d*\s*mins?$/i.test(lines[j]))j++;
+    if(!market&&lines[j]&&NM[lines[j]]){market=NM[lines[j]];j++;}
+    if(!market){i++;continue;}
+
+    let gameTime='',dateStr=getTodayStr();
+    const rt=timeMap[player];
+    if(rt){const now=new Date();const moN=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];gameTime=moN[now.getMonth()+1]+'-'+now.getDate()+' '+rt;}
+
+    const norm=[];let k=j;
+    while(k<lines.length){
+      const tok=lines[k];
+      if(isPName(tok)&&k>j+1)break;
+      const lo=tok.match(/^([ou])([\d.]+)$/);
+      const no=(lines[k+1]||'').match(/^\(([+-]\d+)\)$/);
+      if(lo&&no){norm.push(tok+'('+no[1]+')');k+=2;}else{norm.push(tok);k++;}
     }
 
     let bestEV=null,bestOdds=null,bestLine=null,bestSide=null;
     let ni=0;
     while(ni<norm.length){
-      const l=norm[ni];
-      const em=l.match(/^([+-][\d.]+)%$/);
+      const tok=norm[ni];
+      const em=tok.match(/^([+-][\d.]+)%$/);
       if(em){
         const ev=parseFloat(em[1]);
-        const nl=norm[ni+1]||'';
-        const lm=nl.match(/^([ou])([\d.]+)\(([+-]\d+)\)$/);
-        if(lm){
-          if(ev>0&&(bestEV===null||ev>bestEV)){bestEV=ev;bestSide=lm[1].toUpperCase();bestLine=parseFloat(lm[2]);bestOdds=lm[3];}
-          ni+=2;continue;
-        }
+        const nx=norm[ni+1]||'';
+        const lm=nx.match(/^([ou])([\d.]+)\(([+-]\d+)\)$/);
+        if(lm&&ev>0&&bestEV===null){bestEV=ev;bestSide=lm[1].toUpperCase();bestLine=parseFloat(lm[2]);bestOdds=lm[3];}
+        if(lm){ni+=2;continue;}
       }
       ni++;
     }
-
     if(bestEV!==null&&bestEV>0){
-      results.push({id:Date.now()+Math.random(),sport:'nba',player,market,game:gameLabel,gameTime,line:bestLine,side:bestSide,odds:bestOdds,ev:bestEV,proj,date:dateStr,result:'',actual:null,pnl:null});
+      results.push({id:Date.now()+Math.random(),sport:'nba',player,market,game:'',gameTime,line:bestLine,side:bestSide,odds:bestOdds,ev:bestEV,proj,date:dateStr,result:'',actual:null,pnl:null});
     }
-    i=j;
+    i=k;
   }
   return results;
 }
@@ -593,7 +564,7 @@ function renderDashboard(){
       const r2=arr.reduce((a,p)=>a+uRisk(p),0);
       const roi3=r2>0?(pnl2/r2*100).toFixed(1)+'%':'—';
       const pc4=pnl2>=0?'var(--green)':'var(--red)';
-      return '<tr><td style="color:'+col+'">'+lbl+'</td><td>'+w2+'-'+l2+'</td><td>'+(arr.length?(w2/arr.length*100).toFixed(1):'—')+'%</td><td style="color:'+pc4+'">'+(pnl2>=0?'+':'')+pnl2.toFixed(2)+'u</td><td style="color:'+pc4+'">'+roi3+'</td></tr>';
+      return '<tr><td style="color:'+col+';white-space:nowrap;font-weight:600">'+lbl+'</td><td style="white-space:nowrap">'+w2+'-'+l2+'</td><td style="white-space:nowrap">'+(arr.length?(w2/arr.length*100).toFixed(1):'—')+'%</td><td style="color:'+pc4+';white-space:nowrap">'+(pnl2>=0?'+':'')+pnl2.toFixed(2)+'u</td><td style="color:'+pc4+';white-space:nowrap">'+roi3+'</td></tr>';
     }
     return '<div class="oucard"><div class="ouchdr"><span>'+m+'</span><span style="color:'+pc3+'">'+(mp2>=0?'+':'')+mp2.toFixed(2)+'u</span></div><table><thead><tr><td>Side</td><td>W-L</td><td>W%</td><td>P&L</td><td>ROI</td></tr></thead><tbody>'+mr(os,'Over','var(--green)')+mr(us,'Under','var(--blue)')+'</tbody></table></div>';
   }).join('');
