@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -208,7 +208,7 @@ function parseIP(v){const s=String(v).split('.');return(parseInt(s[0])||0)*3+(pa
 function gradeResult(p,actual){
   const line=parseFloat(p.line);
   let result;
-  if(p.market==='OUTS'){const a=parseIP(actual);result=p.side==='O'?(a>line?'win':a<line?'loss':'push'):(a<line?'win':a>line?'loss':'push');}
+  if(p.market==='OUTS'){const a=parseFloat(actual);result=p.side==='O'?(a>line?'win':a<line?'loss':'push'):(a<line?'win':a>line?'loss':'push');}
   else{const a=parseFloat(actual);result=p.side==='O'?(a>line?'win':a<line?'loss':'push'):(a<line?'win':a>line?'loss':'push');}
   p.actual=actual; p.result=result;
   const odds=parseFloat(p.odds);
@@ -520,7 +520,10 @@ function setResult(sel){
   else if(p.result==='loss')p.pnl=odds<0?-(Math.abs(odds)/100):-1;
   else if(p.result==='push')p.pnl=0;
   else p.pnl=null;
+  const pnlEl=sel.closest('.pr')?.querySelector('.ppnl');
+  if(pnlEl){pnlEl.textContent=p.pnl!=null?(p.pnl>=0?'+':'')+p.pnl.toFixed(2)+'u':'';pnlEl.className='ppnl '+(p.pnl>=0?'p':'n');}
   saveState();updateSum();
+  if(tab==='dashboard')renderDashboard();
 }
 
 // ── Dashboard ──────────────────────────────────────────
