@@ -662,7 +662,7 @@ async function regrade(){
   const d=sel?.value;
   const status=document.getElementById('gradeStatus');
   if(!d){status.textContent='Pick a re-grade date.';return;}
-  if(!confirm('Clear results for '+d+' and re-grade?'))return;
+
   let n=0;
   props.forEach(p=>{if(p.sport===sport&&p.date===d&&p.result){p.result='';p.actual=null;p.pnl=null;n++;}});
   saveState();renderAll();
@@ -729,7 +729,7 @@ async function gradeMLB(selectedDate,status){
     }
     const bs={};
     for(const g of allGames){
-      if(g.status.abstractGameState==='Final'||g.status.abstractGameState==='Live'){
+      if(g.status.abstractGameState==='Final'){
         try{const r=await fetch('https://statsapi.mlb.com/api/v1/game/'+g.gamePk+'/boxscore');bs[g.gamePk]=await r.json();}catch(e){}
       }
     }
