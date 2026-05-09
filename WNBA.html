@@ -1067,6 +1067,7 @@ async function gradeAllPending() {
       const target = bets.find(x => x.id === b.id);
       if (target) {
         target.result = r.result;
+        target.actual = r.total;
         graded++;
         if (r.result === "hit") hit++;
         else if (r.result === "miss") miss++;
@@ -1130,6 +1131,7 @@ async function gradeOneBet(id) {
   const r = await gradeBet(b);
   if (r.ok) {
     b.result = r.result;
+    b.actual = r.total;
     saveBets();
     renderTracker();
     showToast(`${b.player} ${b.stat}: ${r.total} → ${r.result.toUpperCase()}`);
@@ -1301,12 +1303,15 @@ function renderTracker() {
     const edge = calcEdge(b.odds, b.fair);
     const edgeStr = edge==null ? "—" : (edge>0?"+":"")+edge.toFixed(1)+"%";
     const edgeColor = edge==null ? "#7d8590" : edge>0 ? "#22c55e" : "#f87171";
+    const actualStr = b.actual != null ? (Number.isInteger(b.actual) ? String(b.actual) : b.actual.toFixed(1)) : "—";
+    const actualColor = b.actual == null ? "#30363d" : b.result === "hit" ? "#22c55e" : b.result === "miss" ? "#f87171" : "#fff";
     return `<tr style="border-bottom:1px solid #161b22;">
       <td style="padding:8px 12px;font-size:14px;font-weight:600;color:#fff;white-space:nowrap">${b.player}</td>
       <td style="padding:8px 8px;font-size:12px;color:#7d8590;text-align:center;white-space:nowrap">${b.timestamp||b.date}</td>
       <td style="padding:8px 8px;font-size:13px;color:#5eead4;text-align:center;font-weight:700">${b.stat}</td>
       <td style="padding:8px 8px;font-size:13px;color:#fff;text-align:center">${b.ou.toUpperCase()} ${b.line}</td>
       <td style="padding:8px 8px;font-size:13px;color:#5eead4;text-align:center;font-weight:600">${b.proj!=null?b.proj.toFixed(2):"—"}</td>
+      <td style="padding:8px 8px;font-size:13px;text-align:center;font-weight:700;color:${actualColor}">${actualStr}</td>
       <td style="padding:8px 8px;font-size:13px;text-align:center;font-weight:700;color:${edgeColor}">${edgeStr}</td>
       <td style="padding:8px 8px;font-size:13px;color:#fff;text-align:center">${b.odds>0?"+"+b.odds:b.odds}</td>
       <td style="padding:8px 8px;font-size:13px;color:#8b9aa8;text-align:center">${b.book}</td>
@@ -1367,7 +1372,7 @@ function renderTracker() {
         <div style="overflow-x:auto;border-radius:8px;border:1px solid #1f2733;">
           <table style="width:100%;border-collapse:collapse;">
             <thead style="background:#161b22;">
-              <tr>${["PLAYER","TRACKED","STAT","LINE","PROJ","EDGE","ODDS","BOOK","STAKE","P&L","RESULT",""].map(h=>`<th style="padding:10px 8px;font-size:11px;color:#7d8590;font-weight:600;text-align:center;letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap;">${h}</th>`).join("")}</tr>
+              <tr>${["PLAYER","TRACKED","STAT","LINE","PROJ","ACTUAL","EDGE","ODDS","BOOK","STAKE","P&L","RESULT",""].map(h=>`<th style="padding:10px 8px;font-size:11px;color:#7d8590;font-weight:600;text-align:center;letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap;">${h}</th>`).join("")}</tr>
             </thead>
             <tbody id="bet-table-body">${betRows}</tbody>
           </table>
