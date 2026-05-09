@@ -183,7 +183,8 @@ td{border-bottom:1px solid #161b22;}
           <span id="shown-count"></span>
         </div>
         <button id="copytight-btn" onclick="copyTightest()">ALIGNMENTS</button>
-        <button id="export-btn" onclick="doExport()">EXPORT CSV</button>
+        <button id="export-btn" onclick="doExport()">EXPORT AVG</button>
+        <button id="export-con-btn" onclick="doExportConsensus()">EXPORT CONSENSUS</button>
       </div>
       <div id="table-wrap">
         <table>
@@ -318,11 +319,11 @@ function setLog(msg) {
 function updateBadges() {
   const el = document.getElementById("source-badges");
   el.innerHTML = SOURCES.map((s,i)=>`
-    <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;
+    <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;
       border:1px solid ${slots[i]?'#14b8a6':'#1f2733'};
       color:${slots[i]?'#5eead4':'#7d8590'};
       background:${slots[i]?'#14b8a622':'#161b22'}">
-      ${s.label}${slots[i]?' OK':''}
+      <span>${s.label}</span>${slots[i]?'<span style="display:inline-flex;align-items:center;gap:3px;color:#22c55e;font-weight:700"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M3 8.5L6.5 12L13 4.5" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>GOOD</span>':''}
     </span>`).join("");
 }
 
@@ -531,13 +532,9 @@ function renderTable() {
   document.getElementById("shown-count").textContent = `${rows.length} shown`;
 
   const head = document.getElementById("table-head");
+  const headerCols = ["PLAYER", ...SOURCES.map(s=>s.label), STAT_LABEL[sortBy]+" (AVG)"];
   head.innerHTML = `<tr style="border-bottom:1px solid #252525">${
-    ["PLAYER","POS","TEAM","TRACK",...SOURCES.map(s=>s.label),STAT_LABEL[sortBy]+" (AVG)"]
-    .map((h,i)=>{
-      const tight = i===1||i===2;
-      const style = tight ? 'style="padding:10px 6px;width:50px"' : '';
-      return `<th class="${i===0?'left':'center'}" ${style}>${h}</th>`;
-    }).join("")
+    headerCols.map((h,i)=>`<th class="${i===0?'left':'center'}">${h}</th>`).join("")
   }</tr>`;
 
   rowCache = rows.map((r,i) => {
@@ -560,21 +557,27 @@ function renderTable() {
     const tight = isTight(r, sortBy, lookups);
     const tc = presentVals.length===0?"#30363d":tight?"#ffffff":"#8b9aa8";
 
+    const cellPad = "5px 10px";
+    const fontSz = "13px";
+
     const srcCells = srcVals.map((v,si)=>{
       const withinTol = v!=null&&avg!=null&&(avg===0||Math.abs(v-avg)/avg*100<=tolerance);
       if (v!=null) {
-        return `<td style="padding:8px 12px;text-align:center" class="copyable" onclick="copyAvg(${v.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"><span style="color:${withinTol?SOURCES[si].color:SOURCES[si].color+'33'};font-size:14px;font-weight:${withinTol?700:400}">${v.toFixed(2)}</span></td>`;
+        return `<td style="padding:${cellPad};text-align:center" class="copyable" onclick="copyAvg(${v.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"><span style="color:${withinTol?SOURCES[si].color:SOURCES[si].color+'33'};font-size:${fontSz};font-weight:${withinTol?700:400}">${v.toFixed(2)}</span></td>`;
       }
-      return `<td style="padding:8px 12px;text-align:center"><span style="color:#30363d">-</span></td>`;
+      return `<td style="padding:${cellPad};text-align:center"><span style="color:#30363d">-</span></td>`;
     }).join("");
 
     return `<tr class="${i%2===0?'even':'odd'}">
-      <td style="padding:8px 12px;font-size:15px;font-weight:600;color:${tc};white-space:nowrap;width:200px;cursor:pointer" class="copyable" onclick="copyName(${i})" title="Click to copy name">${r.rawName}</td>
-      <td style="padding:8px 6px;font-size:14px;font-weight:500;color:#ffffff;text-align:center;width:50px">${r.pos}</td>
-      <td style="padding:8px 6px;font-size:14px;font-weight:600;color:#ffffff;text-align:center;width:50px">${r.team}</td>
-      <td style="padding:4px 8px;text-align:center"><button onclick="trackRow(${i})" style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">TRACK</button></td>
+      <td style="padding:5px 10px;font-size:14px;font-weight:600;color:${tc};white-space:nowrap;cursor:pointer" class="copyable" onclick="copyName(${i})" title="Click to copy name">
+        <span style="display:inline-flex;align-items:center;gap:6px;">
+          <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:3px;padding:0 6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:18px;height:18px;">+</button>
+          <span>${r.rawName}</span>
+          <span style="font-size:10px;color:#7d8590;font-weight:500;">${r.team || ''} ${r.pos || ''}</span>
+        </span>
+      </td>
       ${srcCells}
-      <td style="padding:8px 12px;font-size:15px;color:${avg!=null?'#ffffff':'#30363d'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer':''}" ${avg!=null?`onclick="copyAvg(${avg.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'-'}</td>
+      <td style="padding:5px 10px;font-size:14px;color:${avg!=null?'#ffffff':'#30363d'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer':''}" ${avg!=null?`onclick="copyAvg(${avg.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'-'}</td>
     </tr>`;
   }).join("");
 }
@@ -653,6 +656,40 @@ function doExport() {
   a.href=url; a.download="WNBAblenderProjections.csv"; a.style.display="none";
   document.body.appendChild(a); a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+}
+
+function doExportConsensus() {
+  if (!merged) return;
+  // Use the currently visible filtered rows (CONSENSUS ONLY / TIGHTEST / search all apply)
+  const rows = getRowsForRender();
+  if (!rows.length) { showToast("No rows match current filters"); return; }
+  const header = "id,name,first_name,last_name,position,team,three_pointers_made,assists,blocks,double_double,points,rebounds,steals,triple_double,turnovers,fd_points,dk_points";
+  // Build a quick lookup from WNBA_TEMPLATE so consensus rows that exist in template carry full id/first/last
+  const tmplByNorm = {};
+  WNBA_TEMPLATE.forEach(t => { tmplByNorm[norm(t.name)] = t; });
+  const dataRows = rows.map(r => {
+    const con = r.con || {};
+    const t = tmplByNorm[r.norm] || {};
+    const first = t.first_name || (r.rawName.split(" ")[0] || "");
+    const last  = t.last_name  || (r.rawName.split(" ").slice(1).join(" ") || "");
+    return [
+      t.id || "", r.rawName, first, last, r.pos || t.position || "", r.team || t.team || "",
+      con.threepm!=null?con.threepm.toFixed(2):"",
+      con.ast!=null?con.ast.toFixed(2):"",
+      "","",
+      con.pts!=null?con.pts.toFixed(2):"",
+      con.reb!=null?con.reb.toFixed(2):"",
+      "","","","","",
+    ].map(v=>`"${v}"`).join(",");
+  });
+  const csv = [header,...dataRows].join("\n");
+  const blob = new Blob([csv],{type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="WNBAblenderConsensus.csv"; a.style.display="none";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+  showToast(`Exported ${rows.length} consensus rows`);
 }
 
 function clearSearch() {
@@ -810,6 +847,7 @@ function recomputeFairFromProj() {
   if (fairOdds != null) {
     fairEl.value = fairOdds > 0 ? "+" + fairOdds : String(fairOdds);
   }
+  updateEvPreview();
 }
 
 function parseLineInput(el) {
@@ -845,28 +883,23 @@ function trackRow(i) {
 }
 
 function trackTotal(awayAbbr, homeAbbr, side, line, odds, book, projTotal) {
-  // Use the matchup as the "player" label, GAME_TOTAL as stat
   const label = `${awayAbbr} @ ${homeAbbr}`;
   openTrackModal(label, "TOT", "GAME_TOTAL", projTotal, `${awayAbbr}/${homeAbbr}`);
-  // Pre-fill line and odds based on the row clicked
   setTimeout(() => {
-    const lineEl = document.getElementById("modal-line");
-    const oddsEl = document.getElementById("modal-odds");
+    const shorthand = document.getElementById("modal-shorthand");
     const bookEl = document.getElementById("modal-book");
-    if (lineEl) {
-      const prefix = side === "over" ? "o" : "u";
-      lineEl.value = `${prefix}${line}`;
-      // Trigger parseLineInput to update preview state
-      lineEl.dispatchEvent(new Event("input"));
+    if (shorthand) {
+      const dir = side === "over" ? "o" : "u";
+      const oddsStr = odds > 0 ? `+${odds}` : `${odds}`;
+      shorthand.value = `${dir}${line} ${oddsStr}`;
+      shorthand.dispatchEvent(new Event("input"));
     }
-    if (oddsEl) oddsEl.value = String(odds);
     if (bookEl && book) {
-      // Try to set if option exists; otherwise set "Other"
       const opts = Array.from(bookEl.options).map(o => o.value);
       bookEl.value = opts.includes(book) ? book : "Other";
     }
-    setOU(side); // pre-set over/under toggle
-  }, 0);
+    setOU(side);
+  }, 60);
 }
 
 function openTrackModal(player, pos, stat, proj, team) {
@@ -874,29 +907,202 @@ function openTrackModal(player, pos, stat, proj, team) {
   modalPos = pos;
   document.getElementById("modal-player-name").textContent = player;
   document.getElementById("modal-player-sub").textContent = (pos||"") + " · Add a bet";
+  // Reset shorthand and hidden fields
+  const shorthand = document.getElementById("modal-shorthand");
+  if (shorthand) { shorthand.value = ""; shorthand.style.borderColor = "#1f2733"; }
+  const sp = document.getElementById("shorthand-preview");
+  if (sp) sp.innerHTML = "";
   document.getElementById("modal-line").value = "";
-  window._modalLine = null;
-  window._modalFairManual = false; // reset — auto-fill is back on
-  const lp = document.getElementById("line-preview"); if(lp) lp.textContent = "";
-  const dateEl = document.getElementById("modal-date"); if(dateEl) dateEl.value = new Date().toISOString().split("T")[0];
   document.getElementById("modal-odds").value = "";
   document.getElementById("modal-fair").value = "";
+  window._modalLine = null;
+  window._modalFairManual = false;
+  clearAltBooks();
+  const dateEl = document.getElementById("modal-date"); if(dateEl) dateEl.value = new Date().toISOString().split("T")[0];
   document.getElementById("modal-stat").value = stat || "PTS";
+  // Update locked stat badge
+  const statDisp = document.getElementById("modal-stat-display");
+  if (statDisp) statDisp.textContent = (stat === "GAME_TOTAL") ? "TOTAL" : (stat || "PTS");
   const projDisp = (proj != null && proj !== 'null') ? parseFloat(proj).toFixed(2) : null;
   document.getElementById("modal-proj-display").textContent = projDisp ? `Blended Proj: ${projDisp}` : 'Blended Proj: —';
   window._modalProj = projDisp ? parseFloat(projDisp) : null;
   window._modalTeam = team || null;
   document.getElementById("modal-book").value = "FanDuel";
   document.getElementById("modal-stake-preview").textContent = "";
+  const evPrev = document.getElementById("modal-ev-preview");
+  if (evPrev) evPrev.textContent = "";
   document.getElementById("modal-save-btn").textContent = "Track Bet";
   document.getElementById("modal-save-btn").onclick = saveBet;
   window._editId = null;
   setOU("under");
   document.getElementById("track-modal").classList.add("open");
+  // Focus the shorthand input for instant typing
+  setTimeout(() => { shorthand?.focus(); }, 50);
 }
 
 function closeTrackModal() {
   document.getElementById("track-modal").classList.remove("open");
+}
+
+// ── SHORTHAND ENTRY ─────────────────────────────────────────────────
+// Parses one of:  "u17.5 200"  |  "u17.5 200 -120"  |  "o6.5 -110 -135"
+// First token: line with leading u/o
+// Second:      offered American odds
+// Third:       fair value American odds (optional — auto-calc if missing)
+function parseShorthand(el) {
+  const raw = el.value.trim().toLowerCase();
+  const preview = document.getElementById("shorthand-preview");
+  const lineHidden = document.getElementById("modal-line");
+  const oddsHidden = document.getElementById("modal-odds");
+  const fairHidden = document.getElementById("modal-fair");
+  if (!raw) {
+    el.style.borderColor = "#1f2733";
+    if (preview) preview.textContent = "";
+    lineHidden.value = ""; oddsHidden.value = ""; fairHidden.value = "";
+    window._modalLine = null; window._modalFairManual = false;
+    updateEvPreview();
+    return;
+  }
+  // Tokenize on whitespace
+  const tokens = raw.split(/\s+/);
+  const lineTok = tokens[0] || "";
+  const oddsTok = tokens[1] || "";
+  const fairTok = tokens[2] || "";
+
+  const lineMatch = lineTok.match(/^([ou])([\d.]+)$/);
+  if (!lineMatch) {
+    el.style.borderColor = "#f8717155";
+    if (preview) { preview.textContent = "Format: u17.5 200 -120"; preview.style.color = "#f87171"; }
+    return;
+  }
+  const dir = lineMatch[1] === "o" ? "over" : "under";
+  const lineVal = parseFloat(lineMatch[2]);
+  window._modalOU = dir;
+  window._modalLine = lineVal;
+  lineHidden.value = (dir === "over" ? "o" : "u") + lineVal;
+
+  // Odds — accept "200" / "+200" / "-120"
+  let oddsVal = null;
+  if (oddsTok) {
+    const m = oddsTok.match(/^([+\-]?)(\d{2,4})$/);
+    if (m) {
+      const sign = m[1] === "-" ? -1 : 1;
+      oddsVal = sign * parseInt(m[2]);
+      oddsHidden.value = String(oddsVal);
+    }
+  }
+
+  // Fair — accept "+200" / "-120" / "200"
+  let fairVal = null;
+  if (fairTok) {
+    const m = fairTok.match(/^([+\-]?)(\d{2,4})$/);
+    if (m) {
+      const sign = m[1] === "-" ? -1 : 1;
+      fairVal = sign * parseInt(m[2]);
+      fairHidden.value = String(fairVal);
+      window._modalFairManual = true;
+    }
+  } else {
+    // No fair typed → let auto-calc kick in
+    window._modalFairManual = false;
+    fairHidden.value = "";
+    recomputeFairFromProj();
+    fairVal = parseInt(fairHidden.value) || null;
+  }
+
+  el.style.borderColor = "#14b8a6";
+  if (preview) {
+    const sideColor = dir === "over" ? "#22c55e" : "#f87171";
+    const sideLbl = dir === "over" ? "OVER" : "UNDER";
+    let txt = `<span style="color:${sideColor};font-weight:700">${sideLbl} ${lineVal}</span>`;
+    if (oddsVal != null) txt += `<span style="color:#e2e8f0;margin-left:8px">${oddsVal>0?'+':''}${oddsVal}</span>`;
+    if (fairVal != null) txt += `<span style="color:#7d8590;margin-left:8px">fair ${fairVal>0?'+':''}${fairVal}</span>`;
+    preview.innerHTML = txt;
+  }
+  updateEvPreview();
+}
+
+function updateEvPreview() {
+  const el = document.getElementById("modal-ev-preview");
+  if (!el) return;
+  const odds = parseInt(document.getElementById("modal-odds").value);
+  const fair = parseInt(document.getElementById("modal-fair").value);
+  if (isNaN(odds) || isNaN(fair)) { el.textContent = ""; return; }
+  const ev = calcEdge(odds, fair);
+  if (ev == null || isNaN(ev)) { el.textContent = ""; return; }
+  const meets = ev >= 5;
+  const color = meets ? "#22c55e" : ev > 0 ? "#5eead4" : "#f87171";
+  const note = meets ? "" : " — needs 5% to save";
+  el.innerHTML = `EV: <span style="color:${color}">${ev>0?'+':''}${ev.toFixed(1)}%</span>${note ? `<span style="color:#7d8590">${note}</span>` : ''}`;
+}
+
+// ── ALT BOOKS ──────────────────────────────────────────────────────
+function addAltBookRow(presetBook, presetOdds) {
+  const list = document.getElementById("modal-altbooks-list");
+  if (!list) return;
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:6px;align-items:center;";
+  row.innerHTML = `
+    <input type="text" class="alt-book" list="alt-book-options" placeholder="Type book..." style="flex:1;background:#0d1117;border:1px solid #1f2733;color:#e2e8f0;border-radius:6px;padding:7px 10px;font-size:13px;font-family:'Inter',sans-serif;" autocomplete="off" spellcheck="false"/>
+    <input type="text" class="alt-odds" placeholder="-110" style="width:90px;background:#0d1117;border:1px solid #1f2733;color:#e2e8f0;border-radius:6px;padding:7px 10px;font-size:13px;font-family:'Inter',sans-serif;text-align:center;" autocomplete="off" spellcheck="false"/>
+    <button type="button" onclick="this.parentElement.remove()" style="background:transparent;border:none;color:#7d8590;cursor:pointer;font-size:18px;line-height:1;padding:4px 10px;">×</button>
+  `;
+  list.appendChild(row);
+  if (presetBook) row.querySelector(".alt-book").value = presetBook;
+  if (presetOdds != null) row.querySelector(".alt-odds").value = presetOdds;
+  // Auto-focus the new row's book input for instant typing
+  setTimeout(() => row.querySelector(".alt-book")?.focus(), 0);
+}
+
+// Map shorthand and common variants to canonical book names
+const BOOK_SHORTHAND = {
+  "fd":"FanDuel","fanduel":"FanDuel",
+  "dk":"DraftKings","draftkings":"DraftKings",
+  "mgm":"BetMGM","betmgm":"BetMGM",
+  "czr":"Caesars","caesars":"Caesars",
+  "espn":"ESPN BET","espnbet":"ESPN BET","espn bet":"ESPN BET",
+  "hr":"Hard Rock","hardrock":"Hard Rock","hard rock":"Hard Rock",
+  "fanatics":"Fanatics",
+  "onyx":"Onyx",
+  "fliff":"Fliff",
+  "novig":"Novig","nv":"Novig",
+  "prophetx":"ProphetX","prophet":"ProphetX","px":"ProphetX",
+  "bookmaker":"Bookmaker","bm":"Bookmaker",
+  "pin":"Pinnacle","pinny":"Pinnacle","pinnacle":"Pinnacle",
+  "bet105":"Bet105","105":"Bet105",
+  "betrivers":"BetRivers","br":"BetRivers",
+  "circa":"Circa",
+  "bovada":"Bovada"
+};
+function normBookInput(s) {
+  if (!s) return s;
+  const key = s.trim().toLowerCase();
+  return BOOK_SHORTHAND[key] || s.trim();
+}
+
+function getAltBooks() {
+  const list = document.getElementById("modal-altbooks-list");
+  if (!list) return [];
+  const rows = list.querySelectorAll(":scope > div");
+  const result = [];
+  rows.forEach(r => {
+    const bRaw = r.querySelector(".alt-book")?.value;
+    const o = r.querySelector(".alt-odds")?.value?.trim();
+    const b = normBookInput(bRaw);
+    if (b && o) {
+      const m = o.match(/^([+\-]?)(\d{2,4})$/);
+      if (m) {
+        const sign = m[1] === "-" ? -1 : 1;
+        result.push({ book: b, odds: sign * parseInt(m[2]) });
+      }
+    }
+  });
+  return result;
+}
+
+function clearAltBooks() {
+  const list = document.getElementById("modal-altbooks-list");
+  if (list) list.innerHTML = "";
 }
 
 function saveBet() {
@@ -907,9 +1113,22 @@ function saveBet() {
   const stat = document.getElementById("modal-stat").value;
   const ou = getOU();
   const book = document.getElementById("modal-book").value;
-  if (isNaN(line) || isNaN(odds)) { alert("Please enter a line and odds."); return; }
-  const s = calcStake(odds);
+  if (isNaN(line) || isNaN(odds)) { alert("Please enter the bet (e.g. 'u17.5 200 -120')"); return; }
   const fair = parseInt(document.getElementById("modal-fair").value) || null;
+  // 5% EV gate — block save if below threshold
+  if (fair != null) {
+    const ev = calcEdge(odds, fair);
+    if (ev == null || ev < 5) {
+      const msg = ev == null ? "EV could not be calculated." : `EV is ${ev.toFixed(1)}% — needs to be 5%+ to track.`;
+      alert(msg);
+      return;
+    }
+  } else {
+    alert("Fair value is required (or let it auto-calc from projection).");
+    return;
+  }
+  const altBooks = getAltBooks();
+  const s = calcStake(odds);
   const now = new Date();
   const dateVal = document.getElementById("modal-date")?.value;
   const gameDate = dateVal ? new Date(dateVal + "T12:00:00") : now;
@@ -919,7 +1138,7 @@ function saveBet() {
   const bet = {
     id: Date.now(), date: dateStr, gameDate: isoDate, timestamp,
     player: modalPlayer, pos: modalPos,
-    stat, ou, line, odds, fair,
+    stat, ou, line, odds, fair, altBooks,
     stake: s.stake, toWin: s.toWin, type: s.type,
     book, proj: window._modalProj, team: window._modalTeam,
     result: "pending"
@@ -1331,21 +1550,34 @@ function copyDailyRecap() {
   });
 }
 
-function copyOpenPlays() {
+function copyOpenPlays() { _copyOpenFiltered("props"); }
+function copyOpenTotals() { _copyOpenFiltered("totals"); }
+
+// Stat code → full lowercase name
+const STAT_FULL_NAME = {
+  "PTS":"points", "REB":"rebounds", "AST":"assists", "3PM":"threes",
+  "PRA":"PRA", "MIN":"minutes", "PR":"PR", "PA":"PA", "RA":"RA"
+};
+
+function _copyOpenFiltered(kind) {
   const open = bets.filter(b => b.result === "pending");
   if (!open.length) { showToast("No open plays to copy"); return; }
+  const isTotal = b => (b.stat || "").toUpperCase() === "GAME_TOTAL";
+  const filtered = open.filter(b => kind === "totals" ? isTotal(b) : !isTotal(b));
+  if (!filtered.length) { showToast(kind === "totals" ? "No open totals" : "No open props"); return; }
   // Only include plays at 5%+ EV (must have fair value to qualify)
-  const qualified = open.filter(b => {
+  const qualified = filtered.filter(b => {
     const ev = calcEdge(b.odds, b.fair);
     return ev != null && ev >= 5;
   });
-  if (!qualified.length) { showToast("No plays at 5%+ EV"); return; }
+  if (!qualified.length) { showToast(`No ${kind} at 5%+ EV`); return; }
   const byBook = {};
   qualified.forEach(b => {
     if (!byBook[b.book]) byBook[b.book] = [];
     byBook[b.book].push(b);
   });
-  const lines = [`WNBA OPEN PLAYS`, ""];
+  const headerLabel = kind === "totals" ? "totals" : "props";
+  const lines = [`WNBA early ${headerLabel}: (${qualified.length})`, ""];
   const bookKeys = Object.keys(byBook).sort();
   bookKeys.forEach((book, bi) => {
     lines.push(book);
@@ -1353,20 +1585,28 @@ function copyOpenPlays() {
     byBook[book].sort((a,b) => calcEdge(b.odds, b.fair) - calcEdge(a.odds, a.fair));
     byBook[book].forEach((b, pi) => {
       const oddsStr = b.odds > 0 ? `+${b.odds}` : `${b.odds}`;
-      const lineStr = `${b.ou.toUpperCase()} ${b.line}`;
+      const ouLower = (b.ou || "").toLowerCase();
       const ev = calcEdge(b.odds, b.fair);
-      const evStr = `${ev.toFixed(1)}% EV`;
       const playTo = playToOdds(b.fair, 5);
-      const playToStr = playTo != null ? `   play to ${playTo > 0 ? "+" + playTo : playTo}` : "";
-      const teamStr = b.team ? ` (${b.team})` : "";
-      lines.push(`${b.player}${teamStr}   ${lineStr} ${b.stat}   ${oddsStr}   ${evStr}${playToStr}`);
+      const playToStr = playTo != null ? ` play to ${playTo > 0 ? "+" + playTo : playTo}` : "";
+      let row;
+      if (kind === "totals") {
+        // ATL @ MIN  over 157 -109 play to -135
+        row = `${b.player}  ${ouLower} ${b.line} ${oddsStr}${playToStr}`;
+      } else {
+        // Brittney Sykes (TOR)  over 12.5 points -110 play to -135
+        const teamStr = b.team ? ` (${b.team})` : "";
+        const statName = STAT_FULL_NAME[b.stat] || b.stat;
+        row = `${b.player}${teamStr}  ${ouLower} ${b.line} ${statName} ${oddsStr}${playToStr}`;
+      }
+      lines.push(row);
       if (pi < byBook[book].length - 1) lines.push("");
     });
     if (bi < bookKeys.length - 1) lines.push("");
   });
   const text = lines.join("\n").trimEnd();
   navigator.clipboard.writeText(text).then(() => {
-    showToast(`Copied ${qualified.length} plays at 5%+ EV`);
+    showToast(`Copied ${qualified.length} ${kind} at 5%+ EV`);
   });
 }
 
@@ -1465,7 +1705,8 @@ function renderTracker() {
       <span style="color:#1f2733;font-size:12px;">|</span>
       <span style="font-size:13px;color:#7d8590;">${pending.length} pending · ${settled.length} settled</span>
       <button onclick="openQuickGrade()" style="background:#14b8a6;border:none;color:#0d1117;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Quick Grade</button>
-      <button onclick="copyOpenPlays()" style="background:#161b22;border:1px solid #14b8a6;color:#5eead4;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Copy Open Plays</button>
+      <button onclick="copyOpenPlays()" style="background:#161b22;border:1px solid #14b8a6;color:#5eead4;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Copy Open Props</button>
+      <button onclick="copyOpenTotals()" style="background:#161b22;border:1px solid #14b8a6;color:#5eead4;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Copy Open Totals</button>
       <button onclick="copyDailyRecap()" style="background:#161b22;border:1px solid #14b8a6;color:#5eead4;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Daily Recap</button>
       <button onclick="exportBets()" style="background:#161b22;border:1px solid #1f2733;color:#5eead4;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Backup</button>
       <button onclick="importBets()" style="background:#161b22;border:1px solid #1f2733;color:#7d8590;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Restore</button>
@@ -1990,7 +2231,9 @@ updateBadges();
 loadBets();
 document.addEventListener("DOMContentLoaded", () => {
   const oddsEl = document.getElementById("modal-odds");
-  if (oddsEl) oddsEl.addEventListener("input", updateStakePreview);
+  if (oddsEl) oddsEl.addEventListener("input", () => { updateStakePreview(); updateEvPreview(); });
+  const fairEl = document.getElementById("modal-fair");
+  if (fairEl) fairEl.addEventListener("input", updateEvPreview);
 });
 </script>
 <!-- TRACK MODAL -->
@@ -1998,10 +2241,13 @@ document.addEventListener("DOMContentLoaded", () => {
   <div id="track-modal-box">
     <h3 id="modal-player-name">Player Name</h3>
     <div class="sub" id="modal-player-sub">Add a bet</div>
-    <div class="modal-row">
-      <div class="modal-field">
+
+    <!-- Stat badge + shorthand input -->
+    <div class="modal-row" style="align-items:flex-start;">
+      <div class="modal-field" style="flex:0 0 auto;">
         <label>Stat</label>
-        <select id="modal-stat" onchange="recomputeFairFromProj()">
+        <div id="modal-stat-display" style="background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:9px 14px;font-size:14px;color:#5eead4;font-weight:700;letter-spacing:0.5px;min-width:80px;text-align:center;">PTS</div>
+        <select id="modal-stat" style="display:none;" onchange="recomputeFairFromProj()">
           <option value="PTS">PTS</option>
           <option value="REB">REB</option>
           <option value="AST">AST</option>
@@ -2014,47 +2260,78 @@ document.addEventListener("DOMContentLoaded", () => {
           <option value="GAME_TOTAL">GAME TOTAL</option>
         </select>
       </div>
-      <div class="modal-field">
-        <label>Line</label>
-        <input type="text" id="modal-line" placeholder="u17.5 or o17.5"
+      <div class="modal-field" style="flex:1;">
+        <label>Quick Entry</label>
+        <input type="text" id="modal-shorthand" placeholder="u17.5 200 -120"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          oninput="parseLineInput(this)"/>
-        <div id="line-preview" style="font-size:11px;color:#7d8590;margin-top:3px;min-height:14px;"></div>
+          oninput="parseShorthand(this)"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();saveBet();}"/>
+        <div id="shorthand-preview" style="font-size:11px;color:#7d8590;margin-top:4px;min-height:14px;"></div>
       </div>
     </div>
+
+    <!-- Hidden fields (still used by save logic) -->
+    <input type="hidden" id="modal-line"/>
+    <input type="hidden" id="modal-odds"/>
+    <input type="hidden" id="modal-fair"/>
+
     <div class="modal-row">
       <div class="modal-field">
-        <label>Odds (American)</label>
-        <input type="number" id="modal-odds" placeholder="e.g. -167 or +130" autocomplete="off" spellcheck="false"/>
-      </div>
-      <div class="modal-field">
-        <label>Fair Value Odds</label>
-        <input type="number" id="modal-fair" placeholder="auto-calc from proj" autocomplete="off" spellcheck="false" oninput="window._modalFairManual = (this.value.trim() !== '');"/>
-      </div>
-    </div>
-    <div class="modal-row">
-      <div class="modal-field">
-        <label>Game Date</label>
-        <input type="date" id="modal-date" autocomplete="off" style="color-scheme:dark;"/>
-      </div>
-      <div class="modal-field">
-        <label>Sportsbook</label>
+        <label>Primary Book</label>
         <select id="modal-book">
           <option>FanDuel</option>
           <option>DraftKings</option>
+          <option>BetMGM</option>
+          <option>Caesars</option>
+          <option>ESPN BET</option>
+          <option>Hard Rock</option>
+          <option>Fanatics</option>
           <option>Onyx</option>
-          <option>Prop Builder</option>
           <option>Fliff</option>
           <option>Novig</option>
           <option>ProphetX</option>
           <option>Bookmaker</option>
           <option>Pinnacle</option>
+          <option>Bet105</option>
           <option>Other</option>
         </select>
       </div>
+      <div class="modal-field">
+        <label>Game Date</label>
+        <input type="date" id="modal-date" autocomplete="off" style="color-scheme:dark;"/>
+      </div>
     </div>
-    <div id="modal-proj-display"></div>
+
+    <!-- Alt books (book + odds pairs) -->
+    <div style="margin-top:6px;">
+      <label style="font-size:11px;color:#7d8590;letter-spacing:1px;text-transform:uppercase;font-weight:600;">Alt Books (optional)</label>
+      <div id="modal-altbooks-list" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
+      <button type="button" onclick="addAltBookRow()" style="margin-top:6px;background:#0d1117;border:1px dashed #1f2733;color:#7d8590;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">+ Add alt book</button>
+    </div>
+    <datalist id="alt-book-options">
+      <option value="FanDuel"></option>
+      <option value="DraftKings"></option>
+      <option value="BetMGM"></option>
+      <option value="Caesars"></option>
+      <option value="ESPN BET"></option>
+      <option value="Hard Rock"></option>
+      <option value="Fanatics"></option>
+      <option value="Onyx"></option>
+      <option value="Fliff"></option>
+      <option value="Novig"></option>
+      <option value="ProphetX"></option>
+      <option value="Bookmaker"></option>
+      <option value="Pinnacle"></option>
+      <option value="Bet105"></option>
+      <option value="BetRivers"></option>
+      <option value="Circa"></option>
+      <option value="Bovada"></option>
+    </datalist>
+
+    <div id="modal-proj-display" style="margin-top:14px;"></div>
     <div id="modal-stake-preview"></div>
+    <div id="modal-ev-preview" style="margin-top:6px;font-size:13px;font-weight:700;"></div>
+
     <div class="modal-btns">
       <button class="modal-btn-cancel" onclick="closeTrackModal()">Cancel</button>
       <button class="modal-btn-save" id="modal-save-btn" onclick="saveBet()">Track Bet</button>
