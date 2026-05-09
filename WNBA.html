@@ -845,13 +845,19 @@ async function fetchBDLStatsForDate(isoDate) {
   if (_bdlCache[isoDate]) return _bdlCache[isoDate];
   const all = [];
   let cursor = null;
-  for (let i = 0; i < 10; i++) { // hard cap to prevent infinite loop
-    const url = new URL(`${BDL_BASE}/player_stats`);
+  for (let i = 0; i < 10; i++) {
+    const url = new URL(`${BDL_BASE}/stats`);
     url.searchParams.set("dates[]", isoDate);
     url.searchParams.set("per_page", "100");
     if (cursor != null) url.searchParams.set("cursor", cursor);
     const res = await fetch(url.toString(), { headers: { "Authorization": BDL_KEY } });
-    if (!res.ok) throw new Error(`BDL ${res.status}: ${await res.text()}`);
+    if (!res.ok) {
+      const body = await res.text();
+      if (res.status === 401) {
+        throw new Error(`BDL 401 Unauthorized — your API key doesn't have access to WNBA stats. WNBA requires a separate paid subscription on balldontlie.io (NBA tier doesn't include it).`);
+      }
+      throw new Error(`BDL ${res.status}: ${body}`);
+    }
     const j = await res.json();
     if (Array.isArray(j.data)) all.push(...j.data);
     cursor = j.meta?.next_cursor;
@@ -913,9 +919,21 @@ async function gradeBet(b) {
   const playerNorm = norm(b.player);
   const playerStats = stats.filter(s => bdlPlayerMatch(s, playerNorm));
   if (!playerStats.length) return { ok: false, reason: `${b.player} not found in ${iso} games` };
-  // Sum across all rows (in case of multiple game appearances same day, rare but safe)
+  // Only grade if every relevant game is final
+  const isGameFinal = (g) => {
+    if (!g) return false;
+    const status = String(g.status || "").toLowerCase().trim();
+    // Accept: "final", "final/ot", "final/2ot", "post" (postseason ended), "completed"
+    return status.startsWith("final") || status === "post" || status === "completed";
+  };
+  const finalRows = playerStats.filter(s => isGameFinal(s.game));
+  if (!finalRows.length) {
+    const liveStatus = playerStats[0]?.game?.status || "unknown";
+    return { ok: false, reason: `Game not final yet (status: ${liveStatus})` };
+  }
+  // Sum across all final games (in case of multiple appearances same day, rare but safe)
   let total = 0;
-  playerStats.forEach(s => { total += getStatValueForBet(s, b.stat); });
+  finalRows.forEach(s => { total += getStatValueForBet(s, b.stat); });
   // Determine HIT/MISS/PUSH (push = exact line match)
   const line = b.line, ou = b.ou;
   let result;
@@ -944,7 +962,7 @@ async function gradeAllPending() {
   if (currentTab === "autograde") renderAutoGrade();
   gradeLog.length = 0;
   logGrade(`Starting grading for ${pendingBets.length} pending bets...`, "info");
-  let graded = 0, failed = 0, hit = 0, miss = 0, voided = 0;
+  let graded = 0, failed = 0, skipped = 0, hit = 0, miss = 0, voided = 0;
   for (const b of pendingBets) {
     const r = await gradeBet(b);
     if (r.ok) {
@@ -959,16 +977,28 @@ async function gradeAllPending() {
         logGrade(`${b.player} ${lineStr} ${b.stat}: actual ${r.total} → ${r.result.toUpperCase()}`, r.result);
       }
     } else {
-      failed++;
-      logGrade(`${b.player} ${b.stat}: ${r.reason}`, "error");
+      const isNotFinal = /not final/i.test(r.reason);
+      if (isNotFinal) {
+        skipped++;
+        logGrade(`${b.player} ${b.stat}: ${r.reason} — skipped`, "void");
+      } else {
+        failed++;
+        logGrade(`${b.player} ${b.stat}: ${r.reason}`, "error");
+      }
     }
   }
   saveBets();
   gradingInProgress = false;
-  logGrade(`Done. ${graded} graded (${hit}W ${miss}L ${voided}V), ${failed} failed.`, "info");
+  const summaryParts = [`${graded} graded (${hit}W ${miss}L ${voided}V)`];
+  if (skipped) summaryParts.push(`${skipped} not final`);
+  if (failed) summaryParts.push(`${failed} failed`);
+  logGrade(`Done. ${summaryParts.join(", ")}.`, "info");
   if (currentTab === "autograde") renderAutoGrade();
   if (currentTab === "tracker") renderTracker();
-  showToast(`Graded ${graded} of ${pendingBets.length}${failed?` (${failed} failed)`:""}`);
+  const toastBits = [`Graded ${graded} of ${pendingBets.length}`];
+  if (skipped) toastBits.push(`${skipped} not final`);
+  if (failed) toastBits.push(`${failed} failed`);
+  showToast(toastBits.join(" • "));
 }
 
 function renderAutoGrade() {
