@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Matrix.bet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  /* surfaces — flat, defined by tonal shifts, not borders */
+  --bg-0: #08080c;          /* page */
+  --bg-1: #0d0d12;          /* lifted surface */
+  --bg-2: #131319;          /* card / panel */
+  --bg-3: #1a1a22;          /* hover / inset */
+
+  /* hairlines — used sparingly, very subtle */
+  --hairline: rgba(255, 255, 255, 0.04);
+  --hairline-strong: rgba(255, 255, 255, 0.07);
+
+  /* ink — strict scale */
+  --ink-0: #ffffff;
+  --ink-1: #d8d8df;
+  --ink-2: #8a8a95;
+  --ink-3: #56565f;
+  --ink-4: #2a2a31;
+
+  /* accents — used sparingly */
+  --gold: #fdb927;
+  --gold-dim: #c9931a;
+  --purple: #7a3fc4;        /* used only in ambient bg + brand dot */
+
+  /* semantic — only ever for outcomes */
+  --profit: #22d97a;
+  --profit-soft: rgba(34, 217, 122, 0.10);
+  --loss: #ef5d6f;
+  --loss-soft: rgba(239, 93, 111, 0.10);
+
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg-0);
+  color: var(--ink-1);
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+/* very subtle ambient color — barely there */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 1400px 700px at 25% -20%, rgba(85, 45, 140, 0.18), transparent 60%);
+  pointer-events: none;
+}
+
+.shell {
+  position: relative; z-index: 1;
+  max-width: 1280px; margin: 0 auto;
+  padding: 32px 32px 120px;
+}
+@media (max-width: 700px) { .shell { padding: 20px 16px 80px; } }
+
+/* ============ TOPBAR ============ */
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 48px; flex-wrap: wrap; gap: 16px;
+}
+.brand { display: flex; align-items: baseline; gap: 1px; cursor: pointer; user-select: none; }
+.brand .mark {
+  font-family: 'Geist', sans-serif;
+  font-weight: 700; font-size: 22px;
+  letter-spacing: -0.04em; color: var(--ink-0); line-height: 1;
+}
+.brand .dot { color: var(--gold); font-weight: 700; font-size: 22px; line-height: 1; }
+.brand .tld {
+  font-weight: 500; font-size: 16px;
+  letter-spacing: -0.025em; color: var(--ink-2); line-height: 1; margin-left: 1px;
+}
+
+/* underline-tab style switch — Apple System Settings energy */
+.view-switch {
+  display: flex; gap: 28px;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 0;
+}
+.view-btn {
+  background: transparent; border: none;
+  color: var(--ink-2);
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  padding: 10px 0;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s ease;
+  letter-spacing: -0.01em;
+}
+.view-btn::after {
+  content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+  height: 2px; background: transparent;
+  transition: background 0.18s ease;
+}
+.view-btn:hover { color: var(--ink-1); }
+.view-btn.active { color: var(--ink-0); font-weight: 600; }
+.view-btn.active::after { background: var(--gold); }
+
+.beta-badge {
+  display: inline-block; margin-left: 6px;
+  font-size: 8px; font-weight: 700; letter-spacing: 0.15em;
+  padding: 2px 5px; border-radius: 3px;
+  background: rgba(122, 63, 196, 0.14);
+  color: #b389e8;
+  font-family: 'JetBrains Mono', monospace;
+  vertical-align: 2px;
+}
+
+.topbar-right { display: flex; gap: 8px; align-items: center; }
+.live-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--ink-2); font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.live-badge::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--profit); box-shadow: 0 0 8px var(--profit);
+  animation: pulse 2.4s infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ============ VIEW VISIBILITY ============ */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ============ SHARED FILTERS — minimal, no borders ============ */
+.sport-filter { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 28px; }
+.sport-btn {
+  background: transparent; border: none;
+  color: var(--ink-2); font-family: inherit; font-size: 13px;
+  font-weight: 500; padding: 6px 14px;
+  border-radius: 999px; cursor: pointer; transition: all 0.15s ease;
+  letter-spacing: -0.01em;
+}
+.sport-btn:hover { color: var(--ink-0); background: var(--bg-2); }
+.sport-btn.active {
+  background: var(--ink-0); color: var(--bg-0); font-weight: 600;
+}
+
+/* ============ KPI STRIP — borderless, hierarchy via type only ============ */
+.kpi-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  margin-bottom: 36px;
+  background: var(--bg-2);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+@media (max-width: 700px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+
+.kpi {
+  padding: 22px 24px;
+  position: relative;
+}
+.kpi:not(:last-child)::after {
+  content: ''; position: absolute; right: 0; top: 24px; bottom: 24px;
+  width: 1px; background: var(--hairline);
+}
+@media (max-width: 700px) {
+  .kpi:nth-child(odd)::after { display: block; }
+  .kpi:nth-child(2)::after { display: none; }
+}
+.kpi-label {
+  font-size: 11px; color: var(--ink-3);
+  font-weight: 500;
+  margin-bottom: 10px;
+  letter-spacing: -0.005em;
+}
+.kpi-value {
+  font-size: 28px; font-weight: 600; color: var(--ink-0);
+  letter-spacing: -0.035em; line-height: 1;
+  font-feature-settings: 'tnum', 'ss01';
+}
+.kpi-value.profit { color: var(--profit); }
+.kpi-value.loss { color: var(--loss); }
+.kpi-sub { font-size: 12px; color: var(--ink-3); margin-top: 6px; font-weight: 500; }
+
+.kpi-bar {
+  height: 2px; background: var(--ink-4); border-radius: 999px;
+  margin-top: 12px; overflow: hidden;
+}
+.kpi-bar > span {
+  display: block; height: 100%; background: var(--profit);
+  border-radius: 999px;
+}
+
+/* ============ TWO-COL / THREE-COL ============ */
+.row-3 {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  margin-bottom: 40px;
+}
+@media (max-width: 980px) { .row-3 { grid-template-columns: 1fr; gap: 32px; } }
+
+.row-2 {
+  display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px;
+}
+@media (max-width: 980px) { .row-2 { grid-template-columns: 1fr; gap: 32px; } }
+
+/* PANELS — borderless. Just typographic blocks separated by space. */
+.panel { display: flex; flex-direction: column; }
+.panel-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.panel-title {
+  font-family: 'Geist', sans-serif; font-weight: 600;
+  font-size: 14px; color: var(--ink-0); letter-spacing: -0.02em;
+}
+.panel-sub { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+
+/* sport label — typographic, not a chip */
+.sport-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.15em;
+  color: var(--ink-3); text-transform: uppercase;
+}
+
+/* DNA / Sport breakdown rows */
+.dna-list { display: flex; flex-direction: column; gap: 16px; }
+.dna-row { display: flex; flex-direction: column; gap: 6px; }
+.dna-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.dna-label {
+  display: flex; align-items: baseline; gap: 10px;
+  color: var(--ink-1); font-weight: 500;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+.dna-label-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dna-record {
+  color: var(--ink-3); font-size: 11px;
+  font-family: 'JetBrains Mono', monospace; font-weight: 500;
+}
+.dna-pct {
+  color: var(--profit); font-weight: 600; font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: 'tnum';
+}
+.dna-pct.neg { color: var(--loss); }
+.dna-bar { height: 2px; background: var(--ink-4); border-radius: 999px; overflow: hidden; }
+.dna-bar > span {
+  display: block; height: 100%; background: var(--profit); border-radius: 999px;
+}
+.dna-bar > span.neg { background: var(--loss); }
+
+/* recent / player lists */
+.recent-list, .player-list { display: flex; flex-direction: column; }
+.recent-row, .player-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; font-size: 13px;
+  border-bottom: 1px solid var(--hairline);
+}
+.recent-row:last-child, .player-row:last-child { border-bottom: none; }
+
+.recent-avatar, .player-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg-3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: var(--ink-1); flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.recent-meta, .player-meta { flex: 1; min-width: 0; }
+.recent-name, .player-name {
+  color: var(--ink-0); font-weight: 500; font-size: 13px;
+  letter-spacing: -0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.recent-prop, .player-record {
+  color: var(--ink-3); font-size: 11px; margin-top: 2px; font-weight: 400;
+}
+.player-record { font-family: 'JetBrains Mono', monospace; font-feature-settings: 'tnum'; }
+
+.recent-result {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--ink-1); display: flex; align-items: center; gap: 8px;
+  font-feature-settings: 'tnum';
+}
+.dot-result {
+  width: 16px; height: 16px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+}
+.dot-result.win { background: var(--profit-soft); color: var(--profit); }
+.dot-result.loss { background: var(--loss-soft); color: var(--loss); }
+
+.player-units {
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+  color: var(--profit); font-feature-settings: 'tnum';
+}
+.player-units.neg { color: var(--loss); }
+
+.panel-cta {
+  margin-top: 16px;
+  background: transparent; border: none;
+  color: var(--ink-2); font-family: inherit; font-size: 12px; font-weight: 500;
+  letter-spacing: -0.005em;
+  text-align: left; cursor: pointer; padding: 0;
+  transition: color 0.15s ease;
+}
+.panel-cta:hover { color: var(--ink-0); }
+
+/* ============ CHART + WEEK ============ */
+.chart-panel { padding: 0; }
+.chart-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.chart-title { font-family: 'Geist', sans-serif; font-weight: 600; font-size: 14px; color: var(--ink-0); letter-spacing: -0.02em; }
+.chart-sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.chart-hero { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; flex-wrap: wrap; }
+.chart-big {
+  font-family: 'JetBrains Mono', monospace; font-size: 36px;
+  font-weight: 600; color: var(--profit); letter-spacing: -0.04em; line-height: 1;
+  font-feature-settings: 'tnum';
+}
+.chart-tag {
+  background: var(--profit-soft);
+  color: var(--profit); font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 4px;
+}
+.chart-cumulative { font-size: 11px; color: var(--ink-3); }
+
+.range-tabs { display: flex; gap: 0; margin: 18px 0 14px; }
+.range-tab {
+  background: transparent; border: none;
+  color: var(--ink-3); font-family: inherit; font-size: 11px; font-weight: 500;
+  padding: 5px 12px; border-radius: 4px; cursor: pointer;
+  transition: all 0.15s ease;
+}
+.range-tab:hover { color: var(--ink-1); }
+.range-tab.active { background: var(--bg-3); color: var(--ink-0); }
+
+.spark-wrap { width: 100%; height: 200px; position: relative; }
+.spark-axis {
+  position: absolute; bottom: -22px; left: 0; right: 0;
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--ink-3); font-weight: 500;
+}
+
+/* week panel */
+.week-panel { padding: 0; }
+.week-card {
+  background: var(--bg-2);
+  border-radius: var(--radius); padding: 18px 20px; margin-bottom: 18px;
+}
+.week-card-head {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--ink-3); font-weight: 500;
+  margin-bottom: 10px;
+  letter-spacing: -0.005em;
+}
+.week-card-hero { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.week-card-units {
+  font-family: 'JetBrains Mono', monospace; font-size: 28px;
+  font-weight: 600; color: var(--profit); letter-spacing: -0.035em; line-height: 1;
+  font-feature-settings: 'tnum';
+}
+.week-card-record {
+  color: var(--ink-2); font-size: 13px; font-weight: 500;
+  font-family: 'JetBrains Mono', monospace; font-feature-settings: 'tnum';
+}
+.week-card-sub { color: var(--ink-3); font-size: 12px; }
+
+.day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 16px; }
+.day-cell {
+  background: var(--bg-3); border-radius: 4px; padding: 9px 4px;
+  text-align: center;
+}
+.day-label {
+  font-size: 9px; color: var(--ink-3); letter-spacing: 0.06em;
+  font-weight: 600; text-transform: uppercase;
+}
+.day-value {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  font-weight: 600; margin-top: 4px; color: var(--ink-3);
+  font-feature-settings: 'tnum';
+}
+.day-cell.win .day-value { color: var(--profit); }
+.day-cell.loss .day-value { color: var(--loss); }
+
+.week-stats {
+  font-size: 12px; color: var(--ink-3); padding: 14px 0;
+  border-top: 1px solid var(--hairline);
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: baseline;
+}
+.week-stats > div { display: flex; align-items: baseline; gap: 5px; }
+.week-stats .v {
+  color: var(--ink-1); font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; font-feature-settings: 'tnum';
+}
+
+.week-history { margin-top: 8px; }
+.week-history h4 {
+  font-size: 12px; color: var(--ink-3); font-weight: 500;
+  margin-bottom: 4px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--hairline);
+}
+.history-row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 13px;
+}
+.history-row:last-child { border-bottom: none; }
+.history-date { color: var(--ink-1); font-weight: 500; letter-spacing: -0.01em; }
+.history-record {
+  color: var(--ink-3); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  font-feature-settings: 'tnum';
+}
+.history-units {
+  font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--profit);
+  font-feature-settings: 'tnum';
+}
+.history-row.neg .history-units { color: var(--loss); }
+
+/* ============ SIDEBAR ============ */
+.layout {
+  display: grid; grid-template-columns: 1fr 280px; gap: 32px;
+  align-items: start;
+}
+@media (max-width: 1080px) { .layout { grid-template-columns: 1fr; } }
+
+.sidebar { display: flex; flex-direction: column; gap: 24px; position: sticky; top: 32px; }
+
+.side-card {
+  background: var(--bg-2);
+  border-radius: var(--radius); padding: 20px;
+}
+.side-card h3 {
+  font-family: 'Geist', sans-serif; font-weight: 600;
+  font-size: 13px; color: var(--ink-0); margin-bottom: 14px;
+  letter-spacing: -0.015em;
+  padding-bottom: 12px; border-bottom: 1px solid var(--hairline);
+}
+
+.alert-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 0; font-size: 13px;
+  border-bottom: 1px solid var(--hairline);
+}
+.alert-row:last-child { border-bottom: none; padding-bottom: 0; }
+.alert-meta { flex: 1; }
+.alert-name { color: var(--ink-1); font-weight: 500; letter-spacing: -0.01em; }
+.alert-sub { color: var(--ink-3); font-size: 11px; margin-top: 2px; }
+
+.toggle {
+  width: 32px; height: 18px; background: var(--ink-4); border-radius: 999px;
+  position: relative; cursor: pointer; transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+.toggle::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; background: var(--ink-2); border-radius: 50%;
+  transition: all 0.2s ease;
+}
+.toggle.on { background: var(--profit); }
+.toggle.on::after { left: 16px; background: white; }
+
+.telegram-card {
+  background: var(--bg-2);
+}
+.telegram-blurb { font-size: 13px; color: var(--ink-2); line-height: 1.5; margin-bottom: 16px; letter-spacing: -0.005em; }
+.telegram-cta {
+  width: 100%; padding: 11px 14px;
+  background: #289fd9;
+  border: none; color: white;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  letter-spacing: -0.01em;
+  border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s ease;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.telegram-cta:hover { background: #2ab3f0; }
+
+/* ============ PICKS VIEW ============ */
+.picks-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.picks-title {
+  font-family: 'Geist', sans-serif; font-weight: 700;
+  font-size: 32px; color: var(--ink-0);
+  letter-spacing: -0.04em; line-height: 1;
+}
+.picks-meta {
+  font-size: 12px; color: var(--ink-3); margin-top: 8px;
+  font-weight: 500; letter-spacing: -0.005em;
+}
+.picks-counter {
+  display: flex; align-items: baseline; gap: 16px;
+  font-size: 12px; color: var(--ink-3); font-weight: 500;
+}
+.picks-counter strong {
+  color: var(--ink-0); font-family: 'JetBrains Mono', monospace; font-weight: 600;
+  font-size: 13px; font-feature-settings: 'tnum';
+}
+
+.picks-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+/* CARDS — flat surface, no border, hairline divider */
+.pick-card {
+  background: var(--bg-2);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 16px;
+  transition: background 0.18s ease;
+}
+.pick-card:hover { background: var(--bg-3); }
+
+.pick-card.locked { background: var(--bg-1); }
+.pick-card.locked::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(45deg, transparent, transparent 16px, rgba(122, 63, 196, 0.03) 16px, rgba(122, 63, 196, 0.03) 32px);
+  pointer-events: none;
+}
+
+/* graded picks: thin left edge in result color */
+.pick-card.graded-win::before,
+.pick-card.graded-loss::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 2px;
+}
+.pick-card.graded-win::before { background: var(--profit); }
+.pick-card.graded-loss::before { background: var(--loss); }
+
+.pick-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.pick-head-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pick-sport-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.18em;
+  color: var(--ink-3); text-transform: uppercase;
+}
+.pick-result-inline {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.15em;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--profit-soft);
+  color: var(--profit);
+}
+.pick-result-inline.loss { background: var(--loss-soft); color: var(--loss); }
+
+.pick-time {
+  font-size: 11px; color: var(--ink-3);
+  font-weight: 500; letter-spacing: -0.005em;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+.pick-locked-body {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 28px 0 22px;
+}
+.lock-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(122, 63, 196, 0.08);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--purple);
+}
+.countdown {
+  font-family: 'JetBrains Mono', monospace; font-size: 24px;
+  font-weight: 600; color: var(--ink-0); letter-spacing: 0.04em;
+  font-feature-settings: 'tnum';
+}
+.countdown-label {
+  font-size: 10px; color: var(--ink-3);
+  letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600;
+}
+
+.pick-revealed-body { display: flex; flex-direction: column; gap: 6px; }
+.pick-market {
+  font-size: 11px; color: var(--ink-3);
+  letter-spacing: -0.005em; font-weight: 500;
+}
+.pick-selection {
+  font-family: 'Geist', sans-serif; font-size: 20px;
+  font-weight: 600; color: var(--ink-0);
+  letter-spacing: -0.035em; line-height: 1.2;
+}
+
+.pick-meta-row {
+  display: flex; align-items: baseline; gap: 0;
+  padding-top: 6px;
+}
+.pick-meta-cell {
+  display: flex; flex-direction: column; gap: 4px;
+  flex: 1; padding-right: 12px; min-width: 0;
+}
+.pick-meta-cell:not(:last-child) { border-right: 1px solid var(--hairline); margin-right: 12px; }
+.pick-meta-key {
+  font-size: 10px; letter-spacing: -0.005em;
+  color: var(--ink-3); font-weight: 500;
+}
+.pick-meta-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; font-weight: 600;
+  color: var(--ink-0);
+  font-feature-settings: 'tnum';
+}
+.pick-meta-value.gold { color: var(--gold); }
+
+.pick-notes {
+  font-size: 13px; color: var(--ink-2); line-height: 1.55;
+  letter-spacing: -0.005em;
+}
+
+.empty-state {
+  background: var(--bg-2);
+  border-radius: var(--radius); padding: 60px 20px;
+  text-align: center; color: var(--ink-3); font-size: 14px;
+}
+
+/* ============ MY PLAYS ============ */
+.plays-layout {
+  display: grid; grid-template-columns: 220px 1fr; gap: 32px;
+  align-items: start;
+}
+@media (max-width: 980px) { .plays-layout { grid-template-columns: 1fr; gap: 24px; } }
+
+.filter-rail {
+  position: sticky; top: 32px;
+  display: flex; flex-direction: column; gap: 22px;
+}
+@media (max-width: 980px) { .filter-rail { position: static; } }
+
+.filter-rail-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.filter-rail-head h4 {
+  font-family: 'Geist', sans-serif; font-weight: 600;
+  font-size: 13px; color: var(--ink-0); letter-spacing: -0.015em;
+}
+.filter-clear-btn {
+  background: transparent; border: none; color: var(--ink-3);
+  font-family: inherit; font-size: 11px; font-weight: 500;
+  cursor: pointer; padding: 0; transition: color 0.15s ease;
+  letter-spacing: -0.005em;
+}
+.filter-clear-btn:hover { color: var(--loss); }
+
+.filter-group { display: flex; flex-direction: column; gap: 10px; }
+.filter-group-label {
+  font-size: 11px; color: var(--ink-3); letter-spacing: -0.005em;
+  font-weight: 500;
+}
+.filter-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.filter-pill {
+  background: transparent; border: none;
+  color: var(--ink-2); font-family: inherit; font-size: 11px;
+  font-weight: 500; padding: 5px 10px; letter-spacing: -0.005em;
+  border-radius: 999px; cursor: pointer; transition: all 0.15s ease;
+}
+.filter-pill:hover { color: var(--ink-0); background: var(--bg-2); }
+.filter-pill.active {
+  background: var(--ink-0); color: var(--bg-0); font-weight: 600;
+}
+
+.range-inputs { display: flex; gap: 6px; align-items: center; }
+.range-input {
+  flex: 1; min-width: 0;
+  background: var(--bg-2); border: 1px solid transparent;
+  color: var(--ink-0); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  padding: 7px 10px; border-radius: 5px;
+  font-feature-settings: 'tnum';
+}
+.range-input:focus { outline: none; border-color: var(--ink-4); background: var(--bg-3); }
+.range-sep { color: var(--ink-3); font-size: 12px; }
+
+/* plays main */
+.plays-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.plays-title {
+  font-family: 'Geist', sans-serif; font-weight: 700;
+  font-size: 32px; color: var(--ink-0); letter-spacing: -0.04em; line-height: 1;
+}
+.plays-sub { font-size: 12px; color: var(--ink-3); margin-top: 8px; font-weight: 500; }
+
+.add-play-btn {
+  background: var(--ink-0);
+  color: var(--bg-0); border: none;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 9px 16px; cursor: pointer; border-radius: var(--radius-sm);
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: opacity 0.15s ease;
+}
+.add-play-btn:hover { opacity: 0.85; }
+
+.plays-kpi {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  margin-bottom: 24px;
+  background: var(--bg-2);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+@media (max-width: 600px) { .plays-kpi { grid-template-columns: repeat(2, 1fr); } }
+.plays-kpi .kpi { padding: 18px 22px; }
+.plays-kpi .kpi-value { font-size: 24px; }
+
+.plays-table {
+  background: var(--bg-2);
+  border-radius: var(--radius); overflow: hidden;
+}
+.plays-row {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 2.2fr) minmax(0, 1fr) 60px 60px 70px 60px 28px;
+  gap: 12px; align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 13px;
+}
+.plays-row:last-child { border-bottom: none; }
+.plays-row.head {
+  background: transparent;
+  font-size: 10px; color: var(--ink-3); letter-spacing: -0.005em;
+  font-weight: 500;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.cell-sport {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.15em;
+  color: var(--ink-3); text-transform: uppercase;
+}
+.cell-pick { color: var(--ink-0); font-weight: 500; min-width: 0; overflow: hidden; }
+.cell-pick-name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+.cell-pick small {
+  color: var(--ink-3); font-size: 11px; display: block; margin-top: 2px;
+  font-weight: 400;
+}
+
+.cell-mono {
+  font-family: 'JetBrains Mono', monospace; font-weight: 600;
+  color: var(--ink-1); font-feature-settings: 'tnum';
+}
+.cell-mono.gold { color: var(--gold); }
+
+.cell-book { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.cell-result {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.15em; padding: 4px 6px; border-radius: 3px;
+  text-align: center; cursor: pointer; transition: all 0.15s ease;
+  background: transparent; border: 1px solid var(--ink-4);
+  color: var(--ink-3);
+}
+.cell-result.win { color: var(--profit); border-color: transparent; background: var(--profit-soft); }
+.cell-result.loss { color: var(--loss); border-color: transparent; background: var(--loss-soft); }
+.cell-result.push { color: var(--ink-2); }
+.cell-result:hover { border-color: var(--ink-2); }
+
+.cell-units {
+  font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px;
+  text-align: right; font-feature-settings: 'tnum';
+}
+.cell-units.win { color: var(--profit); }
+.cell-units.loss { color: var(--loss); }
+.cell-units.pending { color: var(--ink-3); }
+
+.cell-delete {
+  background: transparent; border: none; color: var(--ink-3);
+  cursor: pointer; padding: 4px; border-radius: 3px;
+  transition: all 0.15s ease; display: flex; align-items: center; justify-content: center;
+}
+.cell-delete:hover { color: var(--loss); }
+
+/* modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+  z-index: 100; display: none; align-items: center; justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(8px);
+}
+.modal-backdrop.show { display: flex; }
+.modal {
+  background: var(--bg-2);
+  border-radius: var(--radius); padding: 28px;
+  width: 100%; max-width: 460px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+.modal h3 {
+  font-family: 'Geist', sans-serif; font-weight: 700;
+  font-size: 22px; color: var(--ink-0); letter-spacing: -0.035em;
+  margin-bottom: 22px;
+}
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+.modal-field { display: flex; flex-direction: column; gap: 6px; }
+.modal-field.full { grid-column: 1 / -1; }
+.modal-field label {
+  font-size: 11px; color: var(--ink-3); font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.modal-field input, .modal-field select {
+  background: var(--bg-1); border: 1px solid transparent;
+  color: var(--ink-0); font-family: inherit; font-size: 14px;
+  padding: 9px 12px; border-radius: 6px;
+  letter-spacing: -0.01em;
+}
+.modal-field input:focus, .modal-field select:focus { outline: none; border-color: var(--ink-4); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-btn {
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 9px 18px; border-radius: var(--radius-sm); cursor: pointer;
+  border: none; background: transparent; color: var(--ink-2);
+  transition: all 0.15s ease;
+}
+.modal-btn:hover { color: var(--ink-0); }
+.modal-btn.primary {
+  background: var(--ink-0);
+  color: var(--bg-0);
+}
+.modal-btn.primary:hover { opacity: 0.85; color: var(--bg-0); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ============ TOPBAR ============ -->
+  <header class="topbar">
+    <div class="brand" onclick="setView('picks')">
+      <span class="mark">Matrix</span><span class="dot">.</span><span class="tld">bet</span>
+    </div>
+    <div class="view-switch">
+      <button class="view-btn active" data-view="picks" onclick="setView('picks')">Picks</button>
+      <button class="view-btn" data-view="plays" onclick="setView('plays')">My Plays<span class="beta-badge">BETA</span></button>
+      <button class="view-btn" data-view="record" onclick="setView('record')">Matrix Data</button>
+    </div>
+    <div class="topbar-right">
+      <span class="live-badge">Live · <span id="clock">--:--</span></span>
+    </div>
+  </header>
+
+  <!-- ============ PICKS VIEW ============ -->
+  <section class="view active" id="view-picks">
+    <div class="picks-header">
+      <div>
+        <div class="picks-title">Today's Board</div>
+        <div class="picks-meta" id="todayDate">—</div>
+      </div>
+      <div class="picks-counter">
+        <span><strong id="pickRevealed">0</strong> released</span>
+        <span><strong id="pickLocked">0</strong> locked</span>
+      </div>
+    </div>
+
+    <div class="sport-filter" id="picksSportFilter">
+      <button class="sport-btn active" data-sport="ALL">All Sports</button>
+      <button class="sport-btn" data-sport="MLB">MLB</button>
+      <button class="sport-btn" data-sport="NBA">NBA</button>
+      <button class="sport-btn" data-sport="NHL">NHL</button>
+      <button class="sport-btn" data-sport="UFC">UFC</button>
+      <button class="sport-btn" data-sport="Tennis">Tennis</button>
+    </div>
+
+    <div class="picks-grid" id="picksGrid"></div>
+  </section>
+
+  <!-- ============ MY PLAYS VIEW ============ -->
+  <section class="view" id="view-plays">
+    <div class="plays-layout">
+      <!-- Filter rail -->
+      <aside class="filter-rail">
+        <div class="filter-rail-head">
+          <h4>Filters</h4>
+          <button class="filter-clear-btn" onclick="clearFilters()">Clear all</button>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Sport</div>
+          <div class="filter-pills" data-filter="sport">
+            <button class="filter-pill active" data-value="ALL">All</button>
+            <button class="filter-pill" data-value="MLB">MLB</button>
+            <button class="filter-pill" data-value="NBA">NBA</button>
+            <button class="filter-pill" data-value="NHL">NHL</button>
+            <button class="filter-pill" data-value="UFC">UFC</button>
+            <button class="filter-pill" data-value="Tennis">Tennis</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Sportsbook</div>
+          <div class="filter-pills" data-filter="book">
+            <button class="filter-pill active" data-value="ALL">All</button>
+            <button class="filter-pill" data-value="FanDuel">FanDuel</button>
+            <button class="filter-pill" data-value="DraftKings">DK</button>
+            <button class="filter-pill" data-value="Pinnacle">Pinnacle</button>
+            <button class="filter-pill" data-value="BetMGM">BetMGM</button>
+            <button class="filter-pill" data-value="Caesars">Caesars</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Market Type</div>
+          <div class="filter-pills" data-filter="market">
+            <button class="filter-pill active" data-value="ALL">All</button>
+            <button class="filter-pill" data-value="Moneyline">ML</button>
+            <button class="filter-pill" data-value="Spread">Spread</button>
+            <button class="filter-pill" data-value="Total">Total</button>
+            <button class="filter-pill" data-value="Player Prop">Props</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Side</div>
+          <div class="filter-pills" data-filter="side">
+            <button class="filter-pill active" data-value="ALL">All</button>
+            <button class="filter-pill" data-value="Over">Over</button>
+            <button class="filter-pill" data-value="Under">Under</button>
+            <button class="filter-pill" data-value="N/A">N/A</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Status</div>
+          <div class="filter-pills" data-filter="status">
+            <button class="filter-pill active" data-value="ALL">All</button>
+            <button class="filter-pill" data-value="pending">Pending</button>
+            <button class="filter-pill" data-value="win">Wins</button>
+            <button class="filter-pill" data-value="loss">Losses</button>
+            <button class="filter-pill" data-value="push">Pushes</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Edge %</div>
+          <div class="range-inputs">
+            <input type="number" class="range-input" id="edgeMin" placeholder="Min" />
+            <span class="range-sep">–</span>
+            <input type="number" class="range-input" id="edgeMax" placeholder="Max" />
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Date Range</div>
+          <div class="range-inputs">
+            <input type="date" class="range-input" id="dateMin" />
+          </div>
+          <div class="range-inputs">
+            <input type="date" class="range-input" id="dateMax" />
+          </div>
+        </div>
+      </aside>
+
+      <!-- Plays main column -->
+      <div>
+        <div class="plays-header">
+          <div>
+            <div class="plays-title">My Plays</div>
+            <div class="plays-sub" id="playsCount">— plays</div>
+          </div>
+          <button class="add-play-btn" onclick="openPlayModal()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Add Play</span>
+          </button>
+        </div>
+
+        <div class="plays-kpi">
+          <div class="kpi">
+            <div class="kpi-label">ROI</div>
+            <div class="kpi-value" id="myROI">—</div>
+            <div class="kpi-sub" id="myROISub">No plays yet</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Win Rate</div>
+            <div class="kpi-value" id="myWinRate">—</div>
+            <div class="kpi-bar"><span id="myWinRateBar" style="width: 0%"></span></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Record</div>
+            <div class="kpi-value" id="myRecord">0–0</div>
+            <div class="kpi-sub" id="myRecordSub">0 settled</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Units</div>
+            <div class="kpi-value" id="myUnits">—</div>
+            <div class="kpi-sub" id="myUnitsSub">≈ $0</div>
+          </div>
+        </div>
+
+        <div class="plays-table" id="playsTable">
+          <div class="plays-row head">
+            <div>Sport</div>
+            <div>Selection</div>
+            <div>Book</div>
+            <div>Odds</div>
+            <div>Units</div>
+            <div>Result</div>
+            <div style="text-align:right">P/L</div>
+            <div></div>
+          </div>
+          <div id="playsRows"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ADD PLAY MODAL ============ -->
+  <div class="modal-backdrop" id="playModal" onclick="if(event.target===this)closePlayModal()">
+    <div class="modal">
+      <h3>Add Play</h3>
+      <div class="modal-grid">
+        <div class="modal-field">
+          <label>Sport</label>
+          <select id="f_sport">
+            <option>MLB</option><option>NBA</option><option>NHL</option><option>UFC</option><option>Tennis</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Market Type</label>
+          <select id="f_market">
+            <option>Moneyline</option><option>Spread</option><option>Total</option><option>Player Prop</option>
+          </select>
+        </div>
+        <div class="modal-field full">
+          <label>Selection</label>
+          <input type="text" id="f_selection" placeholder="e.g. Skubal Over 7.5 Strikeouts" />
+        </div>
+        <div class="modal-field">
+          <label>Side</label>
+          <select id="f_side">
+            <option>N/A</option><option>Over</option><option>Under</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Sportsbook</label>
+          <select id="f_book">
+            <option>FanDuel</option><option>DraftKings</option><option>Pinnacle</option><option>BetMGM</option><option>Caesars</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Odds</label>
+          <input type="number" id="f_odds" placeholder="-110" />
+        </div>
+        <div class="modal-field">
+          <label>Units</label>
+          <input type="number" step="0.1" id="f_units" placeholder="1.0" />
+        </div>
+        <div class="modal-field">
+          <label>Edge %</label>
+          <input type="number" step="0.1" id="f_edge" placeholder="3.5" />
+        </div>
+        <div class="modal-field">
+          <label>Date</label>
+          <input type="date" id="f_date" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn" onclick="closePlayModal()">Cancel</button>
+        <button class="modal-btn primary" onclick="savePlay()">Save Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TRACK RECORD VIEW ============ -->
+  <section class="view" id="view-record">
+    <div class="layout">
+      <div>
+        <div class="sport-filter">
+          <button class="sport-btn active">All Sports</button>
+          <button class="sport-btn">MLB</button>
+          <button class="sport-btn">NBA</button>
+          <button class="sport-btn">NHL</button>
+          <button class="sport-btn">UFC</button>
+          <button class="sport-btn">Tennis</button>
+        </div>
+
+        <!-- KPI Strip -->
+        <div class="kpi-strip">
+          <div class="kpi">
+            <div class="kpi-label">ROI</div>
+            <div class="kpi-value profit">+6.2%</div>
+            <div class="kpi-sub">412 settled</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Win Rate</div>
+            <div class="kpi-value">57.8%</div>
+            <div class="kpi-bar"><span style="width: 57.8%"></span></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Record</div>
+            <div class="kpi-value">238–174</div>
+            <div class="kpi-sub">412 total</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Units</div>
+            <div class="kpi-value profit">+48.36u</div>
+            <div class="kpi-sub">≈ $4,836 @ $100/u</div>
+          </div>
+        </div>
+
+        <!-- Three-col -->
+        <div class="row-3">
+          <!-- Sport Breakdown -->
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Sport Breakdown</div>
+                <div class="panel-sub">ROI by league</div>
+              </div>
+            </div>
+            <div class="dna-list">
+              <div class="dna-row">
+                <div class="dna-top">
+                  <div class="dna-label"><span class="sport-label">MLB</span><span class="dna-label-text">Baseball</span></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="dna-record">98W–62L</span>
+                    <span class="dna-pct">+8.4%</span>
+                  </div>
+                </div>
+                <div class="dna-bar"><span style="width: 84%"></span></div>
+              </div>
+              <div class="dna-row">
+                <div class="dna-top">
+                  <div class="dna-label"><span class="sport-label">NBA</span><span class="dna-label-text">Basketball</span></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="dna-record">76W–58L</span>
+                    <span class="dna-pct">+6.1%</span>
+                  </div>
+                </div>
+                <div class="dna-bar"><span style="width: 61%"></span></div>
+              </div>
+              <div class="dna-row">
+                <div class="dna-top">
+                  <div class="dna-label"><span class="sport-label">NHL</span><span class="dna-label-text">Hockey</span></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="dna-record">34W–22L</span>
+                    <span class="dna-pct">+5.2%</span>
+                  </div>
+                </div>
+                <div class="dna-bar"><span style="width: 52%"></span></div>
+              </div>
+              <div class="dna-row">
+                <div class="dna-top">
+                  <div class="dna-label"><span class="sport-label">UFC</span><span class="dna-label-text">MMA</span></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="dna-record">18W–14L</span>
+                    <span class="dna-pct">+4.7%</span>
+                  </div>
+                </div>
+                <div class="dna-bar"><span style="width: 47%"></span></div>
+              </div>
+              <div class="dna-row">
+                <div class="dna-top">
+                  <div class="dna-label"><span class="sport-label">TEN</span><span class="dna-label-text">Tennis</span></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="dna-record">12W–18L</span>
+                    <span class="dna-pct neg">−2.3%</span>
+                  </div>
+                </div>
+                <div class="dna-bar"><span style="width: 23%; background: linear-gradient(90deg, var(--loss), rgba(239, 93, 111, 0.35));"></span></div>
+              </div>
+            </div>
+            <button class="panel-cta">View All Sports →</button>
+          </div>
+
+          <!-- Recent Props -->
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Recent Picks</div>
+                <div class="panel-sub">Last graded</div>
+              </div>
+            </div>
+            <div class="recent-list">
+              <div class="recent-row">
+                <div class="recent-avatar">SK</div>
+                <div class="recent-meta">
+                  <div class="recent-name">Tarik Skubal</div>
+                  <div class="recent-prop">Strikeouts O 7.5</div>
+                </div>
+                <div class="recent-result">9 <span class="dot-result win">✓</span></div>
+              </div>
+              <div class="recent-row">
+                <div class="recent-avatar">AE</div>
+                <div class="recent-meta">
+                  <div class="recent-name">Anthony Edwards</div>
+                  <div class="recent-prop">Points O 27.5</div>
+                </div>
+                <div class="recent-result">31 <span class="dot-result win">✓</span></div>
+              </div>
+              <div class="recent-row">
+                <div class="recent-avatar">DS</div>
+                <div class="recent-meta">
+                  <div class="recent-name">Domantas Sabonis</div>
+                  <div class="recent-prop">Rebounds O 12.5</div>
+                </div>
+                <div class="recent-result">10 <span class="dot-result loss">✕</span></div>
+              </div>
+              <div class="recent-row">
+                <div class="recent-avatar">FL</div>
+                <div class="recent-meta">
+                  <div class="recent-name">Panthers ML</div>
+                  <div class="recent-prop">vs. Rangers</div>
+                </div>
+                <div class="recent-result">W <span class="dot-result win">✓</span></div>
+              </div>
+              <div class="recent-row">
+                <div class="recent-avatar">YR</div>
+                <div class="recent-meta">
+                  <div class="recent-name">Yankees / Red Sox</div>
+                  <div class="recent-prop">Game Total U 9</div>
+                </div>
+                <div class="recent-result">7 <span class="dot-result win">✓</span></div>
+              </div>
+              <div class="recent-row">
+                <div class="recent-avatar">CA</div>
+                <div class="recent-meta">
+                  <div class="recent-name">Carlos Alcaraz</div>
+                  <div class="recent-prop">Match Winner</div>
+                </div>
+                <div class="recent-result">L <span class="dot-result loss">✕</span></div>
+              </div>
+            </div>
+            <button class="panel-cta">View All Picks →</button>
+          </div>
+
+          <!-- Player Profitability -->
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Top Players</div>
+                <div class="panel-sub">Most profitable</div>
+              </div>
+            </div>
+            <div class="player-list">
+              <div class="player-row">
+                <div class="player-avatar">SK</div>
+                <div class="player-meta">
+                  <div class="player-name">Tarik Skubal</div>
+                  <div class="player-record">14W–3L · 82%</div>
+                </div>
+                <div class="player-units">↗ +9.4u</div>
+              </div>
+              <div class="player-row">
+                <div class="player-avatar">AE</div>
+                <div class="player-meta">
+                  <div class="player-name">Anthony Edwards</div>
+                  <div class="player-record">11W–4L · 73%</div>
+                </div>
+                <div class="player-units">↗ +6.8u</div>
+              </div>
+              <div class="player-row">
+                <div class="player-avatar">VW</div>
+                <div class="player-meta">
+                  <div class="player-name">Victor Wembanyama</div>
+                  <div class="player-record">9W–3L · 75%</div>
+                </div>
+                <div class="player-units">↗ +5.5u</div>
+              </div>
+              <div class="player-row">
+                <div class="player-avatar">CS</div>
+                <div class="player-meta">
+                  <div class="player-name">Corbin Carroll</div>
+                  <div class="player-record">8W–4L · 67%</div>
+                </div>
+                <div class="player-units">↗ +4.2u</div>
+              </div>
+              <div class="player-row">
+                <div class="player-avatar">SM</div>
+                <div class="player-meta">
+                  <div class="player-name">Sean McDonough</div>
+                  <div class="player-record">3W–8L · 27%</div>
+                </div>
+                <div class="player-units neg">↘ −5.1u</div>
+              </div>
+            </div>
+            <button class="panel-cta">View All Players →</button>
+          </div>
+        </div>
+
+        <!-- Chart + Week -->
+        <div class="row-2">
+          <div class="panel chart-panel">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Cumulative Units</div>
+                <div class="chart-sub">Performance over time by game date</div>
+              </div>
+            </div>
+            <div class="chart-hero">
+              <div class="chart-big">+48.36u</div>
+              <span class="chart-tag">⚡ +3.4u last 7 days</span>
+            </div>
+            <div class="chart-cumulative">cumulative · all time</div>
+            <div class="range-tabs">
+              <button class="range-tab">7D</button>
+              <button class="range-tab">30D</button>
+              <button class="range-tab active">All Time</button>
+            </div>
+            <div class="spark-wrap">
+              <svg id="sparkline" viewBox="0 0 600 180" preserveAspectRatio="none" style="width:100%;height:100%;"></svg>
+              <div class="spark-axis"><span>10/21</span><span>11/25</span><span>12/28</span><span>1/26</span><span>2/28</span><span>3/29</span><span>5/8</span></div>
+            </div>
+          </div>
+
+          <div class="panel week-panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">This Week</div>
+                <div class="panel-sub">Rolling weekly performance</div>
+              </div>
+            </div>
+            <div class="week-card">
+              <div class="week-card-head"><span>This Week</span><span>May 4–10</span></div>
+              <div class="week-card-hero">
+                <div class="week-card-units">+3.4u</div>
+                <div class="week-card-record">5W–2L</div>
+              </div>
+              <div class="week-card-sub">Season: +48.36u</div>
+              <div class="day-grid">
+                <div class="day-cell loss"><div class="day-label">MON</div><div class="day-value">−0.8</div></div>
+                <div class="day-cell win"><div class="day-label">TUE</div><div class="day-value">+1.5</div></div>
+                <div class="day-cell win"><div class="day-label">WED</div><div class="day-value">+2.2</div></div>
+                <div class="day-cell win"><div class="day-label">THU</div><div class="day-value">+0.5</div></div>
+                <div class="day-cell"><div class="day-label">FRI</div><div class="day-value">—</div></div>
+                <div class="day-cell"><div class="day-label">SAT</div><div class="day-value">—</div></div>
+                <div class="day-cell"><div class="day-label">SUN</div><div class="day-value">—</div></div>
+              </div>
+            </div>
+            <div class="week-stats">
+              <span>57.8%</span> Win Rate <span>·</span> <span>412</span> Bets <span>·</span> <span>+1.8u/wk</span> Avg
+            </div>
+            <div class="week-history">
+              <h4>Weekly History</h4>
+              <div class="history-row"><div class="history-date">Apr 27 – May 3</div><div class="history-record">12W–6L</div><div class="history-units">+5.2u</div></div>
+              <div class="history-row neg"><div class="history-date">Apr 20 – Apr 26</div><div class="history-record">9W–11L</div><div class="history-units">−2.4u</div></div>
+              <div class="history-row"><div class="history-date">Apr 13 – Apr 19</div><div class="history-record">14W–8L</div><div class="history-units">+6.1u</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="side-card">
+          <h3>Alert Settings</h3>
+          <div class="alert-row">
+            <div class="alert-meta">
+              <div class="alert-name">Picks Posted</div>
+              <div class="alert-sub">Notified when picks drop</div>
+            </div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="alert-row">
+            <div class="alert-meta">
+              <div class="alert-name">Telegram Notifications</div>
+              <div class="alert-sub">Push picks to your Telegram</div>
+            </div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+
+        <div class="side-card telegram-card">
+          <h3>Connect Telegram</h3>
+          <p class="telegram-blurb">Link your Telegram to get picks pushed the moment they drop.</p>
+          <button class="telegram-cta">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+            <span>Link Telegram</span>
+          </button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// ============ DATA ============
+const PICKS = [
+  { id:'p1', sport:'MLB', market:'Pitcher Strikeouts', selection:'Tarik Skubal Over 7.5', odds:-115, units:1.5, book:'FanDuel', reveal_at: hoursAgo(3), notes:'Top-tier K matchup, opp K% above 26%.', result:null },
+  { id:'p2', sport:'NBA', market:'Player Points', selection:'Anthony Edwards Over 27.5', odds:-108, units:1, book:'Pinnacle', reveal_at: hoursAgo(1), notes:'Pace + usage spike vs weak perimeter D.', result:null },
+  { id:'p3', sport:'NHL', market:'Moneyline', selection:'Florida Panthers ML', odds:-135, units:1.35, book:'FanDuel', reveal_at: hoursFromNow(2), notes:'Model edge 4.2%, goalie confirmed.', result:null },
+  { id:'p4', sport:'UFC', market:'Fight Moneyline', selection:'Ilia Topuria ML', odds:-180, units:1, book:'DraftKings', reveal_at: hoursFromNow(5), notes:'Striking differential + cardio edge.', result:null },
+  { id:'p5', sport:'Tennis', market:'Match Winner', selection:'Carlos Alcaraz ML', odds:-160, units:1, book:'Pinnacle', reveal_at: hoursFromNow(8), notes:'Surface + form edge.', result:null },
+  { id:'p6', sport:'MLB', market:'Game Total', selection:'Yankees vs Red Sox Under 9', odds:-110, units:1, book:'FanDuel', reveal_at: hoursAgo(28), notes:'Both starters sub-3.20 ERA last 5.', result:'win' },
+  { id:'p7', sport:'NBA', market:'Player Rebounds', selection:'Sabonis Over 12.5', odds:-120, units:1.2, book:'FanDuel', reveal_at: hoursAgo(26), notes:'Pace-up spot, usage 24%.', result:'loss' }
+];
+
+function hoursFromNow(h) { return new Date(Date.now() + h*3600*1000).toISOString(); }
+function hoursAgo(h) { return new Date(Date.now() - h*3600*1000).toISOString(); }
+
+// ============ VIEW SWITCHING ============
+function setView(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.querySelector(`.view-btn[data-view="${view}"]`).classList.add('active');
+}
+
+// ============ PICKS RENDERING ============
+let activeSport = 'ALL';
+document.querySelectorAll('#picksSportFilter .sport-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#picksSportFilter .sport-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeSport = btn.dataset.sport;
+    renderPicks();
+  });
+});
+
+function fmtOdds(o) { return o > 0 ? '+' + o : '' + o; }
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) + ' · ' + d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function countdown(iso) {
+  const ms = new Date(iso) - new Date();
+  if (ms <= 0) return null;
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function renderPicks() {
+  const grid = document.getElementById('picksGrid');
+  const now = new Date();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // today's picks (reveal_at within last 24h or upcoming today)
+  const filtered = PICKS.filter(p => {
+    if (activeSport !== 'ALL' && p.sport !== activeSport) return false;
+    const r = new Date(p.reveal_at);
+    return r >= new Date(today.getTime() - 24*3600*1000) && r < tomorrow;
+  }).sort((a,b) => new Date(a.reveal_at) - new Date(b.reveal_at));
+
+  let revealed = 0, locked = 0;
+  filtered.forEach(p => { new Date(p.reveal_at) <= now ? revealed++ : locked++; });
+  document.getElementById('pickRevealed').textContent = revealed;
+  document.getElementById('pickLocked').textContent = locked;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">No picks for this filter today.</div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => {
+    const isRevealed = new Date(p.reveal_at) <= now;
+    if (!isRevealed) {
+      return `
+        <div class="pick-card locked">
+          <div class="pick-head">
+            <div class="pick-head-left">
+              <span class="pick-sport-label ${p.sport}">${p.sport}</span>
+            </div>
+            <span class="pick-time">DROPS ${fmtTime(p.reveal_at)}</span>
+          </div>
+          <div class="pick-locked-body">
+            <div class="lock-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div class="countdown" data-reveal="${p.reveal_at}">${countdown(p.reveal_at) || '—'}</div>
+            <div class="countdown-label">Until Reveal</div>
+          </div>
+        </div>`;
+    }
+    const cardClass = p.result === 'win' ? 'revealed graded-win'
+                    : p.result === 'loss' ? 'revealed graded-loss'
+                    : 'revealed';
+    const resultPill = p.result === 'win' ? '<span class="pick-result-inline win">WIN</span>'
+                     : p.result === 'loss' ? '<span class="pick-result-inline loss">LOSS</span>' : '';
+    return `
+      <div class="pick-card ${cardClass}">
+        <div class="pick-head">
+          <div class="pick-head-left">
+            <span class="pick-sport-label ${p.sport}">${p.sport}</span>
+            ${resultPill}
+          </div>
+          <span class="pick-time">${fmtTime(p.reveal_at)}</span>
+        </div>
+        <div class="pick-revealed-body">
+          <div class="pick-market">${p.market}</div>
+          <div class="pick-selection">${p.selection}</div>
+        </div>
+        <div class="pick-meta-row">
+          <div class="pick-meta-cell">
+            <span class="pick-meta-key">Odds</span>
+            <span class="pick-meta-value">${fmtOdds(p.odds)}</span>
+          </div>
+          <div class="pick-meta-cell">
+            <span class="pick-meta-key">Units</span>
+            <span class="pick-meta-value gold">${p.units}</span>
+          </div>
+          <div class="pick-meta-cell">
+            <span class="pick-meta-key">Book</span>
+            <span class="pick-meta-value">${p.book}</span>
+          </div>
+        </div>
+        ${p.notes ? `<div class="pick-notes">${p.notes}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ============ TICKERS ============
+function tick() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+  // update countdowns
+  document.querySelectorAll('.countdown[data-reveal]').forEach(el => {
+    const c = countdown(el.dataset.reveal);
+    if (c === null) {
+      // reveal time hit — re-render
+      renderPicks();
+    } else {
+      el.textContent = c;
+    }
+  });
+}
+
+// ============ TODAY DATE ============
+document.getElementById('todayDate').textContent =
+  new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric', year:'numeric'});
+
+// ============ SPARKLINE ============
+function buildSparkline() {
+  // simulate cumulative units curve, choppy upward
+  const points = [];
+  let cum = 0;
+  const N = 200;
+  for (let i = 0; i < N; i++) {
+    const drift = 0.25;
+    const noise = (Math.sin(i * 0.7) + Math.cos(i * 0.31) * 0.7 + (Math.random() - 0.45)) * 1.4;
+    cum += drift + noise;
+    if (cum < -2) cum = -2;
+    points.push(cum);
+  }
+  // normalize to 0..1
+  const min = Math.min(...points), max = Math.max(...points);
+  const W = 600, H = 180, P = 6;
+  const xs = (i) => P + (i / (N-1)) * (W - 2*P);
+  const ys = (v) => H - P - ((v - min) / (max - min)) * (H - 2*P);
+
+  const path = points.map((v,i) => `${i===0?'M':'L'} ${xs(i).toFixed(1)} ${ys(v).toFixed(1)}`).join(' ');
+  const fill = `${path} L ${xs(N-1).toFixed(1)} ${H} L ${xs(0).toFixed(1)} ${H} Z`;
+
+  const svg = document.getElementById('sparkline');
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#22d97a" stop-opacity="0.32"/>
+        <stop offset="100%" stop-color="#22d97a" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="sparkLine" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#22d97a"/>
+        <stop offset="100%" stop-color="#7cf2c0"/>
+      </linearGradient>
+    </defs>
+    <path d="${fill}" fill="url(#sparkFill)" stroke="none"/>
+    <path d="${path}" fill="none" stroke="url(#sparkLine)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  `;
+}
+
+// ============ MY PLAYS ============
+const PLAYS_KEY = 'matrixbet_plays_v1';
+let myPlays = [];
+const filters = { sport: 'ALL', book: 'ALL', market: 'ALL', side: 'ALL', status: 'ALL', edgeMin: null, edgeMax: null, dateMin: null, dateMax: null };
+
+function loadPlays() {
+  try { myPlays = JSON.parse(localStorage.getItem(PLAYS_KEY) || '[]'); }
+  catch { myPlays = []; }
+}
+function savePlays() {
+  localStorage.setItem(PLAYS_KEY, JSON.stringify(myPlays));
+}
+
+function openPlayModal() {
+  document.getElementById('f_date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('playModal').classList.add('show');
+}
+function closePlayModal() {
+  document.getElementById('playModal').classList.remove('show');
+  ['f_selection','f_odds','f_units','f_edge'].forEach(id => document.getElementById(id).value = '');
+}
+function savePlay() {
+  const play = {
+    id: 'pl_' + Date.now(),
+    sport: document.getElementById('f_sport').value,
+    market: document.getElementById('f_market').value,
+    selection: document.getElementById('f_selection').value.trim(),
+    side: document.getElementById('f_side').value,
+    book: document.getElementById('f_book').value,
+    odds: parseInt(document.getElementById('f_odds').value) || 0,
+    units: parseFloat(document.getElementById('f_units').value) || 0,
+    edge: parseFloat(document.getElementById('f_edge').value) || 0,
+    date: document.getElementById('f_date').value || new Date().toISOString().slice(0,10),
+    result: 'pending'
+  };
+  if (!play.selection || !play.odds || !play.units) {
+    alert('Selection, odds, and units are required.');
+    return;
+  }
+  myPlays.unshift(play);
+  savePlays();
+  closePlayModal();
+  renderPlays();
+}
+function deletePlay(id) {
+  if (!confirm('Delete this play?')) return;
+  myPlays = myPlays.filter(p => p.id !== id);
+  savePlays();
+  renderPlays();
+}
+function cyclePlayResult(id) {
+  const order = ['pending', 'win', 'loss', 'push'];
+  const p = myPlays.find(x => x.id === id);
+  if (!p) return;
+  const i = order.indexOf(p.result || 'pending');
+  p.result = order[(i + 1) % order.length];
+  savePlays();
+  renderPlays();
+}
+
+function calcPL(play) {
+  if (play.result === 'pending' || play.result === 'push') return 0;
+  if (play.result === 'win') {
+    return play.odds > 0 ? play.units * (play.odds / 100) : play.units * (100 / Math.abs(play.odds));
+  }
+  if (play.result === 'loss') return -play.units;
+  return 0;
+}
+
+function applyFilters(plays) {
+  return plays.filter(p => {
+    if (filters.sport !== 'ALL' && p.sport !== filters.sport) return false;
+    if (filters.book !== 'ALL' && p.book !== filters.book) return false;
+    if (filters.market !== 'ALL' && p.market !== filters.market) return false;
+    if (filters.side !== 'ALL' && p.side !== filters.side) return false;
+    if (filters.status !== 'ALL' && (p.result || 'pending') !== filters.status) return false;
+    if (filters.edgeMin !== null && (p.edge || 0) < filters.edgeMin) return false;
+    if (filters.edgeMax !== null && (p.edge || 0) > filters.edgeMax) return false;
+    if (filters.dateMin && p.date < filters.dateMin) return false;
+    if (filters.dateMax && p.date > filters.dateMax) return false;
+    return true;
+  });
+}
+
+function renderPlays() {
+  const filtered = applyFilters(myPlays);
+  const rowsEl = document.getElementById('playsRows');
+
+  // KPIs (computed on filtered set)
+  const settled = filtered.filter(p => p.result === 'win' || p.result === 'loss');
+  const wins = settled.filter(p => p.result === 'win').length;
+  const losses = settled.filter(p => p.result === 'loss').length;
+  const totalUnits = filtered.reduce((s, p) => s + calcPL(p), 0);
+  const totalRisk = settled.reduce((s, p) => s + p.units, 0);
+  const winRate = settled.length ? (wins / settled.length) * 100 : 0;
+  const roi = totalRisk ? (totalUnits / totalRisk) * 100 : 0;
+
+  document.getElementById('playsCount').textContent =
+    `${filtered.length} ${filtered.length === 1 ? 'play' : 'plays'}` +
+    (filtered.length !== myPlays.length ? ` · ${myPlays.length} total` : '');
+
+  const roiEl = document.getElementById('myROI');
+  if (settled.length === 0) {
+    roiEl.textContent = '—';
+    roiEl.className = 'kpi-value';
+  } else {
+    roiEl.textContent = (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%';
+    roiEl.className = 'kpi-value ' + (roi >= 0 ? 'profit' : 'loss');
+  }
+  document.getElementById('myROISub').textContent = settled.length + ' settled';
+
+  document.getElementById('myWinRate').textContent = settled.length ? winRate.toFixed(1) + '%' : '—';
+  document.getElementById('myWinRateBar').style.width = winRate + '%';
+  document.getElementById('myRecord').textContent = `${wins}–${losses}`;
+  document.getElementById('myRecordSub').textContent = `${filtered.length} total`;
+
+  const unitsEl = document.getElementById('myUnits');
+  if (settled.length === 0) {
+    unitsEl.textContent = '—';
+    unitsEl.className = 'kpi-value';
+  } else {
+    unitsEl.textContent = (totalUnits >= 0 ? '+' : '') + totalUnits.toFixed(2) + 'u';
+    unitsEl.className = 'kpi-value ' + (totalUnits >= 0 ? 'profit' : 'loss');
+  }
+  document.getElementById('myUnitsSub').textContent = '≈ $' + (totalUnits * 100).toFixed(0) + ' @ $100/u';
+
+  // Rows
+  if (filtered.length === 0) {
+    rowsEl.innerHTML = `<div class="plays-row" style="grid-template-columns: 1fr; padding: 32px; justify-content: center;">
+      <div style="text-align:center; color: var(--ink-3); font-size: 12px;">
+        ${myPlays.length === 0 ? 'No plays yet — click Add Play to log your first bet.' : 'No plays match these filters.'}
+      </div>
+    </div>`;
+    return;
+  }
+
+  rowsEl.innerHTML = filtered.map(p => {
+    const result = p.result || 'pending';
+    const pl = calcPL(p);
+    const plStr = result === 'pending' ? '—'
+                : result === 'push' ? '0.00u'
+                : (pl >= 0 ? '+' : '') + pl.toFixed(2) + 'u';
+    const sideText = p.side && p.side !== 'N/A' ? ` · ${p.side}` : '';
+    return `
+      <div class="plays-row">
+        <div class="cell-sport ${p.sport}">${p.sport}</div>
+        <div class="cell-pick">
+          <div class="cell-pick-name">${escapeHtml(p.selection)}</div>
+          <small>${p.market}${sideText}${p.edge ? ' · ' + p.edge + '% edge' : ''}</small>
+        </div>
+        <div class="cell-book">${p.book}</div>
+        <div class="cell-mono">${fmtOdds(p.odds)}</div>
+        <div class="cell-mono gold">${p.units}u</div>
+        <button class="cell-result ${result}" onclick="cyclePlayResult('${p.id}')">${result.toUpperCase()}</button>
+        <div class="cell-units ${result}">${plStr}</div>
+        <button class="cell-delete" onclick="deletePlay('${p.id}')" title="Delete">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Filter pill click handlers
+document.querySelectorAll('.filter-pills').forEach(group => {
+  const key = group.dataset.filter;
+  group.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      group.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      filters[key] = pill.dataset.value;
+      renderPlays();
+    });
+  });
+});
+
+// Range filter handlers
+['edgeMin','edgeMax','dateMin','dateMax'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    const v = e.target.value;
+    if (id.startsWith('edge')) filters[id] = v === '' ? null : parseFloat(v);
+    else filters[id] = v || null;
+    renderPlays();
+  });
+});
+
+function clearFilters() {
+  Object.keys(filters).forEach(k => {
+    if (k.includes('Min') || k.includes('Max')) filters[k] = null;
+    else filters[k] = 'ALL';
+  });
+  document.querySelectorAll('.filter-pills').forEach(group => {
+    group.querySelectorAll('.filter-pill').forEach((p, i) => p.classList.toggle('active', i === 0));
+  });
+  ['edgeMin','edgeMax','dateMin','dateMax'].forEach(id => document.getElementById(id).value = '');
+  renderPlays();
+}
+
+// ============ INIT ============
+loadPlays();
+renderPicks();
+renderPlays();
+buildSparkline();
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
