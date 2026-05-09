@@ -204,9 +204,9 @@ table colgroup col.avg-col{width:16%;}
 
 <script>
 const SOURCES = [
-  {key:"roto",     label:"ROTO",     color:"#34d399"},
+  {key:"roto",     label:"RG",       color:"#34d399"},
   {key:"saber",    label:"SABER",    color:"#fb923c"},
-  {key:"rotowire", label:"ROTOWIRE", color:"#a78bfa"},
+  {key:"rotowire", label:"RW",       color:"#a78bfa"},
 ];
 const STATS = ["pts","reb","ast","threepm","pra","min"];
 const STAT_LABEL = {pts:"PTS",reb:"REB",ast:"AST",threepm:"3PM",pra:"PRA",min:"MIN"};
@@ -536,19 +536,14 @@ function renderTable() {
   document.getElementById("shown-count").textContent = `${rows.length} shown`;
 
   const head = document.getElementById("table-head");
-  const headerCols = ["PLAYER", ...SOURCES.map(s=>s.label), STAT_LABEL[sortBy]+" (AVG)"];
-  head.innerHTML = `<tr style="border-bottom:1px solid #252525">${
-    headerCols.map((h,i)=>`<th class="${i===0?'left':'center'}">${h}</th>`).join("")
-  }</tr>`;
+  head.innerHTML = `<tr style="border-bottom:1px solid #252525">
+    <th class="left">PLAYER</th>
+    <th class="center">${STAT_LABEL[sortBy]} (AVG)</th>
+  </tr>`;
 
-  // Colgroup so player col stays narrow and source cols are fixed width
   const cg = document.getElementById("table-colgroup");
   if (cg) {
-    cg.innerHTML = headerCols.map((_,i) => {
-      if (i === 0) return '<col class="player-col"/>';
-      if (i === headerCols.length - 1) return '<col class="avg-col"/>';
-      return '<col class="src-col"/>';
-    }).join("");
+    cg.innerHTML = '<col style="width:auto"/><col style="width:120px"/>';
   }
 
   rowCache = rows.map((r,i) => {
@@ -585,16 +580,25 @@ function renderTable() {
       return `<td style="padding:${cellPad};text-align:center"><span style="color:#30363d">-</span></td>`;
     }).join("");
 
+    // Build inline labeled source values, skipping any that are missing
+    const srcInline = srcVals.map((v,si)=>{
+      if (v == null) return null;
+      const withinTol = avg!=null && (avg===0||Math.abs(v-avg)/avg*100<=tolerance);
+      const color = withinTol ? "#ffffff" : "#5a6573";
+      const glow = withinTol ? "text-shadow:0 0 6px rgba(94,234,212,0.5);" : "";
+      return `<span class="copyable" onclick="event.stopPropagation();copyAvg(${v.toFixed(4)})" title="${SOURCES[si].label}: ${v.toFixed(2)} (click to copy${sortBy==='pra'?' /3 for PRA':''})" style="color:${color};${glow}"><span style="color:#7d8590;font-weight:500;">${SOURCES[si].label}:</span> ${v.toFixed(2)}</span>`;
+    }).filter(Boolean).join('<span style="color:#30363d;margin:0 8px;">·</span>');
+
     return `<tr class="${i%2===0?'even':'odd'}">
-      <td style="padding:5px 10px;font-size:14px;font-weight:600;color:${tc};white-space:nowrap;cursor:pointer" class="copyable" onclick="copyName(${i})" title="Click to copy name">
-        <span style="display:inline-flex;align-items:center;gap:6px;">
-          <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:3px;padding:0 6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:18px;height:18px;">+</button>
-          <span>${r.rawName}</span>
+      <td style="padding:7px 12px;cursor:pointer;" class="copyable" onclick="copyName(${i})" title="Click to copy name">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:3px;padding:0 6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:18px;height:18px;flex:0 0 auto;">+</button>
+          <span style="font-size:14px;font-weight:600;color:${tc};">${r.rawName}</span>
           <span style="font-size:10px;color:#7d8590;font-weight:500;">${r.team || ''} ${r.pos || ''}</span>
-        </span>
+        </div>
+        <div style="font-size:12px;color:#8b9aa8;font-weight:500;margin-top:3px;margin-left:32px;">${srcInline || '<span style="color:#30363d">no projections</span>'}</div>
       </td>
-      ${srcCells}
-      <td style="padding:5px 10px;font-size:14px;color:${avg!=null?'#ffffff':'#30363d'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer;text-shadow:0 0 10px rgba(94,234,212,0.7);':''}" ${avg!=null?`onclick="copyAvg(${avg.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'-'}</td>
+      <td style="padding:7px 12px;font-size:18px;color:${avg!=null?'#ffffff':'#30363d'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer;text-shadow:0 0 12px rgba(94,234,212,0.7);':''}" ${avg!=null?`onclick="copyAvg(${avg.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'-'}</td>
     </tr>`;
   }).join("");
 }
