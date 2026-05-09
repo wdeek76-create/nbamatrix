@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Matrix.bet</title>
+<title>Blackbook</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -74,16 +74,52 @@ body::before {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 48px; flex-wrap: wrap; gap: 16px;
 }
-.brand { display: flex; align-items: baseline; gap: 1px; cursor: pointer; user-select: none; }
-.brand .mark {
-  font-family: 'Geist', sans-serif;
-  font-weight: 700; font-size: 22px;
-  letter-spacing: -0.04em; color: var(--ink-0); line-height: 1;
+.brand { display: flex; align-items: center; cursor: pointer; user-select: none; }
+.brand-mark {
+  width: 196px; height: auto; display: block;
 }
-.brand .dot { color: var(--gold); font-weight: 700; font-size: 22px; line-height: 1; }
-.brand .tld {
-  font-weight: 500; font-size: 16px;
-  letter-spacing: -0.025em; color: var(--ink-2); line-height: 1; margin-left: 1px;
+.brand:hover .brand-mark { opacity: 0.92; }
+
+/* default state: drawn-in, dot visible, tld visible */
+.brand-line-gray { stroke-dasharray: 80; stroke-dashoffset: 0; }
+.brand-line-gold { stroke-dasharray: 40; stroke-dashoffset: 0; }
+.brand-dot { transform-origin: 96px 32px; transform-box: fill-box; transform: scale(1); }
+.brand-tld { opacity: 1; transform: translateX(0); }
+
+/* trigger animation by adding .animating class */
+.brand-mark.animating .brand-line-gray {
+  stroke-dashoffset: 80;
+  animation: brand-draw 0.7s ease-out 0.15s forwards;
+}
+.brand-mark.animating .brand-line-gold {
+  stroke-dashoffset: 40;
+  animation: brand-draw 0.45s ease-out 0.7s forwards;
+}
+.brand-mark.animating .brand-dot {
+  transform: scale(0);
+  animation: brand-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) 1.05s forwards;
+}
+.brand-mark.animating .brand-tld {
+  opacity: 0;
+  transform: translateX(-6px);
+  animation: brand-tld-in 0.4s ease-out 1.3s forwards;
+}
+@keyframes brand-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes brand-pop {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+@keyframes brand-tld-in {
+  to { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark.animating .brand-line-gray,
+  .brand-mark.animating .brand-line-gold { stroke-dashoffset: 0; animation: none; }
+  .brand-mark.animating .brand-dot { transform: scale(1); animation: none; }
+  .brand-mark.animating .brand-tld { opacity: 1; transform: none; animation: none; }
 }
 
 /* underline-tab style switch — Apple System Settings energy */
@@ -850,13 +886,22 @@ body::before {
 
   <!-- ============ TOPBAR ============ -->
   <header class="topbar">
-    <div class="brand" onclick="setView('picks')">
-      <span class="mark">Matrix</span><span class="dot">.</span><span class="tld">bet</span>
+    <div class="brand" onclick="setView('picks')" aria-label="Blackbook">
+      <svg viewBox="0 0 380 80" class="brand-mark" xmlns="http://www.w3.org/2000/svg">
+        <polyline class="brand-line-gray" points="0,58 16,48 32,52 48,40 64,42" fill="none" stroke="#56565f" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <polyline class="brand-line-gold" points="64,42 80,28 96,32" fill="none" stroke="#fdb927" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle class="brand-dot" cx="96" cy="32" r="3.5" fill="#fdb927"/>
+        <text x="112" y="50" font-family="Geist, sans-serif" font-size="30" font-weight="700" fill="#ffffff" letter-spacing="-1.4">blackbook</text>
+        <g class="brand-tld">
+          <circle cx="264" cy="46" r="2.5" fill="#fdb927"/>
+          <text x="271" y="50" font-family="Geist, sans-serif" font-size="22" font-weight="500" fill="#8a8a95" letter-spacing="-0.8">bet</text>
+        </g>
+      </svg>
     </div>
     <div class="view-switch">
       <button class="view-btn active" data-view="picks" onclick="setView('picks')">Picks</button>
       <button class="view-btn" data-view="plays" onclick="setView('plays')">My Plays<span class="beta-badge">BETA</span></button>
-      <button class="view-btn" data-view="record" onclick="setView('record')">Matrix Data</button>
+      <button class="view-btn" data-view="record" onclick="setView('record')">The Blackbook</button>
     </div>
     <div class="topbar-right">
       <span class="live-badge">Live · <span id="clock">--:--</span></span>
@@ -1413,11 +1458,21 @@ function hoursFromNow(h) { return new Date(Date.now() + h*3600*1000).toISOString
 function hoursAgo(h) { return new Date(Date.now() - h*3600*1000).toISOString(); }
 
 // ============ VIEW SWITCHING ============
+function playBrandAnim() {
+  const mark = document.querySelector('.brand-mark');
+  if (!mark) return;
+  mark.classList.remove('animating');
+  // force reflow so re-adding the class restarts the animation
+  void mark.offsetWidth;
+  mark.classList.add('animating');
+}
+
 function setView(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + view).classList.add('active');
   document.querySelector(`.view-btn[data-view="${view}"]`).classList.add('active');
+  playBrandAnim();
 }
 
 // ============ PICKS RENDERING ============
@@ -1586,7 +1641,7 @@ function buildSparkline() {
 }
 
 // ============ MY PLAYS ============
-const PLAYS_KEY = 'matrixbet_plays_v1';
+const PLAYS_KEY = 'blackbook_plays_v1';
 let myPlays = [];
 const filters = { sport: 'ALL', book: 'ALL', market: 'ALL', side: 'ALL', status: 'ALL', edgeMin: null, edgeMax: null, dateMin: null, dateMax: null };
 
@@ -1794,6 +1849,7 @@ renderPlays();
 buildSparkline();
 tick();
 setInterval(tick, 1000);
+playBrandAnim();
 </script>
 </body>
 </html>
