@@ -285,6 +285,8 @@ function parseSource(text) {
   const h = Object.keys(rows[0]);
   const C = {
     name:    findCol(h,["player","name"]),
+    team:    findCol(h,["team","tm"]),
+    pos:     findCol(h,["pos","position"]),
     pts:     findCol(h,["points","pts","exp pts"]),
     reb:     findCol(h,["rebounds","reb","rb","exp reb"]),
     ast:     findCol(h,["assists","ast","exp ast"]),
@@ -297,7 +299,12 @@ function parseSource(text) {
     const g=col=>{if(!col)return null;const v=parseFloat(r[col]);return isNaN(v)?null:v;};
     const pts=g(C.pts),reb=g(C.reb),ast=g(C.ast);
     const pra=g(C.pra)??(pts!=null&&reb!=null&&ast!=null?pts+reb+ast:null);
-    return {rawName:r[C.name].trim(), norm:resolveNorm(r[C.name]), pts,reb,ast,threepm:g(C.threepm),pra,min:g(C.min)};
+    return {
+      rawName:r[C.name].trim(), norm:resolveNorm(r[C.name]),
+      team: C.team ? (r[C.team]||"").trim() : "",
+      pos:  C.pos ? (r[C.pos]||"").trim() : "",
+      pts,reb,ast,threepm:g(C.threepm),pra,min:g(C.min)
+    };
   }).filter(p => p.rawName && /[a-zA-Z]/.test(p.rawName) && p.norm.length >= 3);
 }
 
@@ -406,7 +413,17 @@ function runMerge() {
     } else {
       const src = active.find(s => s.players.find(p => p.norm === epNorm));
       const p = src.players.find(p => p.norm === epNorm);
-      rawName = p.rawName; team = ""; pos = "";
+      rawName = p.rawName;
+      // Take team/pos from any source that has them (later sources can fill gaps)
+      team = "";
+      pos = "";
+      for (const s of active) {
+        const sp = s.players.find(pp => pp.norm === epNorm);
+        if (sp) {
+          if (!team && sp.team) team = sp.team;
+          if (!pos && sp.pos) pos = sp.pos;
+        }
+      }
     }
     const matches = lookups.map(lk => lk ? (lk[epNorm]||null) : null);
     const found = matches.filter(Boolean);
@@ -564,8 +581,16 @@ function copyTightest() {
   const lines = [`WNBA ALIGNMENTS`, ""];
   let totalCount = 0;
   statsToScan.forEach(stat => {
+    const computeGap = r => {
+      const vals = lookups.map(lk => lk ? (lk[r.norm]?.[stat] ?? null) : null).filter(v => v != null);
+      return vals.length >= 2 ? (Math.max(...vals) - Math.min(...vals)) : 999;
+    };
     const tightRows = merged.filter(r => isTight(r, stat, lookups))
-      .sort((a,b) => (b.con[stat]??-1) - (a.con[stat]??-1));
+      .sort((a,b) => {
+        const ga = computeGap(a), gb = computeGap(b);
+        if (ga !== gb) return ga - gb; // tightest first
+        return (b.con[stat] ?? -1) - (a.con[stat] ?? -1); // tiebreak: bigger projection first
+      });
     if (!tightRows.length) return;
     lines.push(STAT_LABEL[stat]);
     tightRows.forEach(r => {
