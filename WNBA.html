@@ -837,7 +837,14 @@ function playToOdds(fairOdds, evCutoff) {
 }
 
 // ── BDL AUTOGRADE ──────────────────────────────────────────────────────────
-const BDL_KEY = "9cdb249f-9635-4cca-a998-37c7b98a9372";
+const BDL_DEFAULT_KEY = "9cdb249f-9635-4cca-a998-37c7b98a9372";
+function getBDLKey() {
+  return localStorage.getItem("wnba_blender_bdl_key") || BDL_DEFAULT_KEY;
+}
+function setBDLKey(k) {
+  if (k && k.trim()) localStorage.setItem("wnba_blender_bdl_key", k.trim());
+  else localStorage.removeItem("wnba_blender_bdl_key");
+}
 const BDL_BASE = "https://api.balldontlie.io/wnba/v1";
 const _bdlCache = {}; // key: ISO date, value: array of player_stats
 const _bdlGamesCache = {}; // key: ISO date, value: array of games (with status)
@@ -851,7 +858,7 @@ async function fetchBDLStatsForDate(isoDate) {
     url.searchParams.set("dates[]", isoDate);
     url.searchParams.set("per_page", "100");
     if (cursor != null) url.searchParams.set("cursor", cursor);
-    const res = await fetch(url.toString(), { headers: { "Authorization": BDL_KEY } });
+    const res = await fetch(url.toString(), { headers: { "Authorization": getBDLKey() } });
     if (!res.ok) {
       const body = await res.text();
       if (res.status === 401) {
@@ -877,7 +884,7 @@ async function fetchBDLGamesForDate(isoDate) {
     url.searchParams.set("dates[]", isoDate);
     url.searchParams.set("per_page", "100");
     if (cursor != null) url.searchParams.set("cursor", cursor);
-    const res = await fetch(url.toString(), { headers: { "Authorization": BDL_KEY } });
+    const res = await fetch(url.toString(), { headers: { "Authorization": getBDLKey() } });
     if (!res.ok) throw new Error(`BDL games ${res.status}: ${await res.text()}`);
     const j = await res.json();
     if (Array.isArray(j.data)) all.push(...j.data);
@@ -938,7 +945,23 @@ async function gradeBet(b) {
     stats = await fetchBDLStatsForDate(iso);
     games = await fetchBDLGamesForDate(iso);
   } catch (e) { return { ok: false, reason: "API error: " + e.message }; }
-  if (!stats || !stats.length) return { ok: false, reason: "No game data found for " + iso };
+  // If no stats yet, look at games to explain why
+  if (!stats || !stats.length) {
+    if (!games || !games.length) {
+      return { ok: false, reason: `No WNBA games scheduled on ${iso}` };
+    }
+    // Games exist but no stats yet
+    const statuses = games.map(g => g.status || "unknown");
+    const finalCount = statuses.filter(s => /final|post|completed/i.test(s)).length;
+    const liveCount = statuses.filter(s => !/final|post|completed/i.test(s) && !/^\d{4}-/.test(s) && s !== "unknown").length;
+    if (finalCount > 0) {
+      return { ok: false, reason: `${finalCount} game(s) final but no player stats yet — BDL may still be ingesting` };
+    } else if (liveCount > 0) {
+      return { ok: false, reason: `Games in progress (${statuses.join(", ")}) — wait for final` };
+    } else {
+      return { ok: false, reason: `${games.length} game(s) scheduled but not started — first tip: ${statuses[0]}` };
+    }
+  }
   const playerNorm = norm(b.player);
   const playerStats = stats.filter(s => bdlPlayerMatch(s, playerNorm));
   if (!playerStats.length) return { ok: false, reason: `${b.player} not found in ${iso} games` };
