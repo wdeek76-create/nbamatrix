@@ -20,7 +20,7 @@ input{font-family:'Inter',sans-serif;font-size:15px;}
 .tab-btn:hover{color:#5eead4;}
 .tab-btn.active{color:#5eead4;border-bottom-color:#14b8a6;text-shadow:0 0 10px rgba(94,234,212,0.5);}
 
-#main{padding:18px 24px;width:100%;max-width:1100px;margin:0 auto;}
+#main{padding:18px 24px;width:100%;max-width:1280px;margin:0 auto;}
 
 .slot{margin-bottom:8px;padding:14px 18px;background:#161b22;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #1f2733;}
 .slot.loaded{border-color:#14b8a644;background:#0e2926;}
@@ -58,8 +58,8 @@ th.left{text-align:left;}th.center{text-align:center;}
 tr.even{background:#0d1117;}tr.odd{background:#10161e;}
 tr:hover{background:#0e2926 !important;}
 td{border-bottom:1px solid #161b22;}
-table colgroup col.player-col{width:42%;}
-table colgroup col.src-col{width:14%;}
+table colgroup col.player-col{width:36%;}
+table colgroup col.src-col{width:16%;}
 table colgroup col.avg-col{width:16%;}
 
 .tol-wrap{display:flex;align-items:center;gap:8px;margin-left:auto;}
@@ -912,8 +912,7 @@ function trackTotal(awayAbbr, homeAbbr, side, line, odds, book, projTotal) {
       shorthand.dispatchEvent(new Event("input"));
     }
     if (bookEl && book) {
-      const opts = Array.from(bookEl.options).map(o => o.value);
-      bookEl.value = opts.includes(book) ? book : "Other";
+      bookEl.value = book;
     }
     setOU(side);
   }, 60);
@@ -1075,21 +1074,14 @@ function addAltBookRow(presetBook, presetOdds) {
 const BOOK_SHORTHAND = {
   "fd":"FanDuel","fanduel":"FanDuel",
   "dk":"DraftKings","draftkings":"DraftKings",
-  "mgm":"BetMGM","betmgm":"BetMGM",
-  "czr":"Caesars","caesars":"Caesars",
-  "espn":"ESPN BET","espnbet":"ESPN BET","espn bet":"ESPN BET",
-  "hr":"Hard Rock","hardrock":"Hard Rock","hard rock":"Hard Rock",
-  "fanatics":"Fanatics",
+  "pb":"Prop Builder","propbuilder":"Prop Builder","prop builder":"Prop Builder",
   "onyx":"Onyx",
   "fliff":"Fliff",
   "novig":"Novig","nv":"Novig",
   "prophetx":"ProphetX","prophet":"ProphetX","px":"ProphetX",
   "bookmaker":"Bookmaker","bm":"Bookmaker",
   "pin":"Pinnacle","pinny":"Pinnacle","pinnacle":"Pinnacle",
-  "bet105":"Bet105","105":"Bet105",
-  "betrivers":"BetRivers","br":"BetRivers",
-  "circa":"Circa",
-  "bovada":"Bovada"
+  "bet105":"Bet105","105":"Bet105"
 };
 function normBookInput(s) {
   if (!s) return s;
@@ -1129,7 +1121,7 @@ function saveBet() {
   const odds = parseInt(document.getElementById("modal-odds").value);
   const stat = document.getElementById("modal-stat").value;
   const ou = getOU();
-  const book = document.getElementById("modal-book").value;
+  const book = normBookInput(document.getElementById("modal-book").value);
   if (isNaN(line) || isNaN(odds)) { alert("Please enter the bet (e.g. 'u17.5 200 -120')"); return; }
   const fair = parseInt(document.getElementById("modal-fair").value) || null;
   // 5% EV gate — block save if below threshold
@@ -1882,18 +1874,14 @@ function teamLineToAbbr(line) {
 const BOOK_ALIASES = {
   "dk":"DraftKings","draftkings":"DraftKings",
   "fd":"FanDuel","fanduel":"FanDuel",
-  "mgm":"BetMGM","betmgm":"BetMGM",
-  "czr":"Caesars","caesars":"Caesars",
-  "espn":"ESPNBet","espnbet":"ESPNBet",
+  "pb":"Prop Builder","propbuilder":"Prop Builder",
   "pin":"Pinnacle","pinnacle":"Pinnacle",
-  "fanatic":"Fanatics","fanatics":"Fanatics",
-  "bet365":"Bet365","365":"Bet365","bet105":"Bet105",
-  "novig":"NoVig","nv":"NoVig",
-  "prophetx":"ProphetX","prophet":"ProphetX",
-  "circa":"Circa","hard":"HardRock","hardrock":"HardRock",
-  "bovada":"Bovada","bov":"Bovada",
-  "pb":"PointsBet","pointsbet":"PointsBet",
-  "bookmaker":"Bookmaker","bm":"Bookmaker"
+  "bet105":"Bet105","105":"Bet105",
+  "novig":"Novig","nv":"Novig",
+  "prophetx":"ProphetX","prophet":"ProphetX","px":"ProphetX",
+  "bookmaker":"Bookmaker","bm":"Bookmaker",
+  "fliff":"Fliff",
+  "onyx":"Onyx"
 };
 function normBook(s) {
   if (!s) return null;
@@ -2295,23 +2283,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <div class="modal-row">
       <div class="modal-field">
         <label>Primary Book</label>
-        <select id="modal-book">
-          <option>FanDuel</option>
-          <option>DraftKings</option>
-          <option>BetMGM</option>
-          <option>Caesars</option>
-          <option>ESPN BET</option>
-          <option>Hard Rock</option>
-          <option>Fanatics</option>
-          <option>Onyx</option>
-          <option>Fliff</option>
-          <option>Novig</option>
-          <option>ProphetX</option>
-          <option>Bookmaker</option>
-          <option>Pinnacle</option>
-          <option>Bet105</option>
-          <option>Other</option>
-        </select>
+        <input type="text" id="modal-book" list="alt-book-options" placeholder="fd, dk, pb..." autocomplete="off" spellcheck="false" value="FanDuel"/>
       </div>
       <div class="modal-field">
         <label>Game Date</label>
@@ -2328,11 +2300,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <datalist id="alt-book-options">
       <option value="FanDuel"></option>
       <option value="DraftKings"></option>
-      <option value="BetMGM"></option>
-      <option value="Caesars"></option>
-      <option value="ESPN BET"></option>
-      <option value="Hard Rock"></option>
-      <option value="Fanatics"></option>
+      <option value="Prop Builder"></option>
       <option value="Onyx"></option>
       <option value="Fliff"></option>
       <option value="Novig"></option>
@@ -2340,9 +2308,6 @@ document.addEventListener("DOMContentLoaded", () => {
       <option value="Bookmaker"></option>
       <option value="Pinnacle"></option>
       <option value="Bet105"></option>
-      <option value="BetRivers"></option>
-      <option value="Circa"></option>
-      <option value="Bovada"></option>
     </datalist>
 
     <div id="modal-proj-display" style="margin-top:14px;"></div>
