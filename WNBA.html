@@ -147,7 +147,7 @@ td{border-bottom:1px solid #161b22;}
 <div id="main">
   <div id="upload-tab">
     <div id="slots-container"></div>
-    <button id="merge-btn" onclick="runMerge()">RUN BLEND - 0/2 SOURCES LOADED</button>
+    <button id="merge-btn" onclick="runMerge()">RUN BLEND - 0/3 SOURCES LOADED</button>
   </div>
 
   <div id="tracker-tab" style="display:none;"></div>
@@ -158,7 +158,10 @@ td{border-bottom:1px solid #161b22;}
     <div id="empty-results">Upload sources and run blend first.</div>
     <div id="results-content" style="display:none;">
       <div id="controls">
-        <input type="text" id="search-box" placeholder="Search player..." oninput="renderTable()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+        <div style="position:relative;display:inline-block;">
+          <input type="text" id="search-box" placeholder="Search player..." oninput="renderTable()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="padding-right:28px;"/>
+          <button onclick="clearSearch()" title="Clear search" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#7d8590;cursor:pointer;padding:2px 6px;font-size:14px;font-family:'Inter',sans-serif;line-height:1;">✕</button>
+        </div>
         <button class="ctrl-btn" id="con-btn" onclick="toggleConOnly()">CONSENSUS ONLY</button>
         <span class="sep">|</span>
         <span style="color:#3d5570;font-size:11px;font-weight:600;letter-spacing:2px;">SORT</span>
@@ -193,15 +196,16 @@ td{border-bottom:1px solid #161b22;}
 
 <script>
 const SOURCES = [
-  {key:"roto",  label:"ROTO",  color:"#34d399"},
-  {key:"saber", label:"SABER", color:"#fb923c"},
+  {key:"roto",     label:"ROTO",     color:"#34d399"},
+  {key:"saber",    label:"SABER",    color:"#fb923c"},
+  {key:"rotowire", label:"ROTOWIRE", color:"#a78bfa"},
 ];
 const STATS = ["pts","reb","ast","threepm","pra","min"];
 const STAT_LABEL = {pts:"PTS",reb:"REB",ast:"AST",threepm:"3PM",pra:"PRA",min:"MIN"};
 
 const WNBA_TEMPLATE = [{"id": "436829", "name": "Aaliyah Edwards", "first_name": "Aaliyah", "last_name": "Edwards", "position": "F", "team": "CON"}, {"id": "455297", "name": "Aneesah Morrow", "first_name": "Aneesah", "last_name": "Morrow", "position": "F", "team": "CON"}, {"id": "436858", "name": "Astou Ndour-Fall", "first_name": "Astou", "last_name": "Ndour-Fall", "position": "C-F", "team": "CON"}, {"id": "436865", "name": "Bria Hartley", "first_name": "Bria", "last_name": "Hartley", "position": "G", "team": "CON"}, {"id": "410316", "name": "Brittney Griner", "first_name": "Brittney", "last_name": "Griner", "position": "C", "team": "CON"}, {"id": "441772", "name": "Caitlin Bickle", "first_name": "Caitlin", "last_name": "Bickle", "position": "F", "team": "CON"}, {"id": "476255", "name": "Charlisse Leger-Walker", "first_name": "Charlisse", "last_name": "Leger-Walker", "position": "G", "team": "CON"}, {"id": "410368", "name": "Diamond DeShields", "first_name": "Diamond", "last_name": "DeShields", "position": "G", "team": "CON"}, {"id": "410226", "name": "Diamond Miller", "first_name": "Diamond", "last_name": "Miller", "position": "F", "team": "CON"}, {"id": "476258", "name": "Gianna Kneepkens", "first_name": "Gianna", "last_name": "Kneepkens", "position": "G", "team": "CON"}, {"id": "455320", "name": "Hailey Van Lith", "first_name": "Hailey", "last_name": "Van Lith", "position": "G", "team": "CON"}, {"id": "455299", "name": "Haley Peters", "first_name": "Haley", "last_name": "Peters", "position": "F-G", "team": "CON"}, {"id": "410236", "name": "Jocelyn Willoughby", "first_name": "Jocelyn", "last_name": "Willoughby", "position": "F-G", "team": "CON"}, {"id": "455300", "name": "Kariata Diaby", "first_name": "Kariata", "last_name": "Diaby", "position": "C", "team": "CON"}, {"id": "436835", "name": "Kennedy Burke", "first_name": "Kennedy", "last_name": "Burke", "position": "G-F", "team": "CON"}, {"id": "409826", "name": "Kristine Anigwe", "first_name": "Kristine", "last_name": "Anigwe", "position": "F-C", "team": "CON"}, {"id": "410219", "name": "Leigha Brown", "first_name": "Leigha", "last_name": "Brown", "position": "G", "team": "CON"}, {"id": "436859", "name": "Leila Lacan", "first_name": "Leila", "last_name": "Lacan", "position": "G", "team": "CON"}, {"id": "409862", "name": "Lindsay Allen", "first_name": "Lindsay", "last_name": "Allen", "position": "G", "team": "CON"}, {"id": "455423", "name": "Mamignan Touré", "first_name": "Mamignan", "last_name": "Touré", "position": "G", "team": "CON"}, {"id": "476259", "name": "Nell Angloma", "first_name": "Nell", "last_name": "Angloma", "position": "F", "team": "CON"}, {"id": "410215", "name": "Olivia Nelson-Ododa", "first_name": "Olivia", "last_name": "Nelson-Ododa", "position": "C", "team": "CON"}, {"id": "476257", "name": "Raegan Beers", "first_name": "Raegan", "last_name": "Beers", "position": "F", "team": "CON"}, {"id": "455303", "name": "Rayah Marshall", "first_name": "Rayah", "last_name": "Marshall", "position": "C-F", "team": "CON"}, {"id": "410253", "name": "Robyn Parks", "first_name": "Robyn", "last_name": "Parks", "position": "F", "team": "CON"}, {"id": "455296", "name": "Saniya Rivers", "first_name": "Saniya", "last_name": "Rivers", "position": "G", "team": "CON"}, {"id": "410431", "name": "Shey Peddy", "first_name": "Shey", "last_name": "Peddy", "position": "G", "team": "CON"}, {"id": "436823", "name": "Tina Charles", "first_name": "Tina", "last_name": "Charles", "position": "C", "team": "CON"}, {"id": "436875", "name": "Cecilia Zandalasini", "first_name": "Cecilia", "last_name": "Zandalasini", "position": "F", "team": "GSV"}, {"id": "455328", "name": "Elizabeth Kitley", "first_name": "Elizabeth", "last_name": "Kitley", "position": "C", "team": "GSV"}, {"id": "417980", "name": "Gabby Williams", "first_name": "Gabby", "last_name": "Williams", "position": "F", "team": "GSV"}, {"id": "410258", "name": "Iliana Rupert", "first_name": "Iliana", "last_name": "Rupert", "position": "C", "team": "GSV"}, {"id": "455424", "name": "Janelle Salaün", "first_name": "Janelle", "last_name": "Salaün", "position": "F", "team": "GSV"}, {"id": "455425", "name": "Justė Jocytė", "first_name": "Justė", "last_name": "Jocytė", "position": "G-F", "team": "GSV"}, {"id": "410206", "name": "Kaila Charles", "first_name": "Kaila", "last_name": "Charles", "position": "G-F", "team": "GSV"}, {"id": "455420", "name": "Kaitlyn Chen", "first_name": "Kaitlyn", "last_name": "Chen", "position": "G", "team": "GSV"}, {"id": "436868", "name": "Kate Martin", "first_name": "Kate", "last_name": "Martin", "position": "G", "team": "GSV"}, {"id": "410225", "name": "Kayla Thornton", "first_name": "Kayla", "last_name": "Thornton", "position": "F", "team": "GSV"}, {"id": "410309", "name": "Kiah Stokes", "first_name": "Kiah", "last_name": "Stokes", "position": "C", "team": "GSV"}, {"id": "410263", "name": "Laeticia Amihere", "first_name": "Laeticia", "last_name": "Amihere", "position": "F", "team": "GSV"}, {"id": "476313", "name": "Miela Sowah", "first_name": "Miela", "last_name": "Sowah", "position": "G", "team": "GSV"}, {"id": "410232", "name": "Tiffany Hayes", "first_name": "Tiffany", "last_name": "Hayes", "position": "G", "team": "GSV"}, {"id": "409968", "name": "Veronica Burton", "first_name": "Veronica", "last_name": "Burton", "position": "G", "team": "GSV"}, {"id": "410218", "name": "Betnijah Laney-Hamilton", "first_name": "Betnijah", "last_name": "Laney-Hamilton", "position": "G-F", "team": "NYL"}, {"id": "410221", "name": "Breanna Stewart", "first_name": "Breanna", "last_name": "Stewart", "position": "F", "team": "NYL"}, {"id": "436827", "name": "DiDi Richards", "first_name": "DiDi", "last_name": "Richards", "position": "G-F", "team": "NYL"}, {"id": "465679", "name": "Emma Meesseman", "first_name": "Emma", "last_name": "Meesseman", "position": "F", "team": "NYL"}, {"id": "410820", "name": "Epiphanny Prince", "first_name": "Epiphanny", "last_name": "Prince", "position": "G", "team": "NYL"}, {"id": "410237", "name": "Han Xu", "first_name": "Han", "last_name": "Xu", "position": "C", "team": "NYL"}, {"id": "410191", "name": "Ivana Dojkić", "first_name": "Ivana", "last_name": "Dojkić", "position": "G", "team": "NYL"}, {"id": "410231", "name": "Jonquel Jones", "first_name": "Jonquel", "last_name": "Jones", "position": "C", "team": "NYL"}, {"id": "436845", "name": "Leonie Fiebich", "first_name": "Leonie", "last_name": "Fiebich", "position": "F", "team": "NYL"}, {"id": "410229", "name": "Marine Johannes", "first_name": "Marine", "last_name": "Johannes", "position": "G", "team": "NYL"}, {"id": "476270", "name": "Pauline Astier", "first_name": "Pauline", "last_name": "Astier", "position": "G", "team": "NYL"}, {"id": "455292", "name": "Raquel Carrera", "first_name": "Raquel", "last_name": "Carrera", "position": "C", "team": "NYL"}, {"id": "410213", "name": "Rebecca Allen", "first_name": "Rebecca", "last_name": "Allen", "position": "F-G", "team": "NYL"}, {"id": "410269", "name": "Rebekah Gardner", "first_name": "Rebekah", "last_name": "Gardner", "position": "G", "team": "NYL"}, {"id": "410214", "name": "Sabrina Ionescu", "first_name": "Sabrina", "last_name": "Ionescu", "position": "G", "team": "NYL"}, {"id": "410340", "name": "Satou Sabally", "first_name": "Satou", "last_name": "Sabally", "position": "F", "team": "NYL"}, {"id": "417419", "name": "Alaina Coates", "first_name": "Alaina", "last_name": "Coates", "position": "C", "team": "SEA"}, {"id": "410203", "name": "Arella Guirantes", "first_name": "Arella", "last_name": "Guirantes", "position": "G", "team": "SEA"}, {"id": "476300", "name": "Awa Fam", "first_name": "Awa", "last_name": "Fam", "position": "C", "team": "SEA"}, {"id": "455331", "name": "Dominique Malonga", "first_name": "Dominique", "last_name": "Malonga", "position": "C", "team": "SEA"}, {"id": "410195", "name": "Ezi Magbegor", "first_name": "Ezi", "last_name": "Magbegor", "position": "F-C", "team": "SEA"}, {"id": "476302", "name": "Flau'jae Johnson", "first_name": "Flau'jae", "last_name": "Johnson", "position": "G", "team": "SEA"}, {"id": "476299", "name": "Grace VanSlooten", "first_name": "Grace", "last_name": "VanSlooten", "position": "F", "team": "SEA"}, {"id": "410194", "name": "Jade Melbourne", "first_name": "Jade", "last_name": "Melbourne", "position": "G", "team": "SEA"}, {"id": "436902", "name": "Jaelyn Brown", "first_name": "Jaelyn", "last_name": "Brown", "position": "G-F", "team": "SEA"}, {"id": "410045", "name": "Jordan Horston", "first_name": "Jordan", "last_name": "Horston", "position": "F", "team": "SEA"}, {"id": "410322", "name": "Katie Lou Samuelson", "first_name": "Katie Lou", "last_name": "Samuelson", "position": "F", "team": "SEA"}, {"id": "410310", "name": "Lexie Brown", "first_name": "Lexie", "last_name": "Brown", "position": "G", "team": "SEA"}, {"id": "436895", "name": "Mackenzie Holmes", "first_name": "Mackenzie", "last_name": "Holmes", "position": "F", "team": "SEA"}, {"id": "410200", "name": "Natisha Hiedeman", "first_name": "Natisha", "last_name": "Hiedeman", "position": "G", "team": "SEA"}, {"id": "436863", "name": "Rennia Davis", "first_name": "Rennia", "last_name": "Davis", "position": "G-F", "team": "SEA"}, {"id": "410224", "name": "Stefanie Dolson", "first_name": "Stefanie", "last_name": "Dolson", "position": "C", "team": "SEA"}, {"id": "476301", "name": "Taina Mair", "first_name": "Taina", "last_name": "Mair", "position": "G", "team": "SEA"}, {"id": "410198", "name": "Tiffany Mitchell", "first_name": "Tiffany", "last_name": "Mitchell", "position": "G", "team": "SEA"}, {"id": "410297", "name": "Victoria Vivians", "first_name": "Victoria", "last_name": "Vivians", "position": "G-F", "team": "SEA"}, {"id": "410201", "name": "Yvonne Turner", "first_name": "Yvonne", "last_name": "Turner", "position": "G", "team": "SEA"}, {"id": "410306", "name": "Zia Cooke", "first_name": "Zia", "last_name": "Cooke", "position": "G", "team": "SEA"}, {"id": "455327", "name": "Aaliyah Nye", "first_name": "Aaliyah", "last_name": "Nye", "position": "G-F", "team": "TOR"}, {"id": "410260", "name": "Brittney Sykes", "first_name": "Brittney", "last_name": "Sykes", "position": "G", "team": "TOR"}, {"id": "410238", "name": "Isabelle Harrison", "first_name": "Isabelle", "last_name": "Harrison", "position": "F", "team": "TOR"}, {"id": "436885", "name": "Julie Allemand", "first_name": "Julie", "last_name": "Allemand", "position": "G", "team": "TOR"}, {"id": "410028", "name": "Kia Nurse", "first_name": "Kia", "last_name": "Nurse", "position": "G", "team": "TOR"}, {"id": "476276", "name": "Kiki Rice", "first_name": "Kiki", "last_name": "Rice", "position": "G", "team": "TOR"}, {"id": "455337", "name": "Kitija Laksa", "first_name": "Kitija", "last_name": "Laksa", "position": "G", "team": "TOR"}, {"id": "476278", "name": "Laura Juškaitė", "first_name": "Laura", "last_name": "Juškaitė", "position": "F", "team": "TOR"}, {"id": "455338", "name": "Lexi Held", "first_name": "Lexi", "last_name": "Held", "position": "G", "team": "TOR"}, {"id": "455421", "name": "Maria Conde", "first_name": "Maria", "last_name": "Conde", "position": "F", "team": "TOR"}, {"id": "410239", "name": "Marina Mabrey", "first_name": "Marina", "last_name": "Mabrey", "position": "G", "team": "TOR"}, {"id": "410209", "name": "Nikolina Milic", "first_name": "Nikolina", "last_name": "Milic", "position": "C", "team": "TOR"}, {"id": "410205", "name": "Nyara Sabally", "first_name": "Nyara", "last_name": "Sabally", "position": "F", "team": "TOR"}, {"id": "436853", "name": "Temi Fágbénlé", "first_name": "Temi", "last_name": "Fágbénlé", "position": "C", "team": "TOR"}, {"id": "476277", "name": "Teonni Key", "first_name": "Teonni", "last_name": "Key", "position": "F", "team": "TOR"}, {"id": "410886", "name": "Abby Meyers", "first_name": "Abby", "last_name": "Meyers", "position": "G", "team": "WAS"}, {"id": "455319", "name": "Alex Wilson", "first_name": "Alex", "last_name": "Wilson", "position": "G", "team": "WAS"}, {"id": "476247", "name": "Angela Dugalić", "first_name": "Angela", "last_name": "Dugalić", "position": "F", "team": "WAS"}, {"id": "455317", "name": "Ashten Prechtel", "first_name": "Ashten", "last_name": "Prechtel", "position": "C", "team": "WAS"}, {"id": "409917", "name": "Bernadett Hatar", "first_name": "Bernadett", "last_name": "Hatar", "position": "C", "team": "WAS"}, {"id": "476249", "name": "Cassandre Prosper", "first_name": "Cassandre", "last_name": "Prosper", "position": "G", "team": "WAS"}, {"id": "476250", "name": "Cotie McMahon", "first_name": "Cotie", "last_name": "McMahon", "position": "G", "team": "WAS"}, {"id": "410296", "name": "Elena Delle Donne", "first_name": "Elena", "last_name": "Delle Donne", "position": "F-G", "team": "WAS"}, {"id": "455315", "name": "Georgia Amoore", "first_name": "Georgia", "last_name": "Amoore", "position": "G", "team": "WAS"}, {"id": "436834", "name": "Jakia Brown-Turner", "first_name": "Jakia", "last_name": "Brown-Turner", "position": "F", "team": "WAS"}, {"id": "416185", "name": "Jennie Simms", "first_name": "Jennie", "last_name": "Simms", "position": "G", "team": "WAS"}, {"id": "436822", "name": "Khadijiah Cave", "first_name": "Khadijiah", "last_name": "Cave", "position": "F-C", "team": "WAS"}, {"id": "455312", "name": "Kiki Iriafen", "first_name": "Kiki", "last_name": "Iriafen", "position": "F", "team": "WAS"}, {"id": "409849", "name": "Kristi Toliver", "first_name": "Kristi", "last_name": "Toliver", "position": "G", "team": "WAS"}, {"id": "476248", "name": "Lauren Betts", "first_name": "Lauren", "last_name": "Betts", "position": "C", "team": "WAS"}, {"id": "410417", "name": "Li Meng", "first_name": "Li", "last_name": "Meng", "position": "G", "team": "WAS"}, {"id": "417824", "name": "Linnae Harper", "first_name": "Linnae", "last_name": "Harper", "position": "G", "team": "WAS"}, {"id": "455314", "name": "Lucy Olsen", "first_name": "Lucy", "last_name": "Olsen", "position": "G", "team": "WAS"}, {"id": "455347", "name": "Madison Scott", "first_name": "Madison", "last_name": "Scott", "position": "G-F", "team": "WAS"}, {"id": "410333", "name": "Michaela Onyenwere", "first_name": "Michaela", "last_name": "Onyenwere", "position": "F", "team": "WAS"}, {"id": "476251", "name": "Rori Harmon", "first_name": "Rori", "last_name": "Harmon", "position": "G", "team": "WAS"}, {"id": "410422", "name": "Shakira Austin", "first_name": "Shakira", "last_name": "Austin", "position": "C", "team": "WAS"}, {"id": "455313", "name": "Sonia Citron", "first_name": "Sonia", "last_name": "Citron", "position": "G", "team": "WAS"}, {"id": "409890", "name": "Tianna Hawkins", "first_name": "Tianna", "last_name": "Hawkins", "position": "F", "team": "WAS"}, {"id": "455316", "name": "Zaay Green", "first_name": "Zaay", "last_name": "Green", "position": "G", "team": "WAS"}];
 
-let slots = [null,null];
+let slots = [null,null,null];
 let merged = null;
 let conOnly = false;
 let sortBy = "pra";
@@ -233,8 +237,16 @@ function parseCSV(raw) {
   const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n");
   const nonEmpty = lines.filter(l=>l.trim());
   if (!nonEmpty.length) return [];
-  const headers = splitLine(nonEmpty[0]);
-  return nonEmpty.slice(1).map(line=>{
+  // RotoWire-style: first row is a grouping header (",,,,Popular Stats,,,,Additional Stats,...")
+  // and the actual column headers are on row 2. Detect by counting non-empty cells.
+  let headerIdx = 0;
+  if (nonEmpty.length >= 2) {
+    const r1 = splitLine(nonEmpty[0]).filter(c => c.trim()).length;
+    const r2 = splitLine(nonEmpty[1]).filter(c => c.trim()).length;
+    if (r1 < r2 && r1 < r2 / 2) headerIdx = 1;
+  }
+  const headers = splitLine(nonEmpty[headerIdx]);
+  return nonEmpty.slice(headerIdx + 1).map(line=>{
     const vals = splitLine(line);
     const row = {};
     headers.forEach((h,i)=>{ row[h]=vals[i]??""; });
@@ -307,7 +319,7 @@ function updateBadges() {
 function updateMergeBtn() {
   const n = slots.filter(Boolean).length;
   const btn = document.getElementById("merge-btn");
-  btn.textContent = `RUN BLEND - ${n}/2 SOURCES LOADED`;
+  btn.textContent = `RUN BLEND - ${n}/3 SOURCES LOADED`;
   btn.style.background = n>0 ? "#14b8a6" : "#161b22";
   btn.style.color = n>0 ? "#0d1117" : "#30363d";
   btn.style.border = n>0 ? "none" : "1px solid #1f2733";
@@ -529,18 +541,18 @@ function renderTable() {
     const srcCells = srcVals.map((v,si)=>{
       const withinTol = v!=null&&avg!=null&&(avg===0||Math.abs(v-avg)/avg*100<=tolerance);
       if (v!=null) {
-        return `<td style="padding:8px 12px;text-align:center" class="copyable" onclick="copyVal('${v.toFixed(2)}')" title="Click to copy"><span style="color:${withinTol?SOURCES[si].color:SOURCES[si].color+'33'};font-size:14px;font-weight:${withinTol?700:400}">${v.toFixed(2)}</span></td>`;
+        return `<td style="padding:8px 12px;text-align:center" class="copyable" onclick="copyAvg(${v.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"><span style="color:${withinTol?SOURCES[si].color:SOURCES[si].color+'33'};font-size:14px;font-weight:${withinTol?700:400}">${v.toFixed(2)}</span></td>`;
       }
       return `<td style="padding:8px 12px;text-align:center"><span style="color:#30363d">-</span></td>`;
     }).join("");
 
     return `<tr class="${i%2===0?'even':'odd'}">
-      <td style="padding:8px 12px;font-size:15px;font-weight:600;color:${tc};white-space:nowrap;width:200px">${r.rawName}</td>
+      <td style="padding:8px 12px;font-size:15px;font-weight:600;color:${tc};white-space:nowrap;width:200px;cursor:pointer" class="copyable" onclick="copyName(${i})" title="Click to copy name">${r.rawName}</td>
       <td style="padding:8px 6px;font-size:14px;font-weight:500;color:#ffffff;text-align:center;width:50px">${r.pos}</td>
       <td style="padding:8px 6px;font-size:14px;font-weight:600;color:#ffffff;text-align:center;width:50px">${r.team}</td>
       <td style="padding:4px 8px;text-align:center"><button onclick="trackRow(${i})" style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">TRACK</button></td>
       ${srcCells}
-      <td style="padding:8px 12px;font-size:15px;color:${avg!=null?'#ffffff':'#30363d'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer':''}" ${avg!=null?`onclick="copyVal('${avg.toFixed(2)}')" title="Click to copy"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'-'}</td>
+      <td style="padding:8px 12px;font-size:15px;color:${avg!=null?'#ffffff':'#30363d'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer':''}" ${avg!=null?`onclick="copyAvg(${avg.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'-'}</td>
     </tr>`;
   }).join("");
 }
@@ -611,6 +623,34 @@ function doExport() {
   a.href=url; a.download="WNBAblenderProjections.csv"; a.style.display="none";
   document.body.appendChild(a); a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+}
+
+function clearSearch() {
+  const el = document.getElementById("search-box");
+  if (el) { el.value = ""; el.focus(); renderTable(); }
+}
+
+function copyName(i) {
+  const r = rowCache[i];
+  if (!r) return;
+  navigator.clipboard.writeText(r.player).then(() => {
+    showToast("Copied " + r.player);
+  });
+}
+
+function copyAvg(val) {
+  // For PRA, copy avg/3 so user can split into 3 sections for PRA sim
+  if (sortBy === "pra") {
+    const third = (val / 3).toFixed(2);
+    navigator.clipboard.writeText(third).then(() => {
+      showToast(`Copied ${third} (PRA / 3)`);
+    });
+  } else {
+    const v = val.toFixed(2);
+    navigator.clipboard.writeText(v).then(() => {
+      showToast("Copied " + v);
+    });
+  }
 }
 
 function copyVal(val) {
@@ -836,138 +876,12 @@ function playToOdds(fairOdds, evCutoff) {
   return decimalToAmerican(bookDec);
 }
 
-// ── BDL AUTOGRADE ──────────────────────────────────────────────────────────
-const BDL_DEFAULT_KEY = "9cdb249f-9635-4cca-a998-37c7b98a9372";
-function getBDLKey() {
-  return localStorage.getItem("wnba_blender_bdl_key") || BDL_DEFAULT_KEY;
-}
-function setBDLKey(k) {
-  if (k && k.trim()) localStorage.setItem("wnba_blender_bdl_key", k.trim());
-  else localStorage.removeItem("wnba_blender_bdl_key");
-}
-const BDL_BASE = "https://api.balldontlie.io/wnba/v1";
-const _bdlCache = {}; // key: ISO date, value: array of player_stats
-const _bdlGamesCache = {}; // key: ISO date, value: array of games (with status)
-let _bdlLastCallAt = 0;
-const BDL_MIN_INTERVAL_MS = 250; // throttle to ~4 req/sec
-
-function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-async function _bdlFetch(url) {
-  // Throttle so consecutive calls space out
-  const now = Date.now();
-  const wait = Math.max(0, _bdlLastCallAt + BDL_MIN_INTERVAL_MS - now);
-  if (wait > 0) await _sleep(wait);
-  _bdlLastCallAt = Date.now();
-  // Try up to 4 times with exponential backoff on 429
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const res = await fetch(url, { headers: { "Authorization": getBDLKey() } });
-    if (res.status === 429) {
-      const retryAfter = parseInt(res.headers.get("Retry-After")) || (Math.pow(2, attempt) * 1000);
-      logGrade(`Rate limited, waiting ${retryAfter}ms before retry ${attempt+1}/4...`, "void");
-      await _sleep(retryAfter);
-      _bdlLastCallAt = Date.now();
-      continue;
-    }
-    return res;
-  }
-  // Final attempt failed — just return whatever the last response was
-  return await fetch(url, { headers: { "Authorization": getBDLKey() } });
-}
-
-async function fetchBDLStatsForDate(isoDate) {
-  if (_bdlCache[isoDate]) return _bdlCache[isoDate];
-  const all = [];
-  let cursor = null;
-  for (let i = 0; i < 10; i++) {
-    const url = new URL(`${BDL_BASE}/player_stats`);
-    url.searchParams.set("dates[]", isoDate);
-    url.searchParams.set("per_page", "100");
-    if (cursor != null) url.searchParams.set("cursor", cursor);
-    const res = await _bdlFetch(url.toString());
-    if (!res.ok) {
-      const body = await res.text();
-      if (res.status === 401) {
-        throw new Error(`BDL 401 Unauthorized — your API key doesn't have access to WNBA stats. WNBA requires a separate paid subscription on balldontlie.io (NBA tier doesn't include it).`);
-      }
-      throw new Error(`BDL ${res.status}: ${body}`);
-    }
-    const j = await res.json();
-    if (Array.isArray(j.data)) all.push(...j.data);
-    cursor = j.meta?.next_cursor;
-    if (cursor == null) break;
-  }
-  _bdlCache[isoDate] = all;
-  return all;
-}
-
-async function fetchBDLGamesForDate(isoDate) {
-  if (_bdlGamesCache[isoDate]) return _bdlGamesCache[isoDate];
-  const all = [];
-  let cursor = null;
-  for (let i = 0; i < 5; i++) {
-    const url = new URL(`${BDL_BASE}/games`);
-    url.searchParams.set("dates[]", isoDate);
-    url.searchParams.set("per_page", "100");
-    if (cursor != null) url.searchParams.set("cursor", cursor);
-    const res = await _bdlFetch(url.toString());
-    if (!res.ok) throw new Error(`BDL games ${res.status}: ${await res.text()}`);
-    const j = await res.json();
-    if (Array.isArray(j.data)) all.push(...j.data);
-    cursor = j.meta?.next_cursor;
-    if (cursor == null) break;
-  }
-  _bdlGamesCache[isoDate] = all;
-  return all;
-}
-
-function bdlPlayerMatch(stat, betPlayerNorm) {
-  const p = stat.player;
-  if (!p) return false;
-  const full = `${p.first_name||""} ${p.last_name||""}`.trim();
-  return norm(full) === betPlayerNorm;
-}
-
-function getStatValueForBet(s, statKey) {
-  // statKey: PTS, REB, AST, 3PM, PRA, PR, PA, RA, MIN
-  const pts = s.pts ?? 0, reb = s.reb ?? 0, ast = s.ast ?? 0, fg3m = s.fg3m ?? 0;
-  switch ((statKey||"").toUpperCase()) {
-    case "PTS": return pts;
-    case "REB": return reb;
-    case "AST": return ast;
-    case "3PM": return fg3m;
-    case "PRA": return pts + reb + ast;
-    case "PR":  return pts + reb;
-    case "PA":  return pts + ast;
-    case "RA":  return reb + ast;
-    case "MIN": {
-      // BDL returns "min" as a string like "30" or "32:15"
-      const m = s.min;
-      if (m == null) return 0;
-      if (typeof m === "number") return m;
-      const parts = String(m).split(":");
-      return parts.length === 1 ? parseInt(parts[0])||0 : parseInt(parts[0])||0;
-    }
-    default: return null;
-  }
-}
-
-function getBetISODate(b) {
-  if (b.gameDate) return b.gameDate;
-  // Older bets: parse from b.date which is locale string like "5/8/2026"
-  if (!b.date) return null;
-  const parts = b.date.split("/");
-  if (parts.length !== 3) return null;
-  const [m, d, y] = parts.map(x => parseInt(x));
-  if (!m || !d || !y) return null;
-  return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-}
-
-// ── ESPN FALLBACK ──────────────────────────────────────────────────────────
-const _espnCache = {}; // key: ISO date, value: array of {playerNorm, completed, stats:{pts,reb,ast,fg3m,min}}
+// ── ESPN AUTOGRADE ─────────────────────────────────────────────────────────
+const _espnCache = {}; // key: ISO date, value: array of {playerNorm, displayName, completed, stats}
+const _espnGameCountCache = {}; // key: ISO date, value: {total, completed}
 
 async function fetchESPNStatsForDate(isoDate) {
-  if (_espnCache[isoDate]) return _espnCache[isoDate];
+  if (_espnCache[isoDate]) return { rows: _espnCache[isoDate], meta: _espnGameCountCache[isoDate] };
   const yyyymmdd = isoDate.replace(/-/g, "");
   const sbUrl = `https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard?dates=${yyyymmdd}`;
   let scoreboard;
@@ -978,11 +892,14 @@ async function fetchESPNStatsForDate(isoDate) {
   } catch (e) { throw new Error("ESPN scoreboard error: " + e.message); }
 
   const events = scoreboard.events || [];
+  const meta = { total: events.length, completed: 0, statuses: [] };
   const allRows = [];
   for (const ev of events) {
     const completed = ev.status?.type?.completed === true;
+    const statusName = ev.status?.type?.shortDetail || ev.status?.type?.name || "Unknown";
+    meta.statuses.push(statusName);
     if (!completed) continue;
-    // Fetch boxscore for each completed game
+    meta.completed++;
     let summary;
     try {
       const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/summary?event=${ev.id}`);
@@ -1000,7 +917,6 @@ async function fetchESPNStatsForDate(isoDate) {
           pts: labels.findIndex(l => l === "pts"),
           reb: labels.findIndex(l => l === "reb"),
           ast: labels.findIndex(l => l === "ast"),
-          // ESPN uses "3pt" formatted as "made-attempted"
           tpt: labels.findIndex(l => l === "3pt" || l === "fg3" || l === "3p")
         };
         const athletes = statGroup.athletes || [];
@@ -1031,7 +947,8 @@ async function fetchESPNStatsForDate(isoDate) {
     }
   }
   _espnCache[isoDate] = allRows;
-  return allRows;
+  _espnGameCountCache[isoDate] = meta;
+  return { rows: allRows, meta };
 }
 
 function getStatValueForESPN(row, statKey) {
@@ -1051,73 +968,51 @@ function getStatValueForESPN(row, statKey) {
   }
 }
 
+function getBetISODate(b) {
+  if (b.gameDate) return b.gameDate;
+  if (!b.date) return null;
+  const parts = b.date.split("/");
+  if (parts.length !== 3) return null;
+  const [m, d, y] = parts.map(x => parseInt(x));
+  if (!m || !d || !y) return null;
+  return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
+
 async function gradeBet(b) {
   const iso = getBetISODate(b);
   if (!iso) return { ok: false, reason: "No date on bet" };
-  let stats, games;
+  let rows, meta;
   try {
-    stats = await fetchBDLStatsForDate(iso);
-    games = await fetchBDLGamesForDate(iso);
-  } catch (e) { return { ok: false, reason: "API error: " + e.message }; }
-  // If BDL has no stats yet, try ESPN as fallback
-  if (!stats || !stats.length) {
-    let espnRows;
-    try { espnRows = await fetchESPNStatsForDate(iso); }
-    catch (e) { espnRows = null; }
-    if (espnRows && espnRows.length) {
-      const playerNorm = norm(b.player);
-      const matches = espnRows.filter(r => r.playerNorm === playerNorm);
-      if (!matches.length) return { ok: false, reason: `${b.player} not in ESPN box scores for ${iso}` };
-      let total = 0;
-      matches.forEach(m => { total += getStatValueForESPN(m, b.stat); });
-      const line = b.line, ou = b.ou;
-      let result;
-      if (Math.abs(total - line) < 0.001) result = "void";
-      else if (ou === "over") result = total > line ? "hit" : "miss";
-      else result = total < line ? "hit" : "miss";
-      return { ok: true, result, total, source: "ESPN" };
-    }
-    // Neither source has data; fall through to original BDL diagnostic
-    if (!games || !games.length) {
+    const result = await fetchESPNStatsForDate(iso);
+    rows = result.rows;
+    meta = result.meta;
+  } catch (e) { return { ok: false, reason: "ESPN error: " + e.message }; }
+
+  // No box score data found
+  if (!rows || !rows.length) {
+    if (!meta || meta.total === 0) {
       return { ok: false, reason: `No WNBA games scheduled on ${iso}` };
     }
-    const statuses = games.map(g => g.status || "unknown");
-    const finalCount = statuses.filter(s => /final|post|completed/i.test(s)).length;
-    const liveCount = statuses.filter(s => !/final|post|completed/i.test(s) && !/^\d{4}-/.test(s) && s !== "unknown").length;
-    if (finalCount > 0) {
-      return { ok: false, reason: `${finalCount} game(s) final but no player stats yet — BDL may still be ingesting` };
-    } else if (liveCount > 0) {
-      return { ok: false, reason: `Games in progress (${statuses.join(", ")}) — wait for final` };
-    } else {
-      return { ok: false, reason: `${games.length} game(s) scheduled but not started — first tip: ${statuses[0]}` };
+    if (meta.completed === 0) {
+      return { ok: false, reason: `Games not final yet (${meta.statuses.join(", ")})` };
     }
+    return { ok: false, reason: `${meta.completed} game(s) final but ESPN box score not loaded yet` };
   }
+
   const playerNorm = norm(b.player);
-  const playerStats = stats.filter(s => bdlPlayerMatch(s, playerNorm));
-  if (!playerStats.length) return { ok: false, reason: `${b.player} not found in ${iso} games` };
-  // Map game_id → game status from /games endpoint
-  const gameStatusMap = {};
-  games.forEach(g => { gameStatusMap[g.id] = g.status; });
-  const isGameFinal = (gameId) => {
-    const status = String(gameStatusMap[gameId] || "").toLowerCase().trim();
-    return status.startsWith("final") || status === "post" || status === "completed";
-  };
-  // Only grade if every relevant game is final
-  const finalRows = playerStats.filter(s => isGameFinal(s.game?.id));
-  if (!finalRows.length) {
-    const liveStatus = gameStatusMap[playerStats[0]?.game?.id] || "unknown";
-    return { ok: false, reason: `Game not final yet (status: ${liveStatus})` };
-  }
-  // Sum across all final games (in case of multiple appearances same day, rare but safe)
+  const matches = rows.filter(r => r.playerNorm === playerNorm);
+  if (!matches.length) return { ok: false, reason: `${b.player} not in ESPN box scores for ${iso} (DNP?)` };
+
+  // Sum across all matches (rare: multi-game days)
   let total = 0;
-  finalRows.forEach(s => { total += getStatValueForBet(s, b.stat); });
-  // Determine HIT/MISS/PUSH (push = exact line match)
+  matches.forEach(m => { total += getStatValueForESPN(m, b.stat); });
+
   const line = b.line, ou = b.ou;
   let result;
-  if (Math.abs(total - line) < 0.001) result = "void"; // exact = push
+  if (Math.abs(total - line) < 0.001) result = "void";
   else if (ou === "over") result = total > line ? "hit" : "miss";
   else result = total < line ? "hit" : "miss";
-  return { ok: true, result, total, statsUsed: playerStats.length };
+  return { ok: true, result, total };
 }
 
 function logGrade(msg, kind) {
@@ -1151,7 +1046,7 @@ async function gradeAllPending() {
         if (r.result === "hit") hit++;
         else if (r.result === "miss") miss++;
         else if (r.result === "void") voided++;
-        logGrade(`${b.player} ${lineStr} ${b.stat}: actual ${r.total} → ${r.result.toUpperCase()}${r.source?` (${r.source})`:""}`, r.result);
+        logGrade(`${b.player} ${lineStr} ${b.stat}: actual ${r.total} → ${r.result.toUpperCase()}`, r.result);
       }
     } else {
       const isNotFinal = /not final|ingesting|in progress|not started/i.test(r.reason);
@@ -1396,7 +1291,7 @@ function renderTracker() {
         <button class="result-btn hit" onclick="setBetResult(${b.id},'hit')">HIT</button>
         <button class="result-btn miss" onclick="setBetResult(${b.id},'miss')">MISS</button>
         <button class="result-btn" onclick="setBetResult(${b.id},'void')" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b55;">VOID</button>
-        ${b.result==="pending"?`<button class="result-btn" onclick="gradeOneBet(${b.id})" style="background:#14b8a622;color:#5eead4;border:1px solid #14b8a655;" title="Auto grade via BDL">AUTO</button>`:""}
+        ${b.result==="pending"?`<button class="result-btn" onclick="gradeOneBet(${b.id})" style="background:#14b8a622;color:#5eead4;border:1px solid #14b8a655;" title="Auto grade via ESPN">AUTO</button>`:""}
       </td>
       <td style="padding:8px 8px;text-align:center"><button onclick="deleteBet(${b.id})" style="background:transparent;border:none;color:#30363d;font-size:16px;cursor:pointer;">✕</button></td>
     </tr>`;
