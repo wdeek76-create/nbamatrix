@@ -1038,6 +1038,7 @@ async function gradeAllPending() {
   let graded = 0, failed = 0, skipped = 0, hit = 0, miss = 0, voided = 0;
   for (const b of pendingBets) {
     const r = await gradeBet(b);
+    const lineStr = `${b.ou.toUpperCase()} ${b.line}`;
     if (r.ok) {
       const target = bets.find(x => x.id === b.id);
       if (target) {
@@ -1046,17 +1047,16 @@ async function gradeAllPending() {
         if (r.result === "hit") hit++;
         else if (r.result === "miss") miss++;
         else if (r.result === "void") voided++;
-        const lineStr = `${b.ou.toUpperCase()} ${b.line}`;
         logGrade(`${b.player} ${lineStr} ${b.stat}: actual ${r.total} → ${r.result.toUpperCase()}`, r.result);
       }
     } else {
-      const isNotFinal = /not final/i.test(r.reason);
+      const isNotFinal = /not final|ingesting|in progress|not started/i.test(r.reason);
       if (isNotFinal) {
         skipped++;
-        logGrade(`${b.player} ${b.stat}: ${r.reason} — skipped`, "void");
+        logGrade(`${b.player} ${lineStr} ${b.stat}: ${r.reason} — skipped`, "void");
       } else {
         failed++;
-        logGrade(`${b.player} ${b.stat}: ${r.reason}`, "error");
+        logGrade(`${b.player} ${lineStr} ${b.stat}: ${r.reason}`, "error");
       }
     }
   }
