@@ -961,8 +961,7 @@ function trackTotal(awayAbbr, homeAbbr, side, line, odds, book, projTotal) {
       shorthand.dispatchEvent(new Event("input"));
     }
     if (bookEl && book) {
-      const opts = Array.from(bookEl.options).map(o => o.value);
-      bookEl.value = opts.includes(book) ? book : "Other";
+      bookEl.value = book;
     }
     setOU(side);
   }, 60);
@@ -997,7 +996,7 @@ function openTrackModal(player, pos, stat, proj, team) {
   document.getElementById("modal-proj-display").textContent = projDisp ? `Blended Proj: ${projDisp}` : 'Blended Proj: —';
   window._modalProj = projDisp ? parseFloat(projDisp) : null;
   window._modalTeam = team || null;
-  document.getElementById("modal-book").value = "FanDuel";
+  document.getElementById("modal-book").value = "";
   document.getElementById("modal-stake-preview").textContent = "";
   const evPrev = document.getElementById("modal-ev-preview");
   if (evPrev) evPrev.textContent = "";
@@ -1025,6 +1024,7 @@ function parseShorthand(el) {
   const lineHidden = document.getElementById("modal-line");
   const oddsHidden = document.getElementById("modal-odds");
   const fairHidden = document.getElementById("modal-fair");
+  const bookEl = document.getElementById("modal-book");
   if (!raw) {
     el.style.borderColor = "#1f2733";
     if (preview) preview.textContent = "";
@@ -1033,16 +1033,19 @@ function parseShorthand(el) {
     updateEvPreview();
     return;
   }
-  // Tokenize on whitespace
+  // Tokenize on whitespace. Format: u17.5 [odds] [book?] [ev%? OR fair odds?]
+  // Examples:
+  //   u17.5 +200                 → line + offered odds, fair auto-calcs from proj
+  //   u17.5 +200 -120            → line + offered + fair (American odds)
+  //   u17.5 +111 fd 11.77        → line + offered + book + EV% (back-solves fair)
+  //   u17.5 +111 fd              → line + offered + book (fair auto-calcs)
   const tokens = raw.split(/\s+/);
   const lineTok = tokens[0] || "";
-  const oddsTok = tokens[1] || "";
-  const fairTok = tokens[2] || "";
 
   const lineMatch = lineTok.match(/^([ou])([\d.]+)$/);
   if (!lineMatch) {
     el.style.borderColor = "#f8717155";
-    if (preview) { preview.textContent = "Format: u17.5 200 -120"; preview.style.color = "#f87171"; }
+    if (preview) { preview.textContent = "Format: u17.5 +111 fd 11.77"; preview.style.color = "#f87171"; }
     return;
   }
   const dir = lineMatch[1] === "o" ? "over" : "under";
@@ -1051,8 +1054,19 @@ function parseShorthand(el) {
   window._modalLine = lineVal;
   lineHidden.value = (dir === "over" ? "o" : "u") + lineVal;
 
-  // Odds — accept "200" / "+200" / "-120"
+  // Helper: decide if a token is American odds (e.g. +200, -120, 150) vs an EV% (e.g. 11.77, 5)
+  // Heuristic: integer with 3+ digits OR has explicit +/- sign → odds. Otherwise (decimal or 1-2 digits) → EV%.
+  const isLikelyOdds = (s) => /^[+\-]\d{2,4}$/.test(s) || /^\d{3,4}$/.test(s);
+  const isLikelyBook = (s) => !/^[+\-]?\d/.test(s); // doesn't start with digit/sign → book name
+
+  // Walk remaining tokens: tokens[1..] — try to identify each
   let oddsVal = null;
+  let fairVal = null;
+  let bookVal = null;
+  let evPct = null;
+
+  // Token 1: should be offered odds
+  const oddsTok = tokens[1] || "";
   if (oddsTok) {
     const m = oddsTok.match(/^([+\-]?)(\d{2,4})$/);
     if (m) {
@@ -1062,18 +1076,52 @@ function parseShorthand(el) {
     }
   }
 
-  // Fair — accept "+200" / "-120" / "200"
-  let fairVal = null;
-  if (fairTok) {
-    const m = fairTok.match(/^([+\-]?)(\d{2,4})$/);
-    if (m) {
-      const sign = m[1] === "-" ? -1 : 1;
-      fairVal = sign * parseInt(m[2]);
-      fairHidden.value = String(fairVal);
-      window._modalFairManual = true;
+  // Walk tokens[2..] — book strings come first, then either fair odds or EV%
+  for (let i = 2; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (!t) continue;
+    if (isLikelyBook(t) && bookVal == null) {
+      bookVal = normBookInput(t); // resolve fd → FanDuel, etc.
+      continue;
+    }
+    // Numeric token after odds: either fair (American) or EV% (decimal/small int)
+    if (isLikelyOdds(t)) {
+      // Treat as fair odds
+      const m = t.match(/^([+\-]?)(\d{2,4})$/);
+      if (m) {
+        const sign = m[1] === "-" ? -1 : 1;
+        fairVal = sign * parseInt(m[2]);
+      }
+    } else if (/^\d+(\.\d+)?$/.test(t)) {
+      // Treat as EV%
+      evPct = parseFloat(t);
+    }
+  }
+
+  // Apply book if specified — write to hidden modal-book field
+  if (bookVal && bookEl) {
+    bookEl.value = bookVal;
+  }
+
+  // Resolve fair: explicit fair odds wins; else EV%-based; else auto-calc from proj
+  if (fairVal != null) {
+    fairHidden.value = String(fairVal);
+    window._modalFairManual = true;
+  } else if (evPct != null && oddsVal != null) {
+    // Back-solve from EV%: fair_implied = (1 + ev/100) / decimal_odds
+    const dec = oddsToDecimal(oddsVal);
+    if (dec) {
+      const fairProb = (1 + evPct/100) / dec;
+      if (fairProb > 0 && fairProb < 1) {
+        const fo = probToAmerican(fairProb);
+        if (fo != null) {
+          fairVal = fo;
+          fairHidden.value = String(fo);
+          window._modalFairManual = true;
+        }
+      }
     }
   } else {
-    // No fair typed → let auto-calc kick in
     window._modalFairManual = false;
     fairHidden.value = "";
     recomputeFairFromProj();
@@ -1086,6 +1134,8 @@ function parseShorthand(el) {
     const sideLbl = dir === "over" ? "OVER" : "UNDER";
     let txt = `<span style="color:${sideColor};font-weight:700">${sideLbl} ${lineVal}</span>`;
     if (oddsVal != null) txt += `<span style="color:#e2e8f0;margin-left:8px">${oddsVal>0?'+':''}${oddsVal}</span>`;
+    if (bookVal) txt += `<span style="color:#5eead4;margin-left:8px">${bookVal}</span>`;
+    if (evPct != null) txt += `<span style="color:#22c55e;margin-left:8px">${evPct.toFixed(2)}% EV</span>`;
     if (fairVal != null) txt += `<span style="color:#7d8590;margin-left:8px">fair ${fairVal>0?'+':''}${fairVal}</span>`;
     preview.innerHTML = txt;
   }
@@ -1188,7 +1238,7 @@ const BOOK_SHORTHAND = {
   "prophetx":"ProphetX","prophet":"ProphetX","px":"ProphetX",
   "bookmaker":"Bookmaker","bm":"Bookmaker",
   "pin":"Pinnacle","pinny":"Pinnacle","pinnacle":"Pinnacle",
-  "bet105":"Bet105","105":"Bet105"
+  "bet105":"Bet105","105":"Bet105","b1":"Bet105","b105":"Bet105"
 };
 function normBookInput(s) {
   if (!s) return s;
@@ -1687,7 +1737,7 @@ function _copyOpenFiltered(kind) {
 
   const headerLabel = kind === "totals" ? "totals" : "props";
   const lines = [`WNBA early ${headerLabel}: (${enriched.length})`, ""];
-  enriched.forEach(({bet, best}) => {
+  enriched.forEach(({bet, best}, idx) => {
     const oddsStr = best.odds > 0 ? `+${best.odds}` : `${best.odds}`;
     const ouLower = (bet.ou || "").toLowerCase();
     const playTo = playToOdds(bet.fair, 5);
@@ -1701,6 +1751,24 @@ function _copyOpenFiltered(kind) {
       row = `${bet.player}${teamStr}  ${ouLower} ${bet.line} ${statName} ${oddsStr} ${best.book}${playToStr}`;
     }
     lines.push(row);
+
+    // Append alt books — every available price excluding the best one we already showed
+    const allPrices = [{ book: bet.book, odds: bet.odds }];
+    if (Array.isArray(bet.altBooks)) {
+      bet.altBooks.forEach(a => {
+        if (a && a.book && a.odds != null) allPrices.push({ book: a.book, odds: a.odds });
+      });
+    }
+    // Filter out the "best" entry we already used (match by book + odds)
+    const remaining = allPrices.filter(p => !(p.book === best.book && p.odds === best.odds));
+    if (remaining.length) {
+      const altLine = remaining.map(p => {
+        const o = p.odds > 0 ? `+${p.odds}` : `${p.odds}`;
+        return `${p.book} ${o}`;
+      }).join("  ");
+      lines.push(`alts: ${altLine}`);
+    }
+    if (idx < enriched.length - 1) lines.push("");
   });
 
   const text = lines.join("\n").trimEnd();
@@ -2357,7 +2425,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
       <div class="modal-field" style="flex:1;">
         <label>Quick Entry</label>
-        <input type="text" id="modal-shorthand" placeholder="u17.5 200 -120"
+        <input type="text" id="modal-shorthand" placeholder="u17.5 +111 fd 11.77"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           oninput="parseShorthand(this)"
           onkeydown="if(event.key==='Enter'){event.preventDefault();saveBet();}"/>
@@ -2369,24 +2437,9 @@ document.addEventListener("DOMContentLoaded", () => {
     <input type="hidden" id="modal-line"/>
     <input type="hidden" id="modal-odds"/>
     <input type="hidden" id="modal-fair"/>
+    <input type="hidden" id="modal-book" value=""/>
 
     <div class="modal-row">
-      <div class="modal-field">
-        <label>Primary Book</label>
-        <select id="modal-book">
-          <option>FanDuel</option>
-          <option>DraftKings</option>
-          <option>Prop Builder</option>
-          <option>Onyx</option>
-          <option>Fliff</option>
-          <option>Novig</option>
-          <option>ProphetX</option>
-          <option>Bookmaker</option>
-          <option>Pinnacle</option>
-          <option>Bet105</option>
-          <option>Other</option>
-        </select>
-      </div>
       <div class="modal-field">
         <label>Game Date</label>
         <input type="date" id="modal-date" autocomplete="off" style="color-scheme:dark;"/>
@@ -2410,17 +2463,6 @@ document.addEventListener("DOMContentLoaded", () => {
       <option value="Pinnacle"></option>
       <option value="Bet105"></option>
     </datalist>
-
-    <!-- EV% backsolve: type EV%, fair fills in based on offered odds -->
-    <div class="modal-row" style="margin-top:10px;">
-      <div class="modal-field" style="flex:1;">
-        <label>OR Type EV % (back-solves Fair)</label>
-        <input type="text" id="modal-ev-input" placeholder="e.g. 5 or 7.5"
-          autocomplete="off" spellcheck="false"
-          oninput="recomputeFairFromEvInput()"/>
-        <div id="ev-input-preview" style="font-size:11px;color:#7d8590;margin-top:3px;min-height:14px;"></div>
-      </div>
-    </div>
 
     <div id="modal-proj-display" style="margin-top:14px;"></div>
     <div id="modal-stake-preview"></div>
