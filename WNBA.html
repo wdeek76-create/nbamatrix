@@ -848,6 +848,32 @@ function setBDLKey(k) {
 const BDL_BASE = "https://api.balldontlie.io/wnba/v1";
 const _bdlCache = {}; // key: ISO date, value: array of player_stats
 const _bdlGamesCache = {}; // key: ISO date, value: array of games (with status)
+let _bdlLastCallAt = 0;
+const BDL_MIN_INTERVAL_MS = 250; // throttle to ~4 req/sec
+
+function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function _bdlFetch(url) {
+  // Throttle so consecutive calls space out
+  const now = Date.now();
+  const wait = Math.max(0, _bdlLastCallAt + BDL_MIN_INTERVAL_MS - now);
+  if (wait > 0) await _sleep(wait);
+  _bdlLastCallAt = Date.now();
+  // Try up to 4 times with exponential backoff on 429
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch(url, { headers: { "Authorization": getBDLKey() } });
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get("Retry-After")) || (Math.pow(2, attempt) * 1000);
+      logGrade(`Rate limited, waiting ${retryAfter}ms before retry ${attempt+1}/4...`, "void");
+      await _sleep(retryAfter);
+      _bdlLastCallAt = Date.now();
+      continue;
+    }
+    return res;
+  }
+  // Final attempt failed — just return whatever the last response was
+  return await fetch(url, { headers: { "Authorization": getBDLKey() } });
+}
 
 async function fetchBDLStatsForDate(isoDate) {
   if (_bdlCache[isoDate]) return _bdlCache[isoDate];
@@ -858,7 +884,7 @@ async function fetchBDLStatsForDate(isoDate) {
     url.searchParams.set("dates[]", isoDate);
     url.searchParams.set("per_page", "100");
     if (cursor != null) url.searchParams.set("cursor", cursor);
-    const res = await fetch(url.toString(), { headers: { "Authorization": getBDLKey() } });
+    const res = await _bdlFetch(url.toString());
     if (!res.ok) {
       const body = await res.text();
       if (res.status === 401) {
@@ -884,7 +910,7 @@ async function fetchBDLGamesForDate(isoDate) {
     url.searchParams.set("dates[]", isoDate);
     url.searchParams.set("per_page", "100");
     if (cursor != null) url.searchParams.set("cursor", cursor);
-    const res = await fetch(url.toString(), { headers: { "Authorization": getBDLKey() } });
+    const res = await _bdlFetch(url.toString());
     if (!res.ok) throw new Error(`BDL games ${res.status}: ${await res.text()}`);
     const j = await res.json();
     if (Array.isArray(j.data)) all.push(...j.data);
