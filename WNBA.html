@@ -2049,30 +2049,32 @@ function renderTracker() {
   const roi = totalStaked > 0 ? ((netPL/totalStaked)*100).toFixed(1) : "—";
   const winRate = settled.length > 0 ? ((hits.length/settled.length)*100).toFixed(1) : "—";
 
+  const empty = () => ({hits:0,total:0,pl:0,staked:0});
+  const emptyWithSplit = () => ({hits:0,total:0,pl:0,staked:0, over:empty(), under:empty()});
+  const accum = (slot, b) => {
+    slot.total++;
+    slot.staked += b.stake;
+    if (b.result === "hit") { slot.hits++; slot.pl += b.toWin; }
+    else if (b.result === "miss") { slot.pl -= b.stake; }
+  };
+
   const statBreak = {};
   settled.forEach(b => {
-    if (!statBreak[b.stat]) statBreak[b.stat] = {hits:0,total:0,pl:0,staked:0};
-    statBreak[b.stat].total++;
-    statBreak[b.stat].staked += b.stake;
-    if (b.result==="hit") { statBreak[b.stat].hits++; statBreak[b.stat].pl += b.toWin; }
-    else statBreak[b.stat].pl -= b.stake;
+    if (!statBreak[b.stat]) statBreak[b.stat] = emptyWithSplit();
+    accum(statBreak[b.stat], b);
+    if (b.ou === "over" || b.ou === "under") accum(statBreak[b.stat][b.ou], b);
   });
 
   const bookBreak = {};
   settled.forEach(b => {
-    if (!bookBreak[b.book]) bookBreak[b.book] = {hits:0,total:0,pl:0,staked:0};
-    bookBreak[b.book].total++;
-    bookBreak[b.book].staked += b.stake;
-    if (b.result==="hit") { bookBreak[b.book].hits++; bookBreak[b.book].pl += b.toWin; }
-    else bookBreak[b.book].pl -= b.stake;
+    if (!bookBreak[b.book]) bookBreak[b.book] = emptyWithSplit();
+    accum(bookBreak[b.book], b);
+    if (b.ou === "over" || b.ou === "under") accum(bookBreak[b.book][b.ou], b);
   });
 
-  const ouBreak = {over:{hits:0,total:0,pl:0,staked:0}, under:{hits:0,total:0,pl:0,staked:0}};
+  const ouBreak = {over:empty(), under:empty()};
   settled.forEach(b => {
-    ouBreak[b.ou].total++;
-    ouBreak[b.ou].staked += b.stake;
-    if (b.result==="hit") { ouBreak[b.ou].hits++; ouBreak[b.ou].pl += b.toWin; }
-    else ouBreak[b.ou].pl -= b.stake;
+    if (b.ou === "over" || b.ou === "under") accum(ouBreak[b.ou], b);
   });
 
   const pct = (h,t) => t>0 ? `${((h/t)*100).toFixed(0)}%` : "—";
@@ -2082,10 +2084,25 @@ function renderTracker() {
     const labelEl = logo
       ? `<img src="${logo}" alt="${label}" style="width:14px;height:14px;border-radius:3px;object-fit:cover;vertical-align:middle;margin-right:5px;"/><span style="vertical-align:middle;">${label}</span>`
       : label;
-    return `<div class="overview-stat" style="min-width:140px;">
+    // O/U split if this card has it (statBreak / bookBreak entries do; ouBreak's individual cells don't)
+    let ouRow = "";
+    if (v.over && v.under && (v.over.total > 0 || v.under.total > 0)) {
+      const fmt = (lbl, sub, color) => {
+        if (sub.total === 0) return `<span style="color:#525a64;">${lbl} —</span>`;
+        const sr = sub.staked > 0 ? ((sub.pl/sub.staked)*100).toFixed(0) : "—";
+        const plColor = sub.pl >= 0 ? '#22c55e' : '#f87171';
+        return `<span style="color:${color};font-weight:700;">${lbl}</span> ${pct(sub.hits,sub.total)} <span style="color:#a8b0bb;">${sub.hits}/${sub.total}</span> <span style="color:${plColor};">${sub.pl>=0?'+':''}${sub.pl.toFixed(2)}u</span>`;
+      };
+      ouRow = `<div class="os-sub" style="margin-top:3px;display:flex;flex-direction:column;gap:1px;font-size:10px;">
+        <div>${fmt("O", v.over, "#5eead4")}</div>
+        <div>${fmt("U", v.under, "#f59e0b")}</div>
+      </div>`;
+    }
+    return `<div class="overview-stat" style="min-width:160px;">
       <div class="os-label">${labelEl}</div>
       <div class="os-val">${pct(v.hits,v.total)}</div>
       <div class="os-sub">${v.hits}/${v.total} · <span style="color:${v.pl>=0?'#22c55e':'#f87171'};font-weight:700;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</span> · <span style="color:${Number(r)>=0?'#5eead4':'#f87171'};">ROI ${r!=="—"?r+"%":"—"}</span></div>
+      ${ouRow}
     </div>`;
   };
 
