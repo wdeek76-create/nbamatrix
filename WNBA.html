@@ -238,52 +238,82 @@ let tolerance = 15;
 let currentTab = "upload";
 let rowCache = [];
 let bets = [];
-// Totals model toggle: 'avg' (σ=14, conservative) or 'union' (σ≈8.5, team-level union)
-// Persisted across reloads. Each tracked total bet stores which model it was made under.
-let totalsModel = (typeof localStorage !== "undefined" && localStorage.getItem("wnba_totals_model")) || "avg";
-function setTotalsModel(m) {
-  totalsModel = m;
-  try { localStorage.setItem("wnba_totals_model", m); } catch(e) {}
+// Per-game projection source picker (blended / paceeff / both)
+function setCardProjSource(cardKey, source) {
+  window._cardProjSource = window._cardProjSource || {};
+  window._cardProjSource[cardKey] = source;
   renderTotals();
 }
-// σ for each model — single source of truth used by every totals math path
-const TOTALS_SIGMA = { avg: 14, union: 8.5 };
-function totalsSigma() { return TOTALS_SIGMA[totalsModel] || 14; }
+// Totals σ — fixed at 14 (historical WNBA totals stdev). Single source of truth.
+function totalsSigma() { return 14; }
 
 // ────────────────────────────────────────────────────────────────────────────
 // TEAM ADVANCED STATS (for the Pace × Eff independent total model)
 // Pasted from stats.wnba.com/teams/advanced — keyed by team abbr.
+// We store both 2025 (final, large sample) and 2026 (current season, smaller sample).
+// Per-team merge logic: 2025 base + 2026 override when available + games-played-weighted blend.
 // Schema: { abbr: { ortg, drtg, pace, gp } }
 // ────────────────────────────────────────────────────────────────────────────
-let teamStats = {};
+let teamStats2025 = {};
+let teamStats2026 = {};
 function loadTeamStats() {
   try {
-    const raw = localStorage.getItem("wnba_team_stats");
-    if (raw) teamStats = JSON.parse(raw);
-  } catch(e) { teamStats = {}; }
+    const raw25 = localStorage.getItem("wnba_team_stats_2025");
+    if (raw25) teamStats2025 = JSON.parse(raw25);
+    const raw26 = localStorage.getItem("wnba_team_stats_2026");
+    if (raw26) teamStats2026 = JSON.parse(raw26);
+    // Legacy single-key migration: old data goes to 2025 slot
+    const rawLegacy = localStorage.getItem("wnba_team_stats");
+    if (rawLegacy && Object.keys(teamStats2025).length === 0) {
+      teamStats2025 = JSON.parse(rawLegacy);
+      localStorage.setItem("wnba_team_stats_2025", rawLegacy);
+      localStorage.removeItem("wnba_team_stats");
+    }
+  } catch(e) { teamStats2025 = {}; teamStats2026 = {}; }
 }
 function saveTeamStats() {
-  try { localStorage.setItem("wnba_team_stats", JSON.stringify(teamStats)); } catch(e) {}
+  try {
+    localStorage.setItem("wnba_team_stats_2025", JSON.stringify(teamStats2025));
+    localStorage.setItem("wnba_team_stats_2026", JSON.stringify(teamStats2026));
+  } catch(e) {}
 }
 loadTeamStats();
 
+// Effective team stats: blend 2025 prior with 2026 actual based on GP
+// Few 2026 games → mostly 2025 prior. Many 2026 games → mostly 2026 actual.
+// Pure 2026 only (expansion teams) → 2026 only.
+// Pure 2025 only → 2025 only.
+const PRIOR_WEIGHT_GAMES = 15;  // sample size at which 2026 weight = 50%
+function effectiveTeamStats(abbr) {
+  const cur = teamStats2026[abbr];
+  const prior = teamStats2025[abbr];
+  if (!cur && !prior) return null;
+  if (!cur) return { ...prior, source: "2025" };
+  if (!prior) return { ...cur, source: "2026" };
+  // Both exist — blend by games played
+  const gpCur = cur.gp || 0;
+  // Bayesian-ish: 2026 weight = gp / (gp + prior_weight)
+  const w26 = gpCur / (gpCur + PRIOR_WEIGHT_GAMES);
+  const w25 = 1 - w26;
+  return {
+    ortg: cur.ortg * w26 + prior.ortg * w25,
+    drtg: cur.drtg * w26 + prior.drtg * w25,
+    pace: cur.pace * w26 + prior.pace * w25,
+    gp: gpCur,
+    source: `blend (${(w26*100).toFixed(0)}% 2026)`
+  };
+}
+
 // Parse pasted stats.wnba.com advanced table.
-// Format per team (newlines separating values, name on its own line):
-//   rank
-//   Team Name
-//   gp \t w \t l \t min \t ortg \t drtg \t netrtg \t ast% \t ast/to \t ast_ratio \t oreb% \t dreb% \t reb% \t tov% \t efg% \t ts% \t pace \t pace/40 \t pie
 function parseTeamStatsPaste(text) {
   const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   const parsed = {};
   for (let i = 0; i < lines.length; i++) {
     const abbr = teamLineToAbbr(lines[i]);
     if (!abbr) continue;
-    // Next non-empty line should be the stats row (tab or whitespace separated)
     const dataLine = lines[i+1];
     if (!dataLine) continue;
     const parts = dataLine.split(/\s+/).map(s => s.replace(/[^\d.\-]/g, "")).filter(s => s !== "");
-    // Expected columns: gp w l min ortg drtg netrtg ast% ast/to ast_ratio oreb% dreb% reb% tov% efg% ts% pace pace/40 pie
-    // → indices: 0=gp, 4=ortg, 5=drtg, 16=pace
     if (parts.length < 17) continue;
     const gp = parseInt(parts[0]);
     const ortg = parseFloat(parts[4]);
@@ -291,48 +321,69 @@ function parseTeamStatsPaste(text) {
     const pace = parseFloat(parts[16]);
     if (isNaN(ortg) || isNaN(drtg) || isNaN(pace)) continue;
     parsed[abbr] = { gp, ortg, drtg, pace };
-    i++; // skip data line
+    i++;
   }
   return parsed;
 }
 
-function importTeamStats() {
-  const ta = document.getElementById("team-stats-paste");
+function importTeamStats(season) {
+  const ta = document.getElementById(`team-stats-paste-${season}`);
   if (!ta) return;
   const text = ta.value;
   if (!text.trim()) { showToast("Paste advanced stats table first"); return; }
   const parsed = parseTeamStatsPaste(text);
   const count = Object.keys(parsed).length;
   if (count === 0) { showToast("Couldn't parse any teams — check format"); return; }
-  teamStats = parsed;
+  if (season === "2025") teamStats2025 = parsed;
+  else teamStats2026 = parsed;
   saveTeamStats();
   ta.value = "";
-  showToast(`Imported ${count} team${count===1?"":"s"}`);
+  showToast(`Imported ${count} ${season} team${count===1?"":"s"}`);
   renderTotals();
 }
 
-function clearTeamStats() {
-  if (!confirm("Clear all stored team advanced stats?")) return;
-  teamStats = {};
+function clearTeamStats(season) {
+  if (!confirm(`Clear all stored ${season} team advanced stats?`)) return;
+  if (season === "2025") teamStats2025 = {};
+  else teamStats2026 = {};
   saveTeamStats();
   renderTotals();
 }
 
-// Independent total: Pace × Efficiency model.
-// NOTE: stats.wnba.com PACE is normalized to per-48 (NBA convention). WNBA games are 40 min,
-// so actual possessions in a game = PACE × 40/48.
-// pts_A = ORtg_A × (DRtg_B / leagueAvg) × actualPoss / 100
+// Independent total: Pace × Efficiency model with league-average fallback for missing teams.
+// Returns null only if BOTH teams have no data anywhere.
 function independentTotal(awayAbbr, homeAbbr) {
-  const a = teamStats[awayAbbr], b = teamStats[homeAbbr];
-  if (!a || !b) return null;
-  const all = Object.values(teamStats);
-  if (all.length === 0) return null;
-  const leagueAvg = all.reduce((s,t)=>s+t.ortg,0) / all.length;
-  const paceAB = (a.pace + b.pace) / 2;
+  const a = effectiveTeamStats(awayAbbr);
+  const b = effectiveTeamStats(homeAbbr);
+  // Need at least one team's data to compute anything useful
+  if (!a && !b) return null;
+
+  // Build league average from whatever effective stats we have
+  const allAbbrs = new Set([...Object.keys(teamStats2025), ...Object.keys(teamStats2026)]);
+  const allEffective = [...allAbbrs].map(abbr => effectiveTeamStats(abbr)).filter(Boolean);
+  if (allEffective.length === 0) return null;
+  const leagueOrtg = allEffective.reduce((s,t)=>s+t.ortg,0) / allEffective.length;
+  const leagueDrtg = allEffective.reduce((s,t)=>s+t.drtg,0) / allEffective.length;
+  const leaguePace = allEffective.reduce((s,t)=>s+t.pace,0) / allEffective.length;
+
+  // For missing team, use league average as the prior
+  const aEff = a || { ortg: leagueOrtg, drtg: leagueDrtg, pace: leaguePace, source: "league avg" };
+  const bEff = b || { ortg: leagueOrtg, drtg: leagueDrtg, pace: leaguePace, source: "league avg" };
+
+  const paceAB = (aEff.pace + bEff.pace) / 2;
   const actualPoss = paceAB * (40/48);  // WNBA games are 40 min, pace is per 48
-  const ptsA = a.ortg * (b.drtg / leagueAvg) * actualPoss / 100;
-  const ptsB = b.ortg * (a.drtg / leagueAvg) * actualPoss / 100;
-  return { total: ptsA + ptsB, ptsA, ptsB, paceAB, leagueAvg };
+  const ptsA = aEff.ortg * (bEff.drtg / leagueOrtg) * actualPoss / 100;
+  const ptsB = bEff.ortg * (aEff.drtg / leagueOrtg) * actualPoss / 100;
+  const usedFallback = !a || !b;
+  return {
+    total: ptsA + ptsB,
+    ptsA, ptsB,
+    paceAB,
+    leagueAvg: leagueOrtg,
+    usedFallback,
+    aSource: aEff.source,
+    bSource: bEff.source
+  };
 }
 let modalPlayer = "";
 let modalPos = "";
@@ -1060,16 +1111,17 @@ function trackRow(i) {
   openTrackModal(r.player, r.pos, r.stat, r.proj, r.team);
 }
 
-function trackTotal(awayAbbr, homeAbbr, side, line, odds, book, projTotal) {
+function trackTotal(awayAbbr, homeAbbr, side, line, odds, book, projTotal, projSource) {
   const label = `${awayAbbr} @ ${homeAbbr}`;
   openTrackModal(label, "TOT", "GAME_TOTAL", projTotal, `${awayAbbr}/${homeAbbr}`);
+  // Stash which projection model produced this bet — used in saveBet
+  window._modalProjSource = projSource || null;
   setTimeout(() => {
     const shorthand = document.getElementById("modal-shorthand");
     const bookEl = document.getElementById("modal-book");
     if (shorthand) {
       const dir = side === "over" ? "o" : "u";
       const oddsStr = odds > 0 ? `+${odds}` : `${odds}`;
-      // Auto-compute EV from current totals model so fair back-solves to match the card
       let evToken = "";
       if (projTotal != null) {
         const ev = americanEvRough(odds, projTotal, line, side);
@@ -1105,6 +1157,7 @@ function openTrackModal(player, pos, stat, proj, team) {
   window._modalLine = null;
   window._modalFairManual = false;
   window._modalEvTyped = null;
+  window._modalProjSource = null;
   clearAltBooks();
   const dateEl = document.getElementById("modal-date"); if(dateEl) dateEl.value = new Date().toISOString().split("T")[0];
   document.getElementById("modal-stat").value = stat || "PTS";
@@ -1494,7 +1547,9 @@ function saveBet() {
     result: "pending"
   };
   // Stamp the totals model that was active when this bet was tracked
-  if (stat === "GAME_TOTAL") bet.totalsModel = totalsModel;
+  if (stat === "GAME_TOTAL") {
+    if (window._modalProjSource) bet.projSource = window._modalProjSource;
+  }
   bets.unshift(bet);
   saveBets();
   closeTrackModal();
@@ -2244,14 +2299,14 @@ function renderTracker() {
     if (b.ou === "over" || b.ou === "under") accum(ouBreak[b.ou], b);
   });
 
-  // Totals model comparison: tag each settled GAME_TOTAL bet by its stored model
-  const modelBreak = { avg: empty(), union: empty(), unknown: empty() };
+  // Projection source comparison: which projection model produced the bet
+  const sourceBreak = { blended: empty(), paceeff: empty(), both: empty(), unknown: empty() };
   settled.forEach(b => {
     if (b.stat !== "GAME_TOTAL") return;
-    const key = b.totalsModel === "avg" || b.totalsModel === "union" ? b.totalsModel : "unknown";
-    accum(modelBreak[key], b);
+    const sk = b.projSource === "blended" || b.projSource === "paceeff" || b.projSource === "both" ? b.projSource : "unknown";
+    accum(sourceBreak[sk], b);
   });
-  const hasTotalsHistory = modelBreak.avg.total + modelBreak.union.total + modelBreak.unknown.total > 0;
+  const hasSourceHistory = sourceBreak.blended.total + sourceBreak.paceeff.total + sourceBreak.both.total > 0;
 
   const pct = (h,t) => t>0 ? `${((h/t)*100).toFixed(0)}%` : "—";
   const card = (label, v, opts={}) => {
@@ -2318,7 +2373,7 @@ function renderTracker() {
           <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.2;">
             ${b.player} <span style="color:#5eead4;font-weight:600;">${b.ou} ${b.line} ${statLbl}</span>
           </div>
-          <div style="font-size:11px;color:#d4dae3;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.totalsModel ? ` · <span style="color:#5eead4;font-weight:700;letter-spacing:0.5px;">${b.totalsModel.toUpperCase()}</span>` : ''}</div>
+          <div style="font-size:11px;color:#d4dae3;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#5eead4;font-weight:700;letter-spacing:0.5px;">${b.projSource.toUpperCase()}</span>` : ''}</div>
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
           ${b.result === "pending" ? `
@@ -2414,13 +2469,14 @@ function renderTracker() {
       ${Object.entries(bookBreak).length === 0 ? '<p style="color:#525a64;font-size:13px;padding:8px 0;">No settled bets yet</p>' : `<div class="overview-strip" style="flex-wrap:wrap;">${Object.entries(bookBreak).map(([k,v])=>card(k,v,{book:true})).join("")}</div>`}
     </div>
 
-    ${hasTotalsHistory ? `
+    ${hasSourceHistory ? `
     <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Totals Model · AVG vs UNION</h4>
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Projection Source · Blend vs Pace×Eff</h4>
       <div class="overview-strip" style="flex-wrap:wrap;">
-        ${modelBreak.avg.total > 0 ? card("AVG (σ14)", modelBreak.avg) : ""}
-        ${modelBreak.union.total > 0 ? card("UNION (σ8.5)", modelBreak.union) : ""}
-        ${modelBreak.unknown.total > 0 ? card("Untagged", modelBreak.unknown) : ""}
+        ${sourceBreak.blended.total > 0 ? card("BLEND (RG/Saber/RW)", sourceBreak.blended) : ""}
+        ${sourceBreak.paceeff.total > 0 ? card("PACE × EFF", sourceBreak.paceeff) : ""}
+        ${sourceBreak.both.total > 0 ? card("BOTH (avg)", sourceBreak.both) : ""}
+        ${sourceBreak.unknown.total > 0 ? card("Untagged", sourceBreak.unknown) : ""}
       </div>
     </div>` : ""}`;
 }
@@ -2747,8 +2803,7 @@ function renderTotals() {
     const home = buildTeamProjection(g.homeAbbr);
 
     // Projected total = AVG of each source's standalone game total.
-    // Apples-to-apples vs books, never inflates above source ceiling.
-    let projTotal = null;
+    let blendedTotal = null;
     const perSourceGameTotal = {};
     if (away && home) {
       const totals = [];
@@ -2762,8 +2817,36 @@ function renderTotals() {
           totals.push(sum);
         }
       });
-      if (totals.length) projTotal = totals.reduce((x,y)=>x+y,0) / totals.length;
+      if (totals.length) blendedTotal = totals.reduce((x,y)=>x+y,0) / totals.length;
     }
+
+    // Pace × Eff independent total (from team-level advanced stats)
+    const indepInfo = independentTotal(g.awayAbbr, g.homeAbbr);
+    const paceEffTotal = indepInfo ? indepInfo.total : null;
+
+    // Active projection source for this game card. Persists per-game in window state.
+    // Default order of preference: 'both' if both exist, else whichever is available
+    const cardKey = `${g.awayAbbr}_${g.homeAbbr}`;
+    window._cardProjSource = window._cardProjSource || {};
+    if (!window._cardProjSource[cardKey]) {
+      if (blendedTotal != null && paceEffTotal != null) window._cardProjSource[cardKey] = "both";
+      else if (blendedTotal != null) window._cardProjSource[cardKey] = "blended";
+      else if (paceEffTotal != null) window._cardProjSource[cardKey] = "paceeff";
+    }
+    const projSource = window._cardProjSource[cardKey];
+
+    // Resolve projTotal based on active source
+    let projTotal = null;
+    if (projSource === "blended") projTotal = blendedTotal;
+    else if (projSource === "paceeff") projTotal = paceEffTotal;
+    else if (projSource === "both" && blendedTotal != null && paceEffTotal != null) {
+      projTotal = (blendedTotal + paceEffTotal) / 2;
+    }
+
+    // Agreement signal: when both exist, are they close?
+    const agreement = (blendedTotal != null && paceEffTotal != null)
+      ? { diff: blendedTotal - paceEffTotal, agree: Math.abs(blendedTotal - paceEffTotal) <= 5 }
+      : null;
 
     const sourceBreakdown = (away && home) ? SOURCES.map(s => {
       const t = perSourceGameTotal[s.key];
@@ -2797,9 +2880,9 @@ function renderTotals() {
       return { ...b, ev, edge, impliedEdge };
     });
 
-    // Best of each side
-    const bestOver = enrichedBooks.filter(b => b.side === "over" && b.ev != null).sort((a,b)=>b.ev-a.ev)[0];
-    const bestUnder = enrichedBooks.filter(b => b.side === "under" && b.ev != null).sort((a,b)=>b.ev-a.ev)[0];
+    // Best of each side (by point-edge)
+    const bestOver = enrichedBooks.filter(b => b.side === "over" && b.edge != null).sort((a,b)=>b.edge-a.edge)[0];
+    const bestUnder = enrichedBooks.filter(b => b.side === "under" && b.edge != null).sort((a,b)=>b.edge-a.edge)[0];
 
     const bookRows = enrichedBooks.length
       ? enrichedBooks.map(b => {
@@ -2807,8 +2890,6 @@ function renderTotals() {
           const sideLbl = b.side === "over" ? "OVER" : "UNDER";
           const sideColor = b.side === "over" ? "#22c55e" : "#f87171";
           const edgeColor = b.edge == null ? "#d4dae3" : b.edge > 0 ? "#22c55e" : b.edge < 0 ? "#f87171" : "#fff";
-          const ieColor = b.impliedEdge == null ? "#d4dae3" : b.impliedEdge >= 3 ? "#22c55e" : b.impliedEdge > 0 ? "#5eead4" : b.impliedEdge < 0 ? "#f87171" : "#fff";
-          const evColor = b.ev == null ? "#d4dae3" : b.ev >= 5 ? "#22c55e" : b.ev > 0 ? "#5eead4" : b.ev < 0 ? "#f87171" : "#fff";
           const projForTrack = projTotal != null ? projTotal.toFixed(2) : "null";
           const bookSafe = (b.book||"").replace(/'/g,"\\'");
           return `<tr>
@@ -2816,42 +2897,68 @@ function renderTotals() {
             <td style="padding:6px 10px;text-align:center;color:${sideColor};font-weight:700">${sideLbl} ${b.line}</td>
             <td style="padding:6px 10px;text-align:center;color:#fff">${odds!=null?(odds>0?'+':'')+odds:'—'}</td>
             <td style="padding:6px 10px;text-align:center;color:${edgeColor};font-weight:700">${b.edge!=null?(b.edge>0?'+':'')+b.edge.toFixed(1):'—'}</td>
-            <td style="padding:6px 10px;text-align:center;color:${ieColor};font-weight:700">${b.impliedEdge!=null?(b.impliedEdge>0?'+':'')+b.impliedEdge.toFixed(1)+'%':'—'}</td>
-            <td style="padding:6px 10px;text-align:center;color:${evColor};font-weight:700">${b.ev!=null?(b.ev>0?'+':'')+b.ev.toFixed(1)+'%':'—'}</td>
-            <td style="padding:6px 10px;text-align:center"><button onclick="trackTotal('${g.awayAbbr}','${g.homeAbbr}','${b.side}',${b.line},${odds},'${bookSafe}',${projForTrack})" style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">TRACK</button></td>
+            <td style="padding:6px 10px;text-align:center"><button onclick="trackTotal('${g.awayAbbr}','${g.homeAbbr}','${b.side}',${b.line},${odds},'${bookSafe}',${projForTrack},'${projSource}')" style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">TRACK</button></td>
           </tr>`;
         }).join("")
-      : `<tr><td colspan="7" style="padding:12px;color:#525a64;text-align:center;font-size:12px">No prices parsed</td></tr>`;
+      : `<tr><td colspan="5" style="padding:12px;color:#525a64;text-align:center;font-size:12px">No prices parsed</td></tr>`;
 
     let bestSummary = "";
     if (projTotal != null) {
       const parts = [];
-      if (bestOver && bestOver.ev > 0) {
-        parts.push(`<span style="color:#22c55e;font-weight:700">OVER ${bestOver.line} @ ${bestOver.overOdds>0?'+':''}${bestOver.overOdds} ${bestOver.book}</span> <span style="color:#5eead4">${bestOver.ev.toFixed(1)}% EV</span>`);
+      if (bestOver && bestOver.edge != null && bestOver.edge > 0) {
+        parts.push(`<span style="color:#22c55e;font-weight:700">OVER ${bestOver.line} @ ${bestOver.overOdds>0?'+':''}${bestOver.overOdds} ${bestOver.book}</span> <span style="color:#5eead4">+${bestOver.edge.toFixed(1)} edge</span>`);
       }
-      if (bestUnder && bestUnder.ev > 0) {
-        parts.push(`<span style="color:#f87171;font-weight:700">UNDER ${bestUnder.line} @ ${bestUnder.underOdds>0?'+':''}${bestUnder.underOdds} ${bestUnder.book}</span> <span style="color:#5eead4">${bestUnder.ev.toFixed(1)}% EV</span>`);
+      if (bestUnder && bestUnder.edge != null && bestUnder.edge > 0) {
+        parts.push(`<span style="color:#f87171;font-weight:700">UNDER ${bestUnder.line} @ ${bestUnder.underOdds>0?'+':''}${bestUnder.underOdds} ${bestUnder.book}</span> <span style="color:#5eead4">+${bestUnder.edge.toFixed(1)} edge</span>`);
       }
       if (parts.length) bestSummary = `<div style="margin-top:10px;padding:10px 12px;background:#0e2926;border:1px solid #14b8a644;border-radius:6px;font-size:13px;">${parts.join(" &nbsp;|&nbsp; ")}</div>`;
     }
 
-    const projDisplay = projTotal != null
-      ? `<div style="font-size:34px;font-weight:800;color:#5eead4;text-shadow:0 0 16px rgba(94,234,212,0.6);">${projTotal.toFixed(1)}</div>
-         <div style="font-size:11px;color:#d4dae3;margin-top:2px">PROJECTED TOTAL</div>`
-      : `<div style="font-size:13px;color:#d4dae3;padding:14px 0">No projection — load sources & run blend</div>`;
+    // Build the right-side display: picker + selected total + comparison
+    const fmtTotal = (v, color="#fff", glow=false) => v != null
+      ? `<span style="color:${color};font-weight:700;${glow?'text-shadow:0 0 16px rgba(94,234,212,0.6);':''}">${v.toFixed(1)}</span>`
+      : `<span style="color:#525a64;">—</span>`;
 
-    // Independent total from Pace × Eff model (if team stats are loaded)
-    const indepInfo = independentTotal(g.awayAbbr, g.homeAbbr);
-    const indepDisplay = indepInfo
-      ? (() => {
-          const diff = projTotal != null ? indepInfo.total - projTotal : null;
-          const diffStr = diff != null
-            ? ` <span style="font-size:10px;color:${Math.abs(diff)>5?'#f59e0b':'#a8b0bb'};font-weight:600;">${diff>=0?'+':''}${diff.toFixed(1)} vs proj</span>`
-            : "";
-          return `<div style="font-size:18px;font-weight:700;color:#fff;margin-top:6px;">${indepInfo.total.toFixed(1)}${diffStr}</div>
-                  <div style="font-size:10px;color:#a8b0bb;letter-spacing:0.5px;text-transform:uppercase;font-weight:600;">Pace × Eff Model</div>`;
-        })()
+    // Per-source pills (clickable to switch)
+    const pillStyle = (active, disabled) => `
+      background:${active?'#14b8a6':disabled?'transparent':'#161b22'};
+      border:1px solid ${active?'#14b8a6':disabled?'#1f2733':'#1f2733'};
+      color:${active?'#0d1117':disabled?'#525a64':'#d4dae3'};
+      border-radius:5px;padding:4px 10px;font-size:10px;font-weight:700;
+      cursor:${disabled?'not-allowed':'pointer'};font-family:'Inter',sans-serif;letter-spacing:0.5px;
+      opacity:${disabled?'0.5':'1'};
+    `;
+
+    const blendedDisabled = blendedTotal == null;
+    const paceEffDisabled = paceEffTotal == null;
+    const bothDisabled = blendedDisabled || paceEffDisabled;
+
+    const fallbackBadge = (indepInfo && indepInfo.usedFallback)
+      ? `<span style="font-size:9px;color:#f59e0b;font-weight:700;letter-spacing:0.5px;margin-left:4px;" title="${g.awayAbbr}: ${indepInfo.aSource} · ${g.homeAbbr}: ${indepInfo.bSource}">⚠ FALLBACK</span>`
       : "";
+
+    const agreementBadge = agreement
+      ? `<span style="font-size:10px;font-weight:700;color:${agreement.agree?'#22c55e':'#f59e0b'};margin-left:6px;">${agreement.agree?'✓ AGREE':'⚠ DISAGREE'} ${agreement.diff>=0?'+':''}${agreement.diff.toFixed(1)}</span>`
+      : "";
+
+    const rightPanel = `
+      <div style="text-align:right;min-width:240px;">
+        ${projTotal != null
+          ? `<div style="font-size:34px;font-weight:800;color:#5eead4;text-shadow:0 0 16px rgba(94,234,212,0.6);">${projTotal.toFixed(1)}</div>
+             <div style="font-size:10px;color:#d4dae3;margin-top:2px;letter-spacing:0.8px;">PROJECTED TOTAL · ${projSource.toUpperCase()}</div>`
+          : `<div style="font-size:13px;color:#f87171;padding:14px 0">No projection available</div>`
+        }
+        <div style="display:inline-flex;gap:3px;margin-top:8px;background:#0d1117;padding:3px;border-radius:6px;border:1px solid #1f2733;">
+          <button onclick="setCardProjSource('${cardKey}','blended')" ${blendedDisabled?'disabled':''} style="${pillStyle(projSource==='blended', blendedDisabled)}" title="Blended player projections (RG/Saber/RW sum)">BLEND</button>
+          <button onclick="setCardProjSource('${cardKey}','paceeff')" ${paceEffDisabled?'disabled':''} style="${pillStyle(projSource==='paceeff', paceEffDisabled)}" title="Pace × Eff model from team advanced stats">P×E</button>
+          <button onclick="setCardProjSource('${cardKey}','both')" ${bothDisabled?'disabled':''} style="${pillStyle(projSource==='both', bothDisabled)}" title="Average of both models">BOTH</button>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#a8b0bb;display:flex;flex-direction:column;gap:3px;text-align:right;">
+          <div>Blend: ${fmtTotal(blendedTotal)}</div>
+          <div>P×E: ${fmtTotal(paceEffTotal, indepInfo && indepInfo.usedFallback ? "#f59e0b" : "#fff")}${fallbackBadge}</div>
+          ${agreementBadge ? `<div>${agreementBadge}</div>` : ""}
+        </div>
+      </div>`;
 
     const teamLine = (t, abbr) => t
       ? `<div><span style="font-weight:700;color:#fff">${abbr}</span> <span style="color:#5eead4;font-weight:700;font-size:18px;text-shadow:0 0 10px rgba(94,234,212,0.5);">${t.total.toFixed(1)}</span></div>`
@@ -2864,7 +2971,7 @@ function renderTotals() {
             <div style="font-size:16px;font-weight:800;color:#fff;">${g.awayAbbr} <span style="color:#d4dae3;font-weight:500">@</span> ${g.homeAbbr}</div>
             <div style="font-size:12px;color:#d4dae3;margin-top:2px">${g.awayName} at ${g.homeName} · ${g.time}</div>
           </div>
-          <div style="text-align:right">${projDisplay}${indepDisplay}</div>
+          ${rightPanel}
         </div>
         <div style="display:flex;gap:24px;margin-bottom:8px;font-size:14px;">
           ${teamLine(away, g.awayAbbr)}
@@ -2878,8 +2985,6 @@ function renderTotals() {
               <th style="padding:6px 10px;text-align:center;font-size:10px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:600">Line</th>
               <th style="padding:6px 10px;text-align:center;font-size:10px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:600">Odds</th>
               <th style="padding:6px 10px;text-align:center;font-size:10px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:600" title="Points difference: model proj minus line">Edge</th>
-              <th style="padding:6px 10px;text-align:center;font-size:10px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:600" title="Model win% minus de-vigged market %">Implied</th>
-              <th style="padding:6px 10px;text-align:center;font-size:10px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:600" title="Expected value at this price">EV</th>
               <th style="padding:6px 10px;text-align:center;font-size:10px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:600"></th>
             </tr>
           </thead>
@@ -2893,18 +2998,15 @@ function renderTotals() {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;">
       <div>
         <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;">Totals Model</div>
-        <div style="font-size:13px;color:#d4dae3;">Sums blended player projections by team · paste Betstamp for the slate</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span style="font-size:11px;color:#a8b0bb;letter-spacing:1px;text-transform:uppercase;font-weight:700;">Model</span>
-        <div style="display:inline-flex;background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:3px;gap:2px;">
-          <button onclick="setTotalsModel('avg')" title="Average source totals · σ=14 · conservative" style="background:${totalsModel==='avg'?'#14b8a6':'transparent'};border:none;color:${totalsModel==='avg'?'#0d1117':'#d4dae3'};border-radius:5px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.5px;">AVG · σ14</button>
-          <button onclick="setTotalsModel('union')" title="Independent team distributions · σ≈8.5 · tighter" style="background:${totalsModel==='union'?'#14b8a6':'transparent'};border:none;color:${totalsModel==='union'?'#0d1117':'#d4dae3'};border-radius:5px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.5px;">UNION · σ8.5</button>
-        </div>
+        <div style="font-size:13px;color:#d4dae3;">Per-card pick: Blend (RG/Saber/RW) or Pace × Eff · σ=14</div>
       </div>
     </div>
 
-    ${noProjections ? `<div style="padding:18px;background:#161b22;border:1px solid #1f2733;border-radius:8px;color:#f87171;font-size:13px;margin-bottom:16px;">Run blend on Upload tab first to enable projections.</div>` : ""}
+    ${noProjections && Object.keys(teamStats2025).length === 0 && Object.keys(teamStats2026).length === 0
+      ? `<div style="padding:18px;background:#161b22;border:1px solid #1f2733;border-radius:8px;color:#f87171;font-size:13px;margin-bottom:16px;">Load player projections (Upload tab) OR paste team advanced stats below to enable totals analysis.</div>`
+      : noProjections
+        ? `<div style="padding:14px;background:#161b22;border:1px solid #1f2733;border-radius:8px;color:#f59e0b;font-size:12px;margin-bottom:16px;">No player projections loaded · running on Pace × Eff only. Cards default to P×E for matchups where team stats exist.</div>`
+        : ""}
 
     <div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -2920,21 +3022,36 @@ function renderTotals() {
     </div>
 
     <div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div style="margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Team Advanced Stats — Pace × Efficiency Model</div>
+        <div style="font-size:11px;color:#a8b0bb;margin-top:2px;">Paste from stats.wnba.com/teams/advanced. 2025 = stable prior · 2026 = current season (blended ${PRIOR_WEIGHT_GAMES}-game weighting). Expansion teams (POR, TOR) need 2026 paste to compute.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
-          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Team Advanced Stats — Pace × Efficiency Model</div>
-          <div style="font-size:11px;color:#a8b0bb;margin-top:2px;">Paste from stats.wnba.com/teams/advanced (2025 final or 2026 current)</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:11px;color:#a8b0bb;font-weight:700;letter-spacing:0.5px;">2025 (PRIOR)</span>
+            <div style="display:flex;gap:4px;">
+              <button onclick="importTeamStats('2025')" style="background:#14b8a6;border:none;color:#0d1117;border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">IMPORT</button>
+              <button onclick="clearTeamStats('2025')" style="background:#161b22;border:1px solid #1f2733;color:#d4dae3;border-radius:4px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+            </div>
+          </div>
+          <textarea id="team-stats-paste-2025" placeholder="Paste 2025 advanced team stats table..." spellcheck="false"
+            style="width:100%;min-height:60px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;outline:none;resize:vertical;"></textarea>
+          <div style="font-size:10px;color:${Object.keys(teamStats2025).length===0?'#525a64':'#5eead4'};margin-top:4px;">${Object.keys(teamStats2025).length} teams loaded</div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="importTeamStats()" style="background:#14b8a6;border:none;color:#0d1117;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">IMPORT</button>
-          <button onclick="clearTeamStats()" style="background:#161b22;border:1px solid #1f2733;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:11px;color:#a8b0bb;font-weight:700;letter-spacing:0.5px;">2026 (CURRENT)</span>
+            <div style="display:flex;gap:4px;">
+              <button onclick="importTeamStats('2026')" style="background:#14b8a6;border:none;color:#0d1117;border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">IMPORT</button>
+              <button onclick="clearTeamStats('2026')" style="background:#161b22;border:1px solid #1f2733;color:#d4dae3;border-radius:4px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+            </div>
+          </div>
+          <textarea id="team-stats-paste-2026" placeholder="Paste 2026 advanced team stats table..." spellcheck="false"
+            style="width:100%;min-height:60px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;outline:none;resize:vertical;"></textarea>
+          <div style="font-size:10px;color:${Object.keys(teamStats2026).length===0?'#525a64':'#5eead4'};margin-top:4px;">${Object.keys(teamStats2026).length} teams loaded</div>
         </div>
       </div>
-      <textarea id="team-stats-paste" placeholder="Copy the entire WNBA advanced team stats table (TEAM / GP / W / L / MIN / OffRtg / DefRtg / ... / PACE ...) and paste here." spellcheck="false"
-        style="width:100%;min-height:80px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
-      ${Object.keys(teamStats).length === 0
-        ? `<div style="font-size:11px;color:#525a64;margin-top:8px;">No team stats loaded yet · independent total won't render</div>`
-        : `<div style="font-size:11px;color:#5eead4;margin-top:8px;">${Object.keys(teamStats).length} teams loaded · league avg ORtg ${(Object.values(teamStats).reduce((s,t)=>s+t.ortg,0)/Object.keys(teamStats).length).toFixed(1)}</div>`}
     </div>
 
     ${cards}`;
