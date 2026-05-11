@@ -249,6 +249,91 @@ function setTotalsModel(m) {
 // σ for each model — single source of truth used by every totals math path
 const TOTALS_SIGMA = { avg: 14, union: 8.5 };
 function totalsSigma() { return TOTALS_SIGMA[totalsModel] || 14; }
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEAM ADVANCED STATS (for the Pace × Eff independent total model)
+// Pasted from stats.wnba.com/teams/advanced — keyed by team abbr.
+// Schema: { abbr: { ortg, drtg, pace, gp } }
+// ────────────────────────────────────────────────────────────────────────────
+let teamStats = {};
+function loadTeamStats() {
+  try {
+    const raw = localStorage.getItem("wnba_team_stats");
+    if (raw) teamStats = JSON.parse(raw);
+  } catch(e) { teamStats = {}; }
+}
+function saveTeamStats() {
+  try { localStorage.setItem("wnba_team_stats", JSON.stringify(teamStats)); } catch(e) {}
+}
+loadTeamStats();
+
+// Parse pasted stats.wnba.com advanced table.
+// Format per team (newlines separating values, name on its own line):
+//   rank
+//   Team Name
+//   gp \t w \t l \t min \t ortg \t drtg \t netrtg \t ast% \t ast/to \t ast_ratio \t oreb% \t dreb% \t reb% \t tov% \t efg% \t ts% \t pace \t pace/40 \t pie
+function parseTeamStatsPaste(text) {
+  const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const parsed = {};
+  for (let i = 0; i < lines.length; i++) {
+    const abbr = teamLineToAbbr(lines[i]);
+    if (!abbr) continue;
+    // Next non-empty line should be the stats row (tab or whitespace separated)
+    const dataLine = lines[i+1];
+    if (!dataLine) continue;
+    const parts = dataLine.split(/\s+/).map(s => s.replace(/[^\d.\-]/g, "")).filter(s => s !== "");
+    // Expected columns: gp w l min ortg drtg netrtg ast% ast/to ast_ratio oreb% dreb% reb% tov% efg% ts% pace pace/40 pie
+    // → indices: 0=gp, 4=ortg, 5=drtg, 16=pace
+    if (parts.length < 17) continue;
+    const gp = parseInt(parts[0]);
+    const ortg = parseFloat(parts[4]);
+    const drtg = parseFloat(parts[5]);
+    const pace = parseFloat(parts[16]);
+    if (isNaN(ortg) || isNaN(drtg) || isNaN(pace)) continue;
+    parsed[abbr] = { gp, ortg, drtg, pace };
+    i++; // skip data line
+  }
+  return parsed;
+}
+
+function importTeamStats() {
+  const ta = document.getElementById("team-stats-paste");
+  if (!ta) return;
+  const text = ta.value;
+  if (!text.trim()) { showToast("Paste advanced stats table first"); return; }
+  const parsed = parseTeamStatsPaste(text);
+  const count = Object.keys(parsed).length;
+  if (count === 0) { showToast("Couldn't parse any teams — check format"); return; }
+  teamStats = parsed;
+  saveTeamStats();
+  ta.value = "";
+  showToast(`Imported ${count} team${count===1?"":"s"}`);
+  renderTotals();
+}
+
+function clearTeamStats() {
+  if (!confirm("Clear all stored team advanced stats?")) return;
+  teamStats = {};
+  saveTeamStats();
+  renderTotals();
+}
+
+// Independent total: Pace × Efficiency model.
+// NOTE: stats.wnba.com PACE is normalized to per-48 (NBA convention). WNBA games are 40 min,
+// so actual possessions in a game = PACE × 40/48.
+// pts_A = ORtg_A × (DRtg_B / leagueAvg) × actualPoss / 100
+function independentTotal(awayAbbr, homeAbbr) {
+  const a = teamStats[awayAbbr], b = teamStats[homeAbbr];
+  if (!a || !b) return null;
+  const all = Object.values(teamStats);
+  if (all.length === 0) return null;
+  const leagueAvg = all.reduce((s,t)=>s+t.ortg,0) / all.length;
+  const paceAB = (a.pace + b.pace) / 2;
+  const actualPoss = paceAB * (40/48);  // WNBA games are 40 min, pace is per 48
+  const ptsA = a.ortg * (b.drtg / leagueAvg) * actualPoss / 100;
+  const ptsB = b.ortg * (a.drtg / leagueAvg) * actualPoss / 100;
+  return { total: ptsA + ptsB, ptsA, ptsB, paceAB, leagueAvg };
+}
 let modalPlayer = "";
 let modalPos = "";
 
@@ -2755,6 +2840,19 @@ function renderTotals() {
          <div style="font-size:11px;color:#d4dae3;margin-top:2px">PROJECTED TOTAL</div>`
       : `<div style="font-size:13px;color:#d4dae3;padding:14px 0">No projection — load sources & run blend</div>`;
 
+    // Independent total from Pace × Eff model (if team stats are loaded)
+    const indepInfo = independentTotal(g.awayAbbr, g.homeAbbr);
+    const indepDisplay = indepInfo
+      ? (() => {
+          const diff = projTotal != null ? indepInfo.total - projTotal : null;
+          const diffStr = diff != null
+            ? ` <span style="font-size:10px;color:${Math.abs(diff)>5?'#f59e0b':'#a8b0bb'};font-weight:600;">${diff>=0?'+':''}${diff.toFixed(1)} vs proj</span>`
+            : "";
+          return `<div style="font-size:18px;font-weight:700;color:#fff;margin-top:6px;">${indepInfo.total.toFixed(1)}${diffStr}</div>
+                  <div style="font-size:10px;color:#a8b0bb;letter-spacing:0.5px;text-transform:uppercase;font-weight:600;">Pace × Eff Model</div>`;
+        })()
+      : "";
+
     const teamLine = (t, abbr) => t
       ? `<div><span style="font-weight:700;color:#fff">${abbr}</span> <span style="color:#5eead4;font-weight:700;font-size:18px;text-shadow:0 0 10px rgba(94,234,212,0.5);">${t.total.toFixed(1)}</span></div>`
       : `<div><span style="font-weight:700;color:#fff">${abbr}</span> <span style="color:#525a64">no proj</span></div>`;
@@ -2766,7 +2864,7 @@ function renderTotals() {
             <div style="font-size:16px;font-weight:800;color:#fff;">${g.awayAbbr} <span style="color:#d4dae3;font-weight:500">@</span> ${g.homeAbbr}</div>
             <div style="font-size:12px;color:#d4dae3;margin-top:2px">${g.awayName} at ${g.homeName} · ${g.time}</div>
           </div>
-          <div style="text-align:right">${projDisplay}</div>
+          <div style="text-align:right">${projDisplay}${indepDisplay}</div>
         </div>
         <div style="display:flex;gap:24px;margin-bottom:8px;font-size:14px;">
           ${teamLine(away, g.awayAbbr)}
@@ -2819,6 +2917,24 @@ function renderTotals() {
       <textarea id="betstamp-paste" placeholder="Copy the Betstamp WNBA Best Available page and paste here..." spellcheck="false"
         style="width:100%;min-height:80px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
       ${noGames ? `<div style="font-size:11px;color:#525a64;margin-top:8px;">Paste the Betstamp slate above to load games.</div>` : `<div style="font-size:11px;color:#5eead4;margin-top:8px;">${betstampGames.length} games loaded</div>`}
+    </div>
+
+    <div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Team Advanced Stats — Pace × Efficiency Model</div>
+          <div style="font-size:11px;color:#a8b0bb;margin-top:2px;">Paste from stats.wnba.com/teams/advanced (2025 final or 2026 current)</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="importTeamStats()" style="background:#14b8a6;border:none;color:#0d1117;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">IMPORT</button>
+          <button onclick="clearTeamStats()" style="background:#161b22;border:1px solid #1f2733;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+        </div>
+      </div>
+      <textarea id="team-stats-paste" placeholder="Copy the entire WNBA advanced team stats table (TEAM / GP / W / L / MIN / OffRtg / DefRtg / ... / PACE ...) and paste here." spellcheck="false"
+        style="width:100%;min-height:80px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
+      ${Object.keys(teamStats).length === 0
+        ? `<div style="font-size:11px;color:#525a64;margin-top:8px;">No team stats loaded yet · independent total won't render</div>`
+        : `<div style="font-size:11px;color:#5eead4;margin-top:8px;">${Object.keys(teamStats).length} teams loaded · league avg ORtg ${(Object.values(teamStats).reduce((s,t)=>s+t.ortg,0)/Object.keys(teamStats).length).toFixed(1)}</div>`}
     </div>
 
     ${cards}`;
