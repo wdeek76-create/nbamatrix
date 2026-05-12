@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -2263,10 +2264,17 @@ function _copyOpenFiltered(kind) {
 
 function renderTracker() {
   const el = document.getElementById("tracker-tab");
-  const settled = bets.filter(b => b.result !== "pending" && b.result !== "void");
-  const hits = bets.filter(b => b.result === "hit");
-  const misses = bets.filter(b => b.result === "miss");
-  const pending = bets.filter(b => b.result === "pending");
+  // Apply kind filter (all | props | totals) to every aggregation in this view
+  const kindMatch = (b) => {
+    if (betKindFilter === "all") return true;
+    const isTotal = (b.stat || "").toUpperCase() === "GAME_TOTAL";
+    return betKindFilter === "totals" ? isTotal : !isTotal;
+  };
+  const scopedBets = bets.filter(kindMatch);
+  const settled = scopedBets.filter(b => b.result !== "pending" && b.result !== "void");
+  const hits = scopedBets.filter(b => b.result === "hit");
+  const misses = scopedBets.filter(b => b.result === "miss");
+  const pending = scopedBets.filter(b => b.result === "pending");
   const totalWon = hits.reduce((a,b)=>a+b.toWin,0);
   const totalLost = misses.reduce((a,b)=>a+b.stake,0);
   const totalStaked = settled.reduce((a,b)=>a+b.stake,0);
@@ -2356,7 +2364,7 @@ function renderTracker() {
   };
 
   const search = (document.getElementById("bet-search")?.value || "").toLowerCase();
-  let filtered = openOnly ? bets.filter(b => b.result === "pending") : bets;
+  let filtered = openOnly ? scopedBets.filter(b => b.result === "pending") : scopedBets;
   if (search) filtered = filtered.filter(b => b.player.toLowerCase().includes(search) || b.stat.toLowerCase().includes(search) || b.book.toLowerCase().includes(search));
 
   const betRows = filtered.map(b => {
@@ -2421,7 +2429,8 @@ function renderTracker() {
 
   el.innerHTML = `
     <div id="tracker-controls">
-      <span style="font-size:16px;font-weight:800;color:#fff;">${bets.length} Bets Tracked</span>
+      <span style="font-size:16px;font-weight:800;color:#fff;">${scopedBets.length} ${betKindFilter==='all'?'Bets':betKindFilter==='props'?'Props':'Totals'} Tracked</span>
+      ${betKindFilter !== 'all' ? `<span style="font-size:10px;font-weight:700;color:#5eead4;background:#14b8a615;border:1px solid #14b8a644;border-radius:4px;padding:2px 8px;letter-spacing:0.5px;text-transform:uppercase;">${betKindFilter}</span>` : ''}
       <span style="font-size:11px;color:#22c55e;background:#22c55e15;border:1px solid #22c55e33;border-radius:4px;padding:2px 8px;">Auto-saved</span>
       <span style="color:#1f2733;font-size:12px;">|</span>
       <span style="font-size:13px;color:#d4dae3;">${pending.length} pending · ${settled.length} settled</span>
@@ -2461,10 +2470,16 @@ function renderTracker() {
 
     <div class="tracker-section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1f2733;flex-wrap:wrap;gap:8px;">
-        <h4 style="margin:0;padding:0;border:none;">${openOnly ? `Open Bets (${pending.length})` : 'Bet History'}</h4>
+        <h4 style="margin:0;padding:0;border:none;">${openOnly ? `Open ${betKindFilter==='all'?'Bets':betKindFilter==='props'?'Props':'Totals'} (${pending.length})` : `${betKindFilter==='all'?'Bet History':betKindFilter==='props'?'Props History':'Totals History'}`}</h4>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <input type="text" id="bet-search" placeholder="${openOnly ? 'Search open...' : 'Search all bets...'}" value="${search.replace(/"/g,'&quot;')}" oninput="filterBetRows(this.value)" autocomplete="off" spellcheck="false"
             style="background:#161b22;border:1px solid #1f2733;border-radius:6px;padding:6px 12px;font-size:12px;color:#e2e8f0;outline:none;width:160px;font-family:'Inter',sans-serif;"/>
+          <div style="display:inline-flex;background:#161b22;border:1px solid #1f2733;border-radius:6px;padding:2px;gap:2px;">
+            ${["all","props","totals"].map(k => {
+              const active = betKindFilter === k;
+              return `<button onclick="setBetKindFilter('${k}')" style="background:${active?'#14b8a6':'transparent'};border:none;color:${active?'#0d1117':'#d4dae3'};border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:0.5px;cursor:pointer;font-family:'Inter',sans-serif;">${k.toUpperCase()}</button>`;
+            }).join("")}
+          </div>
           <button onclick="toggleOpenOnly()" style="background:${openOnly?'#14b8a622':'#161b22'};border:1px solid ${openOnly?'#14b8a6':'#1f2733'};color:${openOnly?'#5eead4':'#d4dae3'};border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.5px;cursor:pointer;font-family:'Inter',sans-serif;">${openOnly?'✓ OPEN ONLY':'OPEN ONLY'}</button>
         </div>
       </div>
@@ -2521,6 +2536,8 @@ function filterBetRows(val) {
 let qgQueue = [];
 let qgIdx = 0;
 let openOnly = false;
+// Bet kind filter for Tracker: 'all' | 'props' | 'totals'
+let betKindFilter = "all";
 let gradeLog = [];
 let gradingInProgress = false;
 
@@ -2531,6 +2548,11 @@ function toggleOpenOnly() {
 
 function setOpenOnly(val) {
   openOnly = !!val;
+  renderTracker();
+}
+
+function setBetKindFilter(kind) {
+  betKindFilter = kind;
   renderTracker();
 }
 
@@ -3012,6 +3034,10 @@ function renderTotals() {
       { key: "paceeff",  label: "Pace × Eff",  total: paceEffTotal,   probs: probsFor(paceEffTotal),  meta: sourceYearBadge ? "" : "" },
       { key: "both",     label: "Combined",    total: bothTotal,      probs: probsFor(bothTotal),     meta: "PlayerBased + P×E avg" }
     ];
+
+    const agreementBadge = agreement
+      ? `<span style="font-size:10px;font-weight:700;color:${agreement.agree?'#22c55e':'#f59e0b'};margin-left:6px;">${agreement.agree?'✓ AGREE':'⚠ DISAGREE'} ${agreement.diff>=0?'+':''}${agreement.diff.toFixed(1)}</span>`
+      : "";
 
     const modelCard = (m) => {
       const isActive = m.key === projSource;
