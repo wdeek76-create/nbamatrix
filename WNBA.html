@@ -2902,6 +2902,22 @@ function renderTotals() {
     const bestOver = enrichedBooks.filter(b => b.side === "over" && b.edge != null).sort((a,b)=>b.edge-a.edge)[0];
     const bestUnder = enrichedBooks.filter(b => b.side === "under" && b.edge != null).sort((a,b)=>b.edge-a.edge)[0];
 
+    // Dominant book line — used for Total Probability and the all-models snapshots
+    let dominantLine = null;
+    if (g.books && g.books.length) {
+      const lineCount = {};
+      g.books.forEach(b => { lineCount[b.line] = (lineCount[b.line] || 0) + 1; });
+      dominantLine = Object.entries(lineCount).sort((a,b) => b[1] - a[1])[0][0];
+      dominantLine = parseFloat(dominantLine);
+    }
+    const probsFor = (total) => {
+      if (total == null || dominantLine == null) return null;
+      const z = (dominantLine - total) / totalsSigma();
+      const pUnder = 0.5 * (1 + erf(z / Math.SQRT2));
+      return { pOver: 1 - pUnder, pUnder };
+    };
+    const bothTotal = (blendedTotal != null && paceEffTotal != null) ? (blendedTotal + paceEffTotal) / 2 : null;
+
     const bookRows = enrichedBooks.length
       ? enrichedBooks.map(b => {
           const odds = b.side === "over" ? b.overOdds : b.underOdds;
@@ -2990,26 +3006,7 @@ function renderTotals() {
       return `<span style="font-size:9px;color:#a8b0bb;font-weight:700;letter-spacing:0.5px;margin-left:4px;" title="${g.awayAbbr}: ${a} · ${g.homeAbbr}: ${b}">MIXED</span>`;
     })();
 
-    // Total Probability — over% / under% against the most common book line for this game.
-    // Pick the line that appears most often across books (handles half-point variations).
-    let dominantLine = null;
-    if (g.books && g.books.length) {
-      const lineCount = {};
-      g.books.forEach(b => { lineCount[b.line] = (lineCount[b.line] || 0) + 1; });
-      dominantLine = Object.entries(lineCount).sort((a,b) => b[1] - a[1])[0][0];
-      dominantLine = parseFloat(dominantLine);
-    }
-
-    // Compute over% / under% for a given projection total (against dominant line)
-    const probsFor = (total) => {
-      if (total == null || dominantLine == null) return null;
-      const z = (dominantLine - total) / totalsSigma();
-      const pUnder = 0.5 * (1 + erf(z / Math.SQRT2));
-      return { pOver: 1 - pUnder, pUnder };
-    };
-
-    // Calculate models for all three projections (so we can render and snapshot them)
-    const bothTotal = (blendedTotal != null && paceEffTotal != null) ? (blendedTotal + paceEffTotal) / 2 : null;
+    // Calculate models for all three projections (so we can render them)
     const modelData = [
       { key: "blended",  label: "PlayerBased", total: blendedTotal,  probs: probsFor(blendedTotal),  meta: "RW/RG/Saber" },
       { key: "paceeff",  label: "Pace × Eff",  total: paceEffTotal,   probs: probsFor(paceEffTotal),  meta: sourceYearBadge ? "" : "" },
