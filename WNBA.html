@@ -1614,6 +1614,11 @@ function copySingleBet(id) {
   });
   if (!best) best = { book: b.book, odds: b.odds, fair: b.fair, line: b.line, ev: null };
 
+  // Declarations that were missing — bestLine, ouLower, oddsStr
+  const bestLine = best.line != null ? best.line : b.line;
+  const ouLower = (b.ou || "").toLowerCase();
+  const oddsStr = best.odds > 0 ? `+${best.odds}` : `${best.odds}`;
+
   // Append alts (excluding the one we used as headline). Dedupe by book+odds+line.
   const seenK = new Set();
   const remaining = candidates.filter(c => {
