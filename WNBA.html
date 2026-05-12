@@ -1111,11 +1111,21 @@ function trackRow(i) {
   openTrackModal(r.player, r.pos, r.stat, r.proj, r.team);
 }
 
-function trackTotal(awayAbbr, homeAbbr, side, line, odds, book, projTotal, projSource) {
+function trackTotal(payload, ...legacyArgs) {
+  // New API: trackTotal({awayAbbr, homeAbbr, side, line, odds, book, projTotal, projSource, snapshots})
+  // Legacy API: trackTotal(awayAbbr, homeAbbr, side, line, odds, book, projTotal, projSource)
+  let awayAbbr, homeAbbr, side, line, odds, book, projTotal, projSource, snapshots = null;
+  if (typeof payload === "object" && payload !== null && payload.awayAbbr) {
+    ({ awayAbbr, homeAbbr, side, line, odds, book, projTotal, projSource, snapshots } = payload);
+  } else {
+    awayAbbr = payload;
+    [homeAbbr, side, line, odds, book, projTotal, projSource] = legacyArgs;
+  }
   const label = `${awayAbbr} @ ${homeAbbr}`;
   openTrackModal(label, "TOT", "GAME_TOTAL", projTotal, `${awayAbbr}/${homeAbbr}`);
-  // Stash which projection model produced this bet — used in saveBet
+  // Stash which projection model produced this bet + the all-models snapshot
   window._modalProjSource = projSource || null;
+  window._modalProjSnapshots = snapshots || null;
   setTimeout(() => {
     const shorthand = document.getElementById("modal-shorthand");
     const bookEl = document.getElementById("modal-book");
@@ -1158,6 +1168,7 @@ function openTrackModal(player, pos, stat, proj, team) {
   window._modalFairManual = false;
   window._modalEvTyped = null;
   window._modalProjSource = null;
+  window._modalProjSnapshots = null;
   clearAltBooks();
   const dateEl = document.getElementById("modal-date"); if(dateEl) dateEl.value = new Date().toISOString().split("T")[0];
   document.getElementById("modal-stat").value = stat || "PTS";
@@ -1333,12 +1344,11 @@ function updateEvPreview() {
   // If user typed an EV% directly in shorthand, prefer that exact number (avoid rounding loss)
   let ev = window._modalEvTyped != null ? window._modalEvTyped : calcEdge(odds, fair);
   if (ev == null || isNaN(ev)) { el.textContent = ""; return; }
-  const meets = ev >= 5;
-  const color = meets ? "#22c55e" : ev > 0 ? "#5eead4" : "#f87171";
-  const note = meets ? "" : " — needs 5% to save";
+  // Color: green for solid edge, teal for any positive, red for negative
+  const color = ev >= 5 ? "#22c55e" : ev > 0 ? "#5eead4" : "#f87171";
   // Use 2 decimals if user typed something like 11.81, else 1 decimal
   const decimals = (window._modalEvTyped != null && Math.abs(ev*10 - Math.round(ev*10)) > 0.01) ? 2 : 1;
-  el.innerHTML = `EV: <span style="color:${color}">${ev>0?'+':''}${ev.toFixed(decimals)}%</span>${note ? `<span style="color:#d4dae3">${note}</span>` : ''}`;
+  el.innerHTML = `EV: <span style="color:${color}">${ev>0?'+':''}${ev.toFixed(decimals)}%</span>`;
 }
 
 // ── ALT BOOKS ──────────────────────────────────────────────────────
@@ -1518,15 +1528,7 @@ function saveBet() {
   const book = normBookInput(document.getElementById("modal-book").value);
   if (isNaN(line) || isNaN(odds)) { alert("Please enter the bet (e.g. 'u17.5 200 -120')"); return; }
   const fair = parseInt(document.getElementById("modal-fair").value) || null;
-  // 5% EV gate — block save if below threshold
-  if (fair != null) {
-    const ev = calcEdge(odds, fair);
-    if (ev == null || ev < 5) {
-      const msg = ev == null ? "EV could not be calculated." : `EV is ${ev.toFixed(1)}% — needs to be 5%+ to track.`;
-      alert(msg);
-      return;
-    }
-  } else {
+  if (fair == null) {
     alert("Fair value is required (or let it auto-calc from projection).");
     return;
   }
@@ -1549,6 +1551,7 @@ function saveBet() {
   // Stamp the totals model that was active when this bet was tracked
   if (stat === "GAME_TOTAL") {
     if (window._modalProjSource) bet.projSource = window._modalProjSource;
+    if (window._modalProjSnapshots) bet.projSnapshots = window._modalProjSnapshots;
   }
   bets.unshift(bet);
   saveBets();
@@ -2133,9 +2136,9 @@ function _copyOpenFiltered(kind) {
   const enriched = filtered.map(b => {
     const best = pickBest(b);
     return best ? { bet: b, best } : null;
-  }).filter(x => x && x.best.ev >= 5);
+  }).filter(x => x);
 
-  if (!enriched.length) { showToast(`No ${kind} at 5%+ EV`); return; }
+  if (!enriched.length) { showToast(`No open ${kind}`); return; }
 
   // Sort by EV descending — best plays first
   enriched.sort((a,b) => b.best.ev - a.best.ev);
@@ -2301,12 +2304,27 @@ function renderTracker() {
 
   // Projection source comparison: which projection model produced the bet
   const sourceBreak = { blended: empty(), paceeff: empty(), both: empty(), unknown: empty() };
+  // Counter-factual: how would EACH model have called this bet at track time?
+  // Uses the bet.projSnapshots (frozen at track-click). For each settled bet, ask:
+  // "Did this model think the side that won was more likely than 50%?"
+  const cfBreak = { blended: empty(), paceeff: empty(), both: empty() };
   settled.forEach(b => {
     if (b.stat !== "GAME_TOTAL") return;
     const sk = b.projSource === "blended" || b.projSource === "paceeff" || b.projSource === "both" ? b.projSource : "unknown";
     accum(sourceBreak[sk], b);
+    // For counterfactual: for each snapshot model, count it as a "call" only if its
+    // win prob for this bet's side was >= 50%. Then accum based on the actual result.
+    if (b.projSnapshots) {
+      ["blended","paceeff","both"].forEach(k => {
+        const snap = b.projSnapshots[k];
+        if (!snap || snap.winProb == null) return;
+        // Did this model agree with the side bet?
+        if (snap.winProb >= 0.5) accum(cfBreak[k], b);
+      });
+    }
   });
   const hasSourceHistory = sourceBreak.blended.total + sourceBreak.paceeff.total + sourceBreak.both.total > 0;
+  const hasCfHistory = cfBreak.blended.total + cfBreak.paceeff.total + cfBreak.both.total > 0;
 
   const pct = (h,t) => t>0 ? `${((h/t)*100).toFixed(0)}%` : "—";
   const card = (label, v, opts={}) => {
@@ -2373,7 +2391,7 @@ function renderTracker() {
           <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.2;">
             ${b.player} <span style="color:#5eead4;font-weight:600;">${b.ou} ${b.line} ${statLbl}</span>
           </div>
-          <div style="font-size:11px;color:#d4dae3;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#5eead4;font-weight:700;letter-spacing:0.5px;">${b.projSource.toUpperCase()}</span>` : ''}</div>
+          <div style="font-size:11px;color:#d4dae3;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#5eead4;font-weight:700;letter-spacing:0.5px;">${b.projSource === "blended" ? "PLAYERBASED" : b.projSource.toUpperCase()}</span>` : ''}</div>
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
           ${b.result === "pending" ? `
@@ -2471,12 +2489,23 @@ function renderTracker() {
 
     ${hasSourceHistory ? `
     <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Projection Source · Blend vs Pace×Eff</h4>
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Projection Source · PlayerBased vs Pace×Eff</h4>
       <div class="overview-strip" style="flex-wrap:wrap;">
-        ${sourceBreak.blended.total > 0 ? card("BLEND (RG/Saber/RW)", sourceBreak.blended) : ""}
+        ${sourceBreak.blended.total > 0 ? card("PlayerBased (RW/RG/Saber)", sourceBreak.blended) : ""}
         ${sourceBreak.paceeff.total > 0 ? card("PACE × EFF", sourceBreak.paceeff) : ""}
         ${sourceBreak.both.total > 0 ? card("BOTH (avg)", sourceBreak.both) : ""}
         ${sourceBreak.unknown.total > 0 ? card("Untagged", sourceBreak.unknown) : ""}
+      </div>
+    </div>` : ""}
+
+    ${hasCfHistory ? `
+    <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Model Performance · Which models AGREED with your pick?</h4>
+      <p style="font-size:10px;color:#a8b0bb;margin:-4px 0 8px 0;line-height:1.4;">Among bets each model said "yes" (≥50% likely), what % hit? Higher hit% means that model was right when it was confident.</p>
+      <div class="overview-strip" style="flex-wrap:wrap;">
+        ${cfBreak.blended.total > 0 ? card("PlayerBased called", cfBreak.blended) : ""}
+        ${cfBreak.paceeff.total > 0 ? card("Pace × Eff called", cfBreak.paceeff) : ""}
+        ${cfBreak.both.total > 0 ? card("Combined called", cfBreak.both) : ""}
       </div>
     </div>` : ""}`;
 }
@@ -2894,7 +2923,21 @@ function renderTotals() {
             <td style="padding:6px 10px;text-align:center;color:#fff">${odds!=null?(odds>0?'+':'')+odds:'—'}</td>
             <td style="padding:6px 10px;text-align:center;color:${edgeColor};font-weight:700">${b.edge!=null?(b.edge>0?'+':'')+b.edge.toFixed(1):'—'}</td>
             <td style="padding:6px 10px;text-align:center;color:${wpColor};font-weight:700">${wpPct!=null?wpPct.toFixed(1)+'%':'—'}</td>
-            <td style="padding:6px 10px;text-align:center"><button onclick="trackTotal('${g.awayAbbr}','${g.homeAbbr}','${b.side}',${b.line},${odds},'${bookSafe}',${projForTrack},'${projSource}')" style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">TRACK</button></td>
+            <td style="padding:6px 10px;text-align:center"><button onclick='trackTotal(${JSON.stringify({
+              awayAbbr: g.awayAbbr,
+              homeAbbr: g.homeAbbr,
+              side: b.side,
+              line: b.line,
+              odds,
+              book: bookSafe.replace(/\\'/g, "'"),
+              projTotal,
+              projSource,
+              snapshots: {
+                blended: blendedTotal != null && probsFor(blendedTotal) ? { total: blendedTotal, winProb: b.side === "over" ? probsFor(blendedTotal).pOver : probsFor(blendedTotal).pUnder } : null,
+                paceeff: paceEffTotal != null && probsFor(paceEffTotal) ? { total: paceEffTotal, winProb: b.side === "over" ? probsFor(paceEffTotal).pOver : probsFor(paceEffTotal).pUnder } : null,
+                both: bothTotal != null && probsFor(bothTotal) ? { total: bothTotal, winProb: b.side === "over" ? probsFor(bothTotal).pOver : probsFor(bothTotal).pUnder } : null
+              }
+            }).replace(/'/g, "\\'")})' style="background:#14b8a622;border:1px solid #14b8a655;color:#5eead4;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">TRACK</button></td>
           </tr>`;
         }).join("")
       : `<tr><td colspan="6" style="padding:12px;color:#525a64;text-align:center;font-size:12px">No prices parsed</td></tr>`;
@@ -2947,10 +2990,6 @@ function renderTotals() {
       return `<span style="font-size:9px;color:#a8b0bb;font-weight:700;letter-spacing:0.5px;margin-left:4px;" title="${g.awayAbbr}: ${a} · ${g.homeAbbr}: ${b}">MIXED</span>`;
     })();
 
-    const agreementBadge = agreement
-      ? `<span style="font-size:10px;font-weight:700;color:${agreement.agree?'#22c55e':'#f59e0b'};margin-left:6px;">${agreement.agree?'✓ AGREE':'⚠ DISAGREE'} ${agreement.diff>=0?'+':''}${agreement.diff.toFixed(1)}</span>`
-      : "";
-
     // Total Probability — over% / under% against the most common book line for this game.
     // Pick the line that appears most often across books (handles half-point variations).
     let dominantLine = null;
@@ -2960,41 +2999,63 @@ function renderTotals() {
       dominantLine = Object.entries(lineCount).sort((a,b) => b[1] - a[1])[0][0];
       dominantLine = parseFloat(dominantLine);
     }
-    let totalProbBlock = "";
-    if (projTotal != null && dominantLine != null) {
-      const z = (dominantLine - projTotal) / totalsSigma();
+
+    // Compute over% / under% for a given projection total (against dominant line)
+    const probsFor = (total) => {
+      if (total == null || dominantLine == null) return null;
+      const z = (dominantLine - total) / totalsSigma();
       const pUnder = 0.5 * (1 + erf(z / Math.SQRT2));
-      const pOver = 1 - pUnder;
-      const overC = pOver >= 0.6 ? "#22c55e" : pOver >= 0.5 ? "#5eead4" : "#d4dae3";
-      const underC = pUnder >= 0.6 ? "#22c55e" : pUnder >= 0.5 ? "#5eead4" : "#d4dae3";
-      totalProbBlock = `
-        <div style="margin-top:10px;padding:8px 10px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;">
-          <div style="font-size:9px;color:#a8b0bb;letter-spacing:0.5px;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Total Probability @ ${dominantLine}</div>
-          <div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:700;">
-            <div style="color:${overC};">O ${(pOver*100).toFixed(1)}%</div>
-            <div style="color:${underC};">U ${(pUnder*100).toFixed(1)}%</div>
-          </div>
-        </div>`;
-    }
+      return { pOver: 1 - pUnder, pUnder };
+    };
+
+    // Calculate models for all three projections (so we can render and snapshot them)
+    const bothTotal = (blendedTotal != null && paceEffTotal != null) ? (blendedTotal + paceEffTotal) / 2 : null;
+    const modelData = [
+      { key: "blended",  label: "PlayerBased", total: blendedTotal,  probs: probsFor(blendedTotal),  meta: "RW/RG/Saber" },
+      { key: "paceeff",  label: "Pace × Eff",  total: paceEffTotal,   probs: probsFor(paceEffTotal),  meta: sourceYearBadge ? "" : "" },
+      { key: "both",     label: "Combined",    total: bothTotal,      probs: probsFor(bothTotal),     meta: "PlayerBased + P×E avg" }
+    ];
+
+    const modelCard = (m) => {
+      const isActive = m.key === projSource;
+      const accent = isActive ? "#14b8a6" : "#1f2733";
+      const labelColor = isActive ? "#5eead4" : "#a8b0bb";
+      const totalDisplay = m.total != null ? m.total.toFixed(1) : "—";
+      const totalColor = m.total != null ? (isActive ? "#5eead4" : "#fff") : "#525a64";
+      const probsLine = m.probs && dominantLine != null
+        ? (() => {
+            const oC = m.probs.pOver >= 0.6 ? "#22c55e" : m.probs.pOver >= 0.5 ? "#5eead4" : "#d4dae3";
+            const uC = m.probs.pUnder >= 0.6 ? "#22c55e" : m.probs.pUnder >= 0.5 ? "#5eead4" : "#d4dae3";
+            return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:11px;font-weight:700;margin-top:4px;">
+              <span style="color:${oC};">O ${(m.probs.pOver*100).toFixed(1)}%</span>
+              <span style="color:${uC};">U ${(m.probs.pUnder*100).toFixed(1)}%</span>
+            </div>`;
+          })()
+        : `<div style="font-size:10px;color:#525a64;margin-top:4px;text-align:center;">no data</div>`;
+      const extraBadge = m.key === "paceeff" ? sourceYearBadge : "";
+      return `<div onclick="${m.total!=null?`setCardProjSource('${cardKey}','${m.key}')`:''}" style="flex:1;background:#0d1117;border:1.5px solid ${accent};border-radius:6px;padding:8px 10px;cursor:${m.total!=null?'pointer':'default'};transition:border-color 0.15s;min-width:120px;">
+        <div style="font-size:9px;color:${labelColor};letter-spacing:0.5px;text-transform:uppercase;font-weight:700;margin-bottom:2px;">${m.label}${isActive?' ●':''}</div>
+        <div style="font-size:18px;color:${totalColor};font-weight:800;">${totalDisplay}${extraBadge}</div>
+        ${probsLine}
+      </div>`;
+    };
 
     const rightPanel = `
-      <div style="text-align:right;min-width:240px;">
+      <div style="min-width:420px;flex:1;max-width:560px;">
         ${projTotal != null
-          ? `<div style="font-size:34px;font-weight:800;color:#5eead4;text-shadow:0 0 16px rgba(94,234,212,0.6);">${projTotal.toFixed(1)}</div>
-             <div style="font-size:10px;color:#d4dae3;margin-top:2px;letter-spacing:0.8px;">PROJECTED TOTAL · ${projSource.toUpperCase()}</div>`
-          : `<div style="font-size:13px;color:#f87171;padding:14px 0">No projection available</div>`
+          ? `<div style="text-align:right;margin-bottom:8px;">
+              <span style="font-size:28px;font-weight:800;color:#5eead4;text-shadow:0 0 16px rgba(94,234,212,0.6);">${projTotal.toFixed(1)}</span>
+              <span style="font-size:10px;color:#d4dae3;margin-left:6px;letter-spacing:0.8px;">ACTIVE · ${projSource === "blended" ? "PLAYERBASED" : projSource.toUpperCase()}</span>
+              ${agreementBadge}
+              ${dominantLine != null ? `<div style="font-size:9px;color:#a8b0bb;margin-top:2px;">Probabilities vs book line ${dominantLine}</div>` : ""}
+            </div>`
+          : `<div style="font-size:13px;color:#f87171;padding:8px 0;text-align:right;">No projection available</div>`
         }
-        <div style="display:inline-flex;gap:3px;margin-top:8px;background:#0d1117;padding:3px;border-radius:6px;border:1px solid #1f2733;">
-          <button onclick="setCardProjSource('${cardKey}','blended')" ${blendedDisabled?'disabled':''} style="${pillStyle(projSource==='blended', blendedDisabled)}" title="Blended player projections (RG/Saber/RW sum)">BLEND</button>
-          <button onclick="setCardProjSource('${cardKey}','paceeff')" ${paceEffDisabled?'disabled':''} style="${pillStyle(projSource==='paceeff', paceEffDisabled)}" title="Pace × Eff model from team advanced stats">P×E</button>
-          <button onclick="setCardProjSource('${cardKey}','both')" ${bothDisabled?'disabled':''} style="${pillStyle(projSource==='both', bothDisabled)}" title="Average of both models">BOTH</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${modelCard(modelData[0])}
+          ${modelCard(modelData[1])}
+          ${modelCard(modelData[2])}
         </div>
-        <div style="margin-top:8px;font-size:11px;color:#a8b0bb;display:flex;flex-direction:column;gap:3px;text-align:right;">
-          <div>Blend: ${fmtTotal(blendedTotal)}</div>
-          <div>P×E: ${fmtTotal(paceEffTotal, indepInfo && indepInfo.usedFallback ? "#f59e0b" : "#fff")}${sourceYearBadge}${fallbackBadge}</div>
-          ${agreementBadge ? `<div>${agreementBadge}</div>` : ""}
-        </div>
-        ${totalProbBlock}
       </div>`;
 
     const teamLine = (t, abbr) => t
