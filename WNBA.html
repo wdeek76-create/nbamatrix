@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -1133,12 +1132,9 @@ function trackTotal(payload, ...legacyArgs) {
     if (shorthand) {
       const dir = side === "over" ? "o" : "u";
       const oddsStr = odds > 0 ? `+${odds}` : `${odds}`;
-      let evToken = "";
-      if (projTotal != null) {
-        const ev = americanEvRough(odds, projTotal, line, side);
-        if (ev != null && !isNaN(ev)) evToken = ` ${ev.toFixed(2)}`;
-      }
-      shorthand.value = `${dir}${line} ${oddsStr}${evToken}`;
+      // For totals, leave EV% off — fair auto-back-solves from projection + line + σ.
+      // The Edge preview below the shorthand shows the point edge directly.
+      shorthand.value = `${dir}${line} ${oddsStr}`;
       shorthand.dispatchEvent(new Event("input"));
     }
     if (bookEl && book) {
@@ -1342,12 +1338,27 @@ function updateEvPreview() {
   const odds = parseInt(document.getElementById("modal-odds").value);
   const fair = parseInt(document.getElementById("modal-fair").value);
   if (isNaN(odds) || isNaN(fair)) { el.textContent = ""; return; }
-  // If user typed an EV% directly in shorthand, prefer that exact number (avoid rounding loss)
+  const stat = document.getElementById("modal-stat")?.value;
+
+  // For TOTALS: show edge in points (projection vs line) — that's what you care about.
+  // For PROPS: keep EV% display.
+  if (stat === "GAME_TOTAL" && window._modalProj != null && window._modalLine != null) {
+    const proj = window._modalProj;
+    const line = window._modalLine;
+    const ou = window._modalOU || "under";
+    // Edge: how far the projection is OFF the line in the bet's favor
+    // For OVER: proj - line (positive if proj > line, favors over)
+    // For UNDER: line - proj (positive if line > proj, favors under)
+    const edge = ou === "over" ? (proj - line) : (line - proj);
+    const color = edge >= 3 ? "#22c55e" : edge > 0 ? "#5eead4" : "#f87171";
+    el.innerHTML = `Edge: <span style="color:${color}">${edge>0?'+':''}${edge.toFixed(2)} pts</span>`;
+    return;
+  }
+
+  // PROPS path — show EV%
   let ev = window._modalEvTyped != null ? window._modalEvTyped : calcEdge(odds, fair);
   if (ev == null || isNaN(ev)) { el.textContent = ""; return; }
-  // Color: green for solid edge, teal for any positive, red for negative
   const color = ev >= 5 ? "#22c55e" : ev > 0 ? "#5eead4" : "#f87171";
-  // Use 2 decimals if user typed something like 11.81, else 1 decimal
   const decimals = (window._modalEvTyped != null && Math.abs(ev*10 - Math.round(ev*10)) > 0.01) ? 2 : 1;
   el.innerHTML = `EV: <span style="color:${color}">${ev>0?'+':''}${ev.toFixed(decimals)}%</span>`;
 }
@@ -2894,10 +2905,34 @@ function renderTotals() {
       projTotal = (blendedTotal + paceEffTotal) / 2;
     }
 
-    // Agreement signal: when both exist, are they close?
-    const agreement = (blendedTotal != null && paceEffTotal != null)
-      ? { diff: blendedTotal - paceEffTotal, agree: Math.abs(blendedTotal - paceEffTotal) <= 5 }
-      : null;
+    // Dominant book line — used for side-agreement check below + Total Probability display
+    let dominantLine = null;
+    if (g.books && g.books.length) {
+      const lineCount = {};
+      g.books.forEach(b => { lineCount[b.line] = (lineCount[b.line] || 0) + 1; });
+      dominantLine = Object.entries(lineCount).sort((a,b) => b[1] - a[1])[0][0];
+      dominantLine = parseFloat(dominantLine);
+    }
+
+    // Agreement signal: do both models point to the SAME SIDE of the line?
+    // (Not "are the totals close" — that's the wrong question.)
+    // If both > line → both say OVER. If both < line → both say UNDER. Agree.
+    // If one is over and one is under → disagree.
+    let agreement = null;
+    if (blendedTotal != null && paceEffTotal != null && dominantLine != null) {
+      const blendSide = blendedTotal > dominantLine ? "over" : "under";
+      const peSide = paceEffTotal > dominantLine ? "over" : "under";
+      const sameSide = blendSide === peSide;
+      const diff = blendedTotal - paceEffTotal;
+      agreement = {
+        diff,
+        agree: sameSide,
+        side: sameSide ? blendSide.toUpperCase() : null
+      };
+    } else if (blendedTotal != null && paceEffTotal != null) {
+      // No book line yet — fall back to "are totals close" check
+      agreement = { diff: blendedTotal - paceEffTotal, agree: Math.abs(blendedTotal - paceEffTotal) <= 5, side: null };
+    }
 
     const sourceBreakdown = (away && home) ? SOURCES.map(s => {
       const t = perSourceGameTotal[s.key];
@@ -2924,14 +2959,7 @@ function renderTotals() {
     const bestOver = enrichedBooks.filter(b => b.side === "over" && b.edge != null).sort((a,b)=>b.edge-a.edge)[0];
     const bestUnder = enrichedBooks.filter(b => b.side === "under" && b.edge != null).sort((a,b)=>b.edge-a.edge)[0];
 
-    // Dominant book line — used for Total Probability and the all-models snapshots
-    let dominantLine = null;
-    if (g.books && g.books.length) {
-      const lineCount = {};
-      g.books.forEach(b => { lineCount[b.line] = (lineCount[b.line] || 0) + 1; });
-      dominantLine = Object.entries(lineCount).sort((a,b) => b[1] - a[1])[0][0];
-      dominantLine = parseFloat(dominantLine);
-    }
+    // Dominant book line was computed above (for agreement check)
     const probsFor = (total) => {
       if (total == null || dominantLine == null) return null;
       const z = (dominantLine - total) / totalsSigma();
@@ -3036,7 +3064,15 @@ function renderTotals() {
     ];
 
     const agreementBadge = agreement
-      ? `<span style="font-size:10px;font-weight:700;color:${agreement.agree?'#22c55e':'#f59e0b'};margin-left:6px;">${agreement.agree?'✓ AGREE':'⚠ DISAGREE'} ${agreement.diff>=0?'+':''}${agreement.diff.toFixed(1)}</span>`
+      ? (() => {
+          if (agreement.agree && agreement.side) {
+            return `<span style="font-size:10px;font-weight:700;color:#22c55e;margin-left:6px;">✓ AGREE · ${agreement.side}</span>`;
+          }
+          if (agreement.agree) {
+            return `<span style="font-size:10px;font-weight:700;color:#22c55e;margin-left:6px;">✓ AGREE</span>`;
+          }
+          return `<span style="font-size:10px;font-weight:700;color:#f59e0b;margin-left:6px;">⚠ SPLIT · ${agreement.diff>=0?'+':''}${agreement.diff.toFixed(1)}</span>`;
+        })()
       : "";
 
     const modelCard = (m) => {
