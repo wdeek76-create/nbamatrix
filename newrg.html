@@ -2150,10 +2150,9 @@ function copyAllStats() {
   const fmtWr = w => w === null ? '--' : w.toFixed(0) + '%';
   const fmtRec = s => s.w + '-' + s.l + (s.pu ? '-' + s.pu : '');
   const betWord = n => n + ' bet' + (n === 1 ? '' : 's');
-  // Build a one-line row stat: "12-4 (75%) +5.20u +32.5%"
-  const oneLine = s => fmtRec(s) + ' (' + fmtWr(s.wr) + ') ' + fmtPnl(s.pnl) + ' ' + fmtRoi(s.roi);
+  // P&L and ROI FIRST, then record at the end
+  const oneLine = s => fmtPnl(s.pnl) + ' ' + fmtRoi(s.roi) + '  ' + fmtRec(s) + ' (' + fmtWr(s.wr) + ')';
 
-  // Settled-only stats for ranking; if zero settled, use overall (to still show pending counts)
   const settled = props.filter(p => p.result && p.result !== 'skip' && p.result !== '');
 
   // Date range
@@ -2169,20 +2168,18 @@ function copyAllStats() {
 
   const out = [];
 
-  // ---- HEADER ----
+  // ---- HEADER + OVERALL ----
   const titleRange = dateRange ? ' (' + dateRange + ')' : '';
   out.push('RotoGrinders MLB Props Recap' + titleRange);
   out.push('');
 
-  // ---- OVERALL ----
   const ov = calcStats(props);
   out.push('Overall: ' + oneLine(ov) + '   ' + betWord(ov.total) + (ov.pending ? ' (' + ov.pending + ' pending)' : ''));
   out.push('');
 
-  // ---- HELPERS for sorting ----
+  // ---- SHARED HELPERS ----
   const bucket = ev => ev >= 25 ? 'Elite' : ev >= 15 ? 'Strong' : 'Value';
   const tierLabel = t => t === 'Elite' ? 'Elite (25%+)' : t === 'Strong' ? 'Strong (15-24%)' : 'Value (5-14%)';
-  // Sort by ROI desc, nulls last; tie-break P&L desc
   const sortByROI = (a, b) => {
     const ra = a.stats.roi, rb = b.stats.roi;
     if (ra === null && rb === null) return b.stats.pnl - a.stats.pnl;
@@ -2191,9 +2188,46 @@ function copyAllStats() {
     if (ra !== rb) return rb - ra;
     return b.stats.pnl - a.stats.pnl;
   };
+  // Winners (pnl >= 0) sorted ROI desc; losers (pnl < 0) sorted ROI desc (least bad first)
+  const splitWL = rows => ({
+    winners: rows.filter(r => r.stats.pnl >= 0).sort(sortByROI),
+    losers:  rows.filter(r => r.stats.pnl < 0).sort(sortByROI)
+  });
+  // Write a section split into "Best X" / "Losing X". When only one side exists, use neutralLabel.
+  const writeSplitSection = (rows, winLabel, lossLabel, neutralLabel, formatter, cap) => {
+    if (rows.length === 0) return;
+    const { winners, losers } = splitWL(rows);
+    const showSplit = winners.length > 0 && losers.length > 0;
+    if (showSplit) {
+      out.push(winLabel + ':');
+      (cap ? winners.slice(0, cap) : winners).forEach(r => out.push('  ' + formatter(r)));
+      out.push('');
+      out.push(lossLabel + ':');
+      (cap ? losers.slice(0, cap) : losers).forEach(r => out.push('  ' + formatter(r)));
+      out.push('');
+    } else {
+      out.push(neutralLabel + ':');
+      const all = winners.length ? winners : losers;
+      (cap ? all.slice(0, cap) : all).forEach(r => out.push('  ' + formatter(r)));
+      out.push('');
+    }
+  };
 
-  // ---- TOP COMBOS (Market × Tier × Side) ----
+  // ---- BY MARKET ----
   const markets = [...new Set(props.map(p => p.market))].sort();
+  const mktRows = markets.map(m => {
+    const mp = settled.filter(p => p.market === m);
+    if (mp.length === 0) return null;
+    const mInfo = MARKET_MAP[m] || { label: m };
+    return { label: mInfo.label, stats: calcStats(mp), total: props.filter(p => p.market === m).length };
+  }).filter(Boolean);
+  if (mktRows.length) {
+    const maxLen = Math.max(...mktRows.map(r => r.label.length));
+    const fmt = r => r.label.padEnd(maxLen) + '  ' + oneLine(r.stats) + '   ' + betWord(r.total);
+    writeSplitSection(mktRows, 'Best Markets', 'Losing Markets', 'By Market', fmt);
+  }
+
+  // ---- COMBOS (Market × Tier × Side) ----
   const tiersOrdered = ['Elite', 'Strong', 'Value'];
   const combos = [];
   markets.forEach(m => {
@@ -2211,71 +2245,43 @@ function copyAllStats() {
       });
     });
   });
-  combos.sort(sortByROI);
   if (combos.length) {
-    out.push('Top combos:');
-    // Find longest label for clean alignment
-    const maxLabelLen = Math.min(28, Math.max(...combos.map(c => c.label.length)));
-    combos.slice(0, 10).forEach(c => {
-      const label = c.label.length > maxLabelLen ? c.label.slice(0, maxLabelLen) : c.label.padEnd(maxLabelLen);
-      out.push('  ' + label + '  ' + oneLine(c.stats));
-    });
-    out.push('');
+    const maxLabel = Math.min(28, Math.max(...combos.map(c => c.label.length)));
+    const fmt = c => {
+      const label = c.label.length > maxLabel ? c.label.slice(0, maxLabel) : c.label.padEnd(maxLabel);
+      return label + '  ' + fmtPnl(c.stats.pnl) + ' ' + fmtRoi(c.stats.roi) + '  ' + fmtRec(c.stats);
+    };
+    writeSplitSection(combos, 'Best Combos', 'Losing Combos', 'Combos', fmt, 10);
   }
 
-  // ---- BY MARKET (sorted by ROI desc) ----
-  const mktData = markets.map(m => {
-    const mp = settled.filter(p => p.market === m);
-    if (mp.length === 0) return null;
-    const mInfo = MARKET_MAP[m] || { label: m };
-    return { label: mInfo.label, stats: calcStats(mp), total: props.filter(p => p.market === m).length };
-  }).filter(Boolean);
-  mktData.sort(sortByROI);
-  if (mktData.length) {
-    const maxLen = Math.max(...mktData.map(m => m.label.length));
-    out.push('By Market:');
-    mktData.forEach(m => {
-      out.push('  ' + m.label.padEnd(maxLen) + '  ' + oneLine(m.stats) + '   ' + betWord(m.total));
-    });
-    out.push('');
-  }
-
-  // ---- BY DIRECTION (sorted) ----
+  // ---- BY DIRECTION ----
   const oS = calcStats(settled.filter(p => p.side === 'O'));
   const uS = calcStats(settled.filter(p => p.side === 'U'));
   const dirRows = [];
   if (oS.total) dirRows.push({ label: 'Over ', stats: oS, total: props.filter(p => p.side === 'O').length });
   if (uS.total) dirRows.push({ label: 'Under', stats: uS, total: props.filter(p => p.side === 'U').length });
-  dirRows.sort(sortByROI);
   if (dirRows.length) {
-    out.push('By Direction:');
-    dirRows.forEach(d => {
-      out.push('  ' + d.label + '  ' + oneLine(d.stats) + '   ' + betWord(d.total));
-    });
-    out.push('');
+    const fmt = r => r.label + '  ' + oneLine(r.stats) + '   ' + betWord(r.total);
+    writeSplitSection(dirRows, 'Best Direction', 'Losing Direction', 'By Direction', fmt);
   }
 
-  // ---- BY EV TIER (sorted) ----
+  // ---- BY EV TIER ----
   const tierData = tiersOrdered.map(t => {
     const tp = settled.filter(p => bucket(p.ev || 0) === t);
     if (tp.length === 0) return null;
     return { label: tierLabel(t), stats: calcStats(tp), total: props.filter(p => bucket(p.ev || 0) === t).length };
   }).filter(Boolean);
-  tierData.sort(sortByROI);
   if (tierData.length) {
     const maxLen = Math.max(...tierData.map(t => t.label.length));
-    out.push('By EV Tier:');
-    tierData.forEach(t => {
-      out.push('  ' + t.label.padEnd(maxLen) + '  ' + oneLine(t.stats) + '   ' + betWord(t.total));
-    });
-    out.push('');
+    const fmt = r => r.label.padEnd(maxLen) + '  ' + oneLine(r.stats) + '   ' + betWord(r.total);
+    writeSplitSection(tierData, 'Best EV Tiers', 'Losing EV Tiers', 'By EV Tier', fmt);
   }
 
-  // ---- MONTHLY (sorted newest first) ----
+  // ---- MONTHLY (chronological — newest first, no split) ----
   const byMonth = {};
   props.forEach(p => {
     if (!p.date) return;
-    const ym = p.date.slice(0, 7); // YYYY-MM
+    const ym = p.date.slice(0, 7);
     if (!byMonth[ym]) byMonth[ym] = [];
     byMonth[ym].push(p);
   });
@@ -2302,10 +2308,8 @@ function copyAllStats() {
   // Trim trailing blank lines
   while (out.length && out[out.length - 1] === '') out.pop();
 
-  // Replace the   (middle dot) with ASCII-safe character. Actually middle dot is fine in text messages.
   const text = out.join('\n');
 
-  // Copy to clipboard with fallback
   const showOk = () => {
     const btn = document.getElementById('copyStatsBtn');
     if (btn) {
