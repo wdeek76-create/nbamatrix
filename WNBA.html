@@ -29,7 +29,7 @@ input{font-family:'Inter',sans-serif;font-size:15px;}
 #main{padding:18px 24px;width:100%;max-width:1280px;margin:0 auto;}
 
 .slot{margin-bottom:8px;padding:14px 18px;background:#161b22;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #1f2733;}
-.slot.loaded{border-color:#55258355;background:#0e2926;}
+.slot.loaded{border-color:#55258355;background:#1a1530;}
 .upload-label{cursor:pointer;background:#552583;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;color:#0d1117;font-family:'Inter',sans-serif;transition:background 0.2s;}
 .upload-label:hover{background:#FDB927;}
 
@@ -56,13 +56,13 @@ input{font-family:'Inter',sans-serif;font-size:15px;}
 #copytight-btn{background:#161b22;border:1px solid #552583;color:#FDB927;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;transition:all 0.2s;}
 #copytight-btn:hover{background:#55258330;}
 
-#table-wrap{overflow-x:auto;border-radius:8px;border:1px solid #1f2733;}
-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+#table-wrap{overflow-x:auto;border-radius:8px;border:1px solid #1f2733;display:inline-block;max-width:100%;min-width:540px;}
+table{width:auto;min-width:100%;border-collapse:collapse;}
 thead{background:#161b22;}
 th{padding:8px 10px;font-size:11px;color:#d4dae3;letter-spacing:0.6px;font-weight:600;text-transform:uppercase;white-space:nowrap;}
 th.left{text-align:left;}th.center{text-align:center;}
 tr.even{background:#0d1117;}tr.odd{background:#10161e;}
-tr:hover{background:#0e2926 !important;}
+tr:hover{background:#1a1530 !important;}
 td{border-bottom:1px solid #161b22;}
 table colgroup col.player-col{width:36%;}
 table colgroup col.src-col{width:16%;}
@@ -864,13 +864,12 @@ function renderTable() {
 
   const head = document.getElementById("table-head");
   head.innerHTML = `<tr style="border-bottom:1px solid #252525">
-    <th class="left">PLAYER</th>
-    <th class="center">${STAT_LABEL[sortBy]} (AVG)</th>
+    <th class="left">PLAYER · ${STAT_LABEL[sortBy]}</th>
   </tr>`;
 
   const cg = document.getElementById("table-colgroup");
   if (cg) {
-    cg.innerHTML = '<col style="width:auto"/><col style="width:120px"/>';
+    cg.innerHTML = '<col style="width:auto"/>';
   }
 
   rowCache = rows.map((r,i) => {
@@ -907,47 +906,52 @@ function renderTable() {
       return `<td style="padding:${cellPad};text-align:center"><span style="color:#525a64">-</span></td>`;
     }).join("");
 
-    // Build inline labeled source values, skipping any that are missing
-    const srcInline = srcVals.map((v,si)=>{
+    // Source projections as compact pills (clickable to copy that source's value)
+    const srcPills = srcVals.map((v,si)=>{
       if (v == null) return null;
       const withinTol = avg!=null && (avg===0||Math.abs(v-avg)/avg*100<=tolerance);
-      const color = withinTol ? "#ffffff" : "#5a6573";
-      const glow = withinTol ? "text-shadow:0 0 6px rgba(253,185,39,0.5);" : "";
-      return `<span class="copyable" onclick="event.stopPropagation();copyAvg(${v.toFixed(4)})" title="${SOURCES[si].label}: ${v.toFixed(2)} (click to copy${sortBy==='pra'?' /3 for PRA':''})" style="color:${color};${glow}"><span style="color:#d4dae3;font-weight:500;">${SOURCES[si].label}:</span> ${v.toFixed(2)}</span>`;
-    }).filter(Boolean).join('<span style="color:#525a64;margin:0 8px;">·</span>');
+      const valColor = withinTol ? "#ffffff" : "#6b7280";
+      const border = withinTol ? "#55258366" : "#1f2733";
+      return `<span class="copyable" onclick="event.stopPropagation();copyAvg(${v.toFixed(4)})" title="${SOURCES[si].label}: ${v.toFixed(2)} (click to copy${sortBy==='pra'?' /3 for PRA':''})" style="display:inline-flex;align-items:center;gap:4px;background:#0d1117;border:1px solid ${border};border-radius:4px;padding:1px 7px;white-space:nowrap;"><span style="color:#8b93a0;font-weight:600;font-size:10px;">${SOURCES[si].label}</span><span style="color:${valColor};font-weight:700;">${v.toFixed(2)}</span></span>`;
+    }).filter(Boolean);
+    // AVG pill appended at end once 2+ sources contributed. Reference only — NOT clickable.
+    const srcCount = srcVals.filter(v=>v!=null).length;
+    if (avg != null && srcCount >= 2) {
+      srcPills.push(`<span title="Blended average (reference only)" style="display:inline-flex;align-items:center;gap:4px;background:#FDB9270d;border:1px solid #FDB92744;border-radius:4px;padding:1px 7px;white-space:nowrap;"><span style="color:#FDB927;font-weight:700;font-size:10px;letter-spacing:0.3px;">AVG</span><span style="color:#FDB927;font-weight:800;">${avg.toFixed(2)}</span></span>`);
+    }
+    const srcInline = srcPills.join('<span style="margin:0 3px;"></span>');
 
-    // Projected minutes per source → shown inline per source next to team/pos.
+    // Projected minutes per source → clean pills next to team/pos.
     const minVals = lookups.map(lk=>{
       if(!lk) return null;
       const m=lk[norm(r.rawName)];
       return (m && m.min != null && m.min > 0) ? m.min : null;
     });
     const minsPresent = minVals.filter(v=>v!=null);
-    // Build "RW 33m  RG 32.4m  AVG 32.7m" — sources that have minutes, then bold average last
-    const minPerSource = minVals.map((v,si)=>{
-      if (v == null) return null;
-      return `<span style="color:#d4dae3;font-weight:500;">${SOURCES[si].label}</span> ${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}m`;
-    }).filter(Boolean);
-    if (minsPresent.length) {
+    const fmtM = v => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1));
+    // Minutes as tiny pills — per-source muted, AVG accented. Compact, never wraps.
+    const minPill = (label, val, accent) =>
+      `<span style="display:inline-flex;align-items:center;gap:3px;background:#0d1117;border:1px solid ${accent?'#55258366':'#1f2733'};border-radius:4px;padding:1px 6px;font-size:9px;white-space:nowrap;"><span style="color:#7a8390;font-weight:600;">${label}</span><span style="color:#FDB927;font-weight:${accent?'800':'700'};">${fmtM(val)}m</span></span>`;
+    const minPills = [];
+    minVals.forEach((v,si)=>{ if(v!=null) minPills.push(minPill(SOURCES[si].label, v, false)); });
+    if (minsPresent.length >= 2) {
       const avgMin = minsPresent.reduce((a,b)=>a+b,0)/minsPresent.length;
-      minPerSource.push(`<span style="color:#d4dae3;font-weight:700;">AVG</span> <span style="font-weight:800;">${avgMin % 1 === 0 ? avgMin.toFixed(0) : avgMin.toFixed(1)}m</span>`);
+      minPills.push(minPill("AVG", avgMin, true));
     }
-    const minChipInner = minPerSource.join('<span style="margin:0 4px;"></span>');
     const minChip = minsPresent.length
-      ? `<span style="font-size:10px;color:#FDB927;font-weight:700;letter-spacing:0.2px;margin-left:8px;">${minChipInner}</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;flex:0 0 auto;">${minPills.join("")}</span>`
       : "";
 
     return `<tr class="${i%2===0?'even':'odd'}">
-      <td style="padding:7px 12px;">
+      <td style="padding:7px 10px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#55258330;border:1px solid #55258377;color:#FDB927;border-radius:5px;padding:0 12px;font-size:18px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:28px;height:28px;flex:0 0 auto;">+</button>
-          <span style="font-size:14px;font-weight:600;color:${tc};">${r.rawName}</span>
-          <span style="font-size:10px;color:#d4dae3;font-weight:500;">${r.team || ''} ${r.pos || ''}</span>
+          <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#55258330;border:1px solid #55258377;color:#FDB927;border-radius:5px;padding:0 11px;font-size:18px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:26px;height:26px;flex:0 0 auto;">+</button>
+          <span style="font-size:14px;font-weight:700;color:${tc};white-space:nowrap;">${r.rawName}</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;">${r.team ? `<span style="background:#FDB9271a;border:1px solid #FDB92755;color:#FDB927;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.team}</span>` : ''}${r.pos ? `<span style="background:#a78bfa1a;border:1px solid #a78bfa55;color:#a78bfa;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.pos}</span>` : ''}</span>
           ${minChip}
         </div>
-        <div style="font-size:12px;color:#dde2e9;font-weight:500;margin-top:3px;margin-left:32px;">${srcInline || '<span style="color:#525a64">no projections</span>'}</div>
+        <div style="font-size:12px;color:#dde2e9;font-weight:500;margin-top:4px;margin-left:30px;display:flex;align-items:center;flex-wrap:wrap;gap:2px;">${srcInline || '<span style="color:#525a64">no projections</span>'}</div>
       </td>
-      <td style="padding:7px 12px;font-size:18px;color:${avg!=null?'#ffffff':'#525a64'};text-align:center;font-weight:700;${avg!=null?'cursor:pointer;text-shadow:0 0 12px rgba(253,185,39,0.7);':''}" ${avg!=null?`onclick="copyAvg(${avg.toFixed(4)})" title="${sortBy==='pra'?'Click to copy /3 for PRA sim':'Click to copy'}"`:''} class="${avg!=null?'copyable':''}">${avg!=null?avg.toFixed(2):'-'}</td>
     </tr>`;
   }).join("");
 }
@@ -3504,7 +3508,7 @@ function renderTotals() {
       if (bestUnder && bestUnder.edge != null && bestUnder.edge > 0) {
         parts.push(`<span style="color:#f87171;font-weight:700">UNDER ${bestUnder.line} @ ${bestUnder.underOdds>0?'+':''}${bestUnder.underOdds} ${bestUnder.book}</span> <span style="color:#FDB927">+${bestUnder.edge.toFixed(1)} edge</span>`);
       }
-      if (parts.length) bestSummary = `<div style="margin-top:10px;padding:10px 12px;background:#0e2926;border:1px solid #55258355;border-radius:6px;font-size:13px;">${parts.join(" &nbsp;|&nbsp; ")}</div>`;
+      if (parts.length) bestSummary = `<div style="margin-top:10px;padding:10px 12px;background:#1a1530;border:1px solid #55258355;border-radius:6px;font-size:13px;">${parts.join(" &nbsp;|&nbsp; ")}</div>`;
     }
 
     // Build the right-side display: picker + selected total + comparison
@@ -3897,8 +3901,8 @@ document.addEventListener("DOMContentLoaded", () => {
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <label style="font-size:9px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;">Alt Books (optional)</label>
         <div style="display:flex;gap:4px;">
-          <button type="button" onclick="toggleBookSettings()" id="alt-settings-toggle" title="Toggle which books show" style="background:transparent;border:1px solid #1f2733;color:#FDB927;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">⚙</button>
-          <button type="button" onclick="toggleAltBulkMode()" id="alt-bulk-toggle" style="background:transparent;border:1px solid #1f2733;color:#FDB927;border-radius:4px;padding:3px 8px;font-size:9px;font-weight:700;letter-spacing:0.5px;cursor:pointer;font-family:'Inter',sans-serif;">⚡ BULK</button>
+          <button type="button" tabindex="-1" onclick="toggleBookSettings()" id="alt-settings-toggle" title="Toggle which books show" style="background:transparent;border:1px solid #1f2733;color:#FDB927;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">⚙</button>
+          <button type="button" tabindex="-1" onclick="toggleAltBulkMode()" id="alt-bulk-toggle" style="background:transparent;border:1px solid #1f2733;color:#FDB927;border-radius:4px;padding:3px 8px;font-size:9px;font-weight:700;letter-spacing:0.5px;cursor:pointer;font-family:'Inter',sans-serif;">⚡ BULK</button>
         </div>
       </div>
       <!-- Settings panel: toggle which books show in the alt list -->
@@ -3932,7 +3936,7 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
     <div id="modal-ev-preview" style="margin-top:6px;font-size:13px;font-weight:700;"></div>
 
     <div class="modal-btns">
-      <button class="modal-btn-cancel" onclick="closeTrackModal()">Cancel</button>
+      <button class="modal-btn-cancel" tabindex="-1" onclick="closeTrackModal()">Cancel</button>
       <button class="modal-btn-save" id="modal-save-btn" onclick="saveBet()">Track Bet</button>
     </div>
   </div>
