@@ -2239,13 +2239,21 @@ async function fetchESPNStatsForDate(isoDate) {
           const stRow = a.stats || [];
           const parseInt0 = (s) => { const n = parseInt(s); return isNaN(n) ? 0 : n; };
 
-          // DNP detection: ESPN flags didNotPlay, OR the stats row is empty / all dashes,
-          // OR minutes cell is a dash/blank. These players appeared on the roster but
-          // logged no minutes — their bets must VOID, not grade off zeros.
-          const minRaw = idx.min >= 0 ? String(stRow[idx.min] ?? "").trim() : "";
-          const isDash = v => v === "" || v === "-" || v === "--" || v === "0:00" || v === "DNP";
-          const allDash = stRow.length === 0 || stRow.every(v => isDash(String(v ?? "").trim()));
-          const dnp = a.didNotPlay === true || a.active === false || allDash || (idx.min >= 0 && isDash(minRaw));
+          // DNP — ONLY trust ESPN's explicit didNotPlay flag. We deliberately ignore
+          // a.active (which can be false for benign reasons) and any heuristic based on
+          // parsed minutes (label-format variance reads played players as 0 min).
+          // If didNotPlay isn't set, treat the player as played and grade the real stat.
+          const dnp = a.didNotPlay === true;
+
+          // Parse minutes if the column was found. Handle "MM:SS" format ("12:34" → 12).
+          let minVal = 0;
+          if (idx.min >= 0) {
+            const raw = String(stRow[idx.min] ?? "").trim();
+            if (raw && raw !== "-" && raw !== "--" && raw !== "DNP") {
+              const colon = raw.split(":");
+              minVal = parseInt(colon[0]) || 0;
+            }
+          }
 
           let fg3m = 0;
           if (idx.tpt >= 0 && stRow[idx.tpt]) {
@@ -2257,7 +2265,7 @@ async function fetchESPNStatsForDate(isoDate) {
             displayName: fullName,
             dnp,
             stats: {
-              min: dnp ? 0 : (idx.min >= 0 ? parseInt0(stRow[idx.min]) : 0),
+              min: dnp ? 0 : minVal,
               pts: idx.pts >= 0 ? parseInt0(stRow[idx.pts]) : 0,
               reb: idx.reb >= 0 ? parseInt0(stRow[idx.reb]) : 0,
               ast: idx.ast >= 0 ? parseInt0(stRow[idx.ast]) : 0,
@@ -2354,23 +2362,27 @@ async function gradeBet(b) {
   const matches = rows.filter(r => r.playerNorm === playerNorm);
 
   if (!matches.length) {
-    // Player not in box score at all. If the game(s) for this date are final,
-    // that means a DNP (didn't dress / inactive) → VOID. Only error if games
-    // aren't final yet (then we genuinely can't grade).
+    // Player name didn't match any row in the box score. Could be:
+    //   (a) actual DNP / inactive (player not dressed),
+    //   (b) diacritic / abbreviation mismatch (e.g. "C. Leite" vs "Carla Leite"),
+    //   (c) ESPN feed glitch.
+    // We DO NOT silently void here — that was over-aggressive and grading played
+    // players as void. Always surface as an error so the user can verify and
+    // manually mark HIT/MISS/VOID. The grader will not change the bet's state.
     if (meta && meta.completed > 0 && meta.completed === meta.total) {
-      return { ok: true, result: "void", total: 0, dnp: true };
+      return { ok: false, reason: `${b.player} not found in box score (verify DNP — manual grade required)` };
     }
     if (meta && meta.completed > 0) {
-      // Some games final, some not — the player's game may not be done. Be safe: skip.
       return { ok: false, reason: `${b.player}: game may not be final yet` };
     }
-    return { ok: false, reason: `${b.player} not in ESPN box scores for ${iso} (DNP?)` };
+    return { ok: false, reason: `${b.player} not in ESPN box scores for ${iso} (verify DNP — manual grade required)` };
   }
 
-  // DNP guard: player listed but flagged DNP or logged 0 minutes → VOID.
-  // Without this, a benched player's 0 stats grade unders as wins (the Boston bug).
-  const anyPlayed = matches.some(m => !m.dnp && (m.stats && m.stats.min > 0));
-  if (!anyPlayed) {
+  // DNP guard: only trust ESPN's explicit didNotPlay flag. Parsed minutes can be 0
+  // for benign reasons (label format variance) so we don't void off that signal alone.
+  // If every matching row is explicitly flagged DNP, the player didn't play → VOID.
+  const allDnp = matches.every(m => m.dnp);
+  if (allDnp) {
     return { ok: true, result: "void", total: 0, dnp: true };
   }
 
@@ -3217,14 +3229,25 @@ function renderTracker() {
           <div style="font-size:11px;color:#d4dae3;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#FDB927;font-weight:700;letter-spacing:0.5px;">${b.projSource === "blended" ? "PLAYERBASED" : b.projSource.toUpperCase()}</span>` : ''}</div>
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
-          ${b.result === "pending" ? `
-            <button class="result-btn hit" onclick="setBetResult(${b.id},'hit')">HIT</button>
-            <button class="result-btn miss" onclick="setBetResult(${b.id},'miss')">MISS</button>
-            <button class="result-btn" onclick="setBetResult(${b.id},'void')" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b55;">VOID</button>
-            <button class="result-btn" onclick="gradeOneBet(${b.id})" style="background:#55258330;color:#FDB927;border:1px solid #55258377;" title="Auto grade via ESPN">AUTO</button>
-          ` : `
-            <span style="background:${accent}22;border:1px solid ${accent}55;color:${accent};border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:0.5px;">${b.result.toUpperCase()}</span>
-          `}
+          ${(() => {
+            // Always show HIT/MISS/VOID. Current state highlighted; click another to override the grade.
+            const cur = b.result || "pending";
+            const btn = (label, val, baseBg, baseBorder, baseColor) => {
+              const active = cur === val;
+              const bg = active ? baseBg.replace("22","").replace("33","").replace("66","") : baseBg;
+              const border = active ? baseColor : baseBorder;
+              const color = active ? "#0d1117" : baseColor;
+              const weight = active ? "800" : "700";
+              return `<button class="result-btn" onclick="setBetResult(${b.id},'${val}')" style="background:${bg};border:1px solid ${border};color:${color};font-weight:${weight};border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;">${label}</button>`;
+            };
+            const hitBtn = btn("HIT", "hit", "#22c55e22", "#22c55e55", "#22c55e");
+            const missBtn = btn("MISS", "miss", "#f8717122", "#f8717155", "#f87171");
+            const voidBtn = btn("VOID", "void", "#f59e0b22", "#f59e0b55", "#f59e0b");
+            const autoBtn = cur === "pending"
+              ? `<button class="result-btn" onclick="gradeOneBet(${b.id})" style="background:#55258330;color:#FDB927;border:1px solid #55258377;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;" title="Auto grade via ESPN">AUTO</button>`
+              : "";
+            return `${hitBtn}${missBtn}${voidBtn}${autoBtn}`;
+          })()}
           <button onclick="copySingleBet(${b.id})" style="background:#55258330;border:1px solid #55258377;color:#FDB927;font-size:11px;font-weight:700;cursor:pointer;padding:3px 10px;border-radius:4px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Copy this bet">COPY</button>
           <button onclick="editBet(${b.id})" style="background:transparent;border:1px solid #1f2733;color:#d4dae3;font-size:11px;font-weight:700;cursor:pointer;padding:3px 10px;border-radius:4px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Edit this bet">EDIT</button>
           <button onclick="deleteBet(${b.id})" style="background:transparent;border:none;color:#525a64;font-size:16px;cursor:pointer;padding:0 4px;" title="Delete">✕</button>
