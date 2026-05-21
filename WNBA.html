@@ -3077,12 +3077,15 @@ function _copyOpenFiltered(kind) {
       if (sameLineParts.length) lines.push(sameLineParts.join("  "));
       altLineParts.forEach(p => lines.push(`alts: ${p}`));
     }
-    // Blank line between bets only when:
-    //   - props mode AND the NEXT bet belongs to a different player, OR
-    //   - totals mode (each bet stands alone, blank line between them)
+    // Blank lines between bets:
+    //   - props mode, same player → ONE blank line (light spacing)
+    //   - props mode, different next player → TWO blank lines (clear visual break)
+    //   - totals mode → ONE blank line between every bet
     if (idx < enriched.length - 1) {
       const nextBet = enriched[idx + 1].bet;
-      if (kind === "totals" || nextBet.player !== bet.player) {
+      if (kind === "props" && nextBet.player !== bet.player) {
+        lines.push("", "");
+      } else {
         lines.push("");
       }
     }
