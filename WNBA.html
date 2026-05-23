@@ -948,12 +948,19 @@ function renderTable() {
       ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;flex:0 0 auto;">${minPills.join("")}</span>`
       : "";
 
+    // ✓ TRACKED pill — session-only, shows when this player+stat was already tracked
+    // since page load. Helps you avoid re-tracking the same bet. Clears on refresh.
+    const tracked = _isTrackedProp(r.rawName, STAT_LABEL[sortBy]);
+    const trackedPill = tracked
+      ? `<span style="background:#22c55e1a;border:1px solid #22c55e66;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;white-space:nowrap;">✓ TRACKED</span>`
+      : "";
+
     return `<tr class="${i%2===0?'even':'odd'}">
       <td style="padding:7px 10px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#55258330;border:1px solid #55258377;color:#FDB927;border-radius:5px;padding:0 11px;font-size:18px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:26px;height:26px;flex:0 0 auto;">+</button>
           <span style="font-size:14px;font-weight:700;color:${tc};white-space:nowrap;">${r.rawName}</span>
-          <span style="display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;">${r.team ? `<span style="background:#FDB9271a;border:1px solid #FDB92755;color:#FDB927;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.team}</span>` : ''}${r.pos ? `<span style="background:#a78bfa1a;border:1px solid #a78bfa55;color:#a78bfa;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.pos}</span>` : ''}</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;">${r.team ? `<span style="background:#FDB9271a;border:1px solid #FDB92755;color:#FDB927;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.team}</span>` : ''}${r.pos ? `<span style="background:#a78bfa1a;border:1px solid #a78bfa55;color:#a78bfa;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.pos}</span>` : ''}${trackedPill}</span>
           ${minChip}
         </div>
         <div style="font-size:12px;color:#dde2e9;font-weight:500;margin-top:4px;margin-left:30px;display:flex;align-items:center;flex-wrap:wrap;gap:2px;">${srcInline || '<span style="color:#525a64">no projections</span>'}</div>
@@ -1305,6 +1312,17 @@ function trackRow(i) {
   const r = rowCache[i];
   if (!r) return;
   openTrackModal(r.player, r.pos, r.stat, r.proj, r.team);
+}
+
+// Session-only set of "player|stat" combos tracked this page-load. Used to badge
+// Results rows as ✓ TRACKED so you don't re-track. Clears on refresh.
+const sessionTrackedProps = new Set();
+function _markTrackedProp(player, stat) {
+  if (!player || !stat) return;
+  sessionTrackedProps.add(`${player}|${(stat||"").toUpperCase()}`);
+}
+function _isTrackedProp(player, stat) {
+  return sessionTrackedProps.has(`${player}|${(stat||"").toUpperCase()}`);
 }
 
 function trackTotal(payload, ...legacyArgs) {
@@ -1894,9 +1912,13 @@ function saveBet() {
   if ((stat||"").toUpperCase() === "GAME_TOTAL" && isoDate) {
     try { localStorage.setItem("wnba_last_total_date", isoDate); } catch(e) {}
   }
+  // Mark this player+stat as tracked in the current session so Results shows ✓ TRACKED.
+  // Player props only — GAME_TOTAL is handled by the totals tab's own indicator.
+  if (stat !== "GAME_TOTAL") _markTrackedProp(bet.player, stat);
   saveBets();
   closeTrackModal();
   if (currentTab === "tracker") renderTracker();
+  if (currentTab === "results" && typeof renderTable === "function") renderTable();
   if (currentTab === "totals") renderTotals();
   copyVal(`${modalPlayer} ${ou} ${line} ${stat}`);
 }
@@ -2106,8 +2128,8 @@ function copySingleBet(id) {
     });
     // Same-line alts go directly under the main bet (no prefix).
     if (sameLineParts.length) line += `\n${sameLineParts.join("  ")}`;
-    // Each different-line group gets its own line, prefixed "alts:".
-    altLineParts.forEach(p => { line += `\nalts: ${p}`; });
+    // Multiple alt-line groups share one "alts:" prefix on a single line.
+    if (altLineParts.length) line += `\nalts: ${altLineParts.join("  ")}`;
   }
 
   // Bulletproof copy
@@ -2612,6 +2634,79 @@ async function analyzePace() {
   showToast(`Analyzed ${paceRows.length} game(s)`);
 }
 
+let paceDebugOutput = "";  // raw debug dump shown in the UI
+
+async function paceDebugDump() {
+  paceDebugOutput = "Fetching...";
+  renderPace();
+  // Pick the most recent settled total
+  const totals = bets.filter(b =>
+    (b.stat||"").toUpperCase() === "GAME_TOTAL" &&
+    b.result && b.result !== "pending"
+  );
+  if (!totals.length) {
+    paceDebugOutput = "ERROR: no settled totals tracked. Need at least one settled GAME_TOTAL bet to probe.";
+    renderPace();
+    return;
+  }
+  const b = totals[0];
+  const iso = getBetISODate(b);
+  if (!iso) {
+    paceDebugOutput = "ERROR: no date on bet " + b.player;
+    renderPace();
+    return;
+  }
+  let awayAbbr = null, homeAbbr = null;
+  if (b.team && b.team.includes("/")) [awayAbbr, homeAbbr] = b.team.split("/").map(s => normTeamAbbr(s.trim()));
+
+  let meta;
+  try { ({ meta } = await fetchESPNStatsForDate(iso)); } catch(e) {
+    paceDebugOutput = "ERROR fetching meta: " + e.message;
+    renderPace();
+    return;
+  }
+  const game = meta && meta.games ? meta.games.find(g =>
+    normTeamAbbr(g.awayAbbr) === awayAbbr && normTeamAbbr(g.homeAbbr) === homeAbbr) : null;
+  if (!game) {
+    paceDebugOutput = `Game ${awayAbbr} @ ${homeAbbr} not found on ${iso}.\nAvailable games on this date:\n${meta?.games?.map(g => `  ${g.awayAbbr} @ ${g.homeAbbr} (eventId=${g.eventId}, completed=${g.completed})`).join("\n") || "(none)"}`;
+    renderPace();
+    return;
+  }
+  let summary;
+  try {
+    const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/summary?event=${game.eventId}`);
+    if (!r.ok) { paceDebugOutput = `ESPN returned HTTP ${r.status}`; renderPace(); return; }
+    summary = await r.json();
+  } catch(e) {
+    paceDebugOutput = "ERROR fetching summary: " + e.message;
+    renderPace();
+    return;
+  }
+  // Dump just the boxscore.teams block + top-level keys (so we see the shape without massive bloat)
+  const teamsBlock = summary.boxscore?.teams || [];
+  const playersBlockKeys = (summary.boxscore?.players || []).map(g => ({
+    teamAbbr: g.team?.abbreviation,
+    statGroupCount: g.statistics?.length,
+    sampleLabels: g.statistics?.[0]?.labels || g.statistics?.[0]?.keys,
+  }));
+  const dump = {
+    matchup: `${awayAbbr} @ ${homeAbbr}`,
+    eventId: game.eventId,
+    boxscore_top_keys: Object.keys(summary.boxscore || {}),
+    teams_count: teamsBlock.length,
+    teams_block: teamsBlock,
+    players_summary: playersBlockKeys
+  };
+  paceDebugOutput = JSON.stringify(dump, null, 2);
+  renderPace();
+}
+
+function copyPaceDebug() {
+  if (!paceDebugOutput) return;
+  copyVal(paceDebugOutput);
+  showToast("Copied debug dump");
+}
+
 function renderPace() {
   const el = document.getElementById("pace-tab");
   if (!el) return;
@@ -2681,16 +2776,33 @@ function renderPace() {
           </tr>`).join("")}
         </tbody></table></div>`;
 
+  const debugBlock = paceDebugOutput
+    ? `<div style="margin-top:16px;background:#0a0e13;border:1px solid #552583;border-radius:8px;padding:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;color:#FDB927;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;">ESPN Raw Debug</span>
+          <div style="display:flex;gap:6px;">
+            <button onclick="copyPaceDebug()" style="background:#552583;border:none;color:#FDB927;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">COPY</button>
+            <button onclick="paceDebugOutput='';renderPace();" style="background:transparent;border:1px solid #1f2733;color:#d4dae3;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">CLEAR</button>
+          </div>
+        </div>
+        <pre style="background:#0d1117;border:1px solid #1f2733;border-radius:4px;padding:10px;font-size:10px;color:#d4dae3;overflow-x:auto;max-height:400px;white-space:pre-wrap;word-break:break-word;font-family:'JetBrains Mono','Menlo',monospace;">${paceDebugOutput.replace(/</g,"&lt;")}</pre>
+      </div>`
+    : "";
+
   el.innerHTML = `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:16px;">
       <div>
         <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;">Pace Analysis</div>
         <div style="font-size:13px;color:#d4dae3;max-width:560px;line-height:1.5;">Realized possessions (FGA + 0.44·FTA − OREB + TOV, averaged) vs your projected pace. If pace was right and you still lost, that's variance. If pace was wrong, that's a model problem.</div>
       </div>
-      <button onclick="analyzePace()" ${btnDisabled?"disabled":""} style="background:${btnDisabled?'#1f2733':'#552583'};border:none;color:${btnDisabled?'#d4dae3':'#0d1117'};border-radius:8px;padding:14px 24px;font-size:14px;font-weight:800;cursor:${btnDisabled?'not-allowed':'pointer'};font-family:'Inter',sans-serif;letter-spacing:0.3px;">${btnLabel}</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="paceDebugDump()" title="Dump raw ESPN response so we can fix the parser" style="background:transparent;border:1px solid #1f2733;color:#FDB927;border-radius:6px;padding:8px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">🔍 DEBUG</button>
+        <button onclick="analyzePace()" ${btnDisabled?"disabled":""} style="background:${btnDisabled?'#1f2733':'#552583'};border:none;color:${btnDisabled?'#d4dae3':'#0d1117'};border-radius:8px;padding:14px 24px;font-size:14px;font-weight:800;cursor:${btnDisabled?'not-allowed':'pointer'};font-family:'Inter',sans-serif;letter-spacing:0.3px;">${btnLabel}</button>
+      </div>
     </div>
     ${summaryHtml}
     <div style="background:#0a0e13;border:1px solid #1f2733;border-radius:8px;min-height:200px;">${rowsHtml}</div>
+    ${debugBlock}
     <div style="font-size:10px;color:#525a64;margin-top:10px;line-height:1.5;">Δ Pace = realized − projected possessions. Green ≤3 (pace right), amber ≤6 (soft), red >6 (pace miss). Bets tracked before this feature won't have stored projected possessions and show "no proj poss" — only new totals get the exact comparison.</div>`;
 }
 
@@ -2892,6 +3004,15 @@ const STAT_UA_LABEL = {
   "PRA":"PRA", "MIN":"Minutes", "PR":"PR", "PA":"PA", "RA":"RA"
 };
 
+// Fixed stat order for displaying a player's multiple bets — always the same sequence
+// (threes, points, assists, rebounds, PRA) so a player's row is predictable to scan.
+// Anything unknown lands at the end alphabetically.
+const STAT_ORDER = ["3PM", "PTS", "AST", "REB", "PRA", "PR", "PA", "RA", "MIN"];
+function statRank(s) {
+  const i = STAT_ORDER.indexOf((s||"").toUpperCase());
+  return i === -1 ? 999 : i;
+}
+
 // UA-style copy: clean grouped list, no books/odds/fair/play-to. Just sides+lines+stats
 // under each player, so you can scan what you already have on each player before adding more.
 // Only includes open (pending) props — totals excluded since this is for prop overlap-check.
@@ -2910,10 +3031,10 @@ function copyUA() {
   const lines = [];
   byPlayer.forEach((playerBets, name) => {
     lines.push(name);
-    // Sort: by stat (alphabetical), then line ascending
+    // Sort: by fixed stat order (3PM, PTS, AST, REB, PRA), then line ascending
     playerBets.sort((a, b) => {
-      const stA = (a.stat||""), stB = (b.stat||"");
-      if (stA !== stB) return stA.localeCompare(stB);
+      const ra = statRank(a.stat), rb = statRank(b.stat);
+      if (ra !== rb) return ra - rb;
       return (a.line||0) - (b.line||0);
     });
     playerBets.forEach(b => {
@@ -2991,7 +3112,10 @@ function _copyOpenFiltered(kind) {
       const ai = playerOrder.indexOf(a.bet.player);
       const bi = playerOrder.indexOf(b.bet.player);
       if (ai !== bi) return ai - bi;
-      return b.best.ev - a.best.ev;
+      // Within a player, fixed stat order so each player's row reads predictably
+      const ra = statRank(a.bet.stat), rb = statRank(b.bet.stat);
+      if (ra !== rb) return ra - rb;
+      return (a.bet.line||0) - (b.bet.line||0);
     });
   } else {
     // Totals — flat EV sort
@@ -3075,16 +3199,17 @@ function _copyOpenFiltered(kind) {
         else altLineParts.push(groupStr);
       });
       if (sameLineParts.length) lines.push(sameLineParts.join("  "));
-      altLineParts.forEach(p => lines.push(`alts: ${p}`));
+      // Multiple different-line groups all share ONE "alts:" prefix — joined on the same line.
+      if (altLineParts.length) lines.push(`alts: ${altLineParts.join("  ")}`);
     }
     // Blank lines between bets:
-    //   - props mode, same player → ONE blank line (light spacing)
-    //   - props mode, different next player → TWO blank lines (clear visual break)
+    //   - props mode, different next player → ONE blank line (light visual break)
+    //   - props mode, same player → no blank line (tight cluster)
     //   - totals mode → ONE blank line between every bet
     if (idx < enriched.length - 1) {
       const nextBet = enriched[idx + 1].bet;
-      if (kind === "props" && nextBet.player !== bet.player) {
-        lines.push("", "");
+      if (kind === "props") {
+        if (nextBet.player !== bet.player) lines.push("");
       } else {
         lines.push("");
       }
