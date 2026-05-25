@@ -237,6 +237,13 @@ const SOURCES = [
   {key:"rotowire", label:"RW",       color:"#a78bfa", logo:"data:image/png;base64,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"},
 ];
 
+// Which sources count toward the consensus (AVG pill + EXPORT CONSENSUS CSV).
+// Locked to RW + RG so adding Saber/Dimers/other sources doesn't silently drift
+// the consensus number. Per-source pills still show every loaded source — only
+// the AVG calc is restricted.
+const CONSENSUS_KEYS = new Set(["roto", "rotowire"]);
+function isConsensusSource(key) { return CONSENSUS_KEYS.has(key); }
+
 // Per-source enabled/disabled toggle — persists to localStorage. Default: Saber disabled.
 let disabledSources = new Set(["saber"]);
 try {
@@ -316,6 +323,16 @@ function setCardProjSource(cardKey, source) {
 function setCardSeason(cardKey, season) {
   window._cardSeason = window._cardSeason || {};
   window._cardSeason[cardKey] = season;
+  renderTotals();
+}
+// What-If Matchup setters — pick two teams to run Pace × Eff against without a slate
+function setWhatIfTeam(slot, team) {
+  if (slot === "away") window._whatIfAway = team;
+  else window._whatIfHome = team;
+  renderTotals();
+}
+function setWhatIfSeason(season) {
+  window._whatIfSeason = season;
   renderTotals();
 }
 // Totals σ — fixed at 14 (historical WNBA totals stdev). Single source of truth.
@@ -766,12 +783,21 @@ function runMerge() {
     }
     const matches = lookups.map(lk => lk ? (lk[epNorm]||null) : null);
     const found = matches.filter(Boolean);
+    // Consensus is locked to RW + RG (CONSENSUS_KEYS). Other sources can be loaded
+    // (Saber, Dimers, etc) but they show as per-source pills only — they don't
+    // skew the AVG number or the EXPORT CONSENSUS file.
+    const consensusMatches = matches
+      .map((m, i) => (m && isConsensusSource(SOURCES[i].key)) ? m : null)
+      .filter(Boolean);
     const con = {};
     STATS.forEach(stat => {
-      const vals = found.map(p=>p[stat]).filter(v=>v!=null && v>0);
+      const vals = consensusMatches.map(p=>p[stat]).filter(v=>v!=null && v>0);
       con[stat] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
     });
-    return {rawName, norm:epNorm, team, pos, matches, found:found.length, con, isConsensus:found.length>=active.length};
+    // "In consensus" means present in BOTH RW and RG specifically (not just any 2 sources).
+    const consensusLoadedCount = active.filter(s => isConsensusSource(s.key)).length;
+    const isConsensus = consensusMatches.length >= consensusLoadedCount && consensusLoadedCount > 0;
+    return {rawName, norm:epNorm, team, pos, matches, found:found.length, con, isConsensus};
   });
 
   const nM = merged.filter(r=>r.found>0).length;
@@ -893,8 +919,11 @@ function renderTable() {
       const m=lk[norm(r.rawName)];
       return (m&&m[sortBy]!=null)?m[sortBy]:null;
     });
+    // AVG is locked to RW+RG (CONSENSUS_KEYS) only. Other loaded sources show as
+    // their own pills but don't drift the consensus number.
+    const consensusVals = srcVals.filter((v,si) => v != null && isConsensusSource(SOURCES[si].key));
     const presentVals = srcVals.filter(v=>v!=null);
-    const avg = presentVals.length ? presentVals.reduce((a,b)=>a+b,0)/presentVals.length : null;
+    const avg = consensusVals.length ? consensusVals.reduce((a,b)=>a+b,0)/consensusVals.length : null;
     const tight = isTight(r, sortBy, lookups);
     const tc = presentVals.length===0?"#525a64":tight?"#ffffff":"#dde2e9";
 
@@ -920,9 +949,9 @@ function renderTable() {
       const border = withinTol ? "#55258366" : "#1f2733";
       return `<span class="copyable" onclick="event.stopPropagation();copyAvg(${v.toFixed(4)})" title="${SOURCES[si].label}: ${v.toFixed(2)} (click to copy${sortBy==='pra'?' /3 for PRA':''})" style="display:inline-flex;align-items:center;gap:4px;background:#0d1117;border:1px solid ${border};border-radius:4px;padding:1px 7px;white-space:nowrap;"><span style="color:#8b93a0;font-weight:600;font-size:10px;">${SOURCES[si].label}</span><span style="color:${valColor};font-weight:700;">${v.toFixed(2)}</span></span>`;
     }).filter(Boolean);
-    // AVG pill appended at end once 2+ sources contributed. Reference only — NOT clickable.
-    const srcCount = srcVals.filter(v=>v!=null).length;
-    if (avg != null && srcCount >= 2) {
+    // AVG pill appended at end once 2+ CONSENSUS sources (RW+RG) contributed.
+    // Reference only — NOT clickable.
+    if (avg != null && consensusVals.length >= 2) {
       srcPills.push(`<span title="Blended average (reference only)" style="display:inline-flex;align-items:center;gap:4px;background:#FDB9270d;border:1px solid #FDB92744;border-radius:4px;padding:1px 7px;white-space:nowrap;"><span style="color:#FDB927;font-weight:700;font-size:10px;letter-spacing:0.3px;">AVG</span><span style="color:#FDB927;font-weight:800;">${avg.toFixed(2)}</span></span>`);
     }
     const srcInline = srcPills.join('<span style="margin:0 3px;"></span>');
@@ -934,14 +963,16 @@ function renderTable() {
       return (m && m.min != null && m.min > 0) ? m.min : null;
     });
     const minsPresent = minVals.filter(v=>v!=null);
+    // Minutes AVG locked to RW+RG only (matches projection AVG behavior)
+    const minsConsensus = minVals.filter((v,si) => v != null && isConsensusSource(SOURCES[si].key));
     const fmtM = v => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1));
     // Minutes as tiny pills — per-source muted, AVG accented. Compact, never wraps.
     const minPill = (label, val, accent) =>
       `<span style="display:inline-flex;align-items:center;gap:3px;background:#0d1117;border:1px solid ${accent?'#55258366':'#1f2733'};border-radius:4px;padding:1px 6px;font-size:9px;white-space:nowrap;"><span style="color:#7a8390;font-weight:600;">${label}</span><span style="color:#FDB927;font-weight:${accent?'800':'700'};">${fmtM(val)}m</span></span>`;
     const minPills = [];
     minVals.forEach((v,si)=>{ if(v!=null) minPills.push(minPill(SOURCES[si].label, v, false)); });
-    if (minsPresent.length >= 2) {
-      const avgMin = minsPresent.reduce((a,b)=>a+b,0)/minsPresent.length;
+    if (minsConsensus.length >= 2) {
+      const avgMin = minsConsensus.reduce((a,b)=>a+b,0)/minsConsensus.length;
       minPills.push(minPill("AVG", avgMin, true));
     }
     const minChip = minsPresent.length
@@ -3125,6 +3156,7 @@ function _copyOpenFiltered(kind) {
   // Pre-count bets per player so we can stamp "(N Props)" on the FIRST occurrence only.
   // Used in props mode where bets are grouped by player.
   const propsPerPlayer = {};
+  const propsIdxForPlayer = {};  // per-player running counter for 1./2./3. numbering
   if (kind === "props") {
     enriched.forEach(e => {
       propsPerPlayer[e.bet.player] = (propsPerPlayer[e.bet.player] || 0) + 1;
@@ -3173,15 +3205,23 @@ function _copyOpenFiltered(kind) {
       row = `${bet.player}  ${ouLower} ${bestLine} ${oddsStr} ${best.book}${headlinePlayToStr}`;
     } else {
       const statName = STAT_FULL_NAME[bet.stat] || bet.stat;
-      // First time we see this player in this run: show name (+ team + "(N Props)" if multi).
-      // Subsequent bets for same player: drop the name prefix entirely — line just starts with side+stat.
-      if (bet.player !== prevPlayer) {
-        const teamStr = bet.team ? ` (${bet.team})` : "";
-        const cnt = propsPerPlayer[bet.player] || 1;
-        const cntStr = cnt > 1 ? ` (${cnt} Props)` : "";
-        row = `${bet.player}${teamStr}${cntStr}  ${ouLower} ${bestLine} ${statName} ${oddsStr} ${best.book}${headlinePlayToStr}`;
+      const cnt = propsPerPlayer[bet.player] || 1;
+      // Per-player bet index — only used when player has 2+ props
+      if (bet.player !== prevPlayer) propsIdxForPlayer[bet.player] = 0;
+      propsIdxForPlayer[bet.player]++;
+      const betIdx = propsIdxForPlayer[bet.player];
+      // Multi-prop player: emit a header line on first occurrence, then indent + number each bet.
+      // Solo player: same single line as before, no header, no indent, no number.
+      if (cnt > 1) {
+        if (bet.player !== prevPlayer) {
+          const teamStr = bet.team ? ` (${bet.team})` : "";
+          // Header line above the cluster
+          lines.push(`${bet.player}${teamStr} (${cnt} Props)`);
+        }
+        row = `  ${betIdx}. ${ouLower} ${bestLine} ${statName} ${oddsStr} ${best.book}${headlinePlayToStr}`;
       } else {
-        row = `${ouLower} ${bestLine} ${statName} ${oddsStr} ${best.book}${headlinePlayToStr}`;
+        const teamStr = bet.team ? ` (${bet.team})` : "";
+        row = `${bet.player}${teamStr}  ${ouLower} ${bestLine} ${statName} ${oddsStr} ${best.book}${headlinePlayToStr}`;
       }
       prevPlayer = bet.player;
     }
@@ -3217,9 +3257,12 @@ function _copyOpenFiltered(kind) {
         if (isSameLine) sameLineParts.push(groupStr);
         else altLineParts.push(groupStr);
       });
-      if (sameLineParts.length) lines.push(sameLineParts.join("  "));
+      // Multi-prop players use indented numbered bets — alt lines indent to match (4 spaces
+       // so they sit under the bet text after "  N. "). Solo bets stay unindented.
+      const altIndent = (kind === "props" && (propsPerPlayer[bet.player] || 1) > 1) ? "     " : "";
+      if (sameLineParts.length) lines.push(`${altIndent}${sameLineParts.join("  ")}`);
       // Multiple different-line groups all share ONE "alts:" prefix — joined on the same line.
-      if (altLineParts.length) lines.push(`alts: ${altLineParts.join("  ")}`);
+      if (altLineParts.length) lines.push(`${altIndent}alts: ${altLineParts.join("  ")}`);
     }
     // Blank lines between bets:
     //   - props mode, different next player → ONE blank line (light visual break)
@@ -4410,6 +4453,101 @@ function renderTotals() {
         style="width:100%;min-height:80px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
       ${noGames ? `<div style="font-size:11px;color:#525a64;margin-top:8px;">Paste the Betstamp slate above to load games.</div>` : `<div style="font-size:11px;color:#FDB927;margin-top:8px;">${betstampGames.length} games loaded</div>`}
     </div>
+
+    ${(() => {
+      // What-If Matchup: pick any two teams and run Pace × Eff without needing a betstamp slate.
+      // Teams available = anything we have advanced stats for, in either 2025 or 2026.
+      const teamSet = new Set();
+      Object.keys(teamStats2025).forEach(t => teamSet.add(t));
+      Object.keys(teamStats2026).forEach(t => teamSet.add(t));
+      const teams = Array.from(teamSet).sort();
+      if (teams.length < 2) {
+        return `<div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;color:#525a64;font-size:12px;">
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">What-If Matchup</div>
+          Need team advanced stats for at least 2 teams (paste below) to run hypothetical matchups.
+        </div>`;
+      }
+      // Current selections persist in window state across re-renders
+      const a = window._whatIfAway || teams[0];
+      const b = window._whatIfHome || teams[1];
+      const season = window._whatIfSeason || "auto";
+      const sameTeam = a === b;
+      const opt = (cur) => teams.map(t => `<option value="${t}" ${cur===t?'selected':''}>${t}</option>`).join("");
+      const seasonBtn = (val, label) => {
+        const on = season === val;
+        return `<button onclick="setWhatIfSeason('${val}')" style="background:${on?'#552583':'#0d1117'};border:1px solid ${on?'#552583':'#1f2733'};color:${on?'#FDB927':'#d4dae3'};border-radius:4px;padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:0.3px;cursor:pointer;font-family:'Inter',sans-serif;">${label}</button>`;
+      };
+
+      // Compute the projection if both teams are different + valid
+      let resultHtml = "";
+      if (sameTeam) {
+        resultHtml = `<div style="color:#f87171;font-size:12px;margin-top:10px;">Pick two different teams.</div>`;
+      } else {
+        const seasonArg = season === "auto" ? undefined : season;
+        const info = independentTotal(a, b, seasonArg);
+        if (!info) {
+          resultHtml = `<div style="color:#f87171;font-size:12px;margin-top:10px;">No team stats for this matchup in the selected season.</div>`;
+        } else {
+          const total = info.total;
+          const ptsA = info.ptsA, ptsB = info.ptsB;
+          const poss = info.projPoss;
+          const fallback = info.usedFallback ? `<span style="color:#f59e0b;font-size:10px;margin-left:6px;">⚠ league-avg fallback</span>` : "";
+          const aSrc = info.aSource ? `<span style="font-size:9px;color:#7a8390;margin-left:4px;">(${info.aSource})</span>` : "";
+          const bSrc = info.bSource ? `<span style="font-size:9px;color:#7a8390;margin-left:4px;">(${info.bSource})</span>` : "";
+          resultHtml = `
+            <div style="margin-top:14px;padding:14px;background:#0d1117;border:1px solid #552583;border-radius:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:11px;color:#a8b0bb;letter-spacing:0.6px;text-transform:uppercase;font-weight:700;">Projected Total</div>
+                  <div style="font-size:32px;font-weight:800;color:#FDB927;line-height:1.1;margin-top:2px;text-shadow:0 0 14px rgba(253,185,39,0.45);">${total.toFixed(1)}${fallback}</div>
+                </div>
+                <div style="display:flex;gap:14px;font-size:12px;">
+                  <div>
+                    <div style="color:#a8b0bb;font-size:10px;letter-spacing:0.4px;text-transform:uppercase;font-weight:700;">${a}${aSrc}</div>
+                    <div style="color:#fff;font-weight:700;font-size:18px;">${ptsA.toFixed(1)}</div>
+                  </div>
+                  <div>
+                    <div style="color:#a8b0bb;font-size:10px;letter-spacing:0.4px;text-transform:uppercase;font-weight:700;">${b}${bSrc}</div>
+                    <div style="color:#fff;font-weight:700;font-size:18px;">${ptsB.toFixed(1)}</div>
+                  </div>
+                  <div>
+                    <div style="color:#a8b0bb;font-size:10px;letter-spacing:0.4px;text-transform:uppercase;font-weight:700;">Poss</div>
+                    <div style="color:#fff;font-weight:700;font-size:18px;">${poss != null ? poss.toFixed(1) : '—'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        }
+      }
+
+      return `<div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">What-If Matchup</div>
+            <div style="font-size:11px;color:#a8b0bb;margin-top:2px;">Run Pace × Eff on any two teams — no slate or odds needed.</div>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <span style="font-size:10px;color:#7a8390;letter-spacing:0.4px;margin-right:4px;font-weight:700;text-transform:uppercase;">Season</span>
+            ${seasonBtn("auto","AUTO")}
+            ${seasonBtn("2025","'25")}
+            ${seasonBtn("2026","'26")}
+            ${seasonBtn("blend","50/50")}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;">
+          <div>
+            <div style="font-size:10px;color:#a8b0bb;letter-spacing:0.4px;text-transform:uppercase;font-weight:700;margin-bottom:3px;">Away</div>
+            <select onchange="setWhatIfTeam('away', this.value)" style="width:100%;background:#0d1117;border:1px solid #1f2733;color:#fff;border-radius:5px;padding:8px 10px;font-size:13px;font-weight:600;outline:none;font-family:'Inter',sans-serif;cursor:pointer;">${opt(a)}</select>
+          </div>
+          <div style="color:#525a64;font-size:13px;font-weight:700;padding-top:18px;">@</div>
+          <div>
+            <div style="font-size:10px;color:#a8b0bb;letter-spacing:0.4px;text-transform:uppercase;font-weight:700;margin-bottom:3px;">Home</div>
+            <select onchange="setWhatIfTeam('home', this.value)" style="width:100%;background:#0d1117;border:1px solid #1f2733;color:#fff;border-radius:5px;padding:8px 10px;font-size:13px;font-weight:600;outline:none;font-family:'Inter',sans-serif;cursor:pointer;">${opt(b)}</select>
+          </div>
+        </div>
+        ${resultHtml}
+      </div>`;
+    })()}
 
     <div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;">
       <div style="margin-bottom:10px;">
