@@ -1181,8 +1181,14 @@ function conFromSourceKeys(r, allowedKeys) {
 // Shared writer for consensus-style CSVs (RG+RW core or RG+RW+Extras).
 function writeConsensusCsv(allowedKeys, filename, label) {
   if (!merged) return;
-  const rows = getRowsForRender();
-  if (!rows.length) { showToast("No rows match current filters"); return; }
+  // Export ALL players, not just those filtered by the current stat tab.
+  // Each row contains every stat (3PM, AST, PTS, REB) — the CSV is complete
+  // regardless of which stat the user happened to be viewing.
+  const search = document.getElementById("search-box").value.toLowerCase();
+  const rows = merged
+    .filter(r => !search || r.rawName.toLowerCase().includes(search))
+    .sort((a, b) => a.rawName.localeCompare(b.rawName));
+  if (!rows.length) { showToast("No players to export"); return; }
   const header = "id,name,first_name,last_name,position,team,three_pointers_made,assists,blocks,double_double,points,rebounds,steals,triple_double,turnovers,fd_points,dk_points";
   const tmplByNorm = {};
   WNBA_TEMPLATE.forEach(t => { tmplByNorm[norm(t.name)] = t; });
