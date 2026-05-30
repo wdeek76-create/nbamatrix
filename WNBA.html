@@ -4123,6 +4123,334 @@ function clearBetstamp() {
   renderTotals();
 }
 
+// ── ESPN WNBA ODDS PARSER ──────────────────────────────────────────────────
+// Free fallback for the Betstamp paste — works off ESPN's WNBA odds page
+// (espn.com/wnba/odds). Single book only (ESPN's odds partner, typically
+// DraftKings), so multi-book comparison isn't available, but the page is free
+// and the format is dead simple. Block structure for each game:
+//   "Saturday, May 30"        ← date header (drives the day-of-week label)
+//   "1:00 PM"                 ← time header (ET)
+//   "Open" "Spread" "Total" "ML"   ← 4 column headers
+//   "Seattle Storm" "(3-5)"   ← away team + record
+//   <Open total>: "o168.5" "-110"           ← skip — opening line, not active
+//   <Spread>:     "+5.5" "-105"             ← skip — totals only here
+//   <Total>:      "o170.5" "-108"           ← KEEP — current total over side
+//   <ML>:         "+190"                    ← skip
+//   "Toronto Tempo" "(4-4)"  ← home team + record
+//   <Open total>: "u170.5" "-112"           ← skip
+//   <Spread>:     "-5.5" "-115"             ← skip
+//   <Total>:      "u170.5" "-112"           ← KEEP — current total under side
+//   <ML>:         "-230"                    ← skip
+function parseEspn(text) {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const games = [];
+
+  // Day-of-week abbreviations for the user-facing time string ("Sat 1:00 PM").
+  // We keep the user in ET (the timezone ESPN serves), so no TZ conversion math —
+  // just label each game with the day of its date header so multi-day slates
+  // never collide visually on the cards.
+  const dayAbbr = { Sunday:"Sun", Monday:"Mon", Tuesday:"Tue", Wednesday:"Wed", Thursday:"Thu", Friday:"Fri", Saturday:"Sat" };
+  const dateHeaderRe = /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday),\s+/i;
+  const timeRe = /^\d{1,2}:\d{2}\s*(AM|PM)$/i;
+  const overRe = /^o([\d.]+)$/i;
+  const underRe = /^u([\d.]+)$/i;
+  const oddsRe = /^[+\-]\d{2,4}$/;
+  // ESPN bury-able junk: column headers, sponsored sections, futures, news.
+  // Once a futures section appears the rest of the page isn't slate odds.
+  // NOTE: We deliberately DON'T match a bare "ESPN" here — that line appears in
+  // the top nav menu BEFORE the odds data, and matching it would kill the parse
+  // before we ever see a single game.
+  const skipExactSet = new Set(["Open","Spread","Total","ML"]);
+  const stopRe = /^(WNBA Finals|Sponsored Headlines|WNBA News|Looking for WNBA futures|Terms of Use|GAMBLING PROBLEM|Copyright:)/i;
+
+  let currentDay = null;
+  let i = 0;
+  while (i < lines.length) {
+    const ln = lines[i];
+    if (stopRe.test(ln)) break;                    // hit page footer / futures section
+    if (dateHeaderRe.test(ln)) {                   // pick up the day-of-week for upcoming games
+      const dayName = ln.match(dateHeaderRe)[1];
+      currentDay = dayAbbr[dayName] || dayName.slice(0,3);
+      i++; continue;
+    }
+    if (!timeRe.test(ln)) { i++; continue; }       // looking for a time anchor
+
+    const timeStr = ln.replace(/\s+/g, " ");       // "1:00 PM"
+    const labeledTime = currentDay ? `${currentDay} ${timeStr}` : timeStr;
+    i++;
+
+    // Skip the 4 column header rows after the time anchor. ESPN's layout always
+    // emits them ("Open Spread Total ML"), but we defensively allow any order.
+    let headersSeen = 0;
+    while (i < lines.length && headersSeen < 4 && skipExactSet.has(lines[i])) {
+      headersSeen++; i++;
+    }
+
+    // Parse the away team block, then the home team block. We tolerate small
+    // variations: the team name may or may not be followed by a "(W-L)" record,
+    // and we only KEEP odds tokens that match our "current total" expectations
+    // (3rd of 4 columns). Tracking column index lets us skip Open/Spread/ML.
+    const parseTeamBlock = () => {
+      // Team name — first non-empty, non-recorded line that isn't a known token
+      let teamName = null;
+      while (i < lines.length) {
+        const cur = lines[i];
+        if (timeRe.test(cur) || dateHeaderRe.test(cur) || stopRe.test(cur)) return null;
+        if (/^\(\d+-\d+\)$/.test(cur)) { i++; continue; }    // record line — skip
+        if (overRe.test(cur) || underRe.test(cur) || oddsRe.test(cur)) break;
+        teamName = cur;
+        i++;
+        break;
+      }
+      if (!teamName) return null;
+
+      // After the team name there can be a "(W-L)" record. Skip it if present.
+      if (i < lines.length && /^\(\d+-\d+\)$/.test(lines[i])) i++;
+
+      // Walk through the 4 odds columns in order. Each column = total/spread/ml
+      // line + odds (ML has only odds). Column ORDER is Open, Spread, Total, ML.
+      // We grab the over/under line from column 3 only.
+      let col = 0;
+      let totalLine = null;
+      let totalOdds = null;
+      let side = null;
+      // Hard-bound the walk so we never spill into the next team.
+      const colBudget = 4;
+      while (i < lines.length && col < colBudget) {
+        const cur = lines[i];
+        if (timeRe.test(cur) || dateHeaderRe.test(cur) || stopRe.test(cur)) break;
+        // Open and Total columns both lead with a line token (o/u + number).
+        // Distinguish by column index — col 0 = Open, col 2 = Total.
+        const oM = overRe.exec(cur), uM = underRe.exec(cur);
+        if (oM || uM) {
+          // Two-line cell (line + odds). Grab the odds line that follows.
+          const odds = (i + 1 < lines.length && oddsRe.test(lines[i+1])) ? parseInt(lines[i+1], 10) : null;
+          if (col === 2) {                                    // 3rd column = current Total
+            totalLine = parseFloat((oM || uM)[1]);
+            totalOdds = odds;
+            side = oM ? "over" : "under";
+          }
+          i += odds != null ? 2 : 1;
+          col++;
+          continue;
+        }
+        // Spread column: signed line + odds. Two-line cell. Always col 1.
+        if (/^[+\-][\d.]+$/.test(cur)) {
+          const hasOdds = (i + 1 < lines.length && oddsRe.test(lines[i+1]));
+          i += hasOdds ? 2 : 1;
+          col++;
+          continue;
+        }
+        // ML column: bare odds. Col 3.
+        if (oddsRe.test(cur)) {
+          i++;
+          col++;
+          continue;
+        }
+        // Unrecognized token mid-block — bail rather than misalign the rest of the slate.
+        break;
+      }
+      return { teamName, totalLine, totalOdds, side };
+    };
+
+    const awayBlock = parseTeamBlock();
+    if (!awayBlock) continue;
+    const homeBlock = parseTeamBlock();
+    if (!homeBlock) continue;
+
+    const aAbbr = teamLineToAbbr(awayBlock.teamName) || normTeamAbbr(awayBlock.teamName);
+    const hAbbr = teamLineToAbbr(homeBlock.teamName) || normTeamAbbr(homeBlock.teamName);
+    if (!aAbbr || !hAbbr) continue;
+
+    // Build books array. Both teams contribute one side (over from away, under
+    // from home). ESPN's totals show "DraftKings" implicitly as the odds-by partner.
+    const books = [];
+    if (awayBlock.totalLine != null && awayBlock.totalOdds != null) {
+      books.push({ book: "DK", line: awayBlock.totalLine, overOdds: awayBlock.side === "over" ? awayBlock.totalOdds : null, underOdds: awayBlock.side === "under" ? awayBlock.totalOdds : null, side: awayBlock.side });
+    }
+    if (homeBlock.totalLine != null && homeBlock.totalOdds != null) {
+      books.push({ book: "DK", line: homeBlock.totalLine, overOdds: homeBlock.side === "over" ? homeBlock.totalOdds : null, underOdds: homeBlock.side === "under" ? homeBlock.totalOdds : null, side: homeBlock.side });
+    }
+
+    games.push({
+      awayAbbr: aAbbr,
+      homeAbbr: hAbbr,
+      awayName: awayBlock.teamName,
+      homeName: homeBlock.teamName,
+      time: labeledTime,
+      books
+    });
+  }
+  return games;
+}
+
+function pasteEspn() {
+  const ta = document.getElementById("espn-paste");
+  const text = ta?.value || "";
+  if (!text.trim()) { showToast("Paste ESPN text first"); return; }
+  const espnGames = parseEspn(text);
+  if (!espnGames.length) { showToast("Couldn't parse any games — check format"); return; }
+  // Merge into the same betstampGames array so all card rendering / PxE / tracking
+  // logic stays untouched. If a game from Betstamp already exists for the same
+  // matchup, the ESPN entry won't overwrite it — Betstamp wins because it has
+  // multi-book data. ESPN fills gaps for games Betstamp didn't list.
+  const existingMatchups = new Set(betstampGames.map(g => `${g.awayAbbr}/${g.homeAbbr}`));
+  const newGames = espnGames.filter(g => !existingMatchups.has(`${g.awayAbbr}/${g.homeAbbr}`));
+  betstampGames = betstampGames.concat(newGames);
+  showToast(`Parsed ${espnGames.length} ESPN games · ${newGames.length} added · ${espnGames.length - newGames.length} already loaded`);
+  renderTotals();
+}
+// ── ESPN WNBA SCHEDULE PARSER ──────────────────────────────────────────────
+// Different format from the odds page — this is from espn.com/wnba/schedule.
+// Posts the full upcoming slate (multiple days) with team matchups and times.
+// Most games haven't had odds posted yet; the ones that have show:
+//   "Line: TOR -5.5"
+//   "O/U: 170.5"
+// We grab the O/U when present, leave it null when not — the totals card already
+// renders a "Projection only" mode when no posted line exists, so games further
+// out get the Pace × Eff projection as the headline instead of "no data".
+function parseEspnSchedule(text) {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const games = [];
+
+  const dayAbbr = { Sunday:"Sun", Monday:"Mon", Tuesday:"Tue", Wednesday:"Wed", Thursday:"Thu", Friday:"Fri", Saturday:"Sat" };
+  // Date header: "Friday, May 29, 2026"
+  const dateHeaderRe = /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday),\s+\w+\s+\d+,\s+\d{4}$/i;
+  // City-only team rows on the schedule page (no full team names like the odds page).
+  // We match against the full set of WNBA city short forms ESPN uses on this page.
+  const SCHEDULE_CITY_TO_ABBR = {
+    "Atlanta":"ATL","Chicago":"CHI","Connecticut":"CON","Dallas":"DAL",
+    "Indiana":"IND","Las Vegas":"LVA","Los Angeles":"LAS","Minnesota":"MIN",
+    "New York":"NYL","Phoenix":"PHX","Seattle":"SEA","Washington":"WAS",
+    "Golden State":"GSV","Toronto":"TOR","Portland":"POR"
+  };
+  const timeRe = /^\d{1,2}:\d{2}\s*(AM|PM)$/i;
+  const ouLineRe = /^O\/U:\s*([\d.]+)$/i;
+  const tablesHeaderRe = /^(MATCHUP|TIME|TV|tickets|Odds by|draft kings|result|winner high|loser high|Tickets as low)/i;
+  // Stops only on the actual page footer — NOT on the standalone "ESPN" line in
+  // the top nav (that would kill the parse before any game data is reached).
+  const stopRe = /^(Sponsored Headlines|Terms of Use|GAMBLING PROBLEM|Copyright:)/i;
+  // Extract a time token from a line that might have tabs/extra content after.
+  // ESPN schedule often emits "1:00 PM\t\tTickets as low as $61" as one row.
+  const extractTime = (s) => {
+    const firstTok = s.split(/[\t]+/)[0].trim();
+    return timeRe.test(firstTok) ? firstTok : null;
+  };
+  // Skip lines that are just "@" or city names already matched, broadcast nets, etc.
+  // We rely on positional structure: each game block is two consecutive teams separated by "@".
+
+  let currentDay = null;
+  let i = 0;
+  while (i < lines.length) {
+    const ln = lines[i];
+    if (stopRe.test(ln)) break;
+    if (dateHeaderRe.test(ln)) {
+      const dayName = ln.match(/^(\w+),/)[1];
+      currentDay = dayAbbr[dayName] || dayName.slice(0,3);
+      i++; continue;
+    }
+    if (tablesHeaderRe.test(ln)) { i++; continue; }
+
+    // Looking for: <away city> ... (something like "@") ... <home city> ... <time> ...
+    // ESPN's schedule layout puts these on separate lines:
+    //   "Phoenix"          ← away city
+    //   "@"                ← matchup separator (sometimes present, sometimes not)
+    //   "New York"         ← home city
+    //   "NY 75, PHX 68"    ← result for completed games (skip those)
+    //   "1:00 PM"          ← scheduled time for upcoming games
+    //   "Tickets as low as $61"   ← skip
+    //   "Line: TOR -5.5"   ← skip
+    //   "O/U: 170.5"       ← capture
+    const awayAbbr = SCHEDULE_CITY_TO_ABBR[ln];
+    if (!awayAbbr) { i++; continue; }
+    let j = i + 1;
+    // Skip "@" separator and anything until we find a home team city
+    let homeAbbr = null;
+    let probeCount = 0;
+    while (j < lines.length && probeCount < 6) {
+      const cur = lines[j];
+      if (cur === "@") { j++; probeCount++; continue; }
+      if (SCHEDULE_CITY_TO_ABBR[cur]) { homeAbbr = SCHEDULE_CITY_TO_ABBR[cur]; j++; break; }
+      // Bail if we run into another date header or stop marker
+      if (dateHeaderRe.test(cur) || stopRe.test(cur) || tablesHeaderRe.test(cur)) break;
+      j++; probeCount++;
+    }
+    if (!homeAbbr) { i++; continue; }
+    if (awayAbbr === homeAbbr) { i++; continue; }   // safety: same team both sides means we got confused
+
+    // Look ahead for the time, O/U line, and check for completed-game markers.
+    // Time appears as "1:00 PM" pattern. Completed games show "TEAM XX, TEAM XX" (result).
+    // We bail out of completed-games here — they're not useful for projection cards.
+    let time = null;
+    let ouLine = null;
+    let isCompleted = false;
+    let k = j;
+    const lookaheadBudget = 12;     // schedule rows have a fixed-ish structure within a game block
+    let probed = 0;
+    while (k < lines.length && probed < lookaheadBudget) {
+      const cur = lines[k];
+      // Hit the next game block? Done with this one.
+      if (SCHEDULE_CITY_TO_ABBR[cur] && cur !== lines[i] && k > j) break;
+      if (dateHeaderRe.test(cur) || stopRe.test(cur)) break;
+      // Completed game result like "NY 75, PHX 68"
+      if (/^[A-Z]{2,3}\s+\d+,\s+[A-Z]{2,3}\s+\d+$/.test(cur)) { isCompleted = true; break; }
+      const t = extractTime(cur);
+      if (t && !time) time = t;
+      const ouM = ouLineRe.exec(cur);
+      if (ouM) { ouLine = parseFloat(ouM[1]); break; }   // O/U line found — done
+      k++; probed++;
+    }
+
+    if (isCompleted) { i = k + 1; continue; }   // skip final scores; not useful as a projection card
+
+    const labeledTime = currentDay && time ? `${currentDay} ${time}` : (time || currentDay || "TBD");
+    // Books array stays empty when no posted line — totals card already handles that
+    // by leaning on the P×E projection only. When a posted line exists we add a single
+    // DK book entry with the line and no odds (schedule page doesn't expose prices).
+    const books = [];
+    if (ouLine != null) {
+      // Posted O/U line but no odds attached on the schedule page. Tag as DK since
+      // ESPN's schedule shows DK as the odds partner ("Odds by draft kings" header).
+      books.push({ book: "DK", line: ouLine, overOdds: null, underOdds: null, side: "over" });
+      books.push({ book: "DK", line: ouLine, overOdds: null, underOdds: null, side: "under" });
+    }
+    games.push({
+      awayAbbr, homeAbbr,
+      awayName: Object.keys(SCHEDULE_CITY_TO_ABBR).find(k => SCHEDULE_CITY_TO_ABBR[k] === awayAbbr) || awayAbbr,
+      homeName: Object.keys(SCHEDULE_CITY_TO_ABBR).find(k => SCHEDULE_CITY_TO_ABBR[k] === homeAbbr) || homeAbbr,
+      time: labeledTime,
+      books,
+      // Hint to the cards that this game should default to 2026 P×E when no line is posted
+      defaultSeason: ouLine == null ? "2026" : undefined
+    });
+    i = Math.max(k, j);
+  }
+  return games;
+}
+
+function pasteEspnSchedule() {
+  const ta = document.getElementById("espn-schedule-paste");
+  const text = ta?.value || "";
+  if (!text.trim()) { showToast("Paste ESPN schedule text first"); return; }
+  const schedGames = parseEspnSchedule(text);
+  if (!schedGames.length) { showToast("Couldn't parse any games — check format"); return; }
+  // Merge into betstampGames the same way the odds paste does: existing matchups win,
+  // schedule games fill gaps. This is the key behavior — paste schedule first to load
+  // the full week, then paste the odds page on top to enrich the next-day games with
+  // actual book prices. Order doesn't matter — existing-wins is symmetric.
+  const existing = new Set(betstampGames.map(g => `${g.awayAbbr}/${g.homeAbbr}`));
+  const newGames = schedGames.filter(g => !existing.has(`${g.awayAbbr}/${g.homeAbbr}`));
+  betstampGames = betstampGames.concat(newGames);
+  const projOnly = newGames.filter(g => g.books.length === 0).length;
+  showToast(`Schedule parsed: ${newGames.length} added (${projOnly} projection-only) · ${schedGames.length - newGames.length} already loaded`);
+  renderTotals();
+}
+function clearEspnSchedule() {
+  const ta = document.getElementById("espn-schedule-paste");
+  if (ta) ta.value = "";
+  showToast("Schedule paste cleared");
+}
+
 // EV using normal approx around projected total
 function americanEvRough(odds, projTotal, line, side) {
   const stdev = totalsSigma();
@@ -4180,9 +4508,15 @@ function renderTotals() {
       }
     }
 
-    // Card key & per-card season override (auto | 2025 | 2026 | blend)
+    // Card key & per-card season override (auto | 2025 | 2026 | blend).
+    // For games that came in from the ESPN schedule paste with no posted line,
+    // we honor their `defaultSeason` hint (2026) so P×E uses current-season team
+    // stats by default. User can still override per card via the season selector.
     const cardKey = `${g.awayAbbr}_${g.homeAbbr}`;
     window._cardSeason = window._cardSeason || {};
+    if (!window._cardSeason[cardKey] && g.defaultSeason) {
+      window._cardSeason[cardKey] = g.defaultSeason;
+    }
     const cardSeason = window._cardSeason[cardKey] || "auto";
     const seasonArg = cardSeason === "auto" ? undefined : cardSeason;
 
@@ -4642,6 +4976,36 @@ function renderTotals() {
       <textarea id="betstamp-paste" placeholder="Copy the Betstamp WNBA Best Available page and paste here..." spellcheck="false"
         style="width:100%;min-height:80px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
       ${noGames ? `<div style="font-size:11px;color:#525a64;margin-top:8px;">Paste the Betstamp slate above to load games.</div>` : `<div style="font-size:11px;color:#FDB927;margin-top:8px;">${betstampGames.length} games loaded</div>`}
+    </div>
+
+    <div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">ESPN Paste — Single Book Fallback</div>
+          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Free alternative to Betstamp · totals only from ESPN's odds partner (DK). Times shown in ET with day-of-week prefix.</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="pasteEspn()" style="background:#FDB927;border:none;color:#0d1117;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">PARSE</button>
+          <button onclick="clearEspn()" style="background:#161b22;border:1px solid #1f2733;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+        </div>
+      </div>
+      <textarea id="espn-paste" placeholder="Copy the espn.com/wnba/odds page and paste here..." spellcheck="false"
+        style="width:100%;min-height:80px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
+    </div>
+
+    <div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">ESPN Schedule Paste — Multi-Day Slate</div>
+          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Paste from espn.com/wnba/schedule. Games without posted O/U fall back to 2026 Pace × Eff projection. Use with the odds paste above for full coverage.</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="pasteEspnSchedule()" style="background:#FDB927;border:none;color:#0d1117;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">PARSE</button>
+          <button onclick="clearEspnSchedule()" style="background:#161b22;border:1px solid #1f2733;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+        </div>
+      </div>
+      <textarea id="espn-schedule-paste" placeholder="Copy the espn.com/wnba/schedule page and paste here..." spellcheck="false"
+        style="width:100%;min-height:80px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
     </div>
 
     <div style="background:#161b22;border:1px solid #1f2733;border-radius:8px;padding:14px;margin-bottom:18px;">
