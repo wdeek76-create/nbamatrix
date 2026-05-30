@@ -611,6 +611,21 @@ function norm(s) {
     .replace(/[^a-z]/g,"");
 }
 
+// looseName: lighter touch than norm() — used for SEARCH-AS-YOU-TYPE filtering only.
+// Lowercases, strips diacritics, and drops punctuation that users typically skip
+// (apostrophes, hyphens, periods, accents), but KEEPS spaces so substring matching
+// stays meaningful — typing "br syk" still works, but "flaujae" matches "Flau'jae"
+// and "salaun" matches "Salaün". Not used for cross-source name resolution; that's
+// what norm() + the alias map handle.
+function looseName(s) {
+  if (!s) return "";
+  return s.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/['’`\-\.]/g,"")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
 // Maps each variant's normalized form (lowercase, alphanumeric only, no suffixes/accents)
 // to the canonical form used by RG/RW. Add new aliases as you discover mismatches.
 // Lefthand side = what the source calls them; righthand side = canonical (RG/RW) name.
@@ -796,6 +811,18 @@ function loadFile(idx, input) {
     updateBadges();
     // Auto-blend after upload — no need to hit RUN BLEND manually
     runMerge();
+    // Auto-sync the cap tool roster too — adds any new players from this CSV
+    // into the cap tool players list so they're recognized during cap play
+    // parsing/grading without requiring a manual "SYNC PLAYERS" click.
+    // Silent: no toast on auto-sync (the user didn't ask for it).
+    try {
+      if (typeof window._capRefreshTemplate === "function") {
+        const origToast = window.showToast;
+        window.showToast = () => {};       // suppress sync's toast
+        window._capRefreshTemplate();
+        window.showToast = origToast;
+      }
+    } catch (err) { /* roster sync is non-critical */ }
   };
   reader.readAsText(file);
 }
@@ -956,10 +983,13 @@ function setSortBy(f) {
 function getRowsForRender() {
   if (!merged) return [];
   const lookups = getSlotLookups();
-  const search = document.getElementById("search-box").value.toLowerCase();
+  // searchLoose strips diacritics, apostrophes, hyphens, and lowercases.
+  // Lets "flaujae" match "Flau'jae", "salaun" match "Salaün", "smithjones"
+  // match "Smith-Jones", etc. Decomposes Unicode chars then drops combining marks.
+  const searchLoose = looseName(document.getElementById("search-box").value);
   return merged
     .filter(r => !conOnly || isTight(r, sortBy, lookups))
-    .filter(r => !search || r.rawName.toLowerCase().includes(search))
+    .filter(r => !searchLoose || looseName(r.rawName).includes(searchLoose))
     .sort((a,b) => {
       if (sortMode==="consensus") {
         const aVals=getStatVals(a,sortBy,lookups), bVals=getStatVals(b,sortBy,lookups);
@@ -1190,9 +1220,9 @@ function writeConsensusCsv(allowedKeys, filename, label) {
   // Export ALL players, not just those filtered by the current stat tab.
   // Each row contains every stat (3PM, AST, PTS, REB) — the CSV is complete
   // regardless of which stat the user happened to be viewing.
-  const search = document.getElementById("search-box").value.toLowerCase();
+  const searchLoose = looseName(document.getElementById("search-box").value);
   const rows = merged
-    .filter(r => !search || r.rawName.toLowerCase().includes(search))
+    .filter(r => !searchLoose || looseName(r.rawName).includes(searchLoose))
     .sort((a, b) => a.rawName.localeCompare(b.rawName));
   if (!rows.length) { showToast("No players to export"); return; }
   const header = "id,name,first_name,last_name,position,team,three_pointers_made,assists,blocks,double_double,points,rebounds,steals,triple_double,turnovers,fd_points,dk_points";
@@ -1266,10 +1296,10 @@ function searchEnterCopy(e) {
   if (!merged) return;
   const rows = getRowsForRender();
   if (!rows.length) { showToast("No player matches"); return; }
-  const q = (document.getElementById("search-box").value || "").trim().toLowerCase();
+  const q = looseName(document.getElementById("search-box").value);
   let pick = null;
   if (q) {
-    const lowered = rows.map(r => ({ r, low: (r.rawName || "").toLowerCase() }));
+    const lowered = rows.map(r => ({ r, low: looseName(r.rawName || "") }));
     pick = lowered.find(x => x.low === q)?.r                                  // 1
         || lowered.find(x => x.low.startsWith(q))?.r                          // 2
         || lowered.find(x => x.low.split(/\s+/).slice(-1)[0].startsWith(q))?.r; // 3 — last-name prefix
