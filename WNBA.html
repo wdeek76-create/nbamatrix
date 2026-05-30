@@ -5735,8 +5735,21 @@ document.addEventListener("DOMContentLoaded", () => {
       // Use the play date if set, else today
       const date = getCapDate() || new Date().toISOString().split("T")[0];
       const { rows } = await fetchESPNStatsForDate(date);
-      const targetNorm = resolveNorm(parsed.playerName);
-      const playerRow = rows.find(r => r.playerNorm === targetNorm);
+      // Try a few matching strategies before giving up:
+      //   1. alias-resolved normalized name (handles Skylar Diggins-Smith → Skylar Diggins)
+      //   2. plain normalized name (no alias) — ESPN itself doesn't apply aliases
+      //   3. last-name only match if exactly one row matches (handles "C. Leite" vs "Carla Leite")
+      const targetAliasNorm = resolveNorm(parsed.playerName);
+      const targetPlainNorm = norm(parsed.playerName);
+      let playerRow = rows.find(r => r.playerNorm === targetAliasNorm)
+                  || rows.find(r => r.playerNorm === targetPlainNorm);
+      if (!playerRow) {
+        // Loose fallback: try last-name match if it's unambiguous
+        const lastName = parsed.playerName.trim().split(/\s+/).slice(-1)[0].toLowerCase();
+        const lastNorm = norm(lastName);
+        const candidates = rows.filter(r => r.playerNorm.endsWith(lastNorm));
+        if (candidates.length === 1) playerRow = candidates[0];
+      }
       if (!playerRow) { showCapGrade(i, "err", "NO PLAYER", null, null); return; }
       if (!playerRow.completed) { showCapGrade(i, "err", "NOT FINAL", null, null); return; }
       const actual = getStatValueForESPN(playerRow, parsed.stat);
