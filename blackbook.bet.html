@@ -19,21 +19,28 @@
   --hairline: rgba(255, 255, 255, 0.04);
   --hairline-strong: rgba(255, 255, 255, 0.07);
 
-  /* ink — strict scale */
+  /* ink — brighter floor so secondary text is clearly readable */
   --ink-0: #ffffff;
-  --ink-1: #d8d8df;
-  --ink-2: #8a8a95;
-  --ink-3: #56565f;
-  --ink-4: #2a2a31;
+  --ink-1: #e8e8ee;
+  --ink-2: #b8b8c2;   /* was #8a8a95 — now solid mid-tone, never washed-out */
+  --ink-3: #8a8a95;   /* was #56565f — labels now have presence */
+  --ink-4: #3a3a44;
 
-  /* accents — used sparingly */
-  --gold: #fdb927;
-  --gold-dim: #c9931a;
-  --purple: #7a3fc4;        /* used only in ambient bg + brand dot */
+  /* brand: black + green */
+  --green: #27c071;            /* primary brand green (from new logo) */
+  --green-bright: #3fdc89;     /* hover / highlight */
+  --green-soft: rgba(39, 192, 113, 0.14);
+  --green-glow: rgba(39, 192, 113, 0.55);
+  --green-deep: rgba(39, 192, 113, 0.20);
 
-  /* semantic — only ever for outcomes */
-  --profit: #22d97a;
-  --profit-soft: rgba(34, 217, 122, 0.10);
+  /* legacy aliases — keep old names mapped to green so we don't have to refactor every reference */
+  --gold: var(--green);
+  --gold-dim: #1f9a5a;
+  --purple: var(--green-deep);
+
+  /* semantic — outcomes (loss stays red for clarity; profit IS the brand green) */
+  --profit: var(--green);
+  --profit-soft: var(--green-soft);
   --loss: #ef5d6f;
   --loss-soft: rgba(239, 93, 111, 0.10);
 
@@ -58,7 +65,7 @@ body::before {
   content: '';
   position: fixed; inset: 0; z-index: 0;
   background:
-    radial-gradient(ellipse 1400px 700px at 25% -20%, rgba(85, 45, 140, 0.18), transparent 60%);
+    radial-gradient(ellipse 1400px 700px at 25% -20%, rgba(39, 192, 113, 0.14), transparent 60%);
   pointer-events: none;
 }
 
@@ -76,50 +83,66 @@ body::before {
 }
 .brand { display: flex; align-items: center; cursor: pointer; user-select: none; }
 .brand-mark {
-  width: 196px; height: auto; display: block;
+  /* sized to fit the topbar — original was a hero element at 380x250.
+     At ~140px wide, the topbar reads as a tight, animated identity mark. */
+  width: 150px; height: auto; display: block;
 }
 .brand:hover .brand-mark { opacity: 0.92; }
 
-/* default state: drawn-in, dot visible, tld visible */
-.brand-line-gray { stroke-dasharray: 80; stroke-dashoffset: 0; }
-.brand-line-gold { stroke-dasharray: 40; stroke-dashoffset: 0; }
-.brand-dot { transform-origin: 96px 32px; transform-box: fill-box; transform: scale(1); }
-.brand-tld { opacity: 1; transform: translateX(0); }
+/* default state (post-animation): everything visible */
+.brand-anim .trend-line { stroke-dashoffset: 0; }
+.brand-anim .trend-dot { opacity: 0.95; }
+.brand-anim .brand-word { opacity: 1; transform: translateY(0); }
+.brand-anim .book-left { transform: scale(1, 1); transform-box: fill-box; transform-origin: right center; }
+.brand-anim .book-right { transform: scale(1, 1); transform-box: fill-box; transform-origin: left center; }
+.brand-anim .spine-line { opacity: 1; }
 
-/* trigger animation by adding .animating class */
-.brand-mark.animating .brand-line-gray {
-  stroke-dashoffset: 80;
-  animation: brand-draw 0.7s ease-out 0.15s forwards;
+/* trigger replay by adding .animating */
+.brand-anim.animating .trend-line {
+  stroke-dashoffset: 320;
+  animation: brand-trend-draw 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards;
 }
-.brand-mark.animating .brand-line-gold {
-  stroke-dashoffset: 40;
-  animation: brand-draw 0.45s ease-out 0.7s forwards;
-}
-.brand-mark.animating .brand-dot {
-  transform: scale(0);
-  animation: brand-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) 1.05s forwards;
-}
-.brand-mark.animating .brand-tld {
+.brand-anim.animating .trend-dot {
   opacity: 0;
-  transform: translateX(-6px);
-  animation: brand-tld-in 0.4s ease-out 1.3s forwards;
+  animation: brand-dot-pop 0.3s ease-out 1s forwards, brand-dot-pulse 1.6s ease-in-out 1.3s infinite;
 }
-@keyframes brand-draw {
-  to { stroke-dashoffset: 0; }
+.brand-anim.animating .brand-word {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: brand-word-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1.1s forwards;
 }
-@keyframes brand-pop {
-  0%   { transform: scale(0); }
-  60%  { transform: scale(1.25); }
-  100% { transform: scale(1); }
+.brand-anim.animating .book-left {
+  transform: scale(0, 1);
+  transform-box: fill-box;
+  transform-origin: right center;
+  animation: brand-book-open 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
 }
-@keyframes brand-tld-in {
-  to { opacity: 1; transform: translateX(0); }
+.brand-anim.animating .book-right {
+  transform: scale(0, 1);
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: brand-book-open 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
 }
+.brand-anim.animating .spine-line {
+  opacity: 0;
+  animation: brand-spine-in 0.5s ease-out 1.6s forwards;
+}
+
+@keyframes brand-trend-draw { to { stroke-dashoffset: 0; } }
+@keyframes brand-dot-pop { to { opacity: 0.95; } }
+@keyframes brand-dot-pulse { 0%,100% { r: 4.5; } 50% { r: 6; } }
+@keyframes brand-word-in { to { opacity: 1; transform: translateY(0); } }
+@keyframes brand-book-open { to { transform: scale(1, 1); } }
+@keyframes brand-spine-in { to { opacity: 1; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .brand-mark.animating .brand-line-gray,
-  .brand-mark.animating .brand-line-gold { stroke-dashoffset: 0; animation: none; }
-  .brand-mark.animating .brand-dot { transform: scale(1); animation: none; }
-  .brand-mark.animating .brand-tld { opacity: 1; transform: none; animation: none; }
+  .brand-anim.animating * { animation: none !important; }
+  .brand-anim.animating .trend-line { stroke-dashoffset: 0; }
+  .brand-anim.animating .trend-dot,
+  .brand-anim.animating .brand-word,
+  .brand-anim.animating .spine-line { opacity: 1; }
+  .brand-anim.animating .book-left,
+  .brand-anim.animating .book-right { transform: scale(1, 1); }
 }
 
 /* underline-tab style switch — Apple System Settings energy */
@@ -143,16 +166,27 @@ body::before {
   height: 2px; background: transparent;
   transition: background 0.18s ease;
 }
-.view-btn:hover { color: var(--ink-1); }
+.view-btn:hover { color: var(--green); }
 .view-btn.active { color: var(--ink-0); font-weight: 600; }
 .view-btn.active::after { background: var(--gold); }
+.view-btn.admin-tab {
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3); margin-left: 4px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.view-btn.admin-tab::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--green); display: inline-block;
+}
+.view-btn.admin-tab:hover { color: var(--green); }
+.view-btn.admin-tab.active { color: var(--ink-0); }
 
 .beta-badge {
   display: inline-block; margin-left: 6px;
   font-size: 8px; font-weight: 700; letter-spacing: 0.15em;
   padding: 2px 5px; border-radius: 3px;
-  background: rgba(122, 63, 196, 0.14);
-  color: #b389e8;
+  background: rgba(39, 192, 113, 0.18);
+  color: var(--green);
   font-family: 'JetBrains Mono', monospace;
   vertical-align: 2px;
 }
@@ -183,7 +217,7 @@ body::before {
   border-radius: 999px; cursor: pointer; transition: all 0.15s ease;
   letter-spacing: -0.01em;
 }
-.sport-btn:hover { color: var(--ink-0); background: var(--bg-2); }
+.sport-btn:hover { color: var(--green); background: var(--green-soft); }
 .sport-btn.active {
   background: var(--ink-0); color: var(--bg-0); font-weight: 600;
 }
@@ -248,6 +282,59 @@ body::before {
 
 /* PANELS — borderless. Just typographic blocks separated by space. */
 .panel { display: flex; flex-direction: column; }
+
+/* Historical breakdown: Over/Under, By Stat, By Sportsbook */
+.ou-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  padding: 0 20px 20px;
+}
+.stat-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;
+  padding: 0 20px 20px;
+}
+.stat-card {
+  background: var(--bg-1); border-radius: 10px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.stat-card-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--ink-3); text-transform: uppercase;
+}
+.stat-card-head img {
+  width: 16px; height: 16px; border-radius: 3px;
+  background: #fff; padding: 1px; object-fit: contain;
+}
+.stat-card-pct {
+  font-family: 'Geist', sans-serif; font-size: 24px; font-weight: 700;
+  color: var(--ink-0); letter-spacing: -0.03em; line-height: 1;
+}
+.stat-card-line {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-3); display: flex; gap: 6px; flex-wrap: wrap;
+}
+.stat-card-line .gain { color: var(--profit); }
+.stat-card-line .loss { color: var(--loss); }
+.stat-card-line .neutral { color: var(--ink-3); }
+.stat-card-ou {
+  border-top: 1px solid var(--hairline); padding-top: 8px;
+  display: grid; grid-template-columns: 1fr; gap: 3px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+}
+.stat-card-ou-row { display: flex; gap: 6px; color: var(--ink-3); }
+.stat-card-ou-row .side {
+  display: inline-block; width: 10px; font-weight: 700;
+}
+.stat-card-ou-row .side.o { color: var(--profit); }
+.stat-card-ou-row .side.u { color: var(--loss); }
+.stat-empty {
+  grid-column: 1 / -1;
+  text-align: center; padding: 22px;
+  color: var(--ink-3); font-size: 12px;
+}
+@media (max-width: 600px) {
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+}
 .panel-head {
   display: flex; justify-content: space-between; align-items: baseline;
   margin-bottom: 18px;
@@ -380,7 +467,7 @@ body::before {
   text-align: left; cursor: pointer;
   transition: color 0.15s ease;
 }
-.panel-cta:hover { color: var(--ink-0); }
+.panel-cta:hover { color: var(--green); }
 
 /* ============ CHART + WEEK ============ */
 .chart-panel { padding: 0; }
@@ -412,7 +499,7 @@ body::before {
   padding: 5px 12px; border-radius: 4px; cursor: pointer;
   transition: all 0.15s ease;
 }
-.range-tab:hover { color: var(--ink-1); }
+.range-tab:hover { color: var(--green); }
 .range-tab.active { background: var(--bg-3); color: var(--ink-0); }
 
 .spark-wrap { width: 100%; height: 200px; position: relative; }
@@ -612,7 +699,7 @@ body::before {
 .lab-tag {
   font-size: 8px; font-weight: 700; letter-spacing: 0.14em;
   padding: 2px 6px; border-radius: 3px;
-  background: rgba(122,63,196,0.16); color: #b389e8;
+  background: var(--green-soft); color: var(--green);
   font-family: 'JetBrains Mono', monospace;
 }
 .lab-chev { color: var(--ink-3); font-size: 11px; transition: transform 0.2s ease; }
@@ -647,6 +734,11 @@ body::before {
 .lab-btn.sm {
   font-size: 11px; padding: 6px 11px;
   background: var(--bg-3); color: var(--ink-1);
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.lab-btn.sm:hover {
+  color: var(--green);
+  background: var(--green-soft);
 }
 
 .lab-status {
@@ -710,7 +802,7 @@ body::before {
 
 .pick-card.locked {
   background-color: var(--bg-1);
-  background-image: repeating-linear-gradient(45deg, transparent, transparent 16px, rgba(122, 63, 196, 0.03) 16px, rgba(122, 63, 196, 0.03) 32px);
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 16px, rgba(39, 192, 113, 0.04) 16px, rgba(39, 192, 113, 0.04) 32px);
   position: relative; overflow: hidden;
 }
 
@@ -754,7 +846,7 @@ body::before {
 }
 .lock-icon {
   width: 36px; height: 36px; border-radius: 50%;
-  background: rgba(122, 63, 196, 0.08);
+  background: rgba(39, 192, 113, 0.10);
   display: flex; align-items: center; justify-content: center;
   color: var(--purple);
 }
@@ -830,9 +922,15 @@ body::before {
   border-radius: 12px;
   padding: 22px 24px;
   display: flex; flex-direction: column;
-  transition: background 0.15s ease;
+  /* Transparent border by default so hover doesn't cause a 1px layout shift */
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
-.datacard:hover { background: #1a1822; }
+.datacard:hover {
+  background: #161520;
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green-soft), 0 6px 24px -8px var(--green-soft);
+}
 .datacard.graded-win::before, .datacard.graded-loss::before { display: none; }
 
 .dc-head {
@@ -849,6 +947,21 @@ body::before {
   letter-spacing: -0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.dc-meta {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--ink-2); margin: -8px 0 14px;
+  letter-spacing: 0.02em;
+}
+.dc-team {
+  color: var(--green);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow:
+    0 0 6px var(--green-glow),
+    0 0 14px var(--green-soft);
+}
+.dc-date { color: var(--ink-2); }
+.dc-sep { color: var(--ink-3); margin: 0 2px; }
 .dc-status {
   font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
   flex-shrink: 0;
@@ -966,11 +1079,29 @@ body::before {
 .pick-meta-value.odds-with-logo {
   display: inline-flex; align-items: center;
 }
-.book-best { color: var(--ink-0); }
+.book-best { color: var(--green); font-weight: 700; }
 .best-tag {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
-  color: var(--gold); background: rgba(253,185,39,0.12);
-  padding: 2px 6px; border-radius: 3px;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
+  color: var(--green); background: var(--green-soft);
+  padding: 2px 7px; border-radius: 3px;
+  text-shadow: 0 0 6px var(--green-glow);
+  box-shadow: 0 0 0 1px rgba(39, 192, 113, 0.3), 0 0 10px var(--green-soft);
+}
+
+/* highlight the entire best-book row */
+.bookrow.best {
+  background: linear-gradient(90deg, var(--green-soft), transparent 70%);
+  margin: 0 -10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-radius: 6px;
+  position: relative;
+}
+.bookrow.best::before {
+  content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+  width: 2px; background: var(--green);
+  box-shadow: 0 0 8px var(--green-glow);
+  border-radius: 2px;
 }
 
 .bookrow-nums { display: flex; align-items: baseline; gap: 26px; }
@@ -979,7 +1110,11 @@ body::before {
   color: var(--ink-1); min-width: 42px; text-align: right;
   font-feature-settings: 'tnum';
 }
-.bookrow-odds.best { color: var(--ink-0); }
+.bookrow-odds.best {
+  color: var(--green);
+  font-weight: 800;
+  text-shadow: 0 0 8px var(--green-glow);
+}
 .bookrow-edge {
   font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
   min-width: 42px; text-align: right; font-feature-settings: 'tnum';
@@ -1056,7 +1191,7 @@ body::before {
   font-weight: 500; padding: 5px 10px; letter-spacing: -0.005em;
   border-radius: 999px; cursor: pointer; transition: all 0.15s ease;
 }
-.filter-pill:hover { color: var(--ink-0); background: var(--bg-2); }
+.filter-pill:hover { color: var(--green); background: var(--green-soft); }
 .filter-pill.active {
   background: var(--ink-0); color: var(--bg-0); font-weight: 600;
 }
@@ -1159,7 +1294,7 @@ body::before {
 .cell-result.win { color: var(--profit); border-color: transparent; background: var(--profit-soft); }
 .cell-result.loss { color: var(--loss); border-color: transparent; background: var(--loss-soft); }
 .cell-result.push { color: var(--ink-2); }
-.cell-result:hover { border-color: var(--ink-2); }
+.cell-result:hover { border-color: var(--green); }
 
 .cell-units {
   font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px;
@@ -1217,7 +1352,7 @@ body::before {
   border: none; background: transparent; color: var(--ink-2);
   transition: all 0.15s ease;
 }
-.modal-btn:hover { color: var(--ink-0); }
+.modal-btn:hover { color: var(--green); }
 .modal-btn.primary {
   background: var(--ink-0);
   color: var(--bg-0);
@@ -1231,20 +1366,47 @@ body::before {
   <!-- ============ TOPBAR ============ -->
   <header class="topbar">
     <div class="brand" onclick="setView('picks')" aria-label="Blackbook">
-      <svg viewBox="0 0 380 80" class="brand-mark" xmlns="http://www.w3.org/2000/svg">
-        <polyline class="brand-line-gray" points="0,58 16,48 32,52 48,40 64,42" fill="none" stroke="#56565f" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-        <polyline class="brand-line-gold" points="64,42 80,28 96,32" fill="none" stroke="#fdb927" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-        <circle class="brand-dot" cx="96" cy="32" r="3.5" fill="#fdb927"/>
-        <text x="112" y="50" font-family="Geist, sans-serif" font-size="30" font-weight="700" fill="#ffffff" letter-spacing="-1.4">blackbook</text>
-        <g class="brand-tld">
-          <circle cx="264" cy="46" r="2.5" fill="#fdb927"/>
-          <text x="271" y="50" font-family="Geist, sans-serif" font-size="22" font-weight="500" fill="#8a8a95" letter-spacing="-0.8">bet</text>
+      <svg viewBox="0 0 380 250" class="brand-mark brand-anim" xmlns="http://www.w3.org/2000/svg" role="img">
+        <title>Blackbook</title>
+        <desc>A green upward trend line draws across the top, a small black book opens below it, then BLACKBOOK fades in.</desc>
+
+        <!-- trend line -->
+        <polyline class="trend-line" points="60,86 110,68 152,78 196,52 240,62 286,34 320,26"
+          fill="none" stroke="#27c071" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+          stroke-dasharray="320" stroke-dashoffset="320"/>
+        <circle class="trend-dot" cx="320" cy="26" r="4.5" fill="#27c071" opacity="0"/>
+
+        <!-- wordmark -->
+        <g class="brand-word" opacity="0">
+          <text x="190" y="148" font-family="Geist, sans-serif" font-weight="600" font-size="36" fill="#f5f5f5" text-anchor="middle" letter-spacing="2">BLACKBOOK</text>
         </g>
+
+        <!-- spine (always visible) -->
+        <rect x="186" y="172" width="8" height="58" fill="#0c0c0c"/>
+
+        <!-- left page -->
+        <g class="book-left">
+          <path d="M190 176 Q124 160 60 178 V228 Q124 212 190 224 Z" fill="#141414"/>
+          <line x1="84" y1="196" x2="166" y2="189" stroke="#2a2a2a" stroke-width="2.5"/>
+          <line x1="84" y1="208" x2="166" y2="201" stroke="#2a2a2a" stroke-width="2.5"/>
+        </g>
+
+        <!-- right page -->
+        <g class="book-right">
+          <path d="M190 176 Q256 160 320 178 V228 Q256 212 190 224 Z" fill="#141414"/>
+          <line x1="214" y1="189" x2="296" y2="196" stroke="#2a2a2a" stroke-width="2.5"/>
+          <line x1="214" y1="201" x2="296" y2="208" stroke="#2a2a2a" stroke-width="2.5"/>
+        </g>
+
+        <!-- spine cover -->
+        <rect x="186" y="172" width="8" height="58" fill="#0c0c0c"/>
+        <line class="spine-line" x1="190" y1="172" x2="190" y2="230" stroke="#27c071" stroke-width="2.5" opacity="0"/>
       </svg>
     </div>
     <div class="view-switch">
       <button class="view-btn active" data-view="picks" onclick="setView('picks')">Picks</button>
       <button class="view-btn" data-view="record" onclick="setView('record')">Historical</button>
+      <button class="view-btn admin-tab" data-view="admin" onclick="setView('admin')">Admin</button>
     </div>
     <div class="topbar-right">
       <span class="live-badge">Live · <span id="clock">--:--</span></span>
@@ -1255,13 +1417,6 @@ body::before {
   <section class="view active" id="view-picks">
     <div class="picks-header">
       <div>
-        <div class="picks-title">
-          <svg class="picks-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-          </svg>
-          <span>The Book</span>
-        </div>
         <div class="picks-meta" id="todayDate">—</div>
       </div>
       <div class="picks-counter">
@@ -1278,60 +1433,6 @@ body::before {
       <button class="sport-btn" data-sport="NHL">NHL</button>
       <button class="sport-btn" data-sport="UFC">UFC</button>
       <button class="sport-btn" data-sport="Tennis">Tennis</button>
-    </div>
-
-    <!-- ODDS LAB (local testing tool — key stays in browser, never saved to file) -->
-    <div class="odds-lab" id="oddsLab">
-      <button class="lab-toggle" onclick="toggleLab()">
-        <span class="lab-toggle-left">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-8.5V3"/></svg>
-          Odds Lab
-          <span class="lab-tag">DEV</span>
-        </span>
-        <span class="lab-chev" id="labChev">▾</span>
-      </button>
-      <div class="lab-body" id="labBody">
-        <div class="lab-row">
-          <input type="password" id="labKey" class="lab-input" placeholder="Paste Odds API key (stays in browser)" autocomplete="off">
-          <select id="labSport" class="lab-select">
-            <option value="baseball_mlb">MLB</option>
-            <option value="basketball_nba">NBA</option>
-            <option value="basketball_wnba">WNBA</option>
-            <option value="icehockey_nhl">NHL</option>
-            <option value="mma_mixed_martial_arts">UFC/MMA</option>
-            <option value="tennis_atp">Tennis (ATP)</option>
-          </select>
-          <button class="lab-btn" onclick="labLoadEvents()">Load Games</button>
-        </div>
-        <div class="lab-status" id="labStatus">Paste your key, pick a sport, and load games. Featured odds are cheap (1 credit); player props cost ~10 credits per game.</div>
-        <div class="lab-results" id="labResults"></div>
-      </div>
-    </div>
-
-    <!-- PASTE PARSER (load daily picks from text) -->
-    <div class="odds-lab" id="pasteLab">
-      <button class="lab-toggle" onclick="document.getElementById('pasteLab').classList.toggle('open')">
-        <span class="lab-toggle-left">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-          Load Picks
-          <span class="lab-tag">PASTE</span>
-        </span>
-        <span class="lab-chev">▾</span>
-      </button>
-      <div class="lab-body">
-        <textarea id="pasteInput" class="paste-input" placeholder="Paste your props here (e.g. your WNBA early props dump)…"></textarea>
-        <div class="lab-row" style="margin-top:10px;">
-          <select id="pasteSport" class="lab-select">
-            <option value="WNBA">WNBA</option>
-            <option value="NBA">NBA</option>
-            <option value="MLB">MLB</option>
-            <option value="NHL">NHL</option>
-          </select>
-          <button class="lab-btn" onclick="parseAndPreview()">Parse</button>
-          <button class="lab-btn sm" onclick="publishParsed()" id="publishBtn" style="display:none;">Publish to Board →</button>
-        </div>
-        <div class="lab-status" id="pasteStatus">Paste your daily props and hit Parse. You'll see a preview before publishing.</div>
-      </div>
     </div>
 
     <div class="picks-grid" id="picksGrid"></div>
@@ -1587,7 +1688,8 @@ body::before {
                   <div class="dna-label"><span class="sport-label">MLB</span><span class="dna-label-text">Baseball</span></div>
                   <div style="display:flex; gap:10px; align-items:center;">
                     <span class="dna-record">98W–62L</span>
-                    <span class="dna-pct">+8.4%</span>
+                    <span class="dna-pct">+13.40u</span>
+                    <span class="dna-pct" style="opacity:0.7;">ROI 8.4%</span>
                   </div>
                 </div>
                 <div class="dna-bar"><span style="width: 84%"></span></div>
@@ -1597,7 +1699,8 @@ body::before {
                   <div class="dna-label"><span class="sport-label">NBA</span><span class="dna-label-text">Basketball</span></div>
                   <div style="display:flex; gap:10px; align-items:center;">
                     <span class="dna-record">76W–58L</span>
-                    <span class="dna-pct">+6.1%</span>
+                    <span class="dna-pct">+8.20u</span>
+                    <span class="dna-pct" style="opacity:0.7;">ROI 6.1%</span>
                   </div>
                 </div>
                 <div class="dna-bar"><span style="width: 61%"></span></div>
@@ -1607,7 +1710,8 @@ body::before {
                   <div class="dna-label"><span class="sport-label">NHL</span><span class="dna-label-text">Hockey</span></div>
                   <div style="display:flex; gap:10px; align-items:center;">
                     <span class="dna-record">34W–22L</span>
-                    <span class="dna-pct">+5.2%</span>
+                    <span class="dna-pct">+2.90u</span>
+                    <span class="dna-pct" style="opacity:0.7;">ROI 5.2%</span>
                   </div>
                 </div>
                 <div class="dna-bar"><span style="width: 52%"></span></div>
@@ -1617,23 +1721,75 @@ body::before {
                   <div class="dna-label"><span class="sport-label">UFC</span><span class="dna-label-text">MMA</span></div>
                   <div style="display:flex; gap:10px; align-items:center;">
                     <span class="dna-record">18W–14L</span>
-                    <span class="dna-pct">+4.7%</span>
+                    <span class="dna-pct">+1.50u</span>
+                    <span class="dna-pct" style="opacity:0.7;">ROI 4.7%</span>
                   </div>
                 </div>
                 <div class="dna-bar"><span style="width: 47%"></span></div>
               </div>
               <div class="dna-row">
                 <div class="dna-top">
+                  <div class="dna-label"><span class="sport-label">WNBA</span><span class="dna-label-text">WNBA</span></div>
+                  <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="dna-record">120W–106L</span>
+                    <span class="dna-pct">+11.72u</span>
+                    <span class="dna-pct" style="opacity:0.7;">ROI 4.6%</span>
+                  </div>
+                </div>
+                <div class="dna-bar"><span style="width: 46%"></span></div>
+              </div>
+              <div class="dna-row">
+                <div class="dna-top">
                   <div class="dna-label"><span class="sport-label">TEN</span><span class="dna-label-text">Tennis</span></div>
                   <div style="display:flex; gap:10px; align-items:center;">
                     <span class="dna-record">12W–18L</span>
-                    <span class="dna-pct neg">−2.3%</span>
+                    <span class="dna-pct neg">-0.70u</span>
+                    <span class="dna-pct" style="opacity:0.7;">ROI −2.3%</span>
                   </div>
                 </div>
                 <div class="dna-bar"><span style="width: 23%; background: linear-gradient(90deg, var(--loss), rgba(239, 93, 111, 0.35));"></span></div>
               </div>
             </div>
             <button class="panel-cta">View All Sports →</button>
+          </div>
+
+          <!-- Over / Under split -->
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Over / Under</div>
+                <div class="panel-sub">Side breakdown</div>
+              </div>
+            </div>
+            <div class="ou-grid" id="historicalOU">
+              <!-- populated by renderHistoricalBreakdown() -->
+            </div>
+          </div>
+
+          <!-- By Stat -->
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">By Stat</div>
+                <div class="panel-sub">Most profitable first</div>
+              </div>
+            </div>
+            <div class="stat-grid" id="historicalByStat">
+              <!-- populated by renderHistoricalBreakdown() -->
+            </div>
+          </div>
+
+          <!-- By Sportsbook -->
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">By Sportsbook</div>
+                <div class="panel-sub">Best price · most profitable first</div>
+              </div>
+            </div>
+            <div class="stat-grid" id="historicalByBook">
+              <!-- populated by renderHistoricalBreakdown() -->
+            </div>
           </div>
 
           <!-- Recent Props -->
@@ -1644,73 +1800,8 @@ body::before {
                 <div class="panel-sub">Last graded</div>
               </div>
             </div>
-            <div class="recent-list">
-              <div class="recent-row">
-                <div class="recent-rank">1</div>
-                <div class="recent-meta">
-                  <span class="recent-name">Tarik Skubal</span>
-                  <span class="recent-prop">Strikeouts O 7.5</span>
-                </div>
-                <div class="recent-result">
-                  <span class="recent-result-val">9</span>
-                  <span class="result-badge win">WIN</span>
-                </div>
-              </div>
-              <div class="recent-row">
-                <div class="recent-rank">2</div>
-                <div class="recent-meta">
-                  <span class="recent-name">Anthony Edwards</span>
-                  <span class="recent-prop">Points O 27.5</span>
-                </div>
-                <div class="recent-result">
-                  <span class="recent-result-val">31</span>
-                  <span class="result-badge win">WIN</span>
-                </div>
-              </div>
-              <div class="recent-row">
-                <div class="recent-rank">3</div>
-                <div class="recent-meta">
-                  <span class="recent-name">Domantas Sabonis</span>
-                  <span class="recent-prop">Rebounds O 12.5</span>
-                </div>
-                <div class="recent-result">
-                  <span class="recent-result-val">10</span>
-                  <span class="result-badge loss">LOSS</span>
-                </div>
-              </div>
-              <div class="recent-row">
-                <div class="recent-rank">4</div>
-                <div class="recent-meta">
-                  <span class="recent-name">Panthers ML</span>
-                  <span class="recent-prop">vs. Rangers</span>
-                </div>
-                <div class="recent-result">
-                  <span class="recent-result-val">—</span>
-                  <span class="result-badge win">WIN</span>
-                </div>
-              </div>
-              <div class="recent-row">
-                <div class="recent-rank">5</div>
-                <div class="recent-meta">
-                  <span class="recent-name">Yankees / Red Sox</span>
-                  <span class="recent-prop">Game Total U 9</span>
-                </div>
-                <div class="recent-result">
-                  <span class="recent-result-val">7</span>
-                  <span class="result-badge win">WIN</span>
-                </div>
-              </div>
-              <div class="recent-row">
-                <div class="recent-rank">6</div>
-                <div class="recent-meta">
-                  <span class="recent-name">Carlos Alcaraz</span>
-                  <span class="recent-prop">Match Winner</span>
-                </div>
-                <div class="recent-result">
-                  <span class="recent-result-val">—</span>
-                  <span class="result-badge loss">LOSS</span>
-                </div>
-              </div>
+            <div class="recent-list" id="recentList">
+              <!-- populated by renderRecentPicks() -->
             </div>
             <button class="panel-cta">View All Picks →</button>
           </div>
@@ -1863,6 +1954,91 @@ body::before {
     </div>
   </section>
 
+  <!-- ============ ADMIN VIEW (note: not real auth — visible to anyone who finds the tab. Hidden on live site via hostname gate; tighten security later) ============ -->
+  <section class="view" id="view-admin">
+    <div class="picks-header">
+      <div class="page-title-block">
+        <h1 class="page-title">Admin</h1>
+        <p class="page-sub">Tools for loading picks and fetching odds. <strong>Not secured — placeholder until real auth is added.</strong></p>
+      </div>
+    </div>
+
+    <!-- ODDS LAB -->
+    <div class="odds-lab open" id="oddsLab">
+      <button class="lab-toggle" onclick="toggleLab()">
+        <span class="lab-toggle-left">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-8.5V3"/></svg>
+          Odds Lab
+          <span class="lab-tag">DEV</span>
+        </span>
+        <span class="lab-chev" id="labChev">▾</span>
+      </button>
+      <div class="lab-body" id="labBody">
+        <div class="lab-row">
+          <input type="password" id="labKey" class="lab-input" placeholder="Paste Odds API key (stays in browser)" autocomplete="off">
+          <select id="labSport" class="lab-select">
+            <option value="baseball_mlb">MLB</option>
+            <option value="basketball_nba">NBA</option>
+            <option value="basketball_wnba">WNBA</option>
+            <option value="icehockey_nhl">NHL</option>
+            <option value="mma_mixed_martial_arts">UFC/MMA</option>
+            <option value="tennis_atp">Tennis (ATP)</option>
+          </select>
+          <button class="lab-btn" onclick="labLoadEvents()">Load Games</button>
+        </div>
+        <div class="lab-status" id="labStatus">Paste your key, pick a sport, and load games. Featured odds are cheap (1 credit). Player props now pull a wide market set (PRA, combos, alternates) across US + US2 + US exchanges + EU books — ~10 credits per market per game, so each Props fetch can run 100–160 credits.</div>
+        <div class="lab-results" id="labResults"></div>
+      </div>
+    </div>
+
+    <!-- PASTE PARSER -->
+    <div class="odds-lab open" id="pasteLab" style="margin-top:14px;">
+      <button class="lab-toggle" onclick="document.getElementById('pasteLab').classList.toggle('open')">
+        <span class="lab-toggle-left">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+          Load Picks
+          <span class="lab-tag">PASTE</span>
+        </span>
+        <span class="lab-chev">▾</span>
+      </button>
+      <div class="lab-body">
+        <textarea id="pasteInput" class="paste-input" placeholder="Paste your props here (e.g. your WNBA early props dump)…"></textarea>
+        <div class="lab-row" style="margin-top:10px;">
+          <select id="pasteSport" class="lab-select">
+            <option value="WNBA">WNBA</option>
+            <option value="NBA">NBA</option>
+            <option value="MLB">MLB</option>
+            <option value="NHL">NHL</option>
+          </select>
+          <input type="date" id="pasteDate" class="lab-input" style="max-width:170px;flex:0 0 auto;" title="Game date — used by the auto-grader to find the right slate">
+          <button class="lab-btn" onclick="parseAndPreview()">Parse</button>
+          <button class="lab-btn sm" onclick="publishParsed()" id="publishBtn" style="display:none;">Publish to Board →</button>
+        </div>
+        <div class="lab-status" id="pasteStatus">Paste your daily props and hit Parse. You'll see a preview before publishing.</div>
+      </div>
+    </div>
+
+    <!-- AUTO GRADER (WNBA only — pulls box scores from ESPN) -->
+    <div class="odds-lab open" id="gradeLab" style="margin-top:14px;">
+      <button class="lab-toggle" onclick="document.getElementById('gradeLab').classList.toggle('open')">
+        <span class="lab-toggle-left">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Auto Grade
+          <span class="lab-tag">WNBA</span>
+        </span>
+        <span class="lab-chev">▾</span>
+      </button>
+      <div class="lab-body">
+        <div class="lab-row">
+          <button class="lab-btn" onclick="gradeAllPending()" id="gradeBtn">Grade Pending Picks</button>
+          <button class="lab-btn sm" onclick="regradeSettled()" id="regradeBtn">Re-grade Settled</button>
+        </div>
+        <div class="lab-status" id="gradeStatus">Reads each unsettled WNBA pick, fetches the game's box score from ESPN, compares the player's actual stat line to your over/under, and updates the pick result. Player props only (PTS, REB, AST, 3PM, PRA).</div>
+        <div class="lab-results" id="gradeResults"></div>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <script>
@@ -1947,25 +2123,25 @@ const BOOK_LOGOS = {
 
 // distinct logos for DraftKings, Courtside, Onyx
 BOOK_LOGOS['DraftKings'] = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABAAEADASIAAhEBAxEB/8QAHAAAAgMBAAMAAAAAAAAAAAAAAAYEBQcBAgMI/8QAMhAAAQMDAgQEBQIHAAAAAAAAAQIDBAAFEQYhBxIxURMiQWEUMnGBkRWhNDVSYoKx8f/EABoBAAIDAQEAAAAAAAAAAAAAAAEDBAUGAgf/xAAkEQACAgICAQQDAQAAAAAAAAABAwACBBESMQUTQVGBFCFxI//aAAwDAQACEQMRAD8AnUUUV4fMjCiitZ4baUXdOH90g3O3eCqa54sV50AFXkHIseowR+CeuanYGAzNYV0+CY5CC46EyairrVunX9N3BEKTNhyXVI51BhZJR7KBAxVVGjyJLwajMOvuYJ5W0FSsD1wKQ3Huq5XbucXoaHie56qKtLhZn7fYYVzlrS05NUrwI5Hn5E7FZ7b4wPeqsULrus8bjRgvQ07hUp233Bp5ll6BLbW+AWQplWXM9OXbf7VFp24e61dsUlqHch8Ta0nKeccy4p6cyPbBOR9cdqbhqU1nFtuI+Z2mq7HVzqJ0mO9GkOR5DS2nW1cq0KGCDWp8D7he7hdphk3GTIt8WKEISteUJWVDA7k4CvsR3q6tPDe1u35GoHbs9cW3HDICVNpCXFEk5JGxG/THoKdVOWWwQvMYVti5JPytoz3+ta7xHhXYzQ9l9VHtvv4lri4ZXfmTqZRqzhXdF39x2x+AqFIdKylxfKWM9R/cO2N/xXNP8N9V2vVTcmNNjsMMLyJaDkrR6p8MjqRtgnHvWkr1fCd/l1tu9xSei48NQQfopfKD9jVXC4iW1++iyyrdc7dJVn+KaSlI2J3IUdtjv0qczxfjks9Xlok/P6/kbZCfU5kzLOMdxE/XEhhC8twUJjge/wAyj+T+1JwqReJJnXeZOPzSX1un/Ikj9iKjisHnuLn3ufcylfbmwmFdHWuUVF5RXUfeHuuJFktsm0OyAlpTSjCW4FKQw52IG/ITv7b/AGZuCxN9eul2vATPmtuIDbz6QpTYIOQn0SNugxUPhTomxXTT/wCr3OOZTkha0oQtSglCUqIzgHqeuaYOEse2xbnqJi0TBKheM0ptfNnlyk5TnG+O/bFbnxSsklBfYGp3ofXcusUMHHmYo8QNUXmxcS5CoUx4MtJZPw6lktKBTuOU7DPcb09cTbTCv+hnrglID7Eb4hh0DzAcuVJz2UnbFZfxhbW7xJmtNDndWhhLaB1WopAAHvk1q2r5Ddj4ZPsSFBSmoAj4B3UspCAMfX/RpmNtn5dGndRv67hXY/6gn9T52NFFFYIylI3Ciiih1BHfhvrxzTHPBmR3JNvdVzYb3W0T1KQdiD2ptiXLRbba3bHrSXY2nllaow5eUE9cJWg4z7HFY6mjl96usXzbkrCiBYDr5H2JMXmWqOJGxNiavOgbXK/WJV7fv1zbB8NxwF1afZACQlP/AHekXiFrOZquQhHhKiQGSC0yVZJV/Urudzj0FK+MV49DXOV5dzVlVQK1Pevf+wsyrXroDQhRRRVRqQp//9k=';
-BOOK_LOGOS['Courtside'] = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABAAEADASIAAhEBAxEB/8QAHAABAAICAwEAAAAAAAAAAAAAAAYHAwUBAggE/8QAMxAAAAUBBQQJAwUAAAAAAAAAAAECAwQRBQYHEjETITSxFCI2QXJzdJGycYHRYYKhwfH/xAAbAQABBQEBAAAAAAAAAAAAAAAFAQIEBgcAA//EACURAAICAQMDBAMAAAAAAAAAAAECABEEAwUSEzFBFRYhgTKR0f/aAAwDAQACEQMRAD8A8pAACXHQADLEjSJkpuLEYW++4dENoKqjCqpY0J0xALIu1hsqqH7dkGktTjML/hSvx7jrejDckJdk2C+rKRGs4zyq0Lvyq/o/cGvb+f0erw+vM8zqKJXIAACR8AABQLNRQLMsW6+Gzr7aZFvO7JtVDKOyZGoypXerQvoXuNlibZ8Kw7pRCsiOmDspiMi2eqsjyqKubWv6ieR+Ha8BchDMauybHrW/ioaPk7XjYO3udJfmu/mWzXxNHQxWKL81Ppw1tifbN3VSbReJ55t9TZLyEkzSREZVpqe/USZ7h3/KVyEKwa7KverX8UiavcO/5SuQL7bqM+2qzGzxlGqmqecAABkTdzJa9oAAHJ+Qj17iek4/DteAuQhmNXZNj1rfJQmcfh2vAXIRrFGyZ9sXaSxZzO2ebkIc2ZKIjUREqtK6nvIaxuqs2BqKos1LvlKXxmAFmpq8G+yr3q1/FImr3Dv+UrkIJhpKiWLdOWdryW4RszFpWh48qyPKmhZdajXXoxIdeaci2JGNptVSOQ8nrGVDLqp7te+v0EDF3TGxNsRdZqNdvP6mfMjHUNSvAAgGak2ZIHaAAAkWWVdXEgkNoi27HUZJoXSmE13UIizJ+2pew5vLiape0i2BGMk6dKfTQ/2o/PsKzMqjsQNe4M/o9Hn9+YQ9UyeHDl/ZmnSpE2W5LluqefdVmWtR71H/AJQvsMAAA7MxNsbJkAmAAA2Nn//Z';
-BOOK_LOGOS['Onyx'] = 'data:image/jpeg;base64,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';
+BOOK_LOGOS['Courtside'] = 'data:image/jpeg;base64,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';
+BOOK_LOGOS['Onyx'] = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABAAEADASIAAhEBAxEB/8QAHAABAAICAwEAAAAAAAAAAAAAAAYHAwUBAggE/8QAMxAAAAUBBQQJAwUAAAAAAAAAAAECAwQRBQYHEjETITSxFCI2QXJzdJGycYHRYYKhwfH/xAAbAQABBQEBAAAAAAAAAAAAAAAFAQIEBgcAA//EACURAAICAQMDBAMAAAAAAAAAAAECABEEAwUSEzFBFRYhgTKR0f/aAAwDAQACEQMRAD8A8pAACXHQADLEjSJkpuLEYW++4dENoKqjCqpY0J0xALIu1hsqqH7dkGktTjML/hSvx7jrejDckJdk2C+rKRGs4zyq0Lvyq/o/cGvb+f0erw+vM8zqKJXIAACR8AABQLNRQLMsW6+Gzr7aZFvO7JtVDKOyZGoypXerQvoXuNlibZ8Kw7pRCsiOmDspiMi2eqsjyqKubWv6ieR+Ha8BchDMauybHrW/ioaPk7XjYO3udJfmu/mWzXxNHQxWKL81Ppw1tifbN3VSbReJ55t9TZLyEkzSREZVpqe/USZ7h3/KVyEKwa7KverX8UiavcO/5SuQL7bqM+2qzGzxlGqmqecAABkTdzJa9oAAHJ+Qj17iek4/DteAuQhmNXZNj1rfJQmcfh2vAXIRrFGyZ9sXaSxZzO2ebkIc2ZKIjUREqtK6nvIaxuqs2BqKos1LvlKXxmAFmpq8G+yr3q1/FImr3Dv+UrkIJhpKiWLdOWdryW4RszFpWh48qyPKmhZdajXXoxIdeaci2JGNptVSOQ8nrGVDLqp7te+v0EDF3TGxNsRdZqNdvP6mfMjHUNSvAAgGak2ZIHaAAAkWWVdXEgkNoi27HUZJoXSmE13UIizJ+2pew5vLiape0i2BGMk6dKfTQ/2o/PsKzMqjsQNe4M/o9Hn9+YQ9UyeHDl/ZmnSpE2W5LluqefdVmWtR71H/AJQvsMAAA7MxNsbJkAmAAA2Nn//Z';
 
 let PICKS = [
-  {"id":"wnba1","sport":"WNBA","market":"Points Prop","selection":"Gabby Williams Under 12.5 Points","player":"Gabby Williams","teams":["GSV"],"side":"Under","line":12.5,"stat":"Points","units":1,"confidence":3,"playTo":-123,"bestBook":"Prop Builder","bestOdds":112,"books":[{"b":"Prop Builder","odds":112,"best":true},{"b":"FanDuel","odds":-104},{"b":"Novig","odds":108},{"b":"ProphetX","odds":-110},{"b":"DraftKings","odds":-106},{"b":"Courtside","odds":-106},{"b":"Onyx","odds":-106}],"alts":[{"books":[{"b":"Fliff","odds":-130,"line":"u13.5"}],"playTo":-160}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba2","sport":"WNBA","market":"PRA Prop","selection":"Gabby Williams Under 20.5 PRA","player":"Gabby Williams","teams":["GSV"],"side":"Under","line":20.5,"stat":"PRA","units":1,"confidence":3,"playTo":-162,"bestBook":"FanDuel","bestOdds":-128,"books":[{"b":"FanDuel","odds":-128,"best":true},{"b":"Prop Builder","odds":-132},{"b":"Novig","odds":-130},{"b":"DraftKings","odds":-133},{"b":"Courtside","odds":-133},{"b":"Onyx","odds":-133}],"alts":[{"books":[{"b":"Fliff","odds":-110,"line":"u19.5"}],"playTo":-131}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba3","sport":"WNBA","market":"Threes Prop","selection":"Gabby Williams Under 1.5 Threes","player":"Gabby Williams","teams":["GSV"],"side":"Under","line":1.5,"stat":"Threes","units":1,"confidence":3,"playTo":-259,"bestBook":"DraftKings","bestOdds":144,"books":[{"b":"DraftKings","odds":144,"best":true},{"b":"Courtside","odds":144},{"b":"Onyx","odds":144},{"b":"Fliff","odds":130}],"alts":[{"books":[{"b":"Prop Builder","odds":-200,"line":"u2.5"},{"b":"FanDuel","odds":-200,"line":"u2.5"},{"b":"Novig","odds":-205,"line":"u2.5"},{"b":"ProphetX","odds":-214,"line":"u2.5"}],"playTo":-259}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba4","sport":"WNBA","market":"Assists Prop","selection":"Caitlin Clark Under 8.5 Assists","player":"Caitlin Clark","teams":["IND"],"side":"Under","line":8.5,"stat":"Assists","units":1,"confidence":3,"playTo":-153,"bestBook":"FanDuel","bestOdds":-102,"books":[{"b":"FanDuel","odds":-102,"best":true},{"b":"Prop Builder","odds":-120},{"b":"Novig","odds":-105},{"b":"ProphetX","odds":-106},{"b":"Fliff","odds":-105},{"b":"DraftKings","odds":-106},{"b":"Courtside","odds":-106},{"b":"Onyx","odds":-106}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba5","sport":"WNBA","market":"Threes Prop","selection":"Caitlin Clark Under 2.5 Threes","player":"Caitlin Clark","teams":["IND"],"side":"Under","line":2.5,"stat":"Threes","units":1,"confidence":3,"playTo":117,"bestBook":"FanDuel","bestOdds":128,"books":[{"b":"FanDuel","odds":128,"best":true},{"b":"Prop Builder","odds":123},{"b":"Novig","odds":128},{"b":"DraftKings","odds":120},{"b":"Courtside","odds":120},{"b":"Onyx","odds":120}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba6","sport":"WNBA","market":"Threes Prop","selection":"Janelle Salaün Under 2.5 Threes","player":"Janelle Salaün","teams":["GSV"],"side":"Under","line":2.5,"stat":"Threes","units":1,"confidence":3,"playTo":-277,"bestBook":"FanDuel","bestOdds":-166,"books":[{"b":"FanDuel","odds":-166,"best":true},{"b":"Prop Builder","odds":-208},{"b":"Novig","odds":-172},{"b":"ProphetX","odds":-190},{"b":"Fliff","odds":-200},{"b":"DraftKings","odds":-189},{"b":"Courtside","odds":-189},{"b":"Onyx","odds":-189}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba7","sport":"WNBA","market":"Threes Prop","selection":"Jackie Young Under 1.5 Threes","player":"Jackie Young","teams":["LAV"],"side":"Under","line":1.5,"stat":"Threes","units":1,"confidence":3,"playTo":-134,"bestBook":"Novig","bestOdds":104,"books":[{"b":"Novig","odds":104,"best":true},{"b":"FanDuel","odds":102},{"b":"Prop Builder","odds":100},{"b":"ProphetX","odds":-107},{"b":"Fliff","odds":-110},{"b":"DraftKings","odds":-101},{"b":"Courtside","odds":-101},{"b":"Onyx","odds":-101}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba8","sport":"WNBA","market":"Points Prop","selection":"Paige Bueckers Under 20.5 Points","player":"Paige Bueckers","teams":["DAL"],"side":"Under","line":20.5,"stat":"Points","units":1,"confidence":3,"playTo":-139,"bestBook":"DraftKings","bestOdds":-119,"books":[{"b":"DraftKings","odds":-119,"best":true},{"b":"Courtside","odds":-119},{"b":"Onyx","odds":-119}],"alts":[{"books":[{"b":"Prop Builder","odds":-102,"line":"u19.5"},{"b":"FanDuel","odds":-106,"line":"u19.5"},{"b":"Novig","odds":-104,"line":"u19.5"},{"b":"ProphetX","odds":-114,"line":"u19.5"}],"playTo":-112}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba9","sport":"WNBA","market":"Rebounds Prop","selection":"Paige Bueckers Over 3.5 Rebounds","player":"Paige Bueckers","teams":["DAL"],"side":"Over","line":3.5,"stat":"Rebounds","units":1,"confidence":3,"playTo":106,"bestBook":"Prop Builder","bestOdds":132,"books":[{"b":"Prop Builder","odds":132,"best":true},{"b":"FanDuel","odds":128},{"b":"Novig","odds":131},{"b":"ProphetX","odds":117},{"b":"DraftKings","odds":131},{"b":"Courtside","odds":131},{"b":"Onyx","odds":131}],"alts":[{"books":[{"b":"Fliff","odds":-175,"line":"o2.5"}],"playTo":-194}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba10","sport":"WNBA","market":"Points Prop","selection":"Kayla Thornton Under 11.5 Points","player":"Kayla Thornton","teams":["GSV"],"side":"Under","line":11.5,"stat":"Points","units":1,"confidence":3,"playTo":-155,"bestBook":"DraftKings","bestOdds":-129,"books":[{"b":"DraftKings","odds":-129,"best":true},{"b":"Courtside","odds":-129},{"b":"Onyx","odds":-129},{"b":"Prop Builder","odds":-130},{"b":"FanDuel","odds":-132},{"b":"Novig","odds":-131},{"b":"ProphetX","odds":-141},{"b":"Fliff","odds":-140}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba11","sport":"WNBA","market":"Threes Prop","selection":"Kayla Thornton Under 1.5 Threes","player":"Kayla Thornton","teams":["GSV"],"side":"Under","line":1.5,"stat":"Threes","units":1,"confidence":3,"playTo":-233,"bestBook":"FanDuel","bestOdds":-168,"books":[{"b":"FanDuel","odds":-168,"best":true},{"b":"Prop Builder","odds":-179},{"b":"Novig","odds":-173},{"b":"ProphetX","odds":-190},{"b":"Fliff","odds":-200},{"b":"DraftKings","odds":-184},{"b":"Courtside","odds":-184},{"b":"Onyx","odds":-184}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba12","sport":"WNBA","market":"Assists Prop","selection":"A'ja Wilson Under 2.5 Assists","player":"A'ja Wilson","teams":["LAV"],"side":"Under","line":2.5,"stat":"Assists","units":1,"confidence":3,"playTo":108,"bestBook":"DraftKings","bestOdds":130,"books":[{"b":"DraftKings","odds":130,"best":true},{"b":"Courtside","odds":130},{"b":"Onyx","odds":130},{"b":"Prop Builder","odds":125},{"b":"Fliff","odds":120}],"alts":[{"books":[{"b":"FanDuel","odds":-180,"line":"u3.5"},{"b":"Novig","odds":-182,"line":"u3.5"},{"b":"ProphetX","odds":-190,"line":"u3.5"}],"playTo":-212}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba13","sport":"WNBA","market":"Points Prop","selection":"Veronica Burton Under 14.5 Points","player":"Veronica Burton","teams":["GSV"],"side":"Under","line":14.5,"stat":"Points","units":1,"confidence":3,"playTo":-150,"bestBook":"FanDuel","bestOdds":-122,"books":[{"b":"FanDuel","odds":-122,"best":true},{"b":"Prop Builder","odds":-128},{"b":"Novig","odds":-127},{"b":"ProphetX","odds":-139},{"b":"Fliff","odds":-130}],"alts":[{"books":[{"b":"DraftKings","odds":-103,"line":"u13.5"},{"b":"Courtside","odds":-103,"line":"u13.5"},{"b":"Onyx","odds":-103,"line":"u13.5"}],"playTo":-117}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba14","sport":"WNBA","market":"Points Prop","selection":"Kelsey Mitchell Under 19.5 Points","player":"Kelsey Mitchell","teams":["IND"],"side":"Under","line":19.5,"stat":"Points","units":1,"confidence":3,"playTo":-124,"bestBook":"FanDuel","bestOdds":-110,"books":[{"b":"FanDuel","odds":-110,"best":true},{"b":"Prop Builder","odds":-114},{"b":"Novig","odds":-111},{"b":"ProphetX","odds":-112},{"b":"Fliff","odds":-120},{"b":"DraftKings","odds":-120},{"b":"Courtside","odds":-120},{"b":"Onyx","odds":-120}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
-  {"id":"wnba15","sport":"WNBA","market":"Threes Prop","selection":"Azzi Fudd Over 1.5 Threes","player":"Azzi Fudd","teams":["DAL"],"side":"Over","line":1.5,"stat":"Threes","units":1,"confidence":3,"playTo":104,"bestBook":"Prop Builder","bestOdds":115,"books":[{"b":"Prop Builder","odds":115,"best":true},{"b":"FanDuel","odds":108},{"b":"Novig","odds":111},{"b":"ProphetX","odds":100},{"b":"Fliff","odds":105},{"b":"DraftKings","odds":109},{"b":"Courtside","odds":109},{"b":"Onyx","odds":109}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba1","gameDate":"2026-05-29","sport":"WNBA","market":"Points Prop","selection":"Gabby Williams Under 12.5 Points","player":"Gabby Williams","teams":["GSV"],"side":"Under","line":12.5,"stat":"Points","units":1,"confidence":3,"playTo":-123,"bestBook":"Prop Builder","bestOdds":112,"books":[{"b":"Prop Builder","odds":112,"best":true},{"b":"FanDuel","odds":-104},{"b":"Novig","odds":108},{"b":"ProphetX","odds":-110},{"b":"DraftKings","odds":-106},{"b":"Courtside","odds":-106},{"b":"Onyx","odds":-106}],"alts":[{"books":[{"b":"Fliff","odds":-130,"line":"u13.5"}],"playTo":-160}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba2","gameDate":"2026-05-29","sport":"WNBA","market":"PRA Prop","selection":"Gabby Williams Under 20.5 PRA","player":"Gabby Williams","teams":["GSV"],"side":"Under","line":20.5,"stat":"PRA","units":1,"confidence":3,"playTo":-162,"bestBook":"FanDuel","bestOdds":-128,"books":[{"b":"FanDuel","odds":-128,"best":true},{"b":"Prop Builder","odds":-132},{"b":"Novig","odds":-130},{"b":"DraftKings","odds":-133},{"b":"Courtside","odds":-133},{"b":"Onyx","odds":-133}],"alts":[{"books":[{"b":"Fliff","odds":-110,"line":"u19.5"}],"playTo":-131}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba3","gameDate":"2026-05-29","sport":"WNBA","market":"Threes Prop","selection":"Gabby Williams Under 1.5 Threes","player":"Gabby Williams","teams":["GSV"],"side":"Under","line":1.5,"stat":"Threes","units":1,"confidence":3,"playTo":-259,"bestBook":"DraftKings","bestOdds":144,"books":[{"b":"DraftKings","odds":144,"best":true},{"b":"Courtside","odds":144},{"b":"Onyx","odds":144},{"b":"Fliff","odds":130}],"alts":[{"books":[{"b":"Prop Builder","odds":-200,"line":"u2.5"},{"b":"FanDuel","odds":-200,"line":"u2.5"},{"b":"Novig","odds":-205,"line":"u2.5"},{"b":"ProphetX","odds":-214,"line":"u2.5"}],"playTo":-259}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba4","gameDate":"2026-05-29","sport":"WNBA","market":"Assists Prop","selection":"Caitlin Clark Under 8.5 Assists","player":"Caitlin Clark","teams":["IND"],"side":"Under","line":8.5,"stat":"Assists","units":1,"confidence":3,"playTo":-153,"bestBook":"FanDuel","bestOdds":-102,"books":[{"b":"FanDuel","odds":-102,"best":true},{"b":"Prop Builder","odds":-120},{"b":"Novig","odds":-105},{"b":"ProphetX","odds":-106},{"b":"Fliff","odds":-105},{"b":"DraftKings","odds":-106},{"b":"Courtside","odds":-106},{"b":"Onyx","odds":-106}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba5","gameDate":"2026-05-29","sport":"WNBA","market":"Threes Prop","selection":"Caitlin Clark Under 2.5 Threes","player":"Caitlin Clark","teams":["IND"],"side":"Under","line":2.5,"stat":"Threes","units":1,"confidence":3,"playTo":117,"bestBook":"FanDuel","bestOdds":128,"books":[{"b":"FanDuel","odds":128,"best":true},{"b":"Prop Builder","odds":123},{"b":"Novig","odds":128},{"b":"DraftKings","odds":120},{"b":"Courtside","odds":120},{"b":"Onyx","odds":120}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba6","gameDate":"2026-05-29","sport":"WNBA","market":"Threes Prop","selection":"Janelle Salaün Under 2.5 Threes","player":"Janelle Salaün","teams":["GSV"],"side":"Under","line":2.5,"stat":"Threes","units":1,"confidence":3,"playTo":-277,"bestBook":"FanDuel","bestOdds":-166,"books":[{"b":"FanDuel","odds":-166,"best":true},{"b":"Prop Builder","odds":-208},{"b":"Novig","odds":-172},{"b":"ProphetX","odds":-190},{"b":"Fliff","odds":-200},{"b":"DraftKings","odds":-189},{"b":"Courtside","odds":-189},{"b":"Onyx","odds":-189}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba7","gameDate":"2026-05-29","sport":"WNBA","market":"Threes Prop","selection":"Jackie Young Under 1.5 Threes","player":"Jackie Young","teams":["LAV"],"side":"Under","line":1.5,"stat":"Threes","units":1,"confidence":3,"playTo":-134,"bestBook":"Novig","bestOdds":104,"books":[{"b":"Novig","odds":104,"best":true},{"b":"FanDuel","odds":102},{"b":"Prop Builder","odds":100},{"b":"ProphetX","odds":-107},{"b":"Fliff","odds":-110},{"b":"DraftKings","odds":-101},{"b":"Courtside","odds":-101},{"b":"Onyx","odds":-101}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba8","gameDate":"2026-05-29","sport":"WNBA","market":"Points Prop","selection":"Paige Bueckers Under 20.5 Points","player":"Paige Bueckers","teams":["DAL"],"side":"Under","line":20.5,"stat":"Points","units":1,"confidence":3,"playTo":-139,"bestBook":"DraftKings","bestOdds":-119,"books":[{"b":"DraftKings","odds":-119,"best":true},{"b":"Courtside","odds":-119},{"b":"Onyx","odds":-119}],"alts":[{"books":[{"b":"Prop Builder","odds":-102,"line":"u19.5"},{"b":"FanDuel","odds":-106,"line":"u19.5"},{"b":"Novig","odds":-104,"line":"u19.5"},{"b":"ProphetX","odds":-114,"line":"u19.5"}],"playTo":-112}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba9","gameDate":"2026-05-29","sport":"WNBA","market":"Rebounds Prop","selection":"Paige Bueckers Over 3.5 Rebounds","player":"Paige Bueckers","teams":["DAL"],"side":"Over","line":3.5,"stat":"Rebounds","units":1,"confidence":3,"playTo":106,"bestBook":"Prop Builder","bestOdds":132,"books":[{"b":"Prop Builder","odds":132,"best":true},{"b":"FanDuel","odds":128},{"b":"Novig","odds":131},{"b":"ProphetX","odds":117},{"b":"DraftKings","odds":131},{"b":"Courtside","odds":131},{"b":"Onyx","odds":131}],"alts":[{"books":[{"b":"Fliff","odds":-175,"line":"o2.5"}],"playTo":-194}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba10","gameDate":"2026-05-29","sport":"WNBA","market":"Points Prop","selection":"Kayla Thornton Under 11.5 Points","player":"Kayla Thornton","teams":["GSV"],"side":"Under","line":11.5,"stat":"Points","units":1,"confidence":3,"playTo":-155,"bestBook":"DraftKings","bestOdds":-129,"books":[{"b":"DraftKings","odds":-129,"best":true},{"b":"Courtside","odds":-129},{"b":"Onyx","odds":-129},{"b":"Prop Builder","odds":-130},{"b":"FanDuel","odds":-132},{"b":"Novig","odds":-131},{"b":"ProphetX","odds":-141},{"b":"Fliff","odds":-140}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba11","gameDate":"2026-05-29","sport":"WNBA","market":"Threes Prop","selection":"Kayla Thornton Under 1.5 Threes","player":"Kayla Thornton","teams":["GSV"],"side":"Under","line":1.5,"stat":"Threes","units":1,"confidence":3,"playTo":-233,"bestBook":"FanDuel","bestOdds":-168,"books":[{"b":"FanDuel","odds":-168,"best":true},{"b":"Prop Builder","odds":-179},{"b":"Novig","odds":-173},{"b":"ProphetX","odds":-190},{"b":"Fliff","odds":-200},{"b":"DraftKings","odds":-184},{"b":"Courtside","odds":-184},{"b":"Onyx","odds":-184}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba12","gameDate":"2026-05-29","sport":"WNBA","market":"Assists Prop","selection":"A'ja Wilson Under 2.5 Assists","player":"A'ja Wilson","teams":["LAV"],"side":"Under","line":2.5,"stat":"Assists","units":1,"confidence":3,"playTo":108,"bestBook":"DraftKings","bestOdds":130,"books":[{"b":"DraftKings","odds":130,"best":true},{"b":"Courtside","odds":130},{"b":"Onyx","odds":130},{"b":"Prop Builder","odds":125},{"b":"Fliff","odds":120}],"alts":[{"books":[{"b":"FanDuel","odds":-180,"line":"u3.5"},{"b":"Novig","odds":-182,"line":"u3.5"},{"b":"ProphetX","odds":-190,"line":"u3.5"}],"playTo":-212}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba13","gameDate":"2026-05-29","sport":"WNBA","market":"Points Prop","selection":"Veronica Burton Under 14.5 Points","player":"Veronica Burton","teams":["GSV"],"side":"Under","line":14.5,"stat":"Points","units":1,"confidence":3,"playTo":-150,"bestBook":"FanDuel","bestOdds":-122,"books":[{"b":"FanDuel","odds":-122,"best":true},{"b":"Prop Builder","odds":-128},{"b":"Novig","odds":-127},{"b":"ProphetX","odds":-139},{"b":"Fliff","odds":-130}],"alts":[{"books":[{"b":"DraftKings","odds":-103,"line":"u13.5"},{"b":"Courtside","odds":-103,"line":"u13.5"},{"b":"Onyx","odds":-103,"line":"u13.5"}],"playTo":-117}],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba14","gameDate":"2026-05-29","sport":"WNBA","market":"Points Prop","selection":"Kelsey Mitchell Under 19.5 Points","player":"Kelsey Mitchell","teams":["IND"],"side":"Under","line":19.5,"stat":"Points","units":1,"confidence":3,"playTo":-124,"bestBook":"FanDuel","bestOdds":-110,"books":[{"b":"FanDuel","odds":-110,"best":true},{"b":"Prop Builder","odds":-114},{"b":"Novig","odds":-111},{"b":"ProphetX","odds":-112},{"b":"Fliff","odds":-120},{"b":"DraftKings","odds":-120},{"b":"Courtside","odds":-120},{"b":"Onyx","odds":-120}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
+  {"id":"wnba15","gameDate":"2026-05-29","sport":"WNBA","market":"Threes Prop","selection":"Azzi Fudd Over 1.5 Threes","player":"Azzi Fudd","teams":["DAL"],"side":"Over","line":1.5,"stat":"Threes","units":1,"confidence":3,"playTo":104,"bestBook":"Prop Builder","bestOdds":115,"books":[{"b":"Prop Builder","odds":115,"best":true},{"b":"FanDuel","odds":108},{"b":"Novig","odds":111},{"b":"ProphetX","odds":100},{"b":"Fliff","odds":105},{"b":"DraftKings","odds":109},{"b":"Courtside","odds":109},{"b":"Onyx","odds":109}],"alts":[],"reveal_at":hoursAgo(1),"notes":null,"result":null},
   {"id":"mlb1","sport":"MLB","market":"Earned Runs Prop","selection":"Noah Cameron Under 3.5 Earned Runs","player":"Noah Cameron","teams":["KC"],"side":"Under","line":3.5,"stat":"Earned Runs","units":1,"confidence":3,"playTo":-161,"bestBook":"Bet105","bestOdds":-153,"books":[{"b":"Bet105","odds":-153,"best":true},{"b":"Prop Builder","odds":-154}],"alts":[],"reveal_at":hoursAgo(2),"notes":null,"result":null},
   {"id":"mlb2","sport":"MLB","market":"Hits Allowed Prop","selection":"Cristopher Sanchez Over 5.5 Hits Allowed","player":"Cristopher Sanchez","teams":["PHI"],"side":"Over","line":5.5,"stat":"Hits Allowed","units":1,"confidence":3,"playTo":113,"bestBook":"Prop Builder","bestOdds":125,"books":[{"b":"Prop Builder","odds":125,"best":true},{"b":"BookMaker","odds":115}],"alts":[],"reveal_at":hoursAgo(2),"notes":"Listed under 'Will have at least' — not in the standard over/under section.","result":null}
 ];
@@ -2101,7 +2277,7 @@ function renderPicks() {
     const best = books[0] || { odds: 0, b: '—' };
     const edgeClass = e => e >= 5 ? 'edge-strong' : e >= 2.5 ? 'edge-solid' : 'edge-thin';
     const bookRows = books.map((bk, idx) => `
-      <div class="bookrow">
+      <div class="bookrow${idx === 0 ? ' best' : ''}">
         <div class="bookrow-name">
           ${BOOK_LOGOS[bk.b] ? `<img class="book-logo" src="${BOOK_LOGOS[bk.b]}" alt="${bk.b}">` : ''}
           <span class="${idx === 0 ? 'book-best' : ''}">${bk.b}</span>
@@ -2150,6 +2326,17 @@ function renderPicks() {
     ` : '';
     const statusDot = p.result === 'win' ? 'dot-win' : p.result === 'loss' ? 'dot-loss' : 'dot-live';
     const statusTxt = p.result === 'win' ? 'WON' : p.result === 'loss' ? 'LOST' : 'LIVE';
+    // Format date nicely (e.g. "May 30")
+    const dateFmt = p.gameDate ? new Date(p.gameDate + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    const teamTxt = (p.teams||[]).join(' / ');
+    let metaRow = '';
+    if (teamTxt || dateFmt) {
+      const parts = [];
+      if (teamTxt) parts.push(`<span class="dc-team">${teamTxt}</span>`);
+      if (dateFmt) parts.push(`<span class="dc-date">${dateFmt}</span>`);
+      metaRow = `<div class="dc-meta">${parts.join(' <span class="dc-sep">·</span> ')}</div>`;
+    }
+
     return `
       <div class="pick-card ${cardClass} datacard" data-expandable onclick="togglePickCard(this)">
         <div class="dc-head">
@@ -2169,6 +2356,7 @@ function renderPicks() {
           }).join('')}
           <div class="dc-title">${p.selection}</div>
         </div>
+        ${metaRow}
         <div class="dc-stats">
           <div class="dc-stat">
             <span class="dc-stat-val">
@@ -2227,6 +2415,171 @@ document.getElementById('todayDate').textContent =
   new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric', year:'numeric'});
 
 // ============ SPARKLINE ============
+// ============ HISTORICAL BREAKDOWN ============
+// Computes Over/Under, By Stat, and By Sportsbook stats from settled PICKS.
+// A pick is settled when p.result is 'win', 'loss', or 'push'.
+// Profit for a settled pick: stake = p.units, payoff = americanPayout(units, bestOdds).
+function americanPayout(stake, americanOdds) {
+  if (americanOdds > 0) return stake * (americanOdds / 100);
+  return stake * (100 / Math.abs(americanOdds));
+}
+function pickUnitResult(p) {
+  // Returns net units for the pick (positive=profit, negative=loss, 0=push/pending)
+  if (p.result === 'win')  return americanPayout(p.units || 1, p.bestOdds || -110);
+  if (p.result === 'loss') return -(p.units || 1);
+  return 0; // push or unsettled
+}
+
+function aggregateBy(settled, keyFn) {
+  const groups = {};
+  settled.forEach(p => {
+    const k = keyFn(p);
+    if (!k) return;
+    if (!groups[k]) groups[k] = { wins:0, losses:0, pushes:0, units:0, over:{w:0,l:0,u:0}, under:{w:0,l:0,u:0} };
+    const g = groups[k];
+    const u = pickUnitResult(p);
+    g.units += u;
+    if (p.result === 'win')  g.wins++;
+    else if (p.result === 'loss') g.losses++;
+    else if (p.result === 'push') g.pushes++;
+    // side breakdown
+    const sideBucket = /^(over|o)$/i.test(p.side||'') ? g.over : (/^(under|u)$/i.test(p.side||'') ? g.under : null);
+    if (sideBucket) {
+      if (p.result === 'win')  { sideBucket.w++; sideBucket.u += u; }
+      else if (p.result === 'loss') { sideBucket.l++; sideBucket.u += u; }
+    }
+  });
+  return groups;
+}
+
+function fmtUnits(u){ const s = u >= 0 ? '+' : ''; return s + u.toFixed(2) + 'u'; }
+function fmtROI(u, staked){ if(!staked) return '—'; const r = (u/staked)*100; return (r>=0?'+':'') + r.toFixed(1) + '%'; }
+function pctClass(pct, units){ return units > 0 ? 'gain' : units < 0 ? 'loss' : 'neutral'; }
+
+function renderHistoricalBreakdown() {
+  const settled = PICKS.filter(p => p.result === 'win' || p.result === 'loss' || p.result === 'push');
+  const ouEl = document.getElementById('historicalOU');
+  const statsEl = document.getElementById('historicalByStat');
+  const booksEl = document.getElementById('historicalByBook');
+  if (!ouEl || !statsEl || !booksEl) return;
+
+  if (!settled.length) {
+    const empty = '<div class="stat-empty">No graded picks yet. As picks settle, breakdowns will populate here.</div>';
+    ouEl.innerHTML = empty;
+    statsEl.innerHTML = empty;
+    booksEl.innerHTML = empty;
+    return;
+  }
+
+  // ---- Over / Under split (top-level)
+  const ouTotals = { Over:{w:0,l:0,p:0,u:0,staked:0}, Under:{w:0,l:0,p:0,u:0,staked:0} };
+  settled.forEach(p => {
+    const side = /^(over|o)$/i.test(p.side||'') ? 'Over' : (/^(under|u)$/i.test(p.side||'') ? 'Under' : null);
+    if (!side) return;
+    const bucket = ouTotals[side];
+    bucket.staked += (p.units||1);
+    bucket.u += pickUnitResult(p);
+    if (p.result === 'win')  bucket.w++;
+    else if (p.result === 'loss') bucket.l++;
+    else bucket.p++;
+  });
+  ouEl.innerHTML = ['Over','Under'].map(side => {
+    const b = ouTotals[side]; const total = b.w + b.l + b.p;
+    const pct = total ? Math.round((b.w / (b.w + b.l || 1)) * 100) : 0;
+    const cls = b.u > 0 ? 'gain' : b.u < 0 ? 'loss' : 'neutral';
+    return `<div class="stat-card">
+      <div class="stat-card-head">${side}</div>
+      <div class="stat-card-pct">${pct}%</div>
+      <div class="stat-card-line"><span>${b.w}/${b.w+b.l}</span> · <span class="${cls}">${fmtUnits(b.u)}</span> · <span class="${cls}">ROI ${fmtROI(b.u, b.staked)}</span></div>
+    </div>`;
+  }).join('');
+
+  // ---- By Stat
+  const byStat = aggregateBy(settled, p => p.stat);
+  const statRows = Object.entries(byStat).map(([stat, g]) => {
+    const total = g.wins + g.losses + g.pushes;
+    const decided = g.wins + g.losses;
+    const staked = settled.filter(p => p.stat === stat).reduce((s,p)=>s+(p.units||1), 0);
+    return { stat, g, total, decided, staked, pct: decided ? Math.round((g.wins/decided)*100) : 0 };
+  }).sort((a,b) => b.g.units - a.g.units);
+
+  statsEl.innerHTML = statRows.map(({stat, g, total, decided, staked, pct}) => {
+    const cls = g.units > 0 ? 'gain' : g.units < 0 ? 'loss' : 'neutral';
+    return `<div class="stat-card">
+      <div class="stat-card-head">${stat}</div>
+      <div class="stat-card-pct">${pct}%</div>
+      <div class="stat-card-line"><span>${g.wins}/${decided}</span> · <span class="${cls}">${fmtUnits(g.units)}</span> · <span class="${cls}">ROI ${fmtROI(g.units, staked)}</span></div>
+      <div class="stat-card-ou">
+        <div class="stat-card-ou-row"><span class="side o">O</span> ${g.over.w+g.over.l ? Math.round(g.over.w/(g.over.w+g.over.l)*100)+'%' : '—'} ${g.over.w}/${g.over.w+g.over.l} <span class="${g.over.u>0?'gain':g.over.u<0?'loss':'neutral'}">${fmtUnits(g.over.u)}</span></div>
+        <div class="stat-card-ou-row"><span class="side u">U</span> ${g.under.w+g.under.l ? Math.round(g.under.w/(g.under.w+g.under.l)*100)+'%' : '—'} ${g.under.w}/${g.under.w+g.under.l} <span class="${g.under.u>0?'gain':g.under.u<0?'loss':'neutral'}">${fmtUnits(g.under.u)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ---- By Sportsbook (using bestBook on the pick — i.e. the book you took it at)
+  const byBook = aggregateBy(settled, p => p.bestBook);
+  const bookRows = Object.entries(byBook).map(([book, g]) => {
+    const decided = g.wins + g.losses;
+    const staked = settled.filter(p => p.bestBook === book).reduce((s,p)=>s+(p.units||1), 0);
+    return { book, g, decided, staked, pct: decided ? Math.round((g.wins/decided)*100) : 0 };
+  }).sort((a,b) => b.g.units - a.g.units);
+
+  booksEl.innerHTML = bookRows.map(({book, g, decided, staked, pct}) => {
+    const cls = g.units > 0 ? 'gain' : g.units < 0 ? 'loss' : 'neutral';
+    const logo = (typeof BOOK_LOGOS !== 'undefined' && BOOK_LOGOS[book]) ? `<img src="${BOOK_LOGOS[book]}" alt="${book}">` : '';
+    return `<div class="stat-card">
+      <div class="stat-card-head">${logo}${book}</div>
+      <div class="stat-card-pct">${pct}%</div>
+      <div class="stat-card-line"><span>${g.wins}/${decided}</span> · <span class="${cls}">${fmtUnits(g.units)}</span> · <span class="${cls}">ROI ${fmtROI(g.units, staked)}</span></div>
+      <div class="stat-card-ou">
+        <div class="stat-card-ou-row"><span class="side o">O</span> ${g.over.w+g.over.l ? Math.round(g.over.w/(g.over.w+g.over.l)*100)+'%' : '—'} ${g.over.w}/${g.over.w+g.over.l} <span class="${g.over.u>0?'gain':g.over.u<0?'loss':'neutral'}">${fmtUnits(g.over.u)}</span></div>
+        <div class="stat-card-ou-row"><span class="side u">U</span> ${g.under.w+g.under.l ? Math.round(g.under.w/(g.under.w+g.under.l)*100)+'%' : '—'} ${g.under.w}/${g.under.w+g.under.l} <span class="${g.under.u>0?'gain':g.under.u<0?'loss':'neutral'}">${fmtUnits(g.under.u)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Populates the "Recent Picks" panel on the Historical tab from real graded data.
+// Sorts most-recent-graded-first (by gameDate desc, then reveal_at desc), shows top 6.
+function renderRecentPicks() {
+  const el = document.getElementById('recentList');
+  if (!el) return;
+  const graded = PICKS.filter(p => p.result === 'win' || p.result === 'loss' || p.result === 'push');
+  if (!graded.length) {
+    el.innerHTML = `<div class="recent-row" style="padding:18px 4px;color:var(--ink-3);font-size:12px;justify-content:center;">No graded picks yet. Use Auto Grade in Admin.</div>`;
+    return;
+  }
+  // sort by gameDate desc, then by reveal_at as a tiebreaker
+  graded.sort((a, b) => {
+    const da = a.gameDate || '';
+    const db = b.gameDate || '';
+    if (db !== da) return db.localeCompare(da);
+    return (b.reveal_at || '').localeCompare(a.reveal_at || '');
+  });
+  const top = graded.slice(0, 6);
+
+  el.innerHTML = top.map((p, i) => {
+    const resultClass = p.result === 'win' ? 'win' : p.result === 'loss' ? 'loss' : 'push';
+    const resultLabel = p.result === 'win' ? 'WIN' : p.result === 'loss' ? 'LOSS' : 'PUSH';
+    // selection short form: "Over 12.5 Points" -> "Points O 12.5"
+    const sideAbbr = (p.side||'').toLowerCase().startsWith('o') ? 'O' : 'U';
+    const propTxt = `${p.stat || p.market} ${sideAbbr} ${p.line ?? ''}`.trim();
+    const actual = (p.actual !== undefined && p.actual !== null) ? p.actual : '—';
+    return `
+      <div class="recent-row">
+        <div class="recent-rank">${i+1}</div>
+        <div class="recent-meta">
+          <span class="recent-name">${p.player || p.selection}</span>
+          <span class="recent-prop">${propTxt}</span>
+        </div>
+        <div class="recent-result">
+          <span class="recent-result-val">${actual}</span>
+          <span class="result-badge ${resultClass}">${resultLabel}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function buildSparkline() {
   // simulate cumulative units curve, choppy upward
   const points = [];
@@ -2470,11 +2823,28 @@ function clearFilters() {
 // ============ ODDS LAB (dev tool) ============
 const ODDS_BASE = 'https://api.the-odds-api.com/v4';
 // prop markets per sport — what gets fetched when you click "Props"
+// API regions — us2 picks up newer US books (Hard Rock, Fliff, ESPN BET, theScore) the base us region misses
+// API regions — wide net to cover everything the API offers:
+//   us:    DraftKings, FanDuel, BetMGM, Caesars, BetRivers, Bovada, MyBookie, BetUS, BetOnline.ag, LowVig
+//   us2:   Hard Rock Bet, ESPN BET/theScore, Fliff, betPARX, Bally Bet
+//   us_ex: ProphetX, Novig, Kalshi, Polymarket, BetOpenly (exchanges — sharp pricing)
+//   us_dfs: PrizePicks, Underdog Fantasy, DraftKings Pick6, Betr Picks
+//   eu:    Pinnacle (sharp anchor) + 1xBet, Bet Victor, William Hill, Unibet, etc.
+// Regions are filters, not credit multipliers. Wider = more books, same cost.
+const PROP_REGIONS = 'us,us2,us_ex,us_dfs,eu';
+
+// Markets per sport. Each market = ~10 credits per game per call.
+// Heads up: more markets → more credits burned. The Odds API supports these for basketball:
+//   player_points, player_rebounds, player_assists, player_threes, player_blocks, player_steals,
+//   player_turnovers, player_points_rebounds_assists (PRA),
+//   player_points_rebounds, player_points_assists, player_rebounds_assists,
+//   player_double_double, player_triple_double, player_first_basket
+// plus *_alternate variants for milestone lines.
 const PROP_MARKETS = {
-  baseball_mlb: 'pitcher_strikeouts,batter_hits,batter_total_bases,batter_home_runs',
-  basketball_nba: 'player_points,player_rebounds,player_assists,player_threes',
-  basketball_wnba: 'player_points,player_rebounds,player_assists,player_threes',
-  icehockey_nhl: 'player_points,player_shots_on_goal,player_goals',
+  baseball_mlb: 'pitcher_strikeouts,pitcher_strikeouts_alternate,batter_hits,batter_hits_alternate,batter_total_bases,batter_home_runs,batter_rbis,pitcher_hits_allowed,pitcher_earned_runs,pitcher_outs',
+  basketball_nba: 'player_points,player_points_alternate,player_rebounds,player_rebounds_alternate,player_assists,player_assists_alternate,player_threes,player_threes_alternate,player_points_rebounds_assists,player_points_rebounds,player_points_assists,player_rebounds_assists,player_blocks,player_steals,player_turnovers,player_double_double',
+  basketball_wnba: 'player_points,player_points_alternate,player_rebounds,player_rebounds_alternate,player_assists,player_assists_alternate,player_threes,player_threes_alternate,player_points_rebounds_assists,player_points_rebounds,player_points_assists,player_rebounds_assists,player_blocks,player_steals,player_turnovers,player_double_double',
+  icehockey_nhl: 'player_points,player_shots_on_goal,player_goals,player_assists,player_power_play_points',
   mma_mixed_martial_arts: '',
   tennis_atp: ''
 };
@@ -2499,6 +2869,12 @@ function labSetStatus(msg, cls) {
 (function(){
   const saved = sessionStorage.getItem('bb_odds_key');
   if (saved) { const el = document.getElementById('labKey'); if (el) el.value = saved; }
+})();
+
+// default paste-date input to today
+(function(){
+  const el = document.getElementById('pasteDate');
+  if (el && !el.value) el.value = new Date().toISOString().slice(0,10);
 })();
 
 let labEvents = [];
@@ -2538,7 +2914,7 @@ function renderLabEvents(sport) {
         </div>
         <div class="lab-event-actions" style="margin-top:8px;">
           <button class="lab-btn sm" onclick="labFetchOdds('${sport}','${ev.id}','h2h,spreads,totals',this)">Game Odds</button>
-          ${hasProps ? `<button class="lab-btn sm" onclick="labFetchProps('${sport}','${ev.id}',this)">Props (~10cr)</button>` : ''}
+          ${hasProps ? `<button class="lab-btn sm" onclick="labFetchProps('${sport}','${ev.id}',this)">Props (~${(PROP_MARKETS[sport].split(',').length * 10)}cr)</button>` : ''}
         </div>
         <div class="lab-odds-table"></div>
       </div>`;
@@ -2551,7 +2927,7 @@ async function labFetchOdds(sport, eventId, markets, btn) {
   wrap.classList.add('show');
   wrap.innerHTML = '<div class="lab-status">Fetching…</div>';
   try {
-    const url = `${ODDS_BASE}/sports/${sport}/events/${eventId}/odds?apiKey=${encodeURIComponent(key)}&regions=us&markets=${markets}&oddsFormat=american`;
+    const url = `${ODDS_BASE}/sports/${sport}/events/${eventId}/odds?apiKey=${encodeURIComponent(key)}&regions=${PROP_REGIONS}&markets=${markets}&oddsFormat=american`;
     const r = await fetch(url);
     if (!r.ok) { wrap.innerHTML = `<div class="lab-status err">Error ${r.status}: ${(await r.text()).slice(0,120)}</div>`; return; }
     const remaining = r.headers.get('x-requests-remaining');
@@ -2569,7 +2945,7 @@ async function labFetchProps(sport, eventId, btn) {
   wrap.classList.add('show');
   wrap.innerHTML = '<div class="lab-status">Fetching props (this costs ~10 credits per market)…</div>';
   try {
-    const url = `${ODDS_BASE}/sports/${sport}/events/${eventId}/odds?apiKey=${encodeURIComponent(key)}&regions=us&markets=${markets}&oddsFormat=american`;
+    const url = `${ODDS_BASE}/sports/${sport}/events/${eventId}/odds?apiKey=${encodeURIComponent(key)}&regions=${PROP_REGIONS}&markets=${markets}&oddsFormat=american`;
     const r = await fetch(url);
     if (!r.ok) { wrap.innerHTML = `<div class="lab-status err">Error ${r.status}: ${(await r.text()).slice(0,120)}</div>`; return; }
     const remaining = r.headers.get('x-requests-remaining');
@@ -2586,6 +2962,18 @@ function bookLogoSmall(title) {
   return key ? `<img src="${BOOK_LOGOS[key]}" alt="${title}">` : '';
 }
 
+// When the API returns a book under one brand but the prop-market product is sold
+// under a different brand (BetOnline.ag operates Prop Builder for props), remap
+// the displayed name so users see the brand they recognize. Only applied on props.
+const PROP_BOOK_ALIAS = {
+  'BetOnline.ag': 'Prop Builder',
+  'BetOnline': 'Prop Builder'
+};
+function aliasBookForProps(name, isProps) {
+  if (!isProps) return name;
+  return PROP_BOOK_ALIAS[name] || name;
+}
+
 function renderOddsTable(wrap, data, remaining, isProps) {
   if (!data || !data.bookmakers || !data.bookmakers.length) {
     wrap.innerHTML = '<div class="lab-status err">No odds returned for this game/market yet.</div>';
@@ -2598,7 +2986,7 @@ function renderOddsTable(wrap, data, remaining, isProps) {
       if (!allMarkets[m.key]) allMarkets[m.key] = [];
       m.outcomes.forEach(o => {
         allMarkets[m.key].push({
-          book: bk.title,
+          book: aliasBookForProps(bk.title, isProps),
           name: o.name,            // Over / Under / team name
           player: o.description || null,  // player name for props
           point: o.point,
@@ -2705,7 +3093,7 @@ function parseProps(text){
 function fmtO(o){ return o>0?'+'+o:''+o; }
 
 // convert parsed props -> Blackbook pick objects
-function toPicks(parsed, sport){
+function toPicks(parsed, sport, gameDate){
   return parsed.map((p,i)=>{
     // build books list: best book first, then the rest
     const books = [{ b:p.bestBook, odds:p.bestOdds, best:true }]
@@ -2724,6 +3112,7 @@ function toPicks(parsed, sport){
       units: 1, confidence: 3,
       playTo: p.playTo, bestBook: p.bestBook, bestOdds: p.bestOdds,
       books, alts,
+      gameDate,                          // explicit slate date for the auto-grader
       reveal_at: new Date().toISOString(),
       notes: null, result: null
     };
@@ -2733,30 +3122,264 @@ function toPicks(parsed, sport){
 function parseAndPreview(){
   const text=document.getElementById('pasteInput').value;
   const sport=document.getElementById('pasteSport').value;
+  const gameDate=document.getElementById('pasteDate').value || new Date().toISOString().slice(0,10);
   const status=document.getElementById('pasteStatus');
   if(!text.trim()){ status.textContent='Paste some props first.'; status.className='lab-status err'; return; }
   const parsed=parseProps(text);
   if(!parsed.length){ status.textContent='Could not parse any props — check the format.'; status.className='lab-status err'; return; }
-  parsedPicks=toPicks(parsed,sport);
-  status.innerHTML = `Parsed <b>${parsedPicks.length}</b> picks: ` +
+  parsedPicks=toPicks(parsed,sport,gameDate);
+  status.innerHTML = `Parsed <b>${parsedPicks.length}</b> picks for <b>${gameDate}</b>: ` +
     parsedPicks.slice(0,6).map(p=>`${p.player} ${p.side} ${p.line} ${p.stat}`).join(' · ') +
     (parsedPicks.length>6?' …':'');
   status.className='lab-status ok';
   document.getElementById('publishBtn').style.display='';
 }
 
+// ============ ESPN AUTO-GRADER (WNBA) ============
+// Ported from the WNBA Blender's grader. Reads each unsettled WNBA pick, fetches
+// the game's box score from ESPN, compares player's actual stat to the over/under,
+// and writes p.result = 'win' | 'loss' | 'push'.
+//
+// Endpoints (no auth required):
+//   scoreboard: https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard?dates=YYYYMMDD
+//   summary:    https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/summary?event=ID
+//
+// Important: ESPN's API is blocked in some preview sandboxes (file:// often works,
+// the in-Claude preview does not). Use a real browser to actually grade.
+
+const _espnCache = {};   // date -> rows
+const _espnMetaCache = {}; // date -> meta
+
+function gNorm(s) {
+  if (!s) return "";
+  return s.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\b(jr|sr|ii|iii|iv)\b/g,"")
+    .replace(/[^a-z]/g,"");
+}
+
+// Map the pick's stat string -> Blender's canonical stat key for getStatValueForESPN
+function gStatKey(stat) {
+  const s = (stat||"").toLowerCase();
+  if (s.includes("threes") || s.includes("3pm") || s.includes("3p")) return "3PM";
+  if (s.includes("pra")) return "PRA";
+  if (s === "points+rebounds" || s.includes("points+rebounds")) return "PR";
+  if (s === "points+assists" || s.includes("points+assists")) return "PA";
+  if (s === "rebounds+assists" || s.includes("rebounds+assists")) return "RA";
+  if (s.includes("rebound")) return "REB";
+  if (s.includes("assist"))  return "AST";
+  if (s.includes("point"))   return "PTS";
+  return null;
+}
+
+function gStatValue(row, statKey) {
+  const s = row.stats || {};
+  const pts = s.pts || 0, reb = s.reb || 0, ast = s.ast || 0, fg3m = s.fg3m || 0;
+  switch (statKey) {
+    case "PTS": return pts;
+    case "REB": return reb;
+    case "AST": return ast;
+    case "3PM": return fg3m;
+    case "PRA": return pts + reb + ast;
+    case "PR":  return pts + reb;
+    case "PA":  return pts + ast;
+    case "RA":  return reb + ast;
+    default: return null;
+  }
+}
+
+// Pick -> ISO date string YYYY-MM-DD. REQUIRES explicit p.gameDate — won't guess.
+function gPickDate(p) {
+  return p.gameDate || null;
+}
+
+async function fetchESPNStatsForDate(isoDate) {
+  if (_espnCache[isoDate]) return { rows: _espnCache[isoDate], meta: _espnMetaCache[isoDate] };
+  const yyyymmdd = isoDate.replace(/-/g, "");
+  const sbUrl = `https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard?dates=${yyyymmdd}`;
+  let scoreboard;
+  try {
+    const r = await fetch(sbUrl);
+    if (!r.ok) throw new Error("ESPN scoreboard " + r.status);
+    scoreboard = await r.json();
+  } catch (e) { throw new Error("ESPN scoreboard error: " + e.message); }
+
+  const events = scoreboard.events || [];
+  const meta = { total: events.length, completed: 0, statuses: [], games: [] };
+  const allRows = [];
+  for (const ev of events) {
+    const completed = ev.status?.type?.completed === true;
+    const statusName = ev.status?.type?.shortDetail || ev.status?.type?.name || "Unknown";
+    meta.statuses.push(statusName);
+    if (!completed) continue;
+    meta.completed++;
+    let summary;
+    try {
+      const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/summary?event=${ev.id}`);
+      if (!r.ok) continue;
+      summary = await r.json();
+    } catch { continue; }
+    const teamPlayerGroups = summary.boxscore?.players || [];
+    for (const teamGroup of teamPlayerGroups) {
+      const stats = teamGroup.statistics || [];
+      for (const statGroup of stats) {
+        const labels = (statGroup.labels || statGroup.keys || []).map(s => s.toString().toLowerCase());
+        const idx = {
+          pts: labels.findIndex(l => l === "pts"),
+          reb: labels.findIndex(l => l === "reb"),
+          ast: labels.findIndex(l => l === "ast"),
+          tpt: labels.findIndex(l => l === "3pt" || l === "fg3" || l === "3p"),
+        };
+        const athletes = statGroup.athletes || [];
+        for (const a of athletes) {
+          const player = a.athlete || {};
+          const fullName = player.displayName || `${player.firstName||""} ${player.lastName||""}`.trim();
+          if (!fullName) continue;
+          const stRow = a.stats || [];
+          const parseInt0 = (s) => { const n = parseInt(s); return isNaN(n) ? 0 : n; };
+          const dnp = a.didNotPlay === true;
+          let fg3m = 0;
+          if (idx.tpt >= 0 && stRow[idx.tpt]) {
+            const m = String(stRow[idx.tpt]).match(/^(\d+)/);
+            if (m) fg3m = parseInt(m[1]);
+          }
+          allRows.push({
+            playerNorm: gNorm(fullName),
+            displayName: fullName,
+            dnp,
+            stats: {
+              pts: idx.pts >= 0 ? parseInt0(stRow[idx.pts]) : 0,
+              reb: idx.reb >= 0 ? parseInt0(stRow[idx.reb]) : 0,
+              ast: idx.ast >= 0 ? parseInt0(stRow[idx.ast]) : 0,
+              fg3m
+            }
+          });
+        }
+      }
+    }
+  }
+  _espnCache[isoDate] = allRows;
+  _espnMetaCache[isoDate] = meta;
+  return { rows: allRows, meta };
+}
+
+async function gradePick(p) {
+  if (p.sport !== "WNBA") return { ok: false, reason: "Only WNBA grading is wired right now" };
+  const statKey = gStatKey(p.stat);
+  if (!statKey) return { ok: false, reason: `Stat "${p.stat}" not supported by the WNBA grader` };
+
+  const iso = gPickDate(p);
+  if (!iso) return { ok: false, reason: "No game date set on this pick — re-publish with a date" };
+  let rows, meta;
+  try {
+    const result = await fetchESPNStatsForDate(iso);
+    rows = result.rows; meta = result.meta;
+  } catch (e) { return { ok: false, reason: e.message }; }
+
+  if (!rows || !rows.length) {
+    if (!meta || meta.total === 0) return { ok: false, reason: `No WNBA games on ${iso}` };
+    if (meta.completed === 0) return { ok: false, reason: `Games not final yet (${meta.statuses.join(", ")})` };
+    return { ok: false, reason: `${meta.completed} game(s) final but box scores not loaded` };
+  }
+
+  const playerNorm = gNorm(p.player || p.selection.split(/\s+/).slice(0,2).join(" "));
+  const matches = rows.filter(r => r.playerNorm === playerNorm);
+  if (!matches.length) {
+    return { ok: false, reason: `${p.player} not in box score (verify DNP — manual grade may be needed)` };
+  }
+  const allDnp = matches.every(m => m.dnp);
+  if (allDnp) return { ok: true, result: "push", actual: 0, dnp: true };
+
+  let total = 0;
+  matches.filter(m => !m.dnp).forEach(m => { total += gStatValue(m, statKey); });
+
+  const line = p.line, side = (p.side||"").toLowerCase();
+  let result;
+  if (Math.abs(total - line) < 0.001) result = "push";
+  else if (side.startsWith("o")) result = total > line ? "win" : "loss";
+  else                            result = total < line ? "win" : "loss";
+  return { ok: true, result, actual: total };
+}
+
+function appendGradeLog(line, kind) {
+  const wrap = document.getElementById("gradeResults");
+  if (!wrap) return;
+  const color = kind === "win" ? "var(--profit)" : kind === "loss" ? "var(--loss)" : kind === "err" ? "var(--ink-3)" : "var(--ink-2)";
+  const row = document.createElement("div");
+  row.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:11px;color:${color};padding:3px 0;border-bottom:1px solid var(--hairline);`;
+  row.textContent = line;
+  wrap.appendChild(row);
+}
+
+async function gradeAllPending() {
+  const btn = document.getElementById("gradeBtn");
+  const status = document.getElementById("gradeStatus");
+  const wrap = document.getElementById("gradeResults");
+  if (!btn || !status || !wrap) return;
+  wrap.innerHTML = "";
+  const pending = PICKS.filter(p => p.sport === "WNBA" && !p.result);
+  if (!pending.length) { status.textContent = "No pending WNBA picks to grade."; status.className = "lab-status"; return; }
+  btn.disabled = true; btn.textContent = "Grading…";
+  status.textContent = `Grading ${pending.length} pending WNBA picks…`;
+  let wins = 0, losses = 0, pushes = 0, errors = 0;
+  for (const p of pending) {
+    const r = await gradePick(p);
+    if (!r.ok) {
+      errors++;
+      appendGradeLog(`✗ ${p.player} ${p.side} ${p.line} ${p.stat} — ${r.reason}`, "err");
+      continue;
+    }
+    p.result = r.result;
+    p.actual = (r.actual !== undefined) ? r.actual : null;
+    if (r.result === "win")  { wins++;   appendGradeLog(`✓ WIN  ${p.player} ${p.side} ${p.line} ${p.stat} → ${r.actual}`, "win"); }
+    else if (r.result === "loss") { losses++; appendGradeLog(`✗ LOSS ${p.player} ${p.side} ${p.line} ${p.stat} → ${r.actual}`, "loss"); }
+    else { pushes++; appendGradeLog(`= PUSH ${p.player} ${p.side} ${p.line} ${p.stat}${r.dnp?" (DNP)":""}`, "info"); }
+  }
+  btn.disabled = false; btn.textContent = "Grade Pending Picks";
+  status.innerHTML = `Done. <b>${wins}W · ${losses}L · ${pushes}P</b>${errors?` · ${errors} skipped`:""}.`;
+  status.className = "lab-status ok";
+  renderPicks();
+  renderHistoricalBreakdown();
+  renderRecentPicks();
+}
+
+async function regradeSettled() {
+  const settled = PICKS.filter(p => p.sport === "WNBA" && p.result);
+  if (!settled.length) { document.getElementById("gradeStatus").textContent = "Nothing to re-grade."; return; }
+  if (!confirm(`Re-grade ${settled.length} settled WNBA picks? This re-fetches ESPN data and updates results.`)) return;
+  settled.forEach(p => { p.result = null; });
+  await gradeAllPending();
+}
+
 function publishParsed(){
   if(!parsedPicks.length) return;
   PICKS = parsedPicks;
   renderPicks();
+  renderHistoricalBreakdown();
+  renderRecentPicks();
   document.getElementById('pasteLab').classList.remove('open');
   document.getElementById('pasteStatus').textContent='Published.';
 }
 
 // ============ INIT ============
+
+// Admin gate — Admin tab + view only show when previewing locally.
+// On the live site, the tab button AND the view section are removed from the DOM entirely.
+(function adminGate(){
+  const h = location.hostname;
+  const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '' || location.protocol === 'file:';
+  if (!isLocal) {
+    document.querySelectorAll('.admin-tab').forEach(el => el.remove());
+    const v = document.getElementById('view-admin');
+    if (v) v.remove();
+  }
+})();
+
 loadPlays();
 renderPicks();
 renderPlays();
+renderHistoricalBreakdown();
+renderRecentPicks();
 buildSparkline();
 tick();
 setInterval(tick, 1000);
