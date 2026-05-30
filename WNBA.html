@@ -1043,10 +1043,11 @@ function renderTable() {
         const border = withinTol ? "#55258366" : "#1f2733";
         return `<span class="copyable" onclick="event.stopPropagation();copyAvg(${v.toFixed(4)})" title="${SOURCES[si].label}: ${v.toFixed(2)} (click to copy${sortBy==='pra'?' /3 for PRA':''})" style="display:inline-flex;align-items:center;gap:4px;background:#0d1117;border:1px solid ${border};border-radius:4px;padding:1px 7px;white-space:nowrap;"><span style="color:#8b93a0;font-weight:600;font-size:10px;">${SOURCES[si].label}</span><span style="color:${valColor};font-weight:700;">${v.toFixed(2)}</span></span>`;
       });
-    // AVG pill appended at end once 2+ sources contributed. Reference only — NOT clickable.
+    // AVG pill appended at end once 2+ sources contributed. Clickable to copy
+    // the blended value, same as the per-source pills above.
     const srcCount = srcVals.filter(v=>v!=null).length;
     if (avg != null && srcCount >= 2) {
-      srcPills.push(`<span title="Blended average (reference only)" style="display:inline-flex;align-items:center;gap:4px;background:#FDB9270d;border:1px solid #FDB92744;border-radius:4px;padding:1px 7px;white-space:nowrap;"><span style="color:#FDB927;font-weight:700;font-size:10px;letter-spacing:0.3px;">AVG</span><span style="color:#FDB927;font-weight:800;">${avg.toFixed(2)}</span></span>`);
+      srcPills.push(`<span class="copyable" onclick="event.stopPropagation();copyAvg(${avg.toFixed(4)})" title="Blended average: ${avg.toFixed(2)} (click to copy${sortBy==='pra'?' /3 for PRA':''})" style="display:inline-flex;align-items:center;gap:4px;background:#FDB9270d;border:1px solid #FDB92744;border-radius:4px;padding:1px 7px;white-space:nowrap;"><span style="color:#FDB927;font-weight:700;font-size:10px;letter-spacing:0.3px;">AVG</span><span style="color:#FDB927;font-weight:800;">${avg.toFixed(2)}</span></span>`);
     }
     const srcInline = srcPills.join('<span style="margin:0 3px;"></span>');
 
@@ -3510,9 +3511,18 @@ function renderTracker() {
 
   const bookBreak = {};
   settled.forEach(b => {
-    if (!bookBreak[b.book]) bookBreak[b.book] = emptyWithSplit();
-    accum(bookBreak[b.book], b);
-    if (b.ou === "over" || b.ou === "under") accum(bookBreak[b.book][b.ou], b);
+    // Normalize book label so old bets stored with raw shorthand (e.g. "F", "fd")
+    // group under their canonical book name. Bets with no book stored default to
+    // FanDuel (primary book) so they merge into the main FanDuel bucket instead
+    // of rendering as an orphan "Unknown" pill.
+    let bookKey = b.book;
+    if (typeof normBookInput === "function" && bookKey) {
+      bookKey = normBookInput(bookKey) || bookKey;
+    }
+    if (!bookKey || !bookKey.trim()) bookKey = "FanDuel";
+    if (!bookBreak[bookKey]) bookBreak[bookKey] = emptyWithSplit();
+    accum(bookBreak[bookKey], b);
+    if (b.ou === "over" || b.ou === "under") accum(bookBreak[bookKey][b.ou], b);
   });
 
   const ouBreak = {over:empty(), under:empty()};
@@ -3749,6 +3759,56 @@ function renderTracker() {
     </div>
 
     <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Over / Under</h4>
+      <div class="overview-strip">${card("Over", ouBreak.over)}${card("Under", ouBreak.under)}</div>
+    </div>
+
+    <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">By Stat <span style="color:#a8b0bb;font-weight:500;text-transform:none;letter-spacing:0.5px;font-size:10px;margin-left:4px;">(most profitable first)</span></h4>
+      ${Object.entries(statBreak).length === 0 ? '<p style="color:#525a64;font-size:13px;padding:8px 0;">No settled bets yet</p>' : `<div class="overview-strip" style="flex-wrap:wrap;">${Object.entries(statBreak).sort((a,b)=>b[1].pl-a[1].pl).map(([k,v])=>card(k,v)).join("")}</div>`}
+    </div>
+
+    <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">By Sportsbook <span style="color:#a8b0bb;font-weight:500;text-transform:none;letter-spacing:0.5px;font-size:10px;margin-left:4px;">(best price · most profitable first)</span></h4>
+      ${Object.entries(bookBreak).length === 0 ? '<p style="color:#525a64;font-size:13px;padding:8px 0;">No settled bets yet</p>' : `<div class="overview-strip" style="flex-wrap:wrap;">${Object.entries(bookBreak).sort((a,b)=>b[1].pl-a[1].pl).map(([k,v])=>card(k,v,{book:true})).join("")}</div>`}
+    </div>
+
+    ${(hasSourceHistory || hasCfHistory) ? `
+    <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Model Performance</h4>
+      <p style="font-size:10px;color:#a8b0bb;margin:-4px 0 10px 0;line-height:1.4;">Each model's record on bets where it agreed with your pick (≥50% win prob). Higher ROI = better when confident.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${(() => {
+          // Per-model compact pill. Source: sourceBreak (which model tag was on the bet)
+          // vs cfBreak (which models AGREED with the bet at track time). cfBreak is the
+          // more useful signal — it's what we predicted, vs what hit — so we lead with that.
+          const models = [
+            { key: "blended",  label: "PlayerBased", data: cfBreak.blended  },
+            { key: "paceeff",  label: "Pace × Eff",  data: cfBreak.paceeff  },
+            { key: "both",     label: "Combined",    data: cfBreak.both     }
+          ];
+          return models.filter(m => m.data && m.data.total > 0).map(m => {
+            const v = m.data;
+            const hitPct = v.total > 0 ? Math.round((v.hits/v.total)*100) : 0;
+            const roi = v.staked > 0 ? ((v.pl/v.staked)*100).toFixed(1) : "—";
+            const plColor = v.pl >= 0 ? "#22c55e" : "#f87171";
+            const roiColor = Number(roi) >= 0 ? "#FDB927" : "#f87171";
+            const hitColor = hitPct >= 55 ? "#22c55e" : hitPct >= 45 ? "#d4dae3" : "#f87171";
+            return `<div style="background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:8px 12px;min-width:170px;flex:1;">
+              <div style="font-size:10px;color:#a8b0bb;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">${m.label}</div>
+              <div style="display:flex;align-items:baseline;gap:10px;">
+                <span style="font-size:18px;font-weight:800;color:${hitColor};letter-spacing:-0.5px;">${hitPct}%</span>
+                <span style="font-size:11px;color:#d4dae3;">${v.hits}-${v.total - v.hits}</span>
+                <span style="font-size:11px;color:${plColor};font-weight:700;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</span>
+                <span style="font-size:11px;color:${roiColor};font-weight:700;margin-left:auto;">ROI ${roi}${roi!=="—"?'%':''}</span>
+              </div>
+            </div>`;
+          }).join("");
+        })()}
+      </div>
+    </div>` : ""}
+
+    <div class="tracker-section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1f2733;flex-wrap:wrap;gap:8px;">
         <h4 style="margin:0;padding:0;border:none;">${openOnly ? `Open ${betKindFilter==='all'?'Bets':betKindFilter==='props'?'Props':'Totals'} (${pending.length})` : `${betKindFilter==='all'?'Bet History':betKindFilter==='props'?'Props History':'Totals History'}`}</h4>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -3768,44 +3828,7 @@ function renderTracker() {
       </div>
       ${filtered.length === 0 ? '<p style="color:#525a64;font-size:13px;padding:20px 0;text-align:center;">'+(search?"No bets match search.":openOnly?"No open bets.":"No bets yet. Hit TRACK on any player.")+'</p>' : `
         <div id="bet-table-body">${betRows}</div>`}
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Over / Under</h4>
-      <div class="overview-strip">${card("Over", ouBreak.over)}${card("Under", ouBreak.under)}</div>
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">By Stat</h4>
-      ${Object.entries(statBreak).length === 0 ? '<p style="color:#525a64;font-size:13px;padding:8px 0;">No settled bets yet</p>' : `<div class="overview-strip" style="flex-wrap:wrap;">${Object.entries(statBreak).map(([k,v])=>card(k,v)).join("")}</div>`}
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">By Sportsbook</h4>
-      ${Object.entries(bookBreak).length === 0 ? '<p style="color:#525a64;font-size:13px;padding:8px 0;">No settled bets yet</p>' : `<div class="overview-strip" style="flex-wrap:wrap;">${Object.entries(bookBreak).map(([k,v])=>card(k,v,{book:true})).join("")}</div>`}
-    </div>
-
-    ${hasSourceHistory ? `
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Projection Source · PlayerBased vs Pace×Eff</h4>
-      <div class="overview-strip" style="flex-wrap:wrap;">
-        ${sourceBreak.blended.total > 0 ? card("PlayerBased", sourceBreak.blended) : ""}
-        ${sourceBreak.paceeff.total > 0 ? card("PACE × EFF", sourceBreak.paceeff) : ""}
-        ${sourceBreak.both.total > 0 ? card("BOTH (avg)", sourceBreak.both) : ""}
-        ${sourceBreak.unknown.total > 0 ? card("Untagged", sourceBreak.unknown) : ""}
-      </div>
-    </div>` : ""}
-
-    ${hasCfHistory ? `
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Model Performance · Which models AGREED with your pick?</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-4px 0 8px 0;line-height:1.4;">Among bets each model said "yes" (≥50% likely), what % hit? Higher hit% means that model was right when it was confident.</p>
-      <div class="overview-strip" style="flex-wrap:wrap;">
-        ${cfBreak.blended.total > 0 ? card("PlayerBased called", cfBreak.blended) : ""}
-        ${cfBreak.paceeff.total > 0 ? card("Pace × Eff called", cfBreak.paceeff) : ""}
-        ${cfBreak.both.total > 0 ? card("Combined called", cfBreak.both) : ""}
-      </div>
-    </div>` : ""}`;
+    </div>`;
 
   // Fill the embedded Auto Grade slot we just created. Targeting is handled by
   // renderAutoGrade itself (it preferentially writes to #autograde-embed-slot).
@@ -3835,7 +3858,7 @@ let qgIdx = 0;
 let openOnly = false;
 let trackerSearch = "";  // search input state, persists across renders
 // Bet kind filter for Tracker: 'all' | 'props' | 'totals'
-let betKindFilter = "all";
+let betKindFilter = "props";
 let gradeLog = [];
 let gradingInProgress = false;
 
