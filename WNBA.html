@@ -291,7 +291,7 @@ table colgroup col.avg-col{width:16%;}
      left-to-right via CSS animation. Pauses on hover/touch. Refreshes every 30s
      from ESPN's scoreboard endpoint. Hidden by default until games are fetched. -->
 <div id="scoreboard-ticker" style="display:none;position:relative;background:linear-gradient(180deg,#0a0a0e 0%,#050507 100%);border-bottom:1px solid #1a1d22;overflow:hidden;cursor:pointer;" onclick="openScheduleModal()" title="Tap for full schedule">
-  <div id="scoreboard-ticker-inner" style="display:flex;gap:24px;padding:10px 16px;white-space:nowrap;animation:ticker-scroll 25s linear infinite;will-change:transform;"></div>
+  <div id="scoreboard-ticker-inner" style="display:flex;gap:24px;padding:10px 16px;white-space:nowrap;animation:ticker-scroll 15s linear infinite;will-change:transform;"></div>
   <!-- Edge fades to suggest off-screen content -->
   <div style="position:absolute;top:0;left:0;bottom:0;width:32px;background:linear-gradient(90deg,#050507 0%,rgba(5,5,7,0) 100%);pointer-events:none;z-index:2;"></div>
   <div style="position:absolute;top:0;right:0;bottom:0;width:32px;background:linear-gradient(90deg,rgba(5,5,7,0) 0%,#050507 100%);pointer-events:none;z-index:2;"></div>
@@ -1635,6 +1635,22 @@ function stdevForStat(stat, proj) {
   return Math.max(floor, Math.sqrt(proj * scale));
 }
 
+// Poisson CDF: P(X ≤ k) where X ~ Poisson(λ).
+// For low-count counting stats (AST, REB, 3PM), this models the discrete event
+// distribution better than the normal approximation, which underweights the
+// long left tail and overestimates +EV on the OVER side.
+function poissonCDF(k, lambda) {
+  if (k < 0 || lambda <= 0) return 0;
+  let sum = 0;
+  let term = Math.exp(-lambda);
+  sum = term;
+  for (let i = 1; i <= k; i++) {
+    term = term * lambda / i;
+    sum += term;
+  }
+  return Math.min(1, sum);
+}
+
 function probToAmerican(p) {
   if (p == null || p <= 0 || p >= 1) return null;
   if (p >= 0.5) return Math.round(-100 * p / (1 - p));
@@ -1643,7 +1659,18 @@ function probToAmerican(p) {
 
 function modelWinProb(proj, line, side, stat) {
   if (proj == null || line == null) return null;
-  const sd = stdevForStat(stat, proj);
+  const s = (stat || "").toUpperCase();
+  // Counting stats use Poisson — discrete, low-count, asymmetric tails.
+  // For line 2.5 OVER, k = floor(2.5) = 2 → P(under) = P(X ≤ 2).
+  // Integer lines push at exact match — skip that here since most lines are .5.
+  if (s === "AST" || s === "REB" || s === "3PM" || s === "STL" || s === "BLK" || s === "TOV") {
+    const k = Math.floor(line);
+    const pUnder = poissonCDF(k, proj);
+    const pOver = 1 - pUnder;
+    return side === "over" ? pOver : pUnder;
+  }
+  // Continuous / aggregate stats use normal — central limit kicks in.
+  const sd = stdevForStat(s, proj);
   const z = (line - proj) / sd;
   const pUnder = 0.5 * (1 + erf(z / Math.SQRT2));
   const pOver = 1 - pUnder;
@@ -7698,7 +7725,9 @@ function renderScoreboardTicker(events) {
     </div>`;
     inner.innerHTML = (cards[0] + noGames).repeat(2);
     ticker.style.display = "block";
-    inner.style.animationDuration = "20s";
+    inner.style.animation = "none";
+    void inner.offsetWidth;
+    inner.style.animation = "ticker-scroll 12s linear infinite";
     return;
   }
   // Duplicate cards so the animation can loop seamlessly (-50% transform = exactly
@@ -7706,12 +7735,16 @@ function renderScoreboardTicker(events) {
   inner.innerHTML = cards.join("") + cards.join("");
   ticker.style.display = "block";
   // Measure actual content width and set duration for a constant scroll speed.
-  // ~80px/sec feels brisk like a real sportsbook ticker; minimum 12s.
+  // 150px/sec for a brisk sportsbook feel; minimum 10s for very short slates.
+  // Force restart of animation so the new duration applies cleanly (otherwise
+  // mid-cycle duration changes can cause jumpy or paused behavior in some browsers).
   requestAnimationFrame(() => {
     const halfWidth = inner.scrollWidth / 2;
-    const PX_PER_SEC = 80;
-    const duration = Math.max(12, halfWidth / PX_PER_SEC);
-    inner.style.animationDuration = `${duration}s`;
+    const PX_PER_SEC = 150;
+    const duration = Math.max(10, halfWidth / PX_PER_SEC);
+    inner.style.animation = "none";
+    void inner.offsetWidth;  // force reflow
+    inner.style.animation = `ticker-scroll ${duration}s linear infinite`;
   });
 }
 function buildTickerCard(ev) {
