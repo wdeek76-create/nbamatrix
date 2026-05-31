@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>BALLISLIFE.BLEND</title>
+<title>WNBA BLENDER</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:radial-gradient(ellipse 80% 50% at 15% 0%, rgba(30,64,175,0.28) 0%, rgba(30,64,175,0) 60%),radial-gradient(ellipse 60% 40% at 85% 10%, rgba(125,211,252,0.10) 0%, rgba(125,211,252,0) 55%),radial-gradient(ellipse 100% 80% at 50% 100%, rgba(30,64,175,0.15) 0%, rgba(13,17,23,0) 70%),linear-gradient(180deg, #0a0a14 0%, #050507 35%, #0a0d12 100%);background-attachment:fixed;color:#e2e8f0;font-family:'Inter',sans-serif;min-height:100vh;font-size:15px;position:relative;}
@@ -280,8 +280,7 @@ table colgroup col.avg-col{width:16%;}
 <div id="header">
   <div style="display:flex;align-items:center;gap:10px;">
     <div>
-      <span style="font-size:20px;font-weight:800;color:#8b5cf6;letter-spacing:0.5px;text-shadow:0 0 14px rgba(139,92,246,0.7);">WNBA</span>
-      <span style="font-size:20px;font-weight:800;color:#7dd3fc;letter-spacing:0.5px;margin-left:5px;text-shadow:0 0 12px rgba(125,211,252,0.55);">BLENDER</span>
+      <span style="font-size:20px;font-weight:800;color:#8b5cf6;letter-spacing:0.3px;text-shadow:0 0 14px rgba(139,92,246,0.7);font-family:'Inter',sans-serif;">ballislife</span><span style="font-size:20px;font-weight:800;color:#7dd3fc;letter-spacing:0.3px;text-shadow:0 0 12px rgba(125,211,252,0.55);font-family:'Inter',sans-serif;">.blend</span>
     </div>
   </div>
   <div id="source-badges" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:16px;"></div>
@@ -5858,6 +5857,7 @@ function updateInjuryPanel() {
       </div>
       ${todaySection}
       ${ongoingSection}
+      ${recentSection}
     </div>`;
   }).filter(Boolean).join("");
 
@@ -7532,16 +7532,25 @@ let _tickerLastFetch = 0;
 let _tickerTimer = null;
 async function fetchAndRenderScoreboard() {
   try {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const yyyymmdd = `${yyyy}${mm}${dd}`;
-    const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard?dates=${yyyymmdd}`;
-    const r = await fetch(url, { method: "GET", mode: "cors" });
-    if (!r.ok) return;
-    const data = await r.json();
-    const events = data?.events || [];
+    const fmt = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    const today = new Date();
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    // Fetch today and tomorrow in parallel — tomorrow gives the ticker something
+    // to show when today's slate has no games or has all wrapped up.
+    const [todayResp, tomorrowResp] = await Promise.all([
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard?dates=${fmt(today)}`, { mode: "cors" }).catch(() => null),
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard?dates=${fmt(tomorrow)}`, { mode: "cors" }).catch(() => null)
+    ]);
+    let todayEvents = [], tomorrowEvents = [];
+    if (todayResp && todayResp.ok) {
+      const d = await todayResp.json();
+      todayEvents = (d?.events || []).map(ev => ({ ...ev, _ticker_day: "today" }));
+    }
+    if (tomorrowResp && tomorrowResp.ok) {
+      const d = await tomorrowResp.json();
+      tomorrowEvents = (d?.events || []).map(ev => ({ ...ev, _ticker_day: "tomorrow" }));
+    }
+    const events = [...todayEvents, ...tomorrowEvents];
     renderScoreboardTicker(events);
     _tickerLastFetch = Date.now();
   } catch (e) {
@@ -7557,15 +7566,43 @@ function renderScoreboardTicker(events) {
     ticker.style.display = "none";
     return;
   }
-  const cards = events.map(ev => buildTickerCard(ev)).filter(Boolean);
-  if (cards.length === 0) { ticker.style.display = "none"; return; }
+  // Build the leading DATE card — sets context for what slate is on display
+  const now = new Date();
+  const dayName = now.toLocaleDateString("en-US", { weekday: "long" });
+  const monthDay = now.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const dateCard = `<div class="tk-game" style="background:linear-gradient(135deg,rgba(125,211,252,0.18),rgba(30,64,175,0.18));border-color:rgba(125,211,252,0.35);">
+    <span style="font-size:9px;font-weight:700;letter-spacing:1.2px;color:#7dd3fc;text-transform:uppercase;">Today</span>
+    <span style="color:#fff;font-weight:700;">${dayName}</span>
+    <span style="color:#a8b0bb;">${monthDay}</span>
+  </div>`;
+  // Sort games: today's live → today's upcoming → today's final → tomorrow's
+  const sortRank = (ev) => {
+    const state = (ev?.competitions?.[0]?.status?.type || ev?.status?.type || {}).state;
+    const isTmrw = ev._ticker_day === "tomorrow";
+    if (isTmrw) return 10;             // all tomorrow's after all today's
+    if (state === "in")   return 0;    // live today
+    if (state === "pre")  return 1;    // upcoming today
+    if (state === "post") return 2;    // final today
+    return 3;
+  };
+  const sortedEvents = [...events].sort((a, b) => sortRank(a) - sortRank(b));
+  const cards = [dateCard, ...sortedEvents.map(ev => buildTickerCard(ev)).filter(Boolean)];
+  if (cards.length <= 1) {
+    // Only the date card → show a friendly "no games" instead of nothing
+    const noGames = `<div class="tk-game" style="opacity:0.6;">
+      <span style="color:#8b93a0;font-size:11px;">No WNBA games scheduled</span>
+    </div>`;
+    inner.innerHTML = (cards[0] + noGames).repeat(2);
+    ticker.style.display = "block";
+    inner.style.animationDuration = "40s";
+    return;
+  }
   // Duplicate cards so the animation can loop seamlessly (-50% transform = exactly
   // one full set scrolled past, then second set is in view → start again at 0%)
   inner.innerHTML = cards.join("") + cards.join("");
   ticker.style.display = "block";
   // Tune animation speed to content length so short slates don't whip past
-  const cardCount = cards.length;
-  const duration = Math.max(30, cardCount * 12);  // ~12s per card, 30s minimum
+  const duration = Math.max(30, cards.length * 12);  // ~12s per card, 30s minimum
   inner.style.animationDuration = `${duration}s`;
 }
 function buildTickerCard(ev) {
@@ -7617,12 +7654,16 @@ function buildTickerCard(ev) {
       const timeStr = gameTime
         ? gameTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
         : (status.shortDetail || "Scheduled");
-      statusBadge = `<span class="tk-status upcoming">${escapeHtmlBasic(timeStr)}</span>`;
+      const isTmrw = ev._ticker_day === "tomorrow";
+      const dayPrefix = isTmrw
+        ? `<span class="tk-status" style="background:rgba(147,197,253,0.12);color:#93c5fd;margin-right:2px;">TMRW</span>`
+        : "";
+      statusBadge = `${dayPrefix}<span class="tk-status upcoming">${escapeHtmlBasic(timeStr)}</span>`;
       scoreSection = `
-        <span class="tk-team">${awayAbbr}</span>
+        <span class="tk-team" style="${isTmrw ? 'opacity:0.85;' : ''}">${awayAbbr}</span>
         ${awayRec ? `<span style="color:#525a64;font-size:10px;">${escapeHtmlBasic(awayRec)}</span>` : ""}
         <span class="tk-at">@</span>
-        <span class="tk-team">${homeAbbr}</span>
+        <span class="tk-team" style="${isTmrw ? 'opacity:0.85;' : ''}">${homeAbbr}</span>
         ${homeRec ? `<span style="color:#525a64;font-size:10px;">${escapeHtmlBasic(homeRec)}</span>` : ""}`;
     }
     return `<div class="${cardClass}">${scoreSection}${statusBadge}</div>`;
