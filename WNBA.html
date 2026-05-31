@@ -1612,20 +1612,27 @@ function getOU() { return window._modalOU || "under"; }
 
 // Stdev assumptions for fair-value calc by stat. Conservative WNBA defaults —
 // slightly wider than minimum to avoid inflated EV from projection over-confidence.
-function stdevForStat(stat) {
-  switch ((stat||"").toUpperCase()) {
-    case "GAME_TOTAL": return totalsSigma();
-    case "PTS": return 6.5;
-    case "REB": return 3.3;
-    case "AST": return 2.4;
-    case "3PM": return 1.7;
-    case "PRA": return 8.5;
-    case "PR":  return 6.8;
-    case "PA":  return 6.2;
-    case "RA":  return 4.0;
-    case "MIN": return 4.5;
-    default: return 7;
-  }
+// Proj-scaled std dev. σ ≈ √(proj × scale) capped below by per-stat floor.
+// Scale factors calibrated to WNBA empirics: AST/3PM near Poisson (0.6-0.8),
+// PTS/PRA higher variance (1.8-2.2) due to game-flow correlation, etc.
+// This matches what tools like Unabated use — flat σ massively under/overprices
+// players at non-typical projection levels.
+function stdevForStat(stat, proj) {
+  const s = (stat || "").toUpperCase();
+  if (s === "GAME_TOTAL") return totalsSigma();
+  // Per-stat scale (multiplier on proj inside the sqrt) and floor (min σ)
+  const SCALE = {
+    PTS: 2.0, REB: 1.0, AST: 0.7, "3PM": 0.6,
+    PRA: 2.2, PR: 1.8, PA: 1.8, RA: 1.0, MIN: 0.9
+  };
+  const FLOOR = {
+    PTS: 4.5, REB: 2.0, AST: 1.0, "3PM": 0.7,
+    PRA: 5.5, PR: 4.5, PA: 4.0, RA: 2.5, MIN: 3.5
+  };
+  const scale = SCALE[s] != null ? SCALE[s] : 1.5;
+  const floor = FLOOR[s] != null ? FLOOR[s] : 3.0;
+  if (proj == null || proj <= 0 || isNaN(proj)) return floor;
+  return Math.max(floor, Math.sqrt(proj * scale));
 }
 
 function probToAmerican(p) {
@@ -1636,7 +1643,7 @@ function probToAmerican(p) {
 
 function modelWinProb(proj, line, side, stat) {
   if (proj == null || line == null) return null;
-  const sd = stdevForStat(stat);
+  const sd = stdevForStat(stat, proj);
   const z = (line - proj) / sd;
   const pUnder = 0.5 * (1 + erf(z / Math.SQRT2));
   const pOver = 1 - pUnder;
@@ -7698,9 +7705,14 @@ function renderScoreboardTicker(events) {
   // one full set scrolled past, then second set is in view → start again at 0%)
   inner.innerHTML = cards.join("") + cards.join("");
   ticker.style.display = "block";
-  // Tune animation speed to content length so short slates don't whip past
-  const duration = Math.max(18, cards.length * 4);  // ~4s per card, 18s minimum
-  inner.style.animationDuration = `${duration}s`;
+  // Measure actual content width and set duration for a constant scroll speed.
+  // ~80px/sec feels brisk like a real sportsbook ticker; minimum 12s.
+  requestAnimationFrame(() => {
+    const halfWidth = inner.scrollWidth / 2;
+    const PX_PER_SEC = 80;
+    const duration = Math.max(12, halfWidth / PX_PER_SEC);
+    inner.style.animationDuration = `${duration}s`;
+  });
 }
 function buildTickerCard(ev) {
   try {
