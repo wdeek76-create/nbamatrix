@@ -299,7 +299,29 @@ table colgroup col.avg-col{width:16%;}
             <span style="color:#525a64;font-size:10px;">click to expand</span>
           </span>
         </summary>
-        <div id="injury-panel-body" style="padding:0 14px 14px 14px;font-size:12px;color:#d4dae3;">Loading…</div>
+        <div id="injury-panel-body" style="padding:0 14px 14px 14px;font-size:12px;color:#d4dae3;">
+          <!-- RotoWire paste loader: ESPN's feed lags & drops 'opportunity' blurbs;
+               paste from rotowire.com/wnba/news.php?view=injuries to get full data. -->
+          <details style="background:#0d1117;border:1px solid #1f2733;border-radius:6px;margin-bottom:12px;">
+            <summary style="cursor:pointer;list-style:none;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;user-select:none;">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:10px;font-weight:800;color:#a78bfa;letter-spacing:0.5px;text-transform:uppercase;">📋 Paste from RotoWire</span>
+                <span id="rw-injury-status" style="font-size:10px;color:#525a64;font-weight:500;"></span>
+              </span>
+              <span style="color:#525a64;font-size:10px;">expand to paste</span>
+            </summary>
+            <div style="padding:8px 12px 12px 12px;">
+              <div style="font-size:10px;color:#a8b0bb;margin-bottom:6px;line-height:1.5;">Copy from <span style="color:#FDB927;font-family:'JetBrains Mono','Menlo',monospace;">rotowire.com/wnba/news.php?view=injuries</span> → paste here → PARSE. Adds GTD/probable entries + full analysis blurbs ESPN's feed misses.</div>
+              <textarea id="rw-injury-paste" placeholder="Paste the full RotoWire injury news page here..." spellcheck="false"
+                style="width:100%;min-height:80px;background:#0d1117;border:1px solid #1f2733;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;outline:none;resize:vertical;"></textarea>
+              <div style="display:flex;gap:6px;margin-top:6px;">
+                <button onclick="parseRotoWireInjuriesPaste()" style="background:#a78bfa;border:none;color:#0d1117;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">PARSE</button>
+                <button onclick="document.getElementById('rw-injury-paste').value='';document.getElementById('rw-injury-status').textContent='';" style="background:transparent;border:1px solid #1f2733;color:#d4dae3;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">CLEAR</button>
+              </div>
+            </div>
+          </details>
+          <div id="injury-panel-list">Loading…</div>
+        </div>
       </details>
       <div id="controls">
         <div style="position:relative;display:inline-block;">
@@ -1142,7 +1164,12 @@ function renderTable() {
             const label = _injuryStatusLabel(inj.status);
             const color = _injuryStatusColor(inj.status);
             const tip = `${inj.status}${inj.type?' · '+inj.type:''}${inj.detail?' ('+inj.detail+')':''}${inj.returnDate?' · ETA '+inj.returnDate:''}${inj.comment?' — '+inj.comment.replace(/"/g,"'"):''}`;
-            return `<span title="${tip}" style="background:${color}1a;border:1px solid ${color}55;color:${color};font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${label}</span>`;
+            // Body-part hint after the status, e.g. 'Q · LEG'. Keeps the pill compact
+            // but more informative at a glance. Type is short enough to inline.
+            const typeHint = inj.type ? ` · ${inj.type.toUpperCase()}` : '';
+            // Solid color background + black text for high-contrast prominence
+            // (was a faint 10% tint with same-color text — too easy to miss).
+            return `<span title="${tip}" style="background:${color};border:1px solid ${color};color:#0d1117;font-size:11px;font-weight:800;letter-spacing:0.5px;border-radius:4px;padding:2px 8px;box-shadow:0 0 12px ${color}55;">${label}${typeHint}</span>`;
           })()}${trackedPill}</span>
           ${minChip}
         </div>
@@ -4669,23 +4696,57 @@ async function fetchInjuries(force) {
     } catch(e) {}
   }
   try {
-    const resp = await fetch("https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/injuries", { method: "GET", mode: "cors" });
-    if (!resp.ok) throw new Error(`ESPN injuries returned ${resp.status}`);
-    const json = await resp.json();
-    // ESPN groups injuries by team in `json.injuries[]`. Each team has an `injuries[]` array.
-    // Some responses return a flat list under `injuries[]`; handle both shapes.
+    // Hit per-team endpoints in parallel. The league-wide endpoint sometimes
+    // drops lower-severity entries (GTD, opportunity notes); per-team is the
+    // complete RotoWire blob ESPN exposes, including "more minutes for X" notes
+    // attached to Active players. 14 parallel fetches is fast (~1s on broadband).
+    const TEAM_ABBRS = ["ATL","CHI","CON","DAL","GS","IND","LV","LA","MIN","NY","PHX","SEA","TOR","WSH","POR"];
+    const requests = TEAM_ABBRS.map(t =>
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/injuries?team=${t}`, { method: "GET", mode: "cors" })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+    );
+    const responses = await Promise.all(requests);
     const records = [];
-    if (Array.isArray(json.injuries)) {
+    responses.forEach(json => {
+      if (!json || !Array.isArray(json.injuries)) return;
       json.injuries.forEach(group => {
+        // Per-team responses come grouped: { team: {abbreviation}, injuries: [{athlete, ...}] }
         if (Array.isArray(group.injuries)) {
-          // Grouped by team: { team: {abbreviation}, injuries: [ {athlete, status, details, ...} ] }
           const teamAbbr = group.team?.abbreviation || group.abbreviation;
-          group.injuries.forEach(rec => records.push({ ...rec, _teamAbbr: teamAbbr }));
+          group.injuries.forEach(rec => {
+            // Dedupe by ESPN's record id since the same athlete shouldn't appear twice,
+            // but the safety net is here in case a player's note appears under both
+            // their own team and a related team's report.
+            if (!records.find(r => r.id === rec.id)) {
+              records.push({ ...rec, _teamAbbr: teamAbbr });
+            }
+          });
         } else if (group.athlete) {
-          // Flat list: each entry already has athlete + team nested
-          records.push(group);
+          // Defensive: flat shape, just in case ESPN changes
+          if (!records.find(r => r.id === group.id)) records.push(group);
         }
       });
+    });
+    if (records.length === 0) {
+      // Fall back to the league-wide endpoint if per-team all came back empty
+      // (could mean ESPN changed the route or we're rate-limited).
+      try {
+        const resp = await fetch("https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/injuries", { method: "GET", mode: "cors" });
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json.injuries)) {
+            json.injuries.forEach(group => {
+              if (Array.isArray(group.injuries)) {
+                const teamAbbr = group.team?.abbreviation || group.abbreviation;
+                group.injuries.forEach(rec => records.push({ ...rec, _teamAbbr: teamAbbr }));
+              } else if (group.athlete) {
+                records.push(group);
+              }
+            });
+          }
+        }
+      } catch(e) { /* secondary fallback also failed — proceed with empty */ }
     }
     _ingestInjuryRecords(records);
     injuriesLastFetched = Date.now();
@@ -4759,9 +4820,144 @@ async function refreshInjuries() {
 }
 
 // Renders the injury panel summary + body. Called after fetch and on demand.
+// Parse RotoWire's injury news page text. The page emits blocks like:
+//   Player Name
+//   Status headline ('Iffy for Sunday', 'Ruled out Friday', etc.)
+//   <PositionLetter><Team Full Name>     (e.g. 'GLas Vegas Aces')
+//   BODY PART TOKEN     (e.g. 'LEG', 'COACH'S DECISION', 'BACK')
+//   DATE                (e.g. 'MAY 30, 2026')
+//   Headline blurb (1 paragraph)
+//   ANALYSIS
+//   Analysis blurb (1 paragraph)
+// We anchor on the position+team line (deterministic pattern) and walk
+// backward/forward from there. Headlines don't have stable verbs so we map
+// loosely to OUT/Questionable/Probable/Day-To-Day.
+const _RW_TEAM_NAME_TO_ABBR = {
+  "Atlanta Dream":"ATL", "Chicago Sky":"CHI", "Connecticut Sun":"CON",
+  "Dallas Wings":"DAL", "Golden State Valkyries":"GSV", "Indiana Fever":"IND",
+  "Las Vegas Aces":"LVA", "Los Angeles Sparks":"LAS", "Minnesota Lynx":"MIN",
+  "New York Liberty":"NYL", "Phoenix Mercury":"PHX", "Portland Fire":"POR",
+  "Seattle Storm":"SEA", "Toronto Tempo":"TOR", "Washington Mystics":"WAS"
+};
+function parseRotoWireInjuries(text) {
+  if (!text) return [];
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const records = [];
+  const POS_TEAM_RE = /^([CFG](?:-[CFG])?)([A-Z][a-zA-Z ]+)$/;
+  // Map RotoWire status headlines to canonical statuses. Order matters — more
+  // specific patterns first so "expected to play" doesn't get caught by "out".
+  function inferStatus(headline) {
+    const sh = (headline || "").toLowerCase();
+    if (/\b(probable|expected to (play|be back|return)|trending toward|set to (play|return)|will play|will return)\b/.test(sh)) return "Probable";
+    if (/\b(questionable|iffy|game[- ]time|late addition|downgraded to questionable|jeopardy)\b/.test(sh)) return "Questionable";
+    if (/\b(ruled out|won['']t (suit|play|go|return)|will not (play|return|suit)|out (saturday|sunday|monday|tuesday|wednesday|thursday|friday|today|tonight)|remains out|sitting out|sit out|miss(es|ing)?\b|won['']t return|inactive|sidelined)\b/.test(sh)) return "Out";
+    if (/\bday[- ]to[- ]day\b/.test(sh)) return "Day-To-Day";
+    // Fallback: assume Day-To-Day if a body-part appeared (not a coach's decision context)
+    return "Day-To-Day";
+  }
+  let i = 0;
+  while (i < lines.length - 4) {
+    // Find next position+team line
+    let posTeamIdx = -1;
+    for (let k = i; k < lines.length; k++) {
+      if (POS_TEAM_RE.test(lines[k])) { posTeamIdx = k; break; }
+    }
+    if (posTeamIdx === -1) break;
+    if (posTeamIdx < 2) { i = posTeamIdx + 1; continue; }
+    const teamLine = lines[posTeamIdx];
+    const m = teamLine.match(POS_TEAM_RE);
+    if (!m) { i = posTeamIdx + 1; continue; }
+    const pos = m[1];
+    const teamName = m[2];
+    const teamAbbr = _RW_TEAM_NAME_TO_ABBR[teamName];
+    if (!teamAbbr) { i = posTeamIdx + 1; continue; }
+    const name = lines[posTeamIdx - 2];
+    const statusHeadline = lines[posTeamIdx - 1];
+    // Sanity: name should not match the pos+team pattern
+    if (POS_TEAM_RE.test(name)) { i = posTeamIdx + 1; continue; }
+    const typeRaw = lines[posTeamIdx + 1] || "";
+    const dateRaw = lines[posTeamIdx + 2] || "";
+    const headline = lines[posTeamIdx + 3] || "";
+    // Locate ANALYSIS marker (usually +4 from team line, but allow a buffer)
+    let analysisIdx = -1;
+    for (let k = posTeamIdx + 4; k <= Math.min(posTeamIdx + 6, lines.length - 1); k++) {
+      if (lines[k] === "ANALYSIS") { analysisIdx = k; break; }
+    }
+    const analysis = analysisIdx > -1 ? (lines[analysisIdx + 1] || "") : "";
+    records.push({
+      // Match the shape _ingestInjuryRecords expects from ESPN
+      id: `rw-${name}-${dateRaw}`,
+      athlete: { displayName: name, team: { abbreviation: teamAbbr } },
+      status: inferStatus(statusHeadline),
+      details: { type: typeRaw, detail: "", returnDate: "" },
+      shortComment: headline,
+      longComment: analysis,
+      date: dateRaw,
+      _teamAbbr: teamAbbr,
+      _rw_status_headline: statusHeadline  // optional debug field
+    });
+    i = analysisIdx > -1 ? analysisIdx + 2 : posTeamIdx + 4;
+  }
+  return records;
+}
+
+// Parse the textarea's contents, merge into existing cache. RotoWire records
+// take priority for any player they cover (more current data). ESPN's records
+// fill gaps for players RotoWire didn't include in the news view.
+function parseRotoWireInjuriesPaste() {
+  const ta = document.getElementById("rw-injury-paste");
+  const status = document.getElementById("rw-injury-status");
+  const text = (ta?.value || "").trim();
+  if (!text) {
+    if (status) status.textContent = "Paste text first";
+    return;
+  }
+  const records = parseRotoWireInjuries(text);
+  if (records.length === 0) {
+    if (status) { status.textContent = "No records parsed — check format"; status.style.color = "#f87171"; }
+    showToast("RotoWire parse failed — no records found");
+    return;
+  }
+  // Merge: ingest new records into a working list that combines existing ESPN
+  // entries with these new RotoWire ones. RotoWire entries win on conflict.
+  // Pull existing ESPN records from cache so we don't lose them.
+  let existingEspn = [];
+  try {
+    const raw = localStorage.getItem("wnba_injuries_cache");
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (Array.isArray(data.records)) existingEspn = data.records;
+    }
+  } catch(e) {}
+  // Build merged: start with ESPN, then overlay RotoWire by normalized name.
+  const byNorm = new Map();
+  existingEspn.forEach(rec => {
+    const nm = rec.athlete?.displayName;
+    if (nm) byNorm.set(norm(nm), rec);
+  });
+  records.forEach(rec => {
+    const nm = rec.athlete.displayName;
+    byNorm.set(norm(nm), rec);  // overwrites ESPN
+  });
+  const mergedRecords = [...byNorm.values()];
+  _ingestInjuryRecords(mergedRecords);
+  injuriesLastFetched = Date.now();
+  try {
+    localStorage.setItem("wnba_injuries_cache", JSON.stringify({ records: mergedRecords, fetchedAt: injuriesLastFetched }));
+  } catch(e) {}
+  if (status) {
+    status.textContent = `Parsed ${records.length} RotoWire entries · ${injuriesCache.size} total`;
+    status.style.color = "#22c55e";
+  }
+  showToast(`Parsed ${records.length} RotoWire entries`);
+  updateInjuryPanel();
+  if (typeof renderTable === "function" && merged) renderTable();
+}
+
+// Renders the injury panel summary + body. Called after fetch and on demand.
 function updateInjuryPanel() {
   const summary = document.getElementById("injury-panel-summary");
-  const body = document.getElementById("injury-panel-body");
+  const body = document.getElementById("injury-panel-list");
   if (!summary || !body) return;
   if (!injuriesCache || injuriesCache.size === 0) {
     summary.textContent = "No data";
@@ -4791,7 +4987,48 @@ function updateInjuryPanel() {
     body.innerHTML = '<div style="color:#525a64;padding:10px 0;">No team groupings available.</div>';
     return;
   }
-  const sortedTeams = [...injuriesByTeam.keys()].sort();
+
+  // ── Multi-select status filter ──
+  // window._injuryStatusFilter is a Set of status labels (OUT, DTD, Q, GTD, P).
+  // Empty set = show all (default). Pills toggle inclusion.
+  if (!window._injuryStatusFilter) window._injuryStatusFilter = new Set();
+  const activeFilter = window._injuryStatusFilter;
+  const FILTER_OPTIONS = [
+    { key: "OUT", color: "#f87171" },
+    { key: "DTD", color: "#f59e0b" },
+    { key: "Q",   color: "#f59e0b" },
+    { key: "GTD", color: "#f59e0b" },
+    { key: "P",   color: "#22c55e" }
+  ];
+  const allActive = activeFilter.size === 0;
+  const filterPills = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+    <span style="font-size:10px;color:#a8b0bb;letter-spacing:0.4px;font-weight:600;text-transform:uppercase;margin-right:4px;">Filter:</span>
+    <button onclick="toggleInjuryFilter('ALL')" style="background:${allActive?'#fff':'transparent'};border:1px solid ${allActive?'#fff':'#1f2733'};color:${allActive?'#0d1117':'#d4dae3'};border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.4px;">ALL</button>
+    ${FILTER_OPTIONS.map(opt => {
+      const on = activeFilter.has(opt.key);
+      const bg = on ? opt.color : "transparent";
+      const fg = on ? "#0d1117" : opt.color;
+      const border = on ? opt.color : `${opt.color}55`;
+      return `<button onclick="toggleInjuryFilter('${opt.key}')" style="background:${bg};border:1px solid ${border};color:${fg};border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.4px;">${opt.key} (${counts[opt.key]||0})</button>`;
+    }).join("")}
+  </div>`;
+
+  // ── Team sort: blender roster teams first ──
+  // Pull team list from current `merged` (loaded RG/RW/Dimers/etc. players).
+  // Teams with any loaded projection float to the top; other teams sort alphabetically below.
+  const blenderTeams = new Set();
+  if (typeof merged !== "undefined" && merged && merged.length) {
+    merged.forEach(r => {
+      if (r.team && r.found > 0) blenderTeams.add(normTeamAbbr(r.team) || r.team.toUpperCase());
+    });
+  }
+  const sortedTeams = [...injuriesByTeam.keys()].sort((a, b) => {
+    const aInBlender = blenderTeams.has(a);
+    const bInBlender = blenderTeams.has(b);
+    if (aInBlender !== bInBlender) return aInBlender ? -1 : 1;
+    return a.localeCompare(b);
+  });
+
   // Status-order: Out → DTD → Q/GTD → P, so the most impactful injuries float to the top within a team
   const statusOrder = { "out":0, "day":1, "question":2, "game time":2, "probable":3 };
   const statusRank = (s) => {
@@ -4799,19 +5036,80 @@ function updateInjuryPanel() {
     for (const key in statusOrder) if (k.includes(key)) return statusOrder[key];
     return 4;
   };
-  body.innerHTML = sortedTeams.map(team => {
-    const list = injuriesByTeam.get(team).slice().sort((a,b) => statusRank(a.status) - statusRank(b.status));
+
+  // Build a roster name lookup so we can bold players in analysis blurbs.
+  // Uses both first+last name and last name alone (handles "Williams" matching "Courtney Williams").
+  const rosterNames = new Map();        // normalized → display raw
+  const rosterLastNames = new Map();    // normalized last → display raw (only if unambiguous)
+  if (typeof merged !== "undefined" && merged && merged.length) {
+    merged.forEach(r => {
+      if (!r.rawName) return;
+      rosterNames.set(norm(r.rawName), r.rawName);
+      const last = r.rawName.trim().split(/\s+/).slice(-1)[0];
+      const lastNorm = norm(last);
+      if (!rosterLastNames.has(lastNorm)) rosterLastNames.set(lastNorm, [r.rawName]);
+      else rosterLastNames.get(lastNorm).push(r.rawName);
+    });
+  }
+  // Decorates an analysis blurb: bolds roster players, highlights key signal words.
+  function decorateAnalysis(text) {
+    if (!text) return "";
+    // HTML-escape first
+    let out = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    // Highlight signal phrases — "increased playing time", "upside", "downside",
+    // "expanded role", "more minutes", "DNP", etc. Case-insensitive, word-boundary.
+    const HIGHLIGHT_PATTERNS = [
+      { re: /\b(increased? playing time|more minutes|expanded role|larger role|big(ger)? role|primary backup|set to start|move to the starting|step into the starting|step up|in line for minutes|see additional minutes|see more minutes|pick up additional minutes|see increased|see expanded|increased role|opportunity|extended minutes|usage (will|should) increase|fill in (for|at))\b/gi, color:"#22c55e", label:"UPSIDE" },
+      { re: /\b(reduced role|fewer minutes|lose minutes|cut into|reduced minutes|less playing time|minutes (will|should|may) (decrease|drop)|bench role|relegated to)\b/gi, color:"#f87171", label:"DOWNSIDE" },
+      { re: /\b(out for the season|season[- ]ending|miss(es|ed|ing) (the )?rest of the season|out indefinitely|surgery|torn (ACL|MCL|achilles|meniscus|labrum|rotator)|ruptured)\b/gi, color:"#f87171", label:"SEVERE" },
+      { re: /\b(GTD|game[- ]time decision|will be a game[- ]time decision)\b/gi, color:"#FDB927", label:"GTD" },
+      { re: /\b(probable|expected to (play|return|be available)|trending toward|cleared to (play|return)|will play|will return|set to return)\b/gi, color:"#22c55e", label:"POSITIVE" },
+      { re: /\b(doubtful|jeopardy|in question|questionable|iffy|uncertain|unclear (when|whether))\b/gi, color:"#f59e0b", label:"CAUTION" },
+      { re: /\b(candidates? to see|candidates? for|likely to see|in line for|could see|may see|stand(s)? to benefit)\b/gi, color:"#22c55e", label:"OPP" }
+    ];
+    HIGHLIGHT_PATTERNS.forEach(p => {
+      out = out.replace(p.re, m => `<span style="background:${p.color}22;color:${p.color};font-weight:700;padding:0 3px;border-radius:2px;">${m}</span>`);
+    });
+    // Bold roster players. Look for full names first (most specific), then unambiguous last names.
+    // To avoid double-wrapping, only match words not already inside existing <span>.
+    rosterNames.forEach((display, normName) => {
+      // Build a regex of the display name's word boundaries. Escape regex specials.
+      const esc = display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`\\b${esc}\\b(?![^<]*</span>)`, "g");
+      out = out.replace(re, `<strong style="color:#FDB927;">${display}</strong>`);
+    });
+    return out;
+  }
+
+  // Decorates the short headline blurb the same way (just no roster bolding —
+  // headlines refer to the injured player, not opportunity beneficiaries).
+  function decorateHeadline(text) {
+    if (!text) return "";
+    let out = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    return out;
+  }
+
+  // Filter records by active status filter (if any)
+  function recordPassesFilter(rec) {
+    if (allActive) return true;
+    return activeFilter.has(_injuryStatusLabel(rec.status));
+  }
+
+  const teamBlocks = sortedTeams.map(team => {
+    const list = injuriesByTeam.get(team)
+      .slice()
+      .filter(recordPassesFilter)
+      .sort((a, b) => statusRank(a.status) - statusRank(b.status));
+    if (list.length === 0) return "";
+    const isBlender = blenderTeams.has(team);
     const rows = list.map(rec => {
       const label = _injuryStatusLabel(rec.status);
       const color = _injuryStatusColor(rec.status);
       const eta = rec.returnDate ? ` <span style="color:#525a64;">· ETA ${rec.returnDate}</span>` : "";
       const detail = rec.type ? ` <span style="color:#a8b0bb;">${rec.type}${rec.detail ? ` (${rec.detail})` : ""}</span>` : "";
-      // Headline blurb (RotoWire's "report" line) + analysis blurb (longer context).
-      // Both are escaped to prevent HTML injection from blurb content.
-      const escape = (s) => (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-      const headline = rec.comment ? `<div style="font-size:11px;color:#d4dae3;margin-top:3px;margin-left:54px;line-height:1.4;">${escape(rec.comment)}</div>` : "";
+      const headline = rec.comment ? `<div style="font-size:11px;color:#d4dae3;margin-top:3px;margin-left:54px;line-height:1.4;">${decorateHeadline(rec.comment)}</div>` : "";
       const analysis = rec.longComment && rec.longComment !== rec.comment
-        ? `<div style="font-size:10px;color:#8b93a0;margin-top:4px;margin-left:54px;line-height:1.5;padding:6px 8px;background:#0d1117;border-left:2px solid #55258377;border-radius:0 4px 4px 0;"><span style="color:#FDB927;font-weight:700;letter-spacing:0.4px;font-size:9px;">ANALYSIS</span> ${escape(rec.longComment)}</div>`
+        ? `<div style="font-size:10px;color:#8b93a0;margin-top:4px;margin-left:54px;line-height:1.5;padding:6px 8px;background:#0d1117;border-left:2px solid #55258377;border-radius:0 4px 4px 0;"><span style="color:#FDB927;font-weight:700;letter-spacing:0.4px;font-size:9px;">ANALYSIS</span> ${decorateAnalysis(rec.longComment)}</div>`
         : "";
       return `<div style="display:flex;flex-direction:column;padding:8px 0;border-bottom:1px dashed #1f2733;">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -4823,15 +5121,31 @@ function updateInjuryPanel() {
         ${analysis}
       </div>`;
     }).join("");
+    const slateBadge = isBlender ? `<span style="background:#a78bfa1a;border:1px solid #a78bfa55;color:#a78bfa;font-size:8px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;margin-left:4px;">IN BLENDER</span>` : "";
     return `<div style="margin-top:12px;">
-      <div style="display:flex;align-items:center;gap:6px;padding-bottom:4px;border-bottom:1px solid #552583;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:6px;padding-bottom:4px;border-bottom:1px solid ${isBlender ? '#a78bfa77' : '#552583'};margin-bottom:4px;">
         ${teamLogoImg(team, 18)}
         <span style="font-size:13px;font-weight:800;color:#FDB927;letter-spacing:0.5px;">${team}</span>
         <span style="font-size:10px;color:#525a64;">${list.length} listed</span>
+        ${slateBadge}
       </div>
       ${rows}
     </div>`;
-  }).join("");
+  }).filter(Boolean).join("");
+
+  body.innerHTML = filterPills + (teamBlocks || '<div style="color:#525a64;padding:10px 0;">No injuries match the current filter.</div>');
+}
+
+// Multi-select filter handler. 'ALL' resets to no filter. Status keys toggle in/out of the Set.
+function toggleInjuryFilter(key) {
+  if (!window._injuryStatusFilter) window._injuryStatusFilter = new Set();
+  if (key === "ALL") {
+    window._injuryStatusFilter.clear();
+  } else {
+    if (window._injuryStatusFilter.has(key)) window._injuryStatusFilter.delete(key);
+    else window._injuryStatusFilter.add(key);
+  }
+  updateInjuryPanel();
 }
 
 // Map source team abbrs to canonical (Roto/Saber/RotoWire vs Betstamp use slight variants)
