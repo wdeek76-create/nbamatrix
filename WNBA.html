@@ -4943,6 +4943,13 @@ function _rebuildBeneficiariesCache() {
   injuriesCache.forEach(rec => {
     const blurb = rec.longComment || "";
     if (!blurb || !UPSIDE_RE.test(blurb)) return;
+    // Only include the record as a CEILING source if it's relevant today.
+    // Saturday entries don't drive Sunday CEILING pills. Ongoing situations
+    // (pregnancy, season-enders) are still included because they apply
+    // every day until resolved.
+    const isOngoing = (typeof _injuryIsOngoing === "function") && _injuryIsOngoing(rec);
+    const isToday = (typeof _injuryIsForToday === "function") && _injuryIsForToday(rec);
+    if (!isOngoing && !isToday) return;
     // Walk through 1-4 word capitalized runs in the blurb. Normalize each and
     // compare against the normalized roster — catches diacritic variants
     // (Salaun ↔ Salaün), apostrophe variants (O'Connor ↔ OConnor), and
@@ -5516,13 +5523,13 @@ function updateInjuryPanel() {
     // Highlight signal phrases — "increased playing time", "upside", "downside",
     // "expanded role", "more minutes", "DNP", etc. Case-insensitive, word-boundary.
     const HIGHLIGHT_PATTERNS = [
-      { re: /\b(increased? playing time|more minutes|expanded role|larger role|big(ger)? role|primary backup|set to start|move to the starting|step into the starting|step up|in line for minutes|see additional minutes|see more minutes|pick up additional minutes|see increased|see expanded|increased role|opportunity|extended minutes|usage (will|should) increase|fill in (for|at))\b/gi, color:"#22c55e", label:"UPSIDE" },
-      { re: /\b(reduced role|fewer minutes|lose minutes|cut into|reduced minutes|less playing time|minutes (will|should|may) (decrease|drop)|bench role|relegated to)\b/gi, color:"#f87171", label:"DOWNSIDE" },
+      { re: /\b(increased? playing time|more minutes|expanded role|larger role|big(ger)? role|primary backup|set to start|move to the starting|step into the starting|step up|in line for minutes|see additional minutes|see more minutes|pick up additional minutes|pick up a few (additional|more|extra) minutes|(would|will) likely pick up|see increased|see expanded|increased role|opportunity|extended minutes|usage (will|should) increase|fill in (for|at)|absorbed by|absorb the (minutes|playing time|run)|pick up the slack|help pick up the slack|(playing time|minutes) (will|may|could) (be )?absorbed|likely fill in|meaningful playing time|significant minutes|continue to play significant|likely help|would be in line|would be candidates)\b/gi, color:"#22c55e", label:"UPSIDE" },
+      { re: /\b(reduced role|fewer minutes|lose minutes|cut into|reduced minutes|less playing time|minutes (will|should|may) (decrease|drop)|bench role|relegated to|losing out on|in danger of losing|revert to a reserve)\b/gi, color:"#f87171", label:"DOWNSIDE" },
       { re: /\b(out for the season|season[- ]ending|miss(es|ed|ing) (the )?rest of the season|out indefinitely|surgery|torn (ACL|MCL|achilles|meniscus|labrum|rotator)|ruptured)\b/gi, color:"#f87171", label:"SEVERE" },
       { re: /\b(GTD|game[- ]time decision|will be a game[- ]time decision)\b/gi, color:"#FDB927", label:"GTD" },
-      { re: /\b(probable|expected to (play|return|be available)|trending toward|cleared to (play|return)|will play|will return|set to return)\b/gi, color:"#22c55e", label:"POSITIVE" },
-      { re: /\b(doubtful|jeopardy|in question|questionable|iffy|uncertain|unclear (when|whether))\b/gi, color:"#f59e0b", label:"CAUTION" },
-      { re: /\b(candidates? to see|candidates? for|likely to see|in line for|could see|may see|stand(s)? to benefit)\b/gi, color:"#22c55e", label:"OPP" }
+      { re: /\b(probable|expected to (play|return|be available)|trending toward|cleared to (play|return)|will play|will return|set to return|on the cusp of returning)\b/gi, color:"#22c55e", label:"POSITIVE" },
+      { re: /\b(doubtful|jeopardy|in question|questionable|iffy|uncertain|unclear (when|whether)|doesn['']t bode well)\b/gi, color:"#f59e0b", label:"CAUTION" },
+      { re: /\b(candidates? to see|candidates? for|likely to see|in line for|could see|may see|stand(s)? to benefit|are candidates|would be candidates)\b/gi, color:"#22c55e", label:"OPP" }
     ];
     HIGHLIGHT_PATTERNS.forEach(p => {
       out = out.replace(p.re, m => `<span style="background:${p.color}22;color:${p.color};font-weight:700;padding:0 3px;border-radius:2px;">${m}</span>`);
@@ -5608,13 +5615,14 @@ function updateInjuryPanel() {
     const metaBits = [];
     if (rec.type) metaBits.push(`<span style="color:#8b93a0;">${rec.type}${rec.detail ? ` <span style="color:#525a64;">(${rec.detail})</span>` : ""}</span>`);
     if (rec.returnDate) metaBits.push(`<span style="color:#525a64;">ETA ${rec.returnDate}</span>`);
-    // Per-row bucket badge — refined, smaller, subtle glow
+    // Per-row bucket badge — only when the bucket meaningfully applies
     let bucketBadge = "";
     if (bucket === "today") {
       bucketBadge = `<span style="background:rgba(253,185,39,0.14);color:#FDB927;font-size:9px;font-weight:600;letter-spacing:0.6px;border-radius:5px;padding:2px 7px;border:1px solid rgba(253,185,39,0.25);">TODAY</span>`;
     } else if (bucket === "ongoing") {
       bucketBadge = `<span style="background:rgba(167,139,250,0.14);color:#a78bfa;font-size:9px;font-weight:600;letter-spacing:0.6px;border-radius:5px;padding:2px 7px;border:1px solid rgba(167,139,250,0.25);">ONGOING</span>`;
     }
+    // "recent" bucket gets no badge — these are context entries
     const headline = rec.comment
       ? `<div style="font-size:12.5px;color:#d4dae3;margin-top:6px;line-height:1.5;letter-spacing:0.05px;">${decorateHeadline(rec.comment)}</div>`
       : "";
@@ -5640,17 +5648,21 @@ function updateInjuryPanel() {
       .sort((a, b) => statusRank(a.status) - statusRank(b.status));
     if (list.length === 0) return "";
     const isBlender = blenderTeams.has(team);
-    // Bucket logic: ONGOING is dominant. If flagged ongoing → ONGOING bucket
-    // regardless of headline day mention. Else → TODAY bucket.
+    // Three-way bucket. ONGOING is dominant (multi-day situation). TODAY only
+    // fires when the record explicitly mentions today (so Saturday entries
+    // don't fake a TODAY badge). Everything else goes to RECENT — these are
+    // context entries that drive beneficiary tagging but aren't badged.
     const todayList = [];
     const ongoingList = [];
+    const recentList = [];
     list.forEach(rec => {
       const isOngoing = (typeof _injuryIsOngoing === "function") && _injuryIsOngoing(rec);
-      if (isOngoing) ongoingList.push(rec);
-      else todayList.push(rec);
+      if (isOngoing) { ongoingList.push(rec); return; }
+      const isExplicitToday = (typeof _injuryExplicitlyToday === "function") && _injuryExplicitlyToday(rec);
+      if (isExplicitToday) { todayList.push(rec); return; }
+      recentList.push(rec);
     });
-    // Sort TODAY by actionability: Q/GTD (uncertain, line-moving) first,
-    // then OUT (locked-in fade), then DTD (managing), then P (low impact).
+    // Sort TODAY by actionability: Q/GTD first (line-moving), then OUT, DTD, P
     const todayActionRank = (rec) => {
       const lbl = _injuryStatusLabel(rec.status);
       if (lbl === "Q" || lbl === "GTD") return 0;
@@ -5671,6 +5683,9 @@ function updateInjuryPanel() {
       : "";
     const ongoingSection = ongoingList.length
       ? sectionHeader("Ongoing", ongoingList.length, "#a78bfa") + ongoingList.map(r => renderInjuryRow(r, "ongoing")).join("")
+      : "";
+    const recentSection = recentList.length
+      ? sectionHeader("Recent · context", recentList.length, "#6b7280") + recentList.map(r => renderInjuryRow(r, "recent")).join("")
       : "";
     const slateBadge = isBlender
       ? `<span style="background:rgba(167,139,250,0.12);color:#a78bfa;font-size:9px;font-weight:600;letter-spacing:0.6px;border-radius:5px;padding:2px 7px;border:1px solid rgba(167,139,250,0.2);">In blender</span>`
@@ -7180,12 +7195,12 @@ loadBets();
   // inside the analysis blurb shown in the tooltip. Helps you eyeball the
   // important parts of a long blurb quickly without re-reading.
   const HIGHLIGHT_PATTERNS = [
-    { re: /\b(increased? playing time|more minutes|expanded role|larger role|big(ger)? role|primary backup|set to start|move to the starting|step into the starting|step up|in line for minutes|see additional minutes|see more minutes|pick up additional minutes|see increased|see expanded|increased role|opportunity|extended minutes|usage (will|should) increase|fill in (for|at)|candidates? to see|candidates? for|likely to see|in line for|could see|may see|stand(s)? to benefit|absence (will|may) result in)\b/gi, color: "#22c55e" },
-    { re: /\b(reduced role|fewer minutes|lose minutes|cut into|reduced minutes|less playing time|minutes (will|should|may) (decrease|drop)|bench role|relegated to)\b/gi, color: "#f87171" },
+    { re: /\b(increased? playing time|more minutes|expanded role|larger role|big(ger)? role|primary backup|set to start|move to the starting|step into the starting|step up|in line for minutes|see additional minutes|see more minutes|pick up additional minutes|pick up a few (additional|more|extra) minutes|(would|will) likely pick up|see increased|see expanded|increased role|opportunity|extended minutes|usage (will|should) increase|fill in (for|at)|candidates? to see|candidates? for|likely to see|in line for|could see|may see|stand(s)? to benefit|absence (will|may) result in|absorbed by|absorb the (minutes|playing time|run)|pick up the slack|help pick up the slack|(playing time|minutes) (will|may|could) (be )?absorbed|are candidates|would be candidates|meaningful playing time|significant minutes|continue to play significant|likely help)\b/gi, color: "#22c55e" },
+    { re: /\b(reduced role|fewer minutes|lose minutes|cut into|reduced minutes|less playing time|minutes (will|should|may) (decrease|drop)|bench role|relegated to|losing out on|in danger of losing|revert to a reserve)\b/gi, color: "#f87171" },
     { re: /\b(out for the season|season[- ]ending|miss(es|ed|ing) (the )?rest of the season|out indefinitely|surgery|torn (ACL|MCL|achilles|meniscus|labrum|rotator)|ruptured)\b/gi, color: "#f87171" },
     { re: /\b(GTD|game[- ]time decision|will be a game[- ]time decision)\b/gi, color: "#FDB927" },
-    { re: /\b(probable|expected to (play|return|be available)|trending toward|cleared to (play|return)|will play|will return|set to return)\b/gi, color: "#22c55e" },
-    { re: /\b(doubtful|jeopardy|in question|questionable|iffy|uncertain|unclear (when|whether))\b/gi, color: "#f59e0b" }
+    { re: /\b(probable|expected to (play|return|be available)|trending toward|cleared to (play|return)|will play|will return|set to return|on the cusp of returning)\b/gi, color: "#22c55e" },
+    { re: /\b(doubtful|jeopardy|in question|questionable|iffy|uncertain|unclear (when|whether)|doesn['']t bode well)\b/gi, color: "#f59e0b" }
   ];
   function escapeHtml(s) {
     return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
