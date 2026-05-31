@@ -1206,7 +1206,17 @@ function renderTable() {
             if (inj) return "";
             const ben = getBeneficiaryForPlayer(r.rawName);
             if (!ben) return "";
-            const causedByInj = getInjuryForPlayer(ben.causedBy);
+            // Look up cause record directly from cache (bypass today-filter)
+            // so the analysis tooltip has data even if Rupert's team isn't
+            // playing today's slate.
+            const causedByInj = injuriesCache?.get(norm(ben.causedBy)) || null;
+            // Color logic: orange CONSERVATIVE ceiling for ONGOING causes
+            // (Rupert pregnancy, season-enders — team has had time to redistribute
+            // minutes, role increase already baked in). Green strong CEILING for
+            // acute today causes (sudden Q/OUT today — clear short-term uplift).
+            const isOngoingCause = causedByInj && typeof _injuryIsOngoing === "function" && _injuryIsOngoing(causedByInj);
+            const ceilingColor = isOngoingCause ? "#fb923c" : "#22c55e";  // orange vs green
+            const ceilingLabel = "CEILING ↑";
             const tipData = {
               kind: "upside",
               player: r.rawName,
@@ -1214,10 +1224,11 @@ function renderTable() {
               causedByStatus: ben.causedByStatus,
               reason: ben.reason,
               headline: causedByInj?.comment || "",
-              analysis: causedByInj?.longComment || ""
+              analysis: causedByInj?.longComment || "",
+              conservative: isOngoingCause
             };
             const tipAttr = encodeURIComponent(JSON.stringify(tipData));
-            return `<span data-tip="${tipAttr}" style="background:#22c55e22;border:1px solid #22c55e77;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;cursor:help;">CEILING ↑</span>`;
+            return `<span data-tip="${tipAttr}" style="background:${ceilingColor}22;border:1px solid ${ceilingColor}77;color:${ceilingColor};font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;cursor:help;">${ceilingLabel}</span>`;
           })()}${trackedPill}</span>
           ${minChip}
         </div>
@@ -2447,6 +2458,32 @@ function saveBet() {
     if (window._modalSrcVals && Object.keys(window._modalSrcVals).length) {
       bet.srcProjs = { ...window._modalSrcVals };
     }
+    // Snapshot injury context at save-time: was the player FLOOR ↓ (Q/GTD,
+    // downside risk) or CEILING ↑ (beneficiary of someone else's absence)?
+    // Locked at save so analytics reflects the bet's actual context even if
+    // injury data changes (player gets cleared, beneficiary status updates).
+    try {
+      const playerName = bet.player;
+      if (playerName && typeof getInjuryForPlayer === "function") {
+        const inj = getInjuryForPlayer(playerName);
+        const ben = (typeof getBeneficiaryForPlayer === "function") ? getBeneficiaryForPlayer(playerName) : null;
+        const ctx = {};
+        if (inj) {
+          const lbl = _injuryStatusLabel(inj.status);
+          ctx.floor = (lbl === "Q" || lbl === "GTD");
+          ctx.status = inj.status;
+          ctx.type = inj.type || "";
+        }
+        if (ben && !inj) {
+          // CEILING is for beneficiaries who aren't themselves injured.
+          ctx.ceiling = true;
+          ctx.causedBy = ben.causedBy;
+          ctx.causedByStatus = ben.causedByStatus;
+          ctx.reason = ben.reason;
+        }
+        if (Object.keys(ctx).length) bet.injuryContext = ctx;
+      }
+    } catch (e) { /* injury snapshot is non-critical */ }
   }
   bets.unshift(bet);
   // Remember the date used for totals so the next total prefills it (slate is days out)
@@ -4050,6 +4087,31 @@ function renderSrcAnalytics() {
     return srcs.map(k => SRC_LABELS[k]).join(" + ");
   }
 
+  // ── Injury Context breakdown: 4 cards (CEILING ↑ Over/Under + FLOOR ↓ Over/Under) ──
+  // Snapshot was taken at save time (locked in injuryContext), so this reflects
+  // each bet's actual context regardless of later injury data changes.
+  const injCtx = {
+    ceilingOver:  emptyStats(),
+    ceilingUnder: emptyStats(),
+    floorOver:    emptyStats(),
+    floorUnder:   emptyStats()
+  };
+  settled.forEach(b => {
+    const ctx = b.injuryContext;
+    if (!ctx) return;
+    const side = (b.ou || "").toLowerCase();
+    if (ctx.ceiling && side === "over")  accum(b, injCtx.ceilingOver);
+    if (ctx.ceiling && side === "under") accum(b, injCtx.ceilingUnder);
+    if (ctx.floor   && side === "over")  accum(b, injCtx.floorOver);
+    if (ctx.floor   && side === "under") accum(b, injCtx.floorUnder);
+  });
+  const injCtxCards = [
+    statCard("↑ Ceiling · Overs",   injCtx.ceilingOver),
+    statCard("↑ Ceiling · Unders",  injCtx.ceilingUnder),
+    statCard("↓ Floor · Overs",     injCtx.floorOver),
+    statCard("↓ Floor · Unders",    injCtx.floorUnder)
+  ].filter(Boolean).join("");
+
   // Section: solo source performance
   const soloCards = SRC_KEYS.map(k => statCard(SRC_LABELS[k], solo[k])).filter(Boolean).join("");
 
@@ -4111,6 +4173,12 @@ function renderSrcAnalytics() {
       <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Fade · When Source DISAGREED With Pick</h4>
       <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Hit% on bets where the source projected the opposite side. Low hit% means you should trust the source's warning; high hit% means it's been wrong to fade.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">${fadeCards || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}</div>
+    </div>
+
+    <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Injury Context · Floor & Ceiling Bets</h4>
+      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Tracks P/L on bets where the player was tagged FLOOR ↓ (Q/GTD, downside) or CEILING ↑ (beneficiary of another player's absence). Snapshot taken at save-time. Empty cards mean no bets fit that combo yet.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${injCtxCards || '<p style="color:#525a64;font-size:13px;">No floor/ceiling bets tracked yet</p>'}</div>
     </div>
 
     <div class="tracker-section">
@@ -4347,7 +4415,21 @@ function renderTracker() {
                 }
                 return teamLogoImg(b.team, 16);
               })()}
-              <span onclick="editBet(${b.id})" style="cursor:pointer;border-bottom:1px dashed #55258377;" title="Click to edit">${b.player}</span> <span style="color:#FDB927;font-weight:600;">${b.ou} ${b.line} ${statLbl}</span>
+              <span onclick="editBet(${b.id})" style="cursor:pointer;border-bottom:1px dashed #55258377;" title="Click to edit">${b.player}</span> <span style="color:#FDB927;font-weight:600;">${b.ou} ${b.line} ${statLbl}</span>${(() => {
+                // Injury context badge (FLOOR/CEILING) — snapshot at save time.
+                // Shows on PROP bets only; totals don't have player-level context.
+                const ctx = b.injuryContext;
+                if (!ctx) return "";
+                if (ctx.floor) {
+                  const tip = `Floor ↓ at save · ${ctx.status||""}${ctx.type?' · '+ctx.type:''}`.replace(/"/g,"'");
+                  return ` <span title="${tip}" style="background:#f8717122;border:1px solid #f8717177;color:#f87171;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">FLOOR ↓</span>`;
+                }
+                if (ctx.ceiling) {
+                  const tip = `Ceiling ↑ at save · ${ctx.causedBy||""} ${ctx.causedByStatus?'('+ctx.causedByStatus+')':''}`.replace(/"/g,"'");
+                  return ` <span title="${tip}" style="background:#22c55e22;border:1px solid #22c55e77;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">CEILING ↑</span>`;
+                }
+                return "";
+              })()}
             </div>
             <div style="font-size:10px;color:#a8b0bb;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#FDB927;font-weight:700;letter-spacing:0.5px;">${b.projSource === "blended" ? "PLAYER" : b.projSource.toUpperCase()}</span>` : ''}</div>
           </div>
@@ -4861,25 +4943,40 @@ function _rebuildBeneficiariesCache() {
   injuriesCache.forEach(rec => {
     const blurb = rec.longComment || "";
     if (!blurb || !UPSIDE_RE.test(blurb)) return;
-    // For each roster player, check if their display name appears in this blurb.
-    // Use full name first (safer than last-name only). Phrase proximity matters
-    // but full-blurb match is a reasonable proxy since RotoWire blurbs are short.
-    rosterByNorm.forEach((displayName, normName) => {
-      // Skip the injured player themselves — they're the cause, not a beneficiary.
-      if (normName === norm(rec.name)) return;
-      // Escape regex specials in the display name (e.g. periods, apostrophes)
-      const esc = displayName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const nameRe = new RegExp(`\\b${esc}\\b`);
-      if (!nameRe.test(blurb)) return;
-      // Pull a short reason snippet — first matching upside phrase.
-      const match = blurb.match(UPSIDE_RE);
-      const reason = match ? match[0] : "increased role";
-      if (!beneficiariesCache.has(normName)) beneficiariesCache.set(normName, []);
-      beneficiariesCache.get(normName).push({
-        causedBy: rec.name,
-        causedByStatus: rec.status,
-        reason
-      });
+    // Walk through 1-4 word capitalized runs in the blurb. Normalize each and
+    // compare against the normalized roster — catches diacritic variants
+    // (Salaun ↔ Salaün), apostrophe variants (O'Connor ↔ OConnor), and
+    // hyphenated names uniformly. Multiple beneficiaries per blurb are all
+    // captured because we iterate every match, not just the first.
+    const NAME_RUN_RE = /\b[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ'\-]+(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ'\-]+){0,3}\b/g;
+    const matches = [...blurb.matchAll(NAME_RUN_RE)];
+    const seen = new Set();  // dedupe within this blurb
+    matches.forEach(m => {
+      const run = m[0];
+      const runNorm = norm(run);
+      // Try the full run first, then progressively shorter suffixes
+      const candidates = [];
+      candidates.push(runNorm);
+      const words = run.split(/\s+/);
+      if (words.length >= 2) candidates.push(norm(words.slice(-2).join(" ")));
+      if (words.length >= 1) candidates.push(norm(words.slice(-1).join(" ")));
+      for (const cand of candidates) {
+        if (!rosterByNorm.has(cand)) continue;
+        if (seen.has(cand)) break;  // already tagged this player from a prior match
+        // Skip the injured player themselves
+        if (cand === norm(rec.name)) break;
+        seen.add(cand);
+        const displayName = rosterByNorm.get(cand);
+        const match = blurb.match(UPSIDE_RE);
+        const reason = match ? match[0] : "increased role";
+        if (!beneficiariesCache.has(cand)) beneficiariesCache.set(cand, []);
+        beneficiariesCache.get(cand).push({
+          causedBy: rec.name,
+          causedByStatus: rec.status,
+          reason: reason
+        });
+        break;  // only tag once per matched run
+      }
     });
   });
 }
@@ -4901,16 +4998,17 @@ function getBeneficiaryForPlayer(rawName) {
   }
   if (!ben) return null;
   // Apply scope filter to the CAUSING injury. Keep the CEILING pill if the
-  // cause is either today's report OR a season-ending injury. Season-ending
-  // injuries create persistent role increases — those are exactly when you
-  // want the ceiling signal even though the headline isn't time-bound.
+  // cause is either today's report OR an ongoing absence (season-ending,
+  // pregnancy, surgery, long-term rehab, etc.). Ongoing absences create
+  // persistent role increases — those are exactly when you want the ceiling
+  // signal even though the headline isn't time-bound to today.
   if (!_injuryShowAll()) {
     const causedByNorm = norm(ben.causedBy);
     const causedByRec = injuriesCache?.get(causedByNorm);
     if (causedByRec) {
       const isToday = _injuryIsForToday(causedByRec);
-      const isSeasonEnding = _injuryIsSeasonEnding(causedByRec);
-      if (!isToday && !isSeasonEnding) return null;
+      const isOngoing = (typeof _injuryIsOngoing === "function") && _injuryIsOngoing(causedByRec);
+      if (!isToday && !isOngoing) return null;
     }
   }
   return ben;
@@ -4933,11 +5031,8 @@ function getInjuryForPlayer(rawName) {
     if (matches.length === 1) rec = matches[0];
   }
   if (!rec) return null;
-  // Apply today-only AND season-ending filters unless user has toggled "show all"
-  if (!_injuryShowAll()) {
-    if (!_injuryIsForToday(rec)) return null;
-    if (_injuryIsSeasonEnding(rec)) return null;
-  }
+  // Apply today-only filter unless user has toggled "show all"
+  if (!_injuryShowAll() && !_injuryIsForToday(rec)) return null;
   return rec;
 }
 
@@ -4970,29 +5065,65 @@ function _injuryIsSeasonEnding(rec) {
   return _SEASON_ENDING_RE.test(text);
 }
 
+// Returns Set of internal team abbrs playing today, derived from the loaded
+// slate (betstampGames). Each game has either an explicit ISO gameDate (from
+// API/paste flow) or a day-of-week prefix in g.time (e.g. "Sun 8:00 PM") we
+// "Today's teams" = teams represented in the currently loaded projection CSVs
+// (the user uploads RG/RW/Dimers for today's slate, so the merged dataset's
+// teams ARE today's teams by definition). Falls back to the totals slate
+// (betstampGames) if no CSVs loaded yet, then null (no filter) if neither.
+function _teamsPlayingToday() {
+  // Primary source: loaded blender roster — these are the teams the user
+  // explicitly pulled CSVs for, i.e. tonight's slate.
+  if (typeof merged !== "undefined" && Array.isArray(merged) && merged.length) {
+    const set = new Set();
+    merged.forEach(r => {
+      if (r.team && r.found > 0 && r.con && r.con.pts != null) {
+        set.add(normTeamAbbr(r.team) || r.team.toUpperCase());
+      }
+    });
+    if (set.size > 0) return set;
+  }
+  // Fallback: if no CSVs loaded yet but the totals slate is paste-loaded
+  if (Array.isArray(betstampGames) && betstampGames.length > 0) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const y = today.getFullYear();
+    const mo = String(today.getMonth() + 1).padStart(2, "0");
+    const dy = String(today.getDate()).padStart(2, "0");
+    const todayIso = `${y}-${mo}-${dy}`;
+    const todayDayShort = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][today.getDay()];
+    const set = new Set();
+    betstampGames.forEach(g => {
+      if (!g) return;
+      if (g.gameDate && g.gameDate.startsWith(todayIso)) {
+        if (g.awayAbbr) set.add(g.awayAbbr);
+        if (g.homeAbbr) set.add(g.homeAbbr);
+        return;
+      }
+      if (!g.gameDate && typeof g.time === "string") {
+        const m = g.time.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\b/);
+        if (m && m[1] === todayDayShort) {
+          if (g.awayAbbr) set.add(g.awayAbbr);
+          if (g.homeAbbr) set.add(g.homeAbbr);
+        }
+      }
+    });
+    if (set.size > 0) return set;
+  }
+  return null;  // No source available → don't filter
+}
+
 function _injuryIsForToday(rec) {
   if (!rec) return false;
-  const todayDay = _DAY_NAMES[new Date().getDay()];
-  // Combine all text fields where a day could be mentioned
-  const text = `${rec.comment || ""} ${rec.longComment || ""}`.toLowerCase();
-  if (!text.trim()) return true; // No text at all → keep (don't punish empty records)
-  // "today" / "tonight" → always today-relevant
-  if (/\b(today|tonight)\b/.test(text)) return true;
-  // Find the FIRST day-of-week mentioned. That's typically the game day the
-  // report is about ("for Sunday's game against..."). Later mentions are
-  // usually context ("their next chance to play will come Tuesday").
-  let firstDay = null;
-  let firstIdx = Infinity;
-  for (const day of _DAY_NAMES) {
-    const re = new RegExp(`\\b${day}\\b`);
-    const m = text.match(re);
-    if (m && m.index < firstIdx) {
-      firstIdx = m.index;
-      firstDay = day;
-    }
-  }
-  if (firstDay === null) return true;  // No day mentioned → assume ongoing/keep
-  return firstDay === todayDay;
+  // Strict slate-based filter: only show records for teams playing today.
+  // No bypasses — if Rupert's team isn't playing today, hide Rupert too.
+  // (Her CEILING beneficiaries still show via separate cache that already
+  // ignores this filter; see getBeneficiaryForPlayer below.)
+  const todayTeams = _teamsPlayingToday();
+  if (todayTeams === null) return true;  // No slate loaded → don't filter
+  if (!rec.team) return false;
+  return todayTeams.has(rec.team);
 }
 
 function _injuryShowAll() {
@@ -5018,7 +5149,7 @@ function _injuryIsOngoing(rec) {
   const ONGOING_PATTERNS = [
     /\byet to (make|play|appear|debut|suit)/,           // "yet to make her season debut"
     /\bseason debut\b/,                                  // "her season debut"
-    /\bmiss(es|ed|ing)?\b.*\b(start of the season|rest of the season|remainder|indefinitely|extended period|multiple games|several games)/,
+    /\bmiss(es|ed|ing)?\b.*\b(start of the season|rest of the season|remainder|indefinitely|extended period|multiple games|several games|start of training camp|opening|beginning|first \d+)/,
     /\bout (for the season|indefinitely|long[- ]term|until further|for an extended)/,
     /\bseason[- ]ending\b/,
     /\bout for the year\b/,
@@ -5027,7 +5158,15 @@ function _injuryIsOngoing(rec) {
     /\bcontinue to (be brought along|miss|rehab)/,
     /\bno return timetable\b/,
     /\bdoubtful for future\b/,
-    /\bwill be re-evaluated in\b/                        // "re-evaluated in two weeks" → multi-day
+    /\bwill be re-evaluated in\b/,                       // "re-evaluated in two weeks" → multi-day
+    /\bpregnan(t|cy)\b/,                                 // pregnancy → multi-month absence
+    /\b(replacement|hardship) contract\b/,               // signals long-term absence on team
+    /\boverseas commitment\b/,                           // common WNBA roster note → weeks+ absent
+    /\b(2026 regular season|2026 campaign).*\bjeopardy\b/,
+    /\bjeopardy\b.*\b(2026 regular season|2026 campaign)\b/,
+    /\bfiled for a replacement\b/,                       // team filed = player will be out a while
+    /\bsidelined in 2026\b/,
+    /\bnot expected (to be )?available\b/
   ];
   return ONGOING_PATTERNS.some(re => re.test(text));
 }
@@ -5043,12 +5182,17 @@ function _injuryExplicitlyToday(rec) {
   const text = `${rec.comment || ""} ${rec.longComment || ""}`.toLowerCase();
   if (!text.trim()) return false;
   if (/\b(today|tonight)\b/.test(text)) return true;
-  // First day-of-week mentioned must match today's day
+  // Strip reporter-attribution day mentions (same as _injuryIsForToday)
+  const reporterStripped = text
+    .replace(/\b(reports?|said|tells?|told|per|via|announced|confirms?|noted|wrote|tweeted|posted)\s+\S+(?:\.\S+)*\s+(on\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/g, " $1 ")
+    .replace(/,\s+\S+(?:\.\S+)*\s+(reports?|said|tells?|told)\s+(on\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/g, " ")
+    .replace(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s*[,.]?\s*(reports?|said|tells?|told|per|via)\b/g, " $2");
+  // First game-context day-of-week mentioned must match today's day
   let firstDay = null;
   let firstIdx = Infinity;
   for (const day of _DAY_NAMES) {
     const re = new RegExp(`\\b${day}\\b`);
-    const m = text.match(re);
+    const m = reporterStripped.match(re);
     if (m && m.index < firstIdx) {
       firstIdx = m.index;
       firstDay = day;
@@ -5349,12 +5493,43 @@ function updateInjuryPanel() {
     });
     // Bold roster players. Look for full names first (most specific), then unambiguous last names.
     // To avoid double-wrapping, only match words not already inside existing <span>.
-    rosterNames.forEach((display, normName) => {
-      // Build a regex of the display name's word boundaries. Escape regex specials.
-      const esc = display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const re = new RegExp(`\\b${esc}\\b(?![^<]*</span>)`, "g");
-      out = out.replace(re, `<strong style="color:#FDB927;">${display}</strong>`);
-    });
+    //
+    // Diacritic-aware matching: blurbs often spell names without accents
+    // (e.g. "Janelle Salaun") while the roster has the proper form ("Janelle Salaün").
+    // We walk through 1-2-3 word spans in the text, normalize each, and compare
+    // against the normalized roster — catches all the encoding variants in one pass.
+    if (rosterNames.size > 0) {
+      // Build a map: normalized-name → display-name (already what rosterNames stores).
+      // Iterate text matching consecutive Capitalized-Word sequences (potential names).
+      // \p{Lu} doesn't work everywhere; use a basic ASCII + Unicode-letter approximation.
+      // Match runs of 1-4 capitalized word tokens (covers "Salaun", "Janelle Salaun",
+      // "Mary Jo Smith-Jones", "Anastasiia Olairi Kosu" etc). Each match is checked
+      // against the roster after normalization.
+      const NAME_RUN_RE = /\b[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ'\-]+(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ'\-]+){0,3}\b(?![^<]*<\/span>)/g;
+      out = out.replace(NAME_RUN_RE, (run) => {
+        // Skip if already wrapped (matched by a highlight span)
+        if (run.indexOf("<strong") !== -1) return run;
+        // Try the run itself first, then progressively shorter suffixes —
+        // catches "Janelle Salaun" if the roster has "Janelle Salaün", and also
+        // catches just "Salaun" alone via the last-name path below.
+        const fullNorm = norm(run);
+        if (rosterNames.has(fullNorm)) {
+          return `<strong style="color:#FDB927;">${run}</strong>`;
+        }
+        // Try matching just the last 2 words (in case run includes a leading title or extra word)
+        const words = run.split(/\s+/);
+        if (words.length >= 2) {
+          const lastTwo = words.slice(-2).join(" ");
+          const lastTwoNorm = norm(lastTwo);
+          if (rosterNames.has(lastTwoNorm)) {
+            // Wrap only the last-two-word portion, leave any prefix unbolded
+            const prefix = words.slice(0, -2).join(" ");
+            return prefix ? `${prefix} <strong style="color:#FDB927;">${lastTwo}</strong>` : `<strong style="color:#FDB927;">${lastTwo}</strong>`;
+          }
+        }
+        return run;
+      });
+    }
     return out;
   }
 
@@ -5388,51 +5563,81 @@ function updateInjuryPanel() {
     return activeFilter.has(_injuryStatusLabel(rec.status));
   }
 
+  // Helper to render a single record row. Used by both TODAY and ONGOING groups.
+  // bucket = "today" or "ongoing" — controls which per-row badge appears.
+  function renderInjuryRow(rec, bucket) {
+    const label = _injuryStatusLabel(rec.status);
+    const color = _injuryStatusColor(rec.status);
+    const eta = rec.returnDate ? ` <span style="color:#525a64;">· ETA ${rec.returnDate}</span>` : "";
+    const detail = rec.type ? ` <span style="color:#a8b0bb;">${rec.type}${rec.detail ? ` (${rec.detail})` : ""}</span>` : "";
+    // Per-row badge so you can see at-a-glance whether this is a TODAY-acute
+    // entry (gold) or an ONGOING multi-day situation (purple), even when
+    // sections are collapsed/scrolled.
+    let bucketBadge = "";
+    if (bucket === "today") {
+      bucketBadge = ` <span style="background:#FDB927;color:#0d1117;font-size:8px;font-weight:800;letter-spacing:0.5px;border-radius:3px;padding:1px 5px;box-shadow:0 0 6px #FDB92744;">TODAY</span>`;
+    } else if (bucket === "ongoing") {
+      bucketBadge = ` <span style="background:#a78bfa;color:#0d1117;font-size:8px;font-weight:800;letter-spacing:0.5px;border-radius:3px;padding:1px 5px;box-shadow:0 0 6px #a78bfa44;">ONGOING</span>`;
+    }
+    const headline = rec.comment ? `<div style="font-size:11px;color:#d4dae3;margin-top:3px;margin-left:54px;line-height:1.4;">${decorateHeadline(rec.comment)}</div>` : "";
+    const analysis = rec.longComment && rec.longComment !== rec.comment
+      ? `<div style="font-size:10px;color:#8b93a0;margin-top:4px;margin-left:54px;line-height:1.5;padding:6px 8px;background:#0d1117;border-left:2px solid #55258377;border-radius:0 4px 4px 0;"><span style="color:#FDB927;font-weight:700;letter-spacing:0.4px;font-size:9px;">ANALYSIS</span> ${decorateAnalysis(rec.longComment)}</div>`
+      : "";
+    return `<div style="display:flex;flex-direction:column;padding:8px 0;border-bottom:1px dashed #1f2733;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="background:${color}1a;border:1px solid ${color}55;color:${color};font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;min-width:30px;text-align:center;">${label}</span>
+        <span style="font-size:13px;font-weight:700;color:#fff;">${rec.name}</span>
+        ${detail}${eta}${bucketBadge}
+      </div>
+      ${headline}
+      ${analysis}
+    </div>`;
+  }
+
   const teamBlocks = sortedTeams.map(team => {
     const list = injuriesByTeam.get(team)
       .slice()
       .filter(recordPassesFilter)
-      .sort((a, b) => {
-        // Today-explicit entries first (more actionable for today's slate)
-        const aToday = _injuryExplicitlyToday(a) ? 0 : 1;
-        const bToday = _injuryExplicitlyToday(b) ? 0 : 1;
-        if (aToday !== bToday) return aToday - bToday;
-        return statusRank(a.status) - statusRank(b.status);
-      });
+      .sort((a, b) => statusRank(a.status) - statusRank(b.status));
     if (list.length === 0) return "";
     const isBlender = blenderTeams.has(team);
-    const rows = list.map(rec => {
-      const label = _injuryStatusLabel(rec.status);
-      const color = _injuryStatusColor(rec.status);
-      const eta = rec.returnDate ? ` <span style="color:#525a64;">· ETA ${rec.returnDate}</span>` : "";
-      const detail = rec.type ? ` <span style="color:#a8b0bb;">${rec.type}${rec.detail ? ` (${rec.detail})` : ""}</span>` : "";
-      // TODAY badge: signals this is a fresh today-specific report (headline
-      // explicitly says 'today'/'tonight' or today's day-of-week). Generic
-      // DTD/multi-day notes don't get the badge, so the bettor can scan for
-      // game-day-relevant updates faster.
-      const todayBadge = _injuryExplicitlyToday(rec)
-        ? ` <span style="background:#FDB927;color:#0d1117;font-size:8px;font-weight:800;letter-spacing:0.5px;border-radius:3px;padding:1px 5px;box-shadow:0 0 8px #FDB92766;">TODAY</span>`
-        : "";
-      // ONGOING badge: signals a multi-day absence (season debut not yet made,
-      // surgery recovery, "miss rest of the season", etc.). Pairs with TODAY
-      // when both apply — e.g. Dana Evans is OUT today AND ongoing.
-      const ongoingBadge = _injuryIsOngoing(rec)
-        ? ` <span style="background:#a78bfa;color:#0d1117;font-size:8px;font-weight:800;letter-spacing:0.5px;border-radius:3px;padding:1px 5px;box-shadow:0 0 8px #a78bfa66;">ONGOING</span>`
-        : "";
-      const headline = rec.comment ? `<div style="font-size:11px;color:#d4dae3;margin-top:3px;margin-left:54px;line-height:1.4;">${decorateHeadline(rec.comment)}</div>` : "";
-      const analysis = rec.longComment && rec.longComment !== rec.comment
-        ? `<div style="font-size:10px;color:#8b93a0;margin-top:4px;margin-left:54px;line-height:1.5;padding:6px 8px;background:#0d1117;border-left:2px solid #55258377;border-radius:0 4px 4px 0;"><span style="color:#FDB927;font-weight:700;letter-spacing:0.4px;font-size:9px;">ANALYSIS</span> ${decorateAnalysis(rec.longComment)}</div>`
-        : "";
-      return `<div style="display:flex;flex-direction:column;padding:8px 0;border-bottom:1px dashed #1f2733;">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span style="background:${color}1a;border:1px solid ${color}55;color:${color};font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;min-width:30px;text-align:center;">${label}</span>
-          <span style="font-size:13px;font-weight:700;color:#fff;">${rec.name}</span>
-          ${detail}${eta}${todayBadge}${ongoingBadge}
-        </div>
-        ${headline}
-        ${analysis}
-      </div>`;
-    }).join("");
+    // Bucket logic: ONGOING is dominant.
+    //   - If flagged ongoing (pregnancy, season debut not yet made, surgery,
+    //     season-ender) → ONGOING bucket, regardless of headline day mention.
+    //     Even if headline says "Sunday's game", the situation is multi-day.
+    //   - Otherwise → TODAY bucket (today-acute Q/OUT/DTD).
+    // Within TODAY: sort by actionability — Q/GTD first (line-altering today),
+    // then OUT (definitive), then P (probable).
+    const todayList = [];
+    const ongoingList = [];
+    list.forEach(rec => {
+      const isOngoing = (typeof _injuryIsOngoing === "function") && _injuryIsOngoing(rec);
+      if (isOngoing) ongoingList.push(rec);
+      else todayList.push(rec);
+    });
+    // Resort TODAY by actionability: Q/GTD (uncertain, line-moving) first,
+    // then OUT (locked-in fade), then DTD (managing), then P (low impact).
+    const todayActionRank = (rec) => {
+      const lbl = _injuryStatusLabel(rec.status);
+      if (lbl === "Q" || lbl === "GTD") return 0;
+      if (lbl === "OUT") return 1;
+      if (lbl === "DTD") return 2;
+      if (lbl === "P") return 3;
+      return 4;
+    };
+    todayList.sort((a, b) => todayActionRank(a) - todayActionRank(b));
+    const todaySection = todayList.length
+      ? `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;margin-bottom:2px;">
+          <span style="background:#FDB927;color:#0d1117;font-size:8px;font-weight:800;letter-spacing:0.5px;border-radius:3px;padding:1px 6px;">TODAY</span>
+          <span style="font-size:10px;color:#a8b0bb;">${todayList.length} entr${todayList.length === 1 ? "y" : "ies"}</span>
+        </div>${todayList.map(r => renderInjuryRow(r, "today")).join("")}`
+      : "";
+    const ongoingSection = ongoingList.length
+      ? `<div style="display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:2px;padding-top:6px;border-top:1px dashed #552583;">
+          <span style="background:#a78bfa;color:#0d1117;font-size:8px;font-weight:800;letter-spacing:0.5px;border-radius:3px;padding:1px 6px;">ONGOING</span>
+          <span style="font-size:10px;color:#a8b0bb;">${ongoingList.length} entr${ongoingList.length === 1 ? "y" : "ies"}</span>
+        </div>${ongoingList.map(r => renderInjuryRow(r, "ongoing")).join("")}`
+      : "";
     const slateBadge = isBlender ? `<span style="background:#a78bfa1a;border:1px solid #a78bfa55;color:#a78bfa;font-size:8px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;margin-left:4px;">IN BLENDER</span>` : "";
     return `<div style="margin-top:12px;">
       <div style="display:flex;align-items:center;gap:6px;padding-bottom:4px;border-bottom:1px solid ${isBlender ? '#a78bfa77' : '#552583'};margin-bottom:4px;">
@@ -5441,7 +5646,8 @@ function updateInjuryPanel() {
         <span style="font-size:10px;color:#525a64;">${list.length} listed</span>
         ${slateBadge}
       </div>
-      ${rows}
+      ${todaySection}
+      ${ongoingSection}
     </div>`;
   }).filter(Boolean).join("");
 
