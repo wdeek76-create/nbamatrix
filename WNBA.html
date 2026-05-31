@@ -1119,7 +1119,7 @@ function renderTable() {
         <div style="display:flex;align-items:center;gap:8px;">
           <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#55258330;border:1px solid #55258377;color:#FDB927;border-radius:5px;padding:0 11px;font-size:18px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:26px;height:26px;flex:0 0 auto;">+</button>
           <span style="font-size:14px;font-weight:700;color:${tc};white-space:nowrap;">${r.rawName}</span>
-          <span style="display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;">${r.team ? `<span style="background:#FDB9271a;border:1px solid #FDB92755;color:#FDB927;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.team}</span>` : ''}${r.pos ? `<span style="background:#a78bfa1a;border:1px solid #a78bfa55;color:#a78bfa;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.pos}</span>` : ''}${trackedPill}</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;">${r.team ? `${teamLogoImg(r.team, 16)}<span style="background:#FDB9271a;border:1px solid #FDB92755;color:#FDB927;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.team}</span>` : ''}${r.pos ? `<span style="background:#a78bfa1a;border:1px solid #a78bfa55;color:#a78bfa;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.pos}</span>` : ''}${trackedPill}</span>
           ${minChip}
         </div>
         <div style="font-size:12px;color:#dde2e9;font-weight:500;margin-top:4px;margin-left:30px;display:flex;align-items:center;flex-wrap:wrap;gap:2px;">${srcInline || '<span style="color:#525a64">no projections</span>'}</div>
@@ -1837,13 +1837,20 @@ function parseShorthand(el) {
   let evPct = null;
 
   // Token 1: should be offered odds
+  // Token 1: usually the offered odds. But users sometimes type the book FIRST
+  // (e.g. "u14.5 fd 110 19.12") instead of the canonical "u14.5 110 fd 19.12".
+  // If token[1] looks like a book name, capture it now and find odds later.
   const oddsTok = tokens[1] || "";
+  let firstBookConsumed = false;
   if (oddsTok) {
     const m = oddsTok.match(/^([+\-]?)(\d{2,4})$/);
     if (m) {
       const sign = m[1] === "-" ? -1 : 1;
       oddsVal = sign * parseInt(m[2]);
       oddsHidden.value = String(oddsVal);
+    } else if (isLikelyBook(oddsTok)) {
+      bookVal = normBookInput(oddsTok);
+      firstBookConsumed = true;
     }
   }
 
@@ -1855,13 +1862,19 @@ function parseShorthand(el) {
       bookVal = normBookInput(t); // resolve fd → FanDuel, etc.
       continue;
     }
-    // Numeric token after odds: either fair (American) or EV% (decimal/small int)
+    // Numeric token after odds: either offered odds (if not yet captured),
+    // then fair (American), then EV% (decimal/small int).
     if (isLikelyOdds(t)) {
-      // Treat as fair odds
       const m = t.match(/^([+\-]?)(\d{2,4})$/);
-      if (m) {
-        const sign = m[1] === "-" ? -1 : 1;
-        fairVal = sign * parseInt(m[2]);
+      if (!m) continue;
+      const sign = m[1] === "-" ? -1 : 1;
+      const n = sign * parseInt(m[2]);
+      if (oddsVal == null) {
+        // We captured a book in token[1] but never the offered odds — claim this token.
+        oddsVal = n;
+        oddsHidden.value = String(oddsVal);
+      } else if (fairVal == null) {
+        fairVal = n;
       }
     } else if (/^\d+(\.\d+)?$/.test(t)) {
       // Treat as EV%
@@ -1871,13 +1884,34 @@ function parseShorthand(el) {
   }
 
   // Apply book if specified — write to hidden modal-book field
-  // Also auto-fill the matching alt-book row with the offered odds so the price is visible there
+  // Also auto-fill the matching alt-book row with the offered odds so the price is visible there.
+  // The matching row gets LOCKED (readonly + dimmed + tab-skip) so the user can't
+  // accidentally re-type the book's odds after tabbing out of QUICK ENTRY. Any
+  // previously-locked row is unlocked first, so changing the book in QUICK ENTRY
+  // frees the old row and locks the new one.
+  document.querySelectorAll('input.alt-input[data-quick-locked="1"]').forEach(inp => {
+    inp.removeAttribute("readonly");
+    inp.removeAttribute("data-quick-locked");
+    inp.removeAttribute("tabindex");
+    inp.style.opacity = "";
+    inp.style.cursor = "";
+    inp.title = inp.dataset.origTitle || "";
+    delete inp.dataset.origTitle;
+  });
   if (bookVal && bookEl) {
     bookEl.value = bookVal;
     if (oddsVal != null) {
       const altInput = document.querySelector(`input.alt-input[data-book="${bookVal}"]`);
       if (altInput) {
         altInput.value = oddsVal > 0 ? `+${oddsVal}` : String(oddsVal);
+        // Lock it so accidental tabbing into this row doesn't overwrite the value.
+        altInput.dataset.quickLocked = "1";
+        altInput.setAttribute("readonly", "readonly");
+        altInput.setAttribute("tabindex", "-1");
+        altInput.style.opacity = "0.55";
+        altInput.style.cursor = "not-allowed";
+        altInput.dataset.origTitle = altInput.title || "";
+        altInput.title = `Locked — set from QUICK ENTRY (${bookVal}). Clear QUICK ENTRY to edit.`;
       }
     }
   }
@@ -2026,6 +2060,32 @@ const BOOK_LOGOS = {
   "Fliff": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABAAEADASIAAhEBAxEB/8QAGwABAAIDAQEAAAAAAAAAAAAAAAcIAgUGBAH/xAAwEAABAwMCBQEFCQAAAAAAAAABAAIEAwURBgcSEyExQQgUFSJRYTRkdHWTobKz0f/EABsBAAEFAQEAAAAAAAAAAAAAAAEAAwQFBgIH/8QAJhEAAgIBAgYBBQAAAAAAAAAAAAECAxEEBQYSEyExcSJBUVJhgf/aAAwDAQACEQMRAD8Aq6iItEkMt4CLvdstpNabjWqZctM0LfUoQ64oVjJlikeMtDsAEdehC3c/0+bkwftMeztx3xcGnH7IqSbwvJGu1NVCzZLHsidF3U/anV0IkV6UDiHhsppXPah0xdrFHp157KAZUfwN5dUP64z1x27LuVc0stdiPRuejvnyV2Jv2aZERNpFh5CIi6bwAuL6Bm52+1N+as/opqU9atzzVUXZfbG4ay0LetQwLnc2Pt00UHxIlXgL2ctruMfMjPZe6FoKPXrClUv99LT96/0IaWiUrHJMyHEuo02OndJx/mSSNVMxIcog3r+GywfxDv4FdHuFtbaLDt/cdRRbze6kqLy+BtWSCw8TwDn4c9j81BVWrVq4FSrVeB2D3Eqfdc4pwkiq4Y2aiyyOsot5op/jj6e/2YIiKAei+AiIkAuN6Bagp6D1K49vezc/osW73qtNjsD5GsWVWw4jXt9tphpIBc4ND2gfUjI+uVV/Zbc67bc3as6jTEm0zS0TonbixnD2HxUGT9D5Uv736ti6p2fny7ZLZKiyRRLS09QRVYS0jw4diPCWmrlC12JmT4ih15V0Wx+Emln7ZNJufuVo+87YXSyW65vrT64p8un7O8A4e0nqRgdMqvIRq+pyyx2vLLjadrp2yl1Ut4bz3CIibZaoIiJAMgV649znRrdKt1GQ5sOVjm0T1a4g5BwfOQvGF9QBKEZ4UllGKIiIQiIkI//Z",
 };
 function logoFor(book) { return BOOK_LOGOS[book] || null; }
+
+// ── TEAM LOGOS (ESPN) ──────────────────────────────────────────────────────
+// ESPN serves WNBA team logos at a predictable URL:
+//   https://a.espncdn.com/i/teamlogos/wnba/500/{lowercase_espn_abbr}.png
+// ESPN uses short abbreviations (NY, LV, LA, GS, WSH) that differ from our
+// internal ones (NYL, LVA, LAS, GSV, WAS); this map converts. Already-matching
+// abbrs (ATL, CHI, MIN, etc.) pass through.
+const INTERNAL_TO_ESPN_ABBR = {
+  "NYL":"NY", "LVA":"LV", "LAS":"LA", "GSV":"GS", "WAS":"WSH",
+  // Legacy/alternate spellings sometimes appearing in older CSVs:
+  "NY":"NY", "LV":"LV", "LA":"LA", "GS":"GS", "WSH":"WSH",
+  "CHA":"CHI", "CT":"CON", "NYE":"NY"
+};
+function teamLogoUrl(abbr) {
+  if (!abbr) return null;
+  const espnAbbr = INTERNAL_TO_ESPN_ABBR[abbr.toUpperCase()] || abbr.toUpperCase();
+  return `https://a.espncdn.com/i/teamlogos/wnba/500/${espnAbbr.toLowerCase()}.png`;
+}
+// Inline <img> snippet for a team. Uses onerror to hide broken images if ESPN
+// changes URLs or an abbr falls outside the map. Size is configurable.
+function teamLogoImg(abbr, size) {
+  const url = teamLogoUrl(abbr);
+  if (!url) return "";
+  const s = size || 14;
+  return `<img src="${url}" alt="${abbr}" style="width:${s}px;height:${s}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'"/>`;
+}
 
 
 function buildAltBookList() {
@@ -2419,11 +2479,10 @@ function saveEditBet(id) {
 }
 
 // Format and copy a single bet to clipboard — same format as bulk copy
-function copySingleBet(id) {
-  const b = bets.find(x => x.id === id);
-  if (!b) return;
+// Build a single bet's copy-line string (headline + alts row).
+// Extracted from copySingleBet so bulk-copy can reuse without duplication.
+function formatBetCopyLine(b) {
   const isTotal = (b.stat || "").toUpperCase() === "GAME_TOTAL";
-
   // Find best price across primary + alts (each alt may carry its own fair + line)
   const candidates = [{ book: b.book, odds: b.odds, fair: b.fair, line: b.line }];
   if (Array.isArray(b.altBooks)) {
@@ -2445,12 +2504,10 @@ function copySingleBet(id) {
   });
   if (!best) best = { book: b.book, odds: b.odds, fair: b.fair, line: b.line, ev: null };
 
-  // Declarations that were missing — bestLine, ouLower, oddsStr
   const bestLine = best.line != null ? best.line : b.line;
   const ouLower = (b.ou || "").toLowerCase();
   const oddsStr = best.odds > 0 ? `+${best.odds}` : `${best.odds}`;
 
-  // Append alts (excluding the one we used as headline). Dedupe by book+odds+line.
   const seenK = new Set();
   const remaining = candidates.filter(c => {
     if (c.book === best.book && c.odds === best.odds && c.line === bestLine) return false;
@@ -2460,7 +2517,6 @@ function copySingleBet(id) {
     return true;
   });
 
-  // If alts share headline's line, drop play-to from headline (alts row owns it)
   const altsAtBestLine = remaining.some(p => (p.line ?? b.line) === bestLine);
   const playTo = (!altsAtBestLine && best.fair != null) ? playToOdds(best.fair, 5) : null;
   const playToStr = playTo != null ? ` play to ${playTo > 0 ? "+" + playTo : playTo}` : "";
@@ -2476,7 +2532,6 @@ function copySingleBet(id) {
 
   if (remaining.length) {
     const byLine = {};
-    // Seed group at bestLine with the headline so its play-to includes the headline price
     if (altsAtBestLine) {
       byLine[String(bestLine)] = { line: bestLine, fair: best.fair, items: [] };
     }
@@ -2485,8 +2540,6 @@ function copySingleBet(id) {
       if (!byLine[k]) byLine[k] = { line: p.line, fair: p.fair, items: [] };
       byLine[k].items.push(p);
     });
-    // Build a string per line-group. Same-line group (== bestLine) renders bare;
-    // different-line groups are true alt lines and get the side-letter hint.
     const sameLineParts = [];
     const altLineParts = [];
     Object.values(byLine).filter(g => g.items.length > 0).forEach(g => {
@@ -2502,18 +2555,19 @@ function copySingleBet(id) {
       if (isSameLine) sameLineParts.push(groupStr);
       else altLineParts.push(groupStr);
     });
-    // Same-line alts go directly under the main bet (no prefix).
     if (sameLineParts.length) line += `\n${sameLineParts.join("  ")}`;
-    // Multiple alt-line groups share one "alts:" prefix on a single line.
     if (altLineParts.length) line += `\nalts: ${altLineParts.join("  ")}`;
   }
+  return line;
+}
 
-  // Bulletproof copy
+// Bulletproof clipboard write (execCommand fallback before Clipboard API)
+function copyTextToClipboard(text, onOk, onErr) {
   const tryExec = (t) => {
     try {
       const ta = document.createElement("textarea");
-      ta.value = t; ta.style.position="fixed"; ta.style.opacity="0";
-      ta.setAttribute("readonly","");
+      ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+      ta.setAttribute("readonly", "");
       document.body.appendChild(ta);
       ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
       const ok = document.execCommand("copy");
@@ -2521,15 +2575,56 @@ function copySingleBet(id) {
       return ok;
     } catch(e) { return false; }
   };
-  if (tryExec(line)) {
-    showToast(`Copied ${b.player}`);
-  } else if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(line)
-      .then(() => showToast(`Copied ${b.player}`))
-      .catch(() => { showToast("Copy blocked — text in console"); console.log(line); });
+  if (tryExec(text)) { onOk?.(); return; }
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(onOk, () => { onErr?.(); console.log(text); });
   } else {
-    showToast("Copy not supported"); console.log(line);
+    onErr?.(); console.log(text);
   }
+}
+
+function copySingleBet(id) {
+  const b = bets.find(x => x.id === id);
+  if (!b) return;
+  const line = formatBetCopyLine(b);
+  copyTextToClipboard(line,
+    () => showToast(`Copied ${b.player}`),
+    () => showToast("Copy blocked — text in console")
+  );
+}
+
+// Multi-select state. Populated by checkbox toggles on each bet card. Cleared
+// on bulk-copy and on tab switches that re-render the tracker from scratch.
+const selectedBetIds = new Set();
+function toggleBetSelected(id) {
+  if (selectedBetIds.has(id)) selectedBetIds.delete(id);
+  else selectedBetIds.add(id);
+  updateBulkCopyBar();
+}
+function clearSelectedBets() {
+  selectedBetIds.clear();
+  document.querySelectorAll('input[type="checkbox"][data-bet-id]').forEach(cb => { cb.checked = false; });
+  updateBulkCopyBar();
+}
+function copySelectedBets() {
+  if (selectedBetIds.size === 0) { showToast("No bets selected"); return; }
+  // Preserve user's bet-history order (which is reverse-chronological).
+  const ordered = bets.filter(b => selectedBetIds.has(b.id));
+  const lines = ordered.map(formatBetCopyLine);
+  const text = lines.join("\n\n");
+  const count = ordered.length;
+  copyTextToClipboard(text,
+    () => { showToast(`Copied ${count} bet${count===1?"":"s"}`); clearSelectedBets(); },
+    () => showToast("Copy blocked — text in console")
+  );
+}
+function updateBulkCopyBar() {
+  const bar = document.getElementById("bulk-copy-bar");
+  if (!bar) return;
+  if (selectedBetIds.size === 0) { bar.style.display = "none"; return; }
+  bar.style.display = "flex";
+  const countEl = document.getElementById("bulk-copy-count");
+  if (countEl) countEl.textContent = String(selectedBetIds.size);
 }
 
 function exportBets() {
@@ -4010,7 +4105,7 @@ function renderTracker() {
   let filtered = openOnly ? scopedBets.filter(b => b.result === "pending") : scopedBets;
   if (search) filtered = filtered.filter(b => b.player.toLowerCase().includes(search) || b.stat.toLowerCase().includes(search) || (b.book||"").toLowerCase().includes(search));
 
-  const betRows = filtered.map(b => {
+  const betCards = filtered.map(b => {
     const plVal = b.result==="hit" ? `+${b.toWin.toFixed(2)}u` : b.result==="miss" ? `-${b.stake.toFixed(2)}u` : b.result==="void" ? "VOID" : "—";
     const plColor = b.result==="hit"?"#22c55e":b.result==="miss"?"#f87171":b.result==="void"?"#f59e0b":"#d4dae3";
 
@@ -4051,6 +4146,38 @@ function renderTracker() {
         snapshotsRow = `<div style="font-size:10px;color:#7a8390;display:flex;gap:10px;margin-top:2px;letter-spacing:0.3px;">${parts.join(" · ")}</div>`;
       }
     }
+
+    // For props with stored per-source projections: show each source value as a
+    // small color-coded pill (green = source agreed with bet's side, red = disagreed).
+    // Includes AVG of available sources. Provides at-a-glance "did the sources back
+    // this pick?" without opening the modal.
+    let srcProjsRow = "";
+    if (!isTotal && b.srcProjs && b.line != null) {
+      const SRC_LABELS = { roto: "RG", rotowire: "RW", dimers: "DIM" };
+      const pills = [];
+      const vals = [];
+      Object.keys(SRC_LABELS).forEach(key => {
+        const v = b.srcProjs[key];
+        if (v == null) return;
+        vals.push(v);
+        let color, bg, border;
+        if (Math.abs(v - b.line) < 1e-9) {
+          color = "#FDB927"; bg = "rgba(253,185,39,0.10)"; border = "rgba(253,185,39,0.35)";
+        } else {
+          const agreed = b.ou === "over" ? v > b.line : v < b.line;
+          if (agreed) { color = "#4ade80"; bg = "rgba(34,197,94,0.10)"; border = "rgba(34,197,94,0.35)"; }
+          else { color = "#f87171"; bg = "rgba(248,113,113,0.10)"; border = "rgba(248,113,113,0.35)"; }
+        }
+        pills.push(`<span style="display:inline-flex;align-items:center;gap:3px;background:${bg};border:1px solid ${border};border-radius:4px;padding:1px 6px;font-size:9px;"><span style="color:#8b93a0;font-weight:600;letter-spacing:0.3px;">${SRC_LABELS[key]}</span><span style="color:${color};font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">${v.toFixed(2)}</span></span>`);
+      });
+      if (vals.length >= 2) {
+        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+        pills.push(`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(253,185,39,0.08);border:1px solid rgba(253,185,39,0.3);border-radius:4px;padding:1px 6px;font-size:9px;"><span style="color:#FDB927;font-weight:700;letter-spacing:0.3px;">AVG</span><span style="color:#FDB927;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">${avg.toFixed(2)}</span></span>`);
+      }
+      if (pills.length) {
+        srcProjsRow = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;">${pills.join("")}</div>`;
+      }
+    }
     const actualStr = b.actual != null ? (Number.isInteger(b.actual) ? String(b.actual) : b.actual.toFixed(1)) : "—";
     const actualColor = b.actual == null ? "#d4dae3" : b.result === "hit" ? "#22c55e" : b.result === "miss" ? "#f87171" : "#fff";
     const oddsStr = b.odds > 0 ? `+${b.odds}` : b.odds;
@@ -4066,18 +4193,30 @@ function renderTracker() {
     // Stat block helper — small label + bigger value
     const stat = (label, value, color="#fff") =>
       `<div style="display:flex;flex-direction:column;gap:1px;min-width:0;">
-        <div style="font-size:9px;color:#d4dae3;letter-spacing:0.6px;font-weight:700;text-transform:uppercase;">${label}</div>
-        <div style="font-size:13px;color:${color};font-weight:700;white-space:nowrap;">${value}</div>
+        <div style="font-size:9px;color:#a8b0bb;letter-spacing:0.5px;font-weight:700;text-transform:uppercase;">${label}</div>
+        <div style="font-size:12px;color:${color};font-weight:700;white-space:nowrap;">${value}</div>
       </div>`;
 
-    return `<div class="bet-card" style="background:${bgTint};border:1px solid #1f2733;border-left:3px solid ${accent};border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;flex-direction:column;gap:10px;">
-      <!-- Top row: player + bet headline + actions -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-        <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
-          <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.2;">
-            ${b.player} <span style="color:#FDB927;font-weight:600;">${b.ou} ${b.line} ${statLbl}</span>
+    const html = `<div class="bet-card" data-bet-id="${b.id}" style="background:${bgTint};border:1px solid #1f2733;border-left:3px solid ${accent};border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;flex-direction:column;gap:8px;">
+      <!-- Top row: checkbox + player + bet headline + actions -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;flex:1;">
+          <input type="checkbox" data-bet-id="${b.id}" onchange="toggleBetSelected(${b.id})" ${selectedBetIds.has(b.id) ? "checked" : ""} title="Select for bulk copy" style="margin-top:3px;width:14px;height:14px;cursor:pointer;accent-color:#552583;flex-shrink:0;"/>
+          <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;">
+            <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.2;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              ${(() => {
+                // For props: single team. For totals: "AWAY/HOME" split into two logos.
+                if (!b.team) return "";
+                if ((b.stat || "").toUpperCase() === "GAME_TOTAL" && b.team.includes("/")) {
+                  const [away, home] = b.team.split("/");
+                  return `<span style="display:inline-flex;align-items:center;gap:2px;flex-shrink:0;">${teamLogoImg(away, 16)}<span style="color:#525a64;font-size:10px;">@</span>${teamLogoImg(home, 16)}</span>`;
+                }
+                return teamLogoImg(b.team, 16);
+              })()}
+              <span onclick="editBet(${b.id})" style="cursor:pointer;border-bottom:1px dashed #55258377;" title="Click to edit">${b.player}</span> <span style="color:#FDB927;font-weight:600;">${b.ou} ${b.line} ${statLbl}</span>
+            </div>
+            <div style="font-size:10px;color:#a8b0bb;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#FDB927;font-weight:700;letter-spacing:0.5px;">${b.projSource === "blended" ? "ROTOWIRE" : b.projSource.toUpperCase()}</span>` : ''}</div>
           </div>
-          <div style="font-size:11px;color:#d4dae3;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#FDB927;font-weight:700;letter-spacing:0.5px;">${b.projSource === "blended" ? "ROTOWIRE" : b.projSource.toUpperCase()}</span>` : ''}</div>
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
           ${(() => {
@@ -4089,19 +4228,18 @@ function renderTracker() {
               const border = active ? baseColor : baseBorder;
               const color = active ? "#0d1117" : baseColor;
               const weight = active ? "800" : "700";
-              return `<button class="result-btn" onclick="setBetResult(${b.id},'${val}')" style="background:${bg};border:1px solid ${border};color:${color};font-weight:${weight};border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;">${label}</button>`;
+              return `<button class="result-btn" onclick="setBetResult(${b.id},'${val}')" style="background:${bg};border:1px solid ${border};color:${color};font-weight:${weight};border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;">${label}</button>`;
             };
             const hitBtn = btn("HIT", "hit", "#22c55e22", "#22c55e55", "#22c55e");
             const missBtn = btn("MISS", "miss", "#f8717122", "#f8717155", "#f87171");
             const voidBtn = btn("VOID", "void", "#f59e0b22", "#f59e0b55", "#f59e0b");
             const autoBtn = cur === "pending"
-              ? `<button class="result-btn" onclick="gradeOneBet(${b.id})" style="background:#55258330;color:#FDB927;border:1px solid #55258377;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;" title="Auto grade via ESPN">AUTO</button>`
+              ? `<button class="result-btn" onclick="gradeOneBet(${b.id})" style="background:#55258330;color:#FDB927;border:1px solid #55258377;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;" title="Auto grade via ESPN">AUTO</button>`
               : "";
             return `${hitBtn}${missBtn}${voidBtn}${autoBtn}`;
           })()}
-          <button onclick="copySingleBet(${b.id})" style="background:#55258330;border:1px solid #55258377;color:#FDB927;font-size:11px;font-weight:700;cursor:pointer;padding:3px 10px;border-radius:4px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Copy this bet">COPY</button>
-          <button onclick="editBet(${b.id})" style="background:transparent;border:1px solid #1f2733;color:#d4dae3;font-size:11px;font-weight:700;cursor:pointer;padding:3px 10px;border-radius:4px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Edit this bet">EDIT</button>
-          <button onclick="deleteBet(${b.id})" style="background:transparent;border:none;color:#525a64;font-size:16px;cursor:pointer;padding:0 4px;" title="Delete">✕</button>
+          <button onclick="copySingleBet(${b.id})" style="background:#55258330;border:1px solid #55258377;color:#FDB927;font-size:10px;font-weight:700;cursor:pointer;padding:3px 8px;border-radius:4px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Copy this bet">COPY</button>
+          <button onclick="deleteBet(${b.id})" style="background:transparent;border:none;color:#525a64;font-size:14px;cursor:pointer;padding:0 4px;" title="Delete">✕</button>
         </div>
       </div>
       <!-- Bottom row: metric grid -->
@@ -4113,6 +4251,12 @@ function renderTracker() {
               <div style="font-size:13px;color:${edgeColor};font-weight:700;white-space:nowrap;">${edgeStr}</div>
               ${snapshotsRow}
             </div>`
+          : !isTotal && srcProjsRow
+          ? `<div style="display:flex;flex-direction:column;gap:1px;min-width:0;grid-column:span 2;">
+              <div style="font-size:9px;color:#d4dae3;letter-spacing:0.6px;font-weight:700;text-transform:uppercase;">Edge</div>
+              <div style="font-size:13px;color:${edgeColor};font-weight:700;white-space:nowrap;">${edgeStr}</div>
+              ${srcProjsRow}
+            </div>`
           : stat("Edge", edgeStr, edgeColor)}
         ${stat("Proj", b.proj!=null?b.proj.toFixed(2):"—", "#FDB927")}
         ${stat("Actual", actualStr, actualColor)}
@@ -4121,9 +4265,63 @@ function renderTracker() {
         ${stat("Book", `${logoEl}${b.book||"—"}`, "#dde2e9")}
       </div>
     </div>`;
+    return { bet: b, html };
+  });
+
+  // Build grouped output: by DATE (descending), then by PLAYER within each date.
+  // Date pulls from the bet's stored date or timestamp, falling back to "—".
+  // Player order within a date follows the bet order in `filtered` (already sorted
+  // reverse-chronological), so within a player the most recent bets show first.
+  const dateGroups = new Map();    // ISO date string → Map<player, html[]>
+  betCards.forEach(({ bet, html }) => {
+    const dateKey = (bet.date || (bet.timestamp || "").split(" ")[0] || "—");
+    if (!dateGroups.has(dateKey)) dateGroups.set(dateKey, new Map());
+    const playerMap = dateGroups.get(dateKey);
+    const playerKey = bet.player || "Unknown";
+    if (!playerMap.has(playerKey)) playerMap.set(playerKey, []);
+    playerMap.get(playerKey).push(html);
+  });
+  // Format date key as a friendly label. Today/yesterday get special treatment.
+  function friendlyDate(iso) {
+    if (!iso || iso === "—") return "Undated";
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return iso;
+    const d = new Date(`${iso}T12:00:00`);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const target = new Date(d); target.setHours(0,0,0,0);
+    const diffDays = Math.round((today - target) / 86400000);
+    const dayStr = d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+    if (diffDays === 0) return `Today · ${dayStr}`;
+    if (diffDays === 1) return `Yesterday · ${dayStr}`;
+    return dayStr;
+  }
+  const betRows = [...dateGroups.entries()].map(([dateKey, playerMap]) => {
+    const playerCount = playerMap.size;
+    const betCount = [...playerMap.values()].reduce((sum, arr) => sum + arr.length, 0);
+    const groupsHtml = [...playerMap.entries()].map(([player, htmls]) => {
+      // Multi-bet player gets a small sub-header; single-bet player blends in.
+      const playerHeader = htmls.length > 1
+        ? `<div style="font-size:11px;color:#a8b0bb;font-weight:700;margin:8px 0 4px 4px;letter-spacing:0.3px;">${player} <span style="color:#525a64;font-weight:500;">· ${htmls.length} bets</span></div>`
+        : "";
+      return playerHeader + htmls.join("");
+    }).join("");
+    return `<div class="bet-date-group" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:baseline;gap:10px;padding:6px 4px;margin-bottom:6px;border-bottom:1px solid #1f2733;">
+        <span style="font-size:13px;font-weight:700;color:#FDB927;letter-spacing:0.5px;text-transform:uppercase;">${friendlyDate(dateKey)}</span>
+        <span style="font-size:10px;color:#525a64;">${betCount} bet${betCount===1?"":"s"} · ${playerCount} player${playerCount===1?"":"s"}</span>
+      </div>
+      ${groupsHtml}
+    </div>`;
   }).join("");
 
   el.innerHTML = `
+    <div id="bulk-copy-bar" style="display:none;position:sticky;top:0;z-index:50;background:#552583;border-radius:8px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(85,37,131,0.4);">
+      <span style="color:#fff;font-size:13px;font-weight:700;letter-spacing:0.3px;"><span id="bulk-copy-count">0</span> selected</span>
+      <span style="margin-left:auto;display:flex;gap:8px;">
+        <button onclick="copySelectedBets()" style="background:#FDB927;border:none;color:#0d1117;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">COPY SELECTED</button>
+        <button onclick="clearSelectedBets()" style="background:transparent;border:1px solid #fff;color:#fff;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Clear</button>
+      </span>
+    </div>
     <div id="tracker-controls">
       <span style="font-size:16px;font-weight:800;color:#fff;">${scopedBets.length} ${betKindFilter==='all'?'Bets':betKindFilter==='props'?'Props':'Totals'} Tracked</span>
       ${betKindFilter !== 'all' ? `<span style="font-size:10px;font-weight:700;color:#FDB927;background:#55258326;border:1px solid #55258355;border-radius:4px;padding:2px 8px;letter-spacing:0.5px;text-transform:uppercase;">${betKindFilter}</span>` : ''}
@@ -4268,6 +4466,8 @@ function filterBetRows(val) {
       el.setSelectionRange(len, len);
     }
   });
+  // Restore bulk-copy bar visibility if selections were active before re-render
+  updateBulkCopyBar();
 }
 
 // ── QUICK GRADE ───────────────────────────────────────────────────────────
@@ -6269,7 +6469,19 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       // Use the play date if set, else today
       const date = getCapDate() || new Date().toISOString().split("T")[0];
-      const { rows } = await fetchESPNStatsForDate(date);
+      const { rows, meta } = await fetchESPNStatsForDate(date);
+
+      // If no games are final yet for this date, surface a clearer error than
+      // "NO PLAYER" — that was misleading users into thinking the player name
+      // was wrong when the real issue was the slate hadn't completed yet.
+      if (!rows || rows.length === 0) {
+        const total = meta?.total || 0;
+        const completed = meta?.completed || 0;
+        const label = total === 0 ? "NO GAMES" : completed === 0 ? "NOT FINAL" : "NO PLAYER";
+        showCapGrade(i, "err", label, null, null);
+        return;
+      }
+
       // Try a few matching strategies before giving up:
       //   1. alias-resolved normalized name (handles Skylar Diggins-Smith → Skylar Diggins)
       //   2. plain normalized name (no alias) — ESPN itself doesn't apply aliases
@@ -6285,8 +6497,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const candidates = rows.filter(r => r.playerNorm.endsWith(lastNorm));
         if (candidates.length === 1) playerRow = candidates[0];
       }
-      if (!playerRow) { showCapGrade(i, "err", "NO PLAYER", null, null); return; }
-      if (!playerRow.completed) { showCapGrade(i, "err", "NOT FINAL", null, null); return; }
+      if (!playerRow) {
+        // Player not in any completed game. Could be: (1) the player's game
+        // hasn't finished yet, or (2) the player didn't play / wrong name.
+        // If some games are still in progress, prefer NOT FINAL as the message
+        // since that's the more likely user-actionable cause.
+        const someUnfinished = meta && meta.total > meta.completed;
+        showCapGrade(i, "err", someUnfinished ? "NOT FINAL" : "NO PLAYER", null, null);
+        return;
+      }
+      // No playerRow.completed check — fetchESPNStatsForDate only emits rows for
+      // players whose game is completed (line 2611 skips non-completed events),
+      // so any row in `rows` is from a completed game by definition. The old check
+      // (!playerRow.completed) was always truthy because that field doesn't exist
+      // on the row, causing every cap play to grade as NOT FINAL regardless of
+      // actual game state.
       const actual = getStatValueForESPN(playerRow, parsed.stat);
       if (actual == null) { showCapGrade(i, "err", "NO STAT", null, null); return; }
       let result;
