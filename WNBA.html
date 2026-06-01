@@ -6724,8 +6724,42 @@ function _briefLineForGame(g) {
     return `${parseInt(m[2])}/${parseInt(m[3])} `;
   })();
   const matchup = `${g.awayAbbr} @ ${g.homeAbbr}`;
-  const indep = independentTotal(g.awayAbbr, g.homeAbbr, window._cardSeason?.[`${g.awayAbbr}/${g.homeAbbr}`]);
-  const projTotal = indep?.total;
+  // Use the same cardKey scheme as the rendering (underscore, not slash) so
+  // user's per-card overrides for season + active projection model are honored.
+  const cardKey = `${g.awayAbbr}_${g.homeAbbr}`;
+  const cardSeason = window._cardSeason?.[cardKey] || g.defaultSeason || "blend";
+  const seasonArg = cardSeason === "auto" ? undefined : cardSeason;
+  // Compute both projection candidates the SAME way renderTotals does — so
+  // COPY emits the exact number shown in the big ACTIVE label on the card.
+  const indep = independentTotal(g.awayAbbr, g.homeAbbr, seasonArg);
+  const paceEffTotal = indep?.total;
+  // RotoWire-blended total: sum of away + home team projections (matches render path).
+  let blendedTotal = null;
+  const away = (typeof buildTeamProjection === "function") ? buildTeamProjection(g.awayAbbr) : null;
+  const home = (typeof buildTeamProjection === "function") ? buildTeamProjection(g.homeAbbr) : null;
+  if (away && home) {
+    const rwAway = away.sourceTotals?.["rotowire"];
+    const rwHome = home.sourceTotals?.["rotowire"];
+    if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
+      blendedTotal = rwAway.sum + rwHome.sum;
+    }
+  }
+  // Active model lookup. If user clicked a bar to switch, that choice wins.
+  const activeSrc = window._cardProjSource?.[cardKey];
+  let projTotal;
+  if (activeSrc === "blended" && blendedTotal != null) {
+    projTotal = blendedTotal;
+  } else if (activeSrc === "paceeff" && paceEffTotal != null) {
+    projTotal = paceEffTotal;
+  } else if (activeSrc === "both" && blendedTotal != null && paceEffTotal != null) {
+    projTotal = (blendedTotal + paceEffTotal) / 2;
+  } else {
+    // No preference recorded yet or active source unavailable — match render's
+    // default-resolution order: paceeff first (50/50 solo), then blended, then both
+    if (paceEffTotal != null) projTotal = paceEffTotal;
+    else if (blendedTotal != null) projTotal = blendedTotal;
+    else projTotal = null;
+  }
   // Find a line among the parsed books. Prefer the lowest-vig pair (book with both sides),
   // but we just need the consensus line for the brief output. Any book line works.
   let line = null;
@@ -6818,23 +6852,27 @@ function renderTotals() {
     // stats by default. User can still override per card via the season selector.
     const cardKey = `${g.awayAbbr}_${g.homeAbbr}`;
     window._cardSeason = window._cardSeason || {};
-    if (!window._cardSeason[cardKey] && g.defaultSeason) {
-      window._cardSeason[cardKey] = g.defaultSeason;
+    // Default to 50/50 blend across seasons unless the game data explicitly
+    // sets a season (e.g., schedule-only entries with no books default to '26).
+    // Previously defaulted to "auto" (Bayesian blend), but user feedback was
+    // that 50/50 produces more intuitive numbers especially early in the season.
+    if (!window._cardSeason[cardKey]) {
+      window._cardSeason[cardKey] = g.defaultSeason || "blend";
     }
-    const cardSeason = window._cardSeason[cardKey] || "auto";
+    const cardSeason = window._cardSeason[cardKey] || "blend";
     const seasonArg = cardSeason === "auto" ? undefined : cardSeason;
 
     // Pace × Eff independent total (from team-level advanced stats, with optional season override)
     const indepInfo = independentTotal(g.awayAbbr, g.homeAbbr, seasonArg);
     const paceEffTotal = indepInfo ? indepInfo.total : null;
 
-    // Active projection source for this game card. Persists per-game in window state.
-    // Default order of preference: 'both' if both exist, else whichever is available
+    // Active projection source for this game card. Default: Pace×Eff (50/50
+    // season blend) — matches the totals model Brian's trusted source uses.
+    // User can still tap PLAYER or COMBINED bars to switch on a per-card basis.
     window._cardProjSource = window._cardProjSource || {};
     if (!window._cardProjSource[cardKey]) {
-      if (blendedTotal != null && paceEffTotal != null) window._cardProjSource[cardKey] = "both";
+      if (paceEffTotal != null) window._cardProjSource[cardKey] = "paceeff";
       else if (blendedTotal != null) window._cardProjSource[cardKey] = "blended";
-      else if (paceEffTotal != null) window._cardProjSource[cardKey] = "paceeff";
     }
     const projSource = window._cardProjSource[cardKey];
 
