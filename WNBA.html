@@ -39,6 +39,9 @@ input{font-family:'Inter',sans-serif;font-size:15px;}
 }
 #scoreboard-ticker:hover #scoreboard-ticker-inner,
 #scoreboard-ticker:active #scoreboard-ticker-inner { animation-play-state: paused; }
+.schedule-game-row:hover,
+.schedule-game-row:active { background:rgba(125,211,252,0.04); }
+.schedule-game-row:active .schedule-expand-caret { color:#7dd3fc; }
 .tk-game {
   display:inline-flex;align-items:center;gap:10px;
   background:rgba(125,211,252,0.04);
@@ -305,6 +308,7 @@ table colgroup col.avg-col{width:16%;}
       <div>
         <div style="font-size:11px;color:#7dd3fc;letter-spacing:1.4px;font-weight:700;text-transform:uppercase;">7-Day Schedule</div>
         <div id="schedule-modal-date" style="font-size:14px;color:#fff;font-weight:600;margin-top:2px;"></div>
+        <div id="schedule-modal-sub" style="margin-top:2px;"></div>
       </div>
       <button onclick="closeScheduleModal()" style="background:transparent;border:1px solid #1a1d22;color:#a8b0bb;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;font-family:'Inter',sans-serif;line-height:1;">×</button>
     </div>
@@ -7740,14 +7744,47 @@ function renderScoreboardTicker(events) {
   // Duplicate cards so the animation can loop seamlessly (-50% transform = exactly
   // one full set scrolled past, then second set is in view → start again at 0%)
   const newHTML = cards.join("") + cards.join("");
-  // Skip the DOM write + animation restart if content hasn't changed. This is
+  // Build a semantic signature from the underlying data (NOT the HTML). The HTML
+  // changes every minute when the live clock ticks ("Q2 5:42" → "Q2 5:41"), which
+  // forces a restart even though nothing meaningful happened. Signature includes
+  // only stuff that matters: game state, scores, bet current values, scorer ranks.
+  const sigParts = [];
+  sortedEvents.forEach(ev => {
+    const c = ev.competitions?.[0];
+    const s = c?.status?.type?.state || "";
+    const aw = (c?.competitors || []).find(x => x.homeAway === "away");
+    const hm = (c?.competitors || []).find(x => x.homeAway === "home");
+    sigParts.push(`${ev.id || ""}:${s}:${aw?.score || 0}-${hm?.score || 0}`);
+  });
+  // Bet cards: tracked bets + their current stat value (rounded — ignore decimals
+  // of decimals that may flicker)
+  if (typeof bets !== "undefined" && Array.isArray(bets)) {
+    const todayISO = new Date().toISOString().slice(0, 10);
+    bets.filter(b => {
+      const d = b?.gameDate || b?.date || "";
+      if (d === todayISO) return true;
+      try { return new Date(d).toISOString().slice(0, 10) === todayISO; } catch { return false; }
+    }).forEach(b => {
+      const info = (typeof tickerGetStatFor === "function") ? tickerGetStatFor(b.player, b.stat) : null;
+      sigParts.push(`bet:${b.player || ""}:${b.stat || ""}:${b.line || ""}:${info ? info.value : "—"}`);
+    });
+  }
+  // Top scorers: name + pts (rank by sorted order)
+  if (_tickerPlayerStats && _tickerPlayerStats.size > 0) {
+    const players = [];
+    _tickerPlayerStats.forEach(rec => { if (rec.stats.pts > 0) players.push(rec); });
+    players.sort((a, b) => b.stats.pts - a.stats.pts);
+    players.slice(0, 5).forEach(p => sigParts.push(`scorer:${p.displayName}:${p.stats.pts}`));
+  }
+  const newSig = sigParts.join("|");
+  // Skip the DOM write + animation restart if signature hasn't changed. This is
   // the single biggest factor in the "jumpy refresh" feeling — without this guard,
-  // every poll resets the scroll position even when nothing's different.
-  if (inner.dataset.lastContent === newHTML) {
+  // every poll resets the scroll position even when only the clock ticked.
+  if (inner.dataset.lastSig === newSig) {
     ticker.style.display = "block";
     return;
   }
-  inner.dataset.lastContent = newHTML;
+  inner.dataset.lastSig = newSig;
   inner.innerHTML = newHTML;
   ticker.style.display = "block";
   // Measure actual content width and set duration for a constant scroll speed.
@@ -7757,7 +7794,7 @@ function renderScoreboardTicker(events) {
   setTimeout(() => {
     const halfWidth = inner.scrollWidth / 2;
     if (halfWidth <= 0) return;
-    const PX_PER_SEC = 220;
+    const PX_PER_SEC = 320;
     const duration = Math.max(8, halfWidth / PX_PER_SEC);
     inner.style.animation = "none";
     void inner.offsetWidth;  // force reflow
@@ -7777,10 +7814,15 @@ function buildTickerCard(ev) {
     const completed = status.completed === true;
     const awayAbbr = (away.team?.abbreviation || "").toUpperCase();
     const homeAbbr = (home.team?.abbreviation || "").toUpperCase();
+    const awayLogo = away.team?.logo || "";
+    const homeLogo = home.team?.logo || "";
     const awayRec = (away.records || []).find(r => r.type === "total")?.summary || "";
     const homeRec = (home.records || []).find(r => r.type === "total")?.summary || "";
     const awayScore = parseInt(away.score) || 0;
     const homeScore = parseInt(home.score) || 0;
+    const logoHtml = (url) => url
+      ? `<img src="${escapeHtmlBasic(url)}" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">`
+      : "";
     let statusBadge = "";
     let scoreSection = "";
     let cardClass = "tk-game";
@@ -7790,21 +7832,23 @@ function buildTickerCard(ev) {
       statusBadge = `<span class="tk-status live"><span class="tk-live-dot"></span>${escapeHtmlBasic(detail)}</span>`;
       const awayWin = awayScore > homeScore;
       scoreSection = `
+        ${logoHtml(awayLogo)}
         <span class="tk-team ${awayWin ? '' : 'tk-team-loser'}">${awayAbbr}</span>
-        ${awayRec ? `<span style="color:#525a64;font-size:10px;">${escapeHtmlBasic(awayRec)}</span>` : ""}
         <span class="tk-score ${awayWin ? '' : 'tk-score-loser'}">${awayScore}</span>
         <span class="tk-at">@</span>
+        ${logoHtml(homeLogo)}
         <span class="tk-team ${!awayWin ? '' : 'tk-team-loser'}">${homeAbbr}</span>
-        ${homeRec ? `<span style="color:#525a64;font-size:10px;">${escapeHtmlBasic(homeRec)}</span>` : ""}
         <span class="tk-score ${!awayWin ? '' : 'tk-score-loser'}">${homeScore}</span>`;
     } else if (state === "post" || completed) {
       cardClass += " final";
       statusBadge = `<span class="tk-status final">FINAL</span>`;
       const awayWin = awayScore > homeScore;
       scoreSection = `
+        ${logoHtml(awayLogo)}
         <span class="tk-team ${awayWin ? '' : 'tk-team-loser'}">${awayAbbr}</span>
         <span class="tk-score ${awayWin ? '' : 'tk-score-loser'}">${awayScore}</span>
         <span class="tk-at">@</span>
+        ${logoHtml(homeLogo)}
         <span class="tk-team ${!awayWin ? '' : 'tk-team-loser'}">${homeAbbr}</span>
         <span class="tk-score ${!awayWin ? '' : 'tk-score-loser'}">${homeScore}</span>`;
     } else {
@@ -7819,11 +7863,11 @@ function buildTickerCard(ev) {
         : "";
       statusBadge = `${dayPrefix}<span class="tk-status upcoming">${escapeHtmlBasic(timeStr)}</span>`;
       scoreSection = `
+        ${logoHtml(awayLogo)}
         <span class="tk-team" style="${isTmrw ? 'opacity:0.85;' : ''}">${awayAbbr}</span>
-        ${awayRec ? `<span style="color:#525a64;font-size:10px;">${escapeHtmlBasic(awayRec)}</span>` : ""}
         <span class="tk-at">@</span>
-        <span class="tk-team" style="${isTmrw ? 'opacity:0.85;' : ''}">${homeAbbr}</span>
-        ${homeRec ? `<span style="color:#525a64;font-size:10px;">${escapeHtmlBasic(homeRec)}</span>` : ""}`;
+        ${logoHtml(homeLogo)}
+        <span class="tk-team" style="${isTmrw ? 'opacity:0.85;' : ''}">${homeAbbr}</span>`;
     }
     return `<div class="${cardClass}">${scoreSection}${statusBadge}</div>`;
   } catch (e) {
@@ -8015,6 +8059,14 @@ function renderScheduleModalBody() {
     return;
   }
   body.innerHTML = sections.map(({ date, events }) => renderScheduleSection(date, events)).filter(Boolean).join("");
+  // Aggregate total games across all days for the modal header sub-line
+  const totalGames = sections.reduce((s, x) => s + x.events.length, 0);
+  const subEl = document.getElementById("schedule-modal-sub");
+  if (subEl) {
+    subEl.innerHTML = totalGames > 0
+      ? `<span style="display:inline-block;font-size:11px;color:#7dd3fc;font-weight:700;background:rgba(125,211,252,0.10);border:1px solid rgba(125,211,252,0.28);padding:3px 9px;border-radius:4px;letter-spacing:0.4px;margin-top:4px;">${totalGames} ${totalGames === 1 ? "game" : "games"} · next 7 days</span>`
+      : "";
+  }
 }
 function renderScheduleSection(date, events) {
   if (!events || events.length === 0) return "";
@@ -8023,21 +8075,33 @@ function renderScheduleSection(date, events) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   const diffDays = Math.round((d - today) / (24 * 60 * 60 * 1000));
+  const isToday = diffDays === 0;
   let label;
-  if (diffDays === 0) label = "Today";
+  if (isToday) label = "Today";
   else if (diffDays === 1) label = "Tomorrow";
   else label = date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-  const rows = events.map(ev => renderScheduleRow(ev)).filter(Boolean).join("");
+  const rows = events.map(ev => renderScheduleRow(ev, isToday)).filter(Boolean).join("");
   if (!rows) return "";
   const gameCount = events.length;
+  // Today gets a distinct baby-blue header treatment: brighter label color,
+  // pulsing dot, and the count pill has a glow. Other days keep the muted look.
+  if (isToday) {
+    return `
+      <div style="padding:14px 20px 8px 20px;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(125,211,252,0.06) 0%,transparent 100%);border-top:1px solid rgba(125,211,252,0.12);">
+        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#7dd3fc;box-shadow:0 0 8px rgba(125,211,252,0.9);"></span>
+        <span style="font-size:11px;color:#7dd3fc;letter-spacing:1.4px;font-weight:800;text-transform:uppercase;">${label}</span>
+        <span style="font-size:9px;color:#7dd3fc;font-weight:700;background:rgba(125,211,252,0.16);border:1px solid rgba(125,211,252,0.35);padding:2px 8px;border-radius:4px;letter-spacing:0.4px;">${gameCount} ${gameCount === 1 ? "game" : "games"}</span>
+      </div>
+      ${rows}`;
+  }
   return `
     <div style="padding:14px 20px 6px 20px;display:flex;align-items:center;gap:8px;">
-      <span style="font-size:10px;color:#7dd3fc;letter-spacing:1.4px;font-weight:700;text-transform:uppercase;">${label}</span>
-      <span style="font-size:9px;color:#525a64;font-weight:600;background:rgba(125,211,252,0.08);padding:2px 7px;border-radius:4px;letter-spacing:0.4px;">${gameCount} ${gameCount === 1 ? "game" : "games"}</span>
+      <span style="font-size:10px;color:#a8b0bb;letter-spacing:1.4px;font-weight:700;text-transform:uppercase;">${label}</span>
+      <span style="font-size:9px;color:#525a64;font-weight:600;background:rgba(125,211,252,0.06);padding:2px 7px;border-radius:4px;letter-spacing:0.4px;">${gameCount} ${gameCount === 1 ? "game" : "games"}</span>
     </div>
     ${rows}`;
 }
-function renderScheduleRow(ev) {
+function renderScheduleRow(ev, isToday) {
   try {
     const comp = ev?.competitions?.[0];
     if (!comp) return "";
@@ -8049,12 +8113,17 @@ function renderScheduleRow(ev) {
     const completed = status.completed === true;
     const awayAbbr = (away.team?.abbreviation || "").toUpperCase();
     const homeAbbr = (home.team?.abbreviation || "").toUpperCase();
-    const awayName = away.team?.shortDisplayName || away.team?.displayName || awayAbbr;
-    const homeName = home.team?.shortDisplayName || home.team?.displayName || homeAbbr;
+    const awayName = away.team?.displayName || away.team?.shortDisplayName || awayAbbr;
+    const homeName = home.team?.displayName || home.team?.shortDisplayName || homeAbbr;
+    const awayLogo = away.team?.logo || "";
+    const homeLogo = home.team?.logo || "";
     const awayRec = (away.records || []).find(r => r.type === "total")?.summary || "";
     const homeRec = (home.records || []).find(r => r.type === "total")?.summary || "";
     const awayScore = parseInt(away.score) || 0;
     const homeScore = parseInt(home.score) || 0;
+    const logoImg = (url) => url
+      ? `<img src="${escapeHtmlBasic(url)}" alt="" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">`
+      : `<div style="width:28px;height:28px;background:rgba(125,211,252,0.08);border-radius:4px;flex-shrink:0;"></div>`;
     let rightCol = "";
     let leftAccent = "transparent";
     if (state === "in") {
@@ -8113,25 +8182,162 @@ function renderScheduleRow(ev) {
         </div>`;
       }
     }
+    // Today's matchups get a subtle baby-blue gradient background so they stand
+    // out from later days in the week view. Status-based left accent stays
+    // (green for live, blue for upcoming, gray for final) — the tint sits on top.
+    const todayBg = isToday ? "background:linear-gradient(90deg,rgba(125,211,252,0.08) 0%,rgba(125,211,252,0.02) 100%);" : "";
+    const todayOddsBg = isToday ? "background:linear-gradient(90deg,rgba(125,211,252,0.06) 0%,rgba(125,211,252,0.01) 100%);" : "background:rgba(125,211,252,0.02);";
+    if (oddsLine) {
+      oddsLine = oddsLine.replace(/background:rgba\(125,211,252,0\.02\);/, todayOddsBg);
+    }
     return `
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 18px 12px 16px;border-left:3px solid ${leftAccent};${oddsLine ? '' : 'border-bottom:1px solid rgba(255,255,255,0.03);'}">
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:14px;font-weight:700;color:#fff;">${escapeHtmlBasic(awayName)}</span>
-            <span style="font-size:10px;color:#525a64;font-weight:500;">${escapeHtmlBasic(awayRec)}</span>
+      <div class="schedule-game-block" data-event-id="${escapeHtmlBasic(ev.id || "")}" data-game-state="${state || ""}">
+        <div class="schedule-game-row" style="display:flex;align-items:center;gap:12px;padding:12px 18px 12px 16px;border-left:3px solid ${leftAccent};${todayBg}cursor:pointer;transition:background 0.15s;" onclick="toggleScheduleExpand('${escapeHtmlBasic(ev.id || "")}')">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              ${logoImg(awayLogo)}
+              <span style="font-size:14px;font-weight:700;color:#fff;">${escapeHtmlBasic(awayName)}</span>
+              <span style="font-size:10px;color:#525a64;font-weight:500;">${escapeHtmlBasic(awayRec)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              ${logoImg(homeLogo)}
+              <span style="font-size:14px;font-weight:700;color:#fff;">${escapeHtmlBasic(homeName)}</span>
+              <span style="font-size:10px;color:#525a64;font-weight:500;">${escapeHtmlBasic(homeRec)}</span>
+            </div>
           </div>
-          <div style="font-size:9px;color:#525a64;letter-spacing:0.6px;font-weight:600;margin:3px 0;">@</div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:14px;font-weight:700;color:#fff;">${escapeHtmlBasic(homeName)}</span>
-            <span style="font-size:10px;color:#525a64;font-weight:500;">${escapeHtmlBasic(homeRec)}</span>
-          </div>
+          ${rightCol}
+          <span class="schedule-expand-caret" style="color:#525a64;font-size:14px;margin-left:6px;transition:transform 0.2s;">›</span>
         </div>
-        ${rightCol}
-      </div>
-      ${oddsLine}`;
+        ${oddsLine}
+        <div class="schedule-expand-panel" id="schedule-expand-${escapeHtmlBasic(ev.id || "")}" style="display:none;background:rgba(125,211,252,0.02);border-left:3px solid ${leftAccent};border-top:1px solid rgba(125,211,252,0.06);border-bottom:1px solid rgba(255,255,255,0.03);"></div>
+      </div>`;
   } catch (e) {
     return "";
   }
+}
+
+// Lazy-loaded expansion: when a game row is tapped, fetch its summary endpoint
+// (if not already cached) and show roster / box score / injury info inline.
+const _scheduleExpandCache = new Map();  // eventId → summary JSON
+const _scheduleExpandOpen = new Set();   // eventIds currently expanded
+
+async function toggleScheduleExpand(eventId) {
+  if (!eventId) return;
+  const panel = document.getElementById(`schedule-expand-${eventId}`);
+  if (!panel) return;
+  const block = panel.closest(".schedule-game-block");
+  const caret = block?.querySelector(".schedule-expand-caret");
+  if (_scheduleExpandOpen.has(eventId)) {
+    // Collapse
+    panel.style.display = "none";
+    if (caret) caret.style.transform = "rotate(0deg)";
+    _scheduleExpandOpen.delete(eventId);
+    return;
+  }
+  // Expand
+  _scheduleExpandOpen.add(eventId);
+  if (caret) caret.style.transform = "rotate(90deg)";
+  panel.style.display = "block";
+  // Show placeholder while fetching
+  if (!_scheduleExpandCache.has(eventId)) {
+    panel.innerHTML = `<div style="padding:14px 18px;color:#8b93a0;font-size:12px;">Loading…</div>`;
+    try {
+      const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/summary?event=${eventId}`, { mode: "cors" });
+      if (r.ok) {
+        const summary = await r.json();
+        _scheduleExpandCache.set(eventId, summary);
+      }
+    } catch (e) {
+      console.log("[SCHEDULE] expand fetch failed:", e?.message);
+    }
+  }
+  const summary = _scheduleExpandCache.get(eventId);
+  if (!summary) {
+    panel.innerHTML = `<div style="padding:14px 18px;color:#f87171;font-size:12px;">Couldn't load details.</div>`;
+    return;
+  }
+  panel.innerHTML = renderScheduleExpandContent(summary);
+}
+
+function renderScheduleExpandContent(summary) {
+  const state = summary?.header?.competitions?.[0]?.status?.type?.state;
+  const teams = summary?.boxscore?.players || [];
+  const injuries = summary?.injuries || [];
+  // LIVE / FINAL: render top performers from each team's box score
+  if ((state === "in" || state === "post") && teams.length > 0) {
+    const sections = teams.map(teamGroup => {
+      const teamAbbr = (teamGroup.team?.abbreviation || "").toUpperCase();
+      const teamLogo = teamGroup.team?.logo || "";
+      const stats = teamGroup.statistics?.[0] || {};
+      const labels = (stats.labels || stats.keys || []).map(s => s.toString().toLowerCase());
+      const idx = {
+        min: labels.findIndex(l => l === "min"),
+        pts: labels.findIndex(l => l === "pts"),
+        reb: labels.findIndex(l => l === "reb"),
+        ast: labels.findIndex(l => l === "ast"),
+      };
+      const athletes = stats.athletes || [];
+      const players = athletes
+        .filter(a => !a.didNotPlay && a.stats && a.stats.length > 0)
+        .map(a => {
+          const pts = idx.pts >= 0 ? (parseInt(a.stats[idx.pts]) || 0) : 0;
+          const reb = idx.reb >= 0 ? (parseInt(a.stats[idx.reb]) || 0) : 0;
+          const ast = idx.ast >= 0 ? (parseInt(a.stats[idx.ast]) || 0) : 0;
+          const min = idx.min >= 0 ? (a.stats[idx.min] || "") : "";
+          return { name: a.athlete?.displayName || "?", pts, reb, ast, min, starter: a.starter === true };
+        })
+        .sort((a, b) => b.pts - a.pts)
+        .slice(0, 8);
+      const rows = players.map(p => `
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;">
+          <span style="flex:1;color:#fff;font-weight:${p.starter ? 600 : 500};">${p.starter ? '<span style="color:#7dd3fc;font-size:9px;margin-right:4px;">★</span>' : ""}${escapeHtmlBasic(p.name)}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#a8b0bb;font-size:11px;min-width:24px;text-align:right;">${escapeHtmlBasic(p.min)}'</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:700;min-width:22px;text-align:right;">${p.pts}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#a8b0bb;font-size:11px;min-width:18px;text-align:right;">${p.reb}r</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#a8b0bb;font-size:11px;min-width:18px;text-align:right;">${p.ast}a</span>
+        </div>`).join("");
+      const logoHtml = teamLogo ? `<img src="${escapeHtmlBasic(teamLogo)}" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none'">` : "";
+      return `
+        <div style="padding:10px 14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(125,211,252,0.08);">
+            ${logoHtml}
+            <span style="font-size:11px;font-weight:700;letter-spacing:0.6px;color:#7dd3fc;">${escapeHtmlBasic(teamAbbr)}</span>
+            <span style="font-size:9px;color:#525a64;letter-spacing:0.6px;margin-left:auto;text-transform:uppercase;">MIN · PTS · REB · AST</span>
+          </div>
+          ${rows || `<div style="color:#525a64;font-size:11px;">No box score yet.</div>`}
+        </div>`;
+    }).join("");
+    return sections;
+  }
+  // PRE-GAME: render injuries from both teams as the most useful pre-game info
+  if (injuries.length > 0) {
+    const rows = injuries.map(teamBlock => {
+      const teamAbbr = (teamBlock.team?.abbreviation || "").toUpperCase();
+      const teamLogo = teamBlock.team?.logo || "";
+      const list = (teamBlock.injuries || []).map(inj => {
+        const player = inj.athlete?.displayName || "?";
+        const status = inj.status || inj.type?.description || "OUT";
+        const detail = inj.shortComment || inj.longComment || "";
+        const sColor = /out|season/i.test(status) ? "#f87171" : /questionable|day/i.test(status) ? "#fb923c" : "#a8b0bb";
+        return `
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12px;">
+            <span style="color:${sColor};font-size:9px;font-weight:700;letter-spacing:0.6px;min-width:42px;flex-shrink:0;padding-top:2px;">${escapeHtmlBasic(status.slice(0,4).toUpperCase())}</span>
+            <span style="flex:1;color:#fff;">${escapeHtmlBasic(player)}${detail ? `<span style="display:block;color:#8b93a0;font-size:10px;margin-top:1px;">${escapeHtmlBasic(detail)}</span>` : ""}</span>
+          </div>`;
+      }).join("");
+      const logoHtml = teamLogo ? `<img src="${escapeHtmlBasic(teamLogo)}" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none'">` : "";
+      return `
+        <div style="padding:10px 14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(125,211,252,0.08);">
+            ${logoHtml}
+            <span style="font-size:11px;font-weight:700;letter-spacing:0.6px;color:#7dd3fc;">${escapeHtmlBasic(teamAbbr)} · Injuries</span>
+          </div>
+          ${list || `<div style="color:#525a64;font-size:11px;">No injuries reported.</div>`}
+        </div>`;
+    }).join("");
+    return rows;
+  }
+  return `<div style="padding:14px 18px;color:#8b93a0;font-size:12px;">No additional info available yet.</div>`;
 }
 
 function startScoreboardTicker() {
@@ -8146,7 +8352,7 @@ function scheduleNextTickerRefresh() {
     const s = ev?.competitions?.[0]?.status?.type?.state;
     return s === "in";
   });
-  const delay = hasLive ? 45 * 1000 : 5 * 60 * 1000;  // 45s live, 5min idle
+  const delay = hasLive ? 2 * 60 * 1000 : 5 * 60 * 1000;  // 2min live, 5min idle
   _tickerTimer = setTimeout(() => {
     fetchAndRenderScoreboard().then(scheduleNextTickerRefresh);
   }, delay);
