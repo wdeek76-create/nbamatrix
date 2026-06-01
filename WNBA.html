@@ -6797,6 +6797,85 @@ function copyAllTotalsProjections() {
   );
 }
 
+// Emit every game's projection grouped by date, FORCED to use the 50/50
+// Pace×Eff model so the output is consistent regardless of per-card overrides.
+// Includes the consensus book line (over/under recommendation) when one exists,
+// then the projected total in parens. Format:
+//   6/2 LVA @ LAS  under 178.5  (p177.75)
+//   6/2 CHI @ WAS  (p158.90)
+function copyTotalsByDate() {
+  const games = betstampGames || [];
+  if (!games.length) { showToast("No games loaded"); return; }
+  // Group by date — Map preserves insertion order, but we sort dates explicitly below
+  const byDate = new Map();
+  games.forEach(g => {
+    // Force 50/50 PaceEff regardless of card's active model
+    const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
+    const projTotal = indep?.total;
+    if (projTotal == null) return;
+    // Resolve date — same logic as _briefLineForGame
+    let isoDate = g.gameDate || null;
+    if (!isoDate && typeof g.time === "string") {
+      const dayMatch = g.time.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+      if (dayMatch) {
+        const targetDay = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(dayMatch[1]);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        for (let off = 0; off < 7; off++) {
+          const probe = new Date(today.getTime() + off * 86400000);
+          if (probe.getDay() === targetDay) {
+            const y = probe.getFullYear();
+            const mo = String(probe.getMonth() + 1).padStart(2, "0");
+            const dy = String(probe.getDate()).padStart(2, "0");
+            isoDate = `${y}-${mo}-${dy}`;
+            break;
+          }
+        }
+      }
+    }
+    const dateKey = isoDate || "unknown";
+    const dateStr = (() => {
+      if (!isoDate) return "";
+      const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return "";
+      return `${parseInt(m[2])}/${parseInt(m[3])}`;
+    })();
+    // Find consensus book line (mode of all books' lines for this game)
+    let line = null;
+    if (Array.isArray(g.books) && g.books.length) {
+      const lines = g.books.map(b => b.line).filter(l => l != null);
+      if (lines.length) {
+        const freq = {};
+        lines.forEach(l => { freq[l] = (freq[l] || 0) + 1; });
+        line = Object.keys(freq).map(parseFloat).sort((a, b) => freq[b] - freq[a])[0];
+      }
+    }
+    const matchup = `${g.awayAbbr} @ ${g.homeAbbr}`;
+    const projStr = `(p${projTotal.toFixed(2)})`;
+    const lineStr = (line != null)
+      ? `  ${projTotal > line ? "over" : projTotal < line ? "under" : "push"} ${line}  ${projStr}`
+      : `  ${projStr}`;
+    const rowLine = `${dateStr} ${matchup}${lineStr}`;
+    if (!byDate.has(dateKey)) byDate.set(dateKey, []);
+    byDate.get(dateKey).push(rowLine);
+  });
+  if (byDate.size === 0) { showToast("No projections available"); return; }
+  // Sort dates: known ISO dates ascending, "unknown" last
+  const sortedKeys = [...byDate.keys()].sort((a, b) => {
+    if (a === "unknown") return 1;
+    if (b === "unknown") return -1;
+    return a.localeCompare(b);
+  });
+  // Join: blank line between date groups for readability
+  const sections = sortedKeys.map(k => byDate.get(k).join("\n"));
+  const text = sections.join("\n\n");
+  const totalCount = [...byDate.values()].reduce((s, arr) => s + arr.length, 0);
+  copyTextToClipboard(text,
+    () => showToast(`Copied ${totalCount} total${totalCount === 1 ? "" : "s"} (50/50)`),
+    () => showToast("Copy blocked — text in console")
+  );
+}
+
 function copyOneTotalProjection(awayAbbr, homeAbbr) {
   const g = (betstampGames || []).find(x => x.awayAbbr === awayAbbr && x.homeAbbr === homeAbbr);
   if (!g) { showToast("Game not found"); return; }
@@ -7291,7 +7370,8 @@ function renderTotals() {
           <input type="file" accept=".csv" style="display:none;" onchange="loadFile(2,this); renderTotals();"/>
           ${slots[2] ? `<span style="background:#22c55e;color:#050507;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;">${slots[2].players.length}</span>` : ''}
         </label>
-        <button onclick="copyAllTotalsProjections()" title="Copy a brief summary of every game's projection (with or without a line)" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY PROJECTIONS</button>
+        <button onclick="copyAllTotalsProjections()" title="Copy a brief summary of every game's projection (with or without a line) — uses each card's active model" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY PROJECTIONS</button>
+        <button onclick="copyTotalsByDate()" title="Copy every game grouped by date — forced to use the 50/50 Pace×Eff model so output is consistent" style="background:#0c0d10;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY BY DATE (50/50)</button>
       </div>
     </div>
 
@@ -7323,34 +7403,6 @@ function renderTotals() {
 
     <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Betstamp Paste — Best Available Fulltime</div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="pasteBetstamp()" style="background:#1e40af;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">PARSE</button>
-          <button onclick="clearBetstamp()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
-        </div>
-      </div>
-      <textarea id="betstamp-paste" placeholder="Copy the Betstamp WNBA Best Available page and paste here..." spellcheck="false"
-        style="width:100%;min-height:80px;background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
-      ${noGames ? `<div style="font-size:11px;color:#525a64;margin-top:8px;">Paste the Betstamp slate above to load games.</div>` : `<div style="font-size:11px;color:#7dd3fc;margin-top:8px;">${betstampGames.length} games loaded</div>`}
-    </div>
-
-    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-        <div>
-          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">ESPN Paste — Single Book Fallback</div>
-          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Free alternative to Betstamp · totals only from ESPN's odds partner (DK). Times shown in ET with day-of-week prefix.</div>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="pasteEspn()" style="background:#7dd3fc;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">PARSE</button>
-          <button onclick="clearEspn()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
-        </div>
-      </div>
-      <textarea id="espn-paste" placeholder="Copy the espn.com/wnba/odds page and paste here..." spellcheck="false"
-        style="width:100%;min-height:80px;background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
-    </div>
-
-    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <div>
           <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">ESPN Schedule — Multi-Day Slate</div>
           <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Click FETCH ESPN to auto-load the next 7 days (no paste needed). Or paste from espn.com/wnba/schedule as a fallback. Games without O/U fall back to 2026 Pace × Eff.</div>
@@ -7363,6 +7415,7 @@ function renderTotals() {
       </div>
       <textarea id="espn-schedule-paste" placeholder="Optional paste fallback: copy the espn.com/wnba/schedule page here, then click PARSE..." spellcheck="false"
         style="width:100%;min-height:60px;background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
+      ${noGames ? `<div style="font-size:11px;color:#525a64;margin-top:8px;">No games loaded yet — click FETCH ESPN above.</div>` : `<div style="font-size:11px;color:#7dd3fc;margin-top:8px;">${betstampGames.length} games loaded</div>`}
     </div>
 
     <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-bottom:18px;">
