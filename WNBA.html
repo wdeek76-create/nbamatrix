@@ -913,7 +913,7 @@ function buildSlots() {
   updateMergeBtn();
 }
 
-function loadFile(idx, input) {
+function loadFile(idx, input, onDone) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -937,6 +937,11 @@ function loadFile(idx, input) {
         window.showToast = origToast;
       }
     } catch (err) { /* roster sync is non-critical */ }
+    // Optional callback for the caller — fires AFTER all data is in place.
+    // The totals-page RW uploader uses this to refresh its view post-load.
+    if (typeof onDone === "function") {
+      try { onDone(); } catch (e) {}
+    }
   };
   reader.readAsText(file);
 }
@@ -1378,14 +1383,16 @@ function doExport() {
   const header = "id,name,first_name,last_name,position,team,three_pointers_made,assists,blocks,double_double,points,rebounds,steals,triple_double,turnovers,fd_points,dk_points";
   const dataRows = WNBA_TEMPLATE.map(r => {
     const con = conLookup[norm(r.name)] || {};
+    const num = (v) => (v != null && !isNaN(v)) ? Number(v).toFixed(2) : "0.00";
     return [
       r.id, r.name, r.first_name, r.last_name, r.position, r.team,
-      con.threepm!=null?con.threepm.toFixed(2):"",
-      con.ast!=null?con.ast.toFixed(2):"",
-      "","",
-      con.pts!=null?con.pts.toFixed(2):"",
-      con.reb!=null?con.reb.toFixed(2):"",
-      "","","","","",
+      num(con.threepm),
+      num(con.ast),
+      "0.00", "0.00",
+      num(con.pts),
+      num(con.reb),
+      "0.00", "0.00", "0.00",
+      "0.00", "0.00",
     ].map(v=>`"${v}"`).join(",");
   });
   const csv = [header,...dataRows].join("\n");
@@ -1435,14 +1442,21 @@ function writeConsensusCsv(allowedKeys, filename, label) {
     const t = tmplByNorm[r.norm] || {};
     const first = t.first_name || (r.rawName.split(" ")[0] || "");
     const last  = t.last_name  || (r.rawName.split(" ").slice(1).join(" ") || "");
+    // Numeric stat helper: ALWAYS emit a number (0 if missing). Downstream
+    // importers like Unabated do per-column type inference on early rows, and
+    // a leading blank can trip the parser into treating the whole column as
+    // text — silently dropping the projections. Writing "0.00" everywhere
+    // keeps every column numeric end-to-end.
+    const num = (v) => (v != null && !isNaN(v)) ? Number(v).toFixed(2) : "0.00";
     return [
       t.id || "", r.rawName, first, last, r.pos || t.position || "", r.team || t.team || "",
-      con.threepm!=null?con.threepm.toFixed(2):"",
-      con.ast!=null?con.ast.toFixed(2):"",
-      "","",
-      con.pts!=null?con.pts.toFixed(2):"",
-      con.reb!=null?con.reb.toFixed(2):"",
-      "","","","","",
+      num(con.threepm),
+      num(con.ast),
+      "0.00", "0.00",           // blocks, double_double (not projected — stable 0)
+      num(con.pts),
+      num(con.reb),
+      "0.00", "0.00", "0.00",   // steals, triple_double, turnovers (not projected)
+      "0.00", "0.00",           // fd_points, dk_points (not projected)
     ].map(v=>`"${v}"`).join(",");
   }).filter(Boolean);
   const csv = [header,...dataRows].join("\n");
@@ -1821,7 +1835,11 @@ function trackTotal(payload, ...legacyArgs) {
     const bookEl = document.getElementById("modal-book");
     if (shorthand) {
       const dir = side === "over" ? "o" : "u";
-      const oddsStr = odds > 0 ? `+${odds}` : `${odds}`;
+      // Default to -110 when no odds were passed — common case when we pulled
+      // the line from ESPN scoreboard (which only has the number, not the price).
+      // Avoids "NaN" appearing in the shorthand field and gives a sane vig assumption.
+      const effOdds = (odds != null && !isNaN(Number(odds))) ? Number(odds) : -110;
+      const oddsStr = effOdds > 0 ? `+${effOdds}` : `${effOdds}`;
       // For totals, leave EV% off — fair auto-back-solves from projection + line + σ.
       // The Edge preview below the shorthand shows the point edge directly.
       shorthand.value = `${dir}${line} ${oddsStr}`;
@@ -4257,6 +4275,37 @@ function renderSrcAnalytics() {
     });
   });
 
+  // ── Combos by Stat: per-market combo breakdown. For each stat, build the same
+  // exclusive subset combos as the overall combos table but scoped to that stat.
+  // Reveals e.g. "RG+RW combo crushes AST but lags PTS".
+  const combosByStat = {};
+  settled.forEach(b => {
+    const stat = (b.stat || "").toUpperCase();
+    if (!stat) return;
+    const agreed = SRC_KEYS.filter(k => srcAgreed(b, k) === true);
+    if (agreed.length === 0) return;
+    const key = agreed.join("+");
+    if (!combosByStat[stat]) combosByStat[stat] = {};
+    if (!combosByStat[stat][key]) combosByStat[stat][key] = { sources: agreed, stats: emptyStats() };
+    accum(b, combosByStat[stat][key].stats);
+  });
+
+  // ── By Side: overs vs unders per source. Helps spot "do I hit overs better
+  // when RG agrees, or unders?" — useful for sharpening which sources to weight
+  // in different directional contexts.
+  const bySide = {};
+  ["over", "under"].forEach(side => {
+    bySide[side] = {};
+    SRC_KEYS.forEach(k => { bySide[side][k] = emptyStats(); });
+  });
+  settled.forEach(b => {
+    const side = (b.ou || "").toLowerCase();
+    if (side !== "over" && side !== "under") return;
+    SRC_KEYS.forEach(k => {
+      if (srcAgreed(b, k) === true) accum(b, bySide[side][k]);
+    });
+  });
+
   // ── Inverse: when source DISAGREED with my pick, did I still win? ──
   // Tells you whether to trust a source when it warns you off.
   const fade = {};
@@ -4374,6 +4423,42 @@ function renderSrcAnalytics() {
       </div>`;
     }).filter(Boolean).join("");
 
+  // ── Combos by Stat HTML — sub-grouped by market, then by combo ──
+  const combosByStatHtml = STATS_ORDER
+    .filter(st => combosByStat[st])
+    .map(st => {
+      // Sort combos for this stat by P/L descending, same as overall combos
+      const comboKeys = Object.keys(combosByStat[st]).sort((a, b) =>
+        combosByStat[st][b].stats.pl - combosByStat[st][a].stats.pl
+      );
+      const cards = comboKeys.map(key => {
+        const combo = combosByStat[st][key];
+        const label = combo.sources.map(s => SRC_LABELS[s]).join(" + ");
+        const isFullCombo = combo.sources.length === SRC_KEYS.length;
+        return statCard(label, combo.stats, isFullCombo ? { featured: true } : undefined);
+      }).filter(Boolean).join("");
+      if (!cards) return "";
+      return `<div style="margin-top:14px;">
+        <div style="font-size:11px;color:#7dd3fc;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${st}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">${cards}</div>
+      </div>`;
+    }).filter(Boolean).join("");
+
+  // ── By Side HTML — over vs under, each side gets a solo-per-source row ──
+  // Helps spot directional bias: "RG calls on overs hit 60%, on unders only 48%"
+  const bySideHtml = ["over", "under"].map(side => {
+    const cards = SRC_KEYS
+      .map(k => statCard(SRC_LABELS[k], bySide[side][k]))
+      .filter(Boolean).join("");
+    if (!cards) return "";
+    const sideLabel = side === "over" ? "↑ Overs" : "↓ Unders";
+    const sideColor = side === "over" ? "#4ade80" : "#f87171";
+    return `<div style="margin-top:14px;">
+      <div style="font-size:11px;color:${sideColor};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${sideLabel}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${cards}</div>
+    </div>`;
+  }).filter(Boolean).join("");
+
   // Empty state — show a diagnostic breakdown so user knows WHY there's no data
   if (eligible === 0) {
     const totalBets = bets.length;
@@ -4441,6 +4526,12 @@ function renderSrcAnalytics() {
     </div>
 
     <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Combos · By Market</h4>
+      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Same exclusive-combo logic, sliced per stat. Lets you spot e.g. "the 3/3 consensus combo crushes AST but lags PTS" so you can weight differently by market.</p>
+      ${combosByStatHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}
+    </div>
+
+    <div class="tracker-section">
       <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Fade · When Source DISAGREED With Pick</h4>
       <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Hit% on bets where the source projected the opposite side. Low hit% means you should trust the source's warning; high hit% means it's been wrong to fade.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">${fadeCards || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}</div>
@@ -4461,6 +4552,12 @@ function renderSrcAnalytics() {
     <div class="tracker-section">
       <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">By Market Type</h4>
       ${byStatHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}
+    </div>
+
+    <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">By Pick Direction · Over vs Under</h4>
+      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Solo source performance split by which side you bet. Useful for spotting if a source guides you better on overs vs unders — e.g. RG on overs hits 60% but on unders only 45%.</p>
+      ${bySideHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}
     </div>
   </div>`;
 }
@@ -6095,6 +6192,29 @@ function buildTeamProjection(teamAbbr) {
   return { total, byPlayer, sourceTotals };
 }
 
+// Totals-page RW sum. If a Totals-only RW file is loaded, it wins. Otherwise
+// falls back to the slots[2] data (the Upload tab's props RW). Keeps the two
+// uses independent — you can have one RW file for props and a different one
+// for totals without them stepping on each other.
+function getTotalsPageRwTeamSum(teamAbbr) {
+  const override = window._totalsPageRwSlot;
+  if (override && override.players && override.players.length) {
+    const target = normTeamAbbr(teamAbbr);
+    let sum = 0, count = 0;
+    override.players.forEach(p => {
+      if (!p) return;
+      if (normTeamAbbr(p.team) === target && p.pts != null) {
+        sum += Number(p.pts) || 0;
+        count++;
+      }
+    });
+    return count > 0 ? { sum, count } : null;
+  }
+  // Fallback: use whatever's in the merged blend (slots[2] when only Upload-tab RW is loaded)
+  const proj = buildTeamProjection(teamAbbr);
+  return proj?.sourceTotals?.["rotowire"] || null;
+}
+
 // ── BETSTAMP "BEST AVAILABLE" PARSER (plain-text format from app) ──────────
 // Block structure when copying from the Betstamp web app (rendered text):
 //   "WNBA"          ← sport header (may not appear at top, but appears between games)
@@ -6756,16 +6876,14 @@ function _briefLineForGame(g) {
   // COPY emits the exact number shown in the big ACTIVE label on the card.
   const indep = independentTotal(g.awayAbbr, g.homeAbbr, seasonArg);
   const paceEffTotal = indep?.total;
-  // RotoWire-blended total: sum of away + home team projections (matches render path).
+  // RotoWire-blended total: sum of away + home team projections. Uses the
+  // totals-page override slot when loaded (so Totals can have its own RW file
+  // separate from the Upload tab's props RW). Falls back to slots[2] otherwise.
   let blendedTotal = null;
-  const away = (typeof buildTeamProjection === "function") ? buildTeamProjection(g.awayAbbr) : null;
-  const home = (typeof buildTeamProjection === "function") ? buildTeamProjection(g.homeAbbr) : null;
-  if (away && home) {
-    const rwAway = away.sourceTotals?.["rotowire"];
-    const rwHome = home.sourceTotals?.["rotowire"];
-    if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
-      blendedTotal = rwAway.sum + rwHome.sum;
-    }
+  const rwAway = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.awayAbbr) : null;
+  const rwHome = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.homeAbbr) : null;
+  if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
+    blendedTotal = rwAway.sum + rwHome.sum;
   }
   // Active model lookup. If user clicked a bar to switch, that choice wins.
   const activeSrc = window._cardProjSource?.[cardKey];
@@ -6806,6 +6924,44 @@ function _briefLineForGame(g) {
   }
   // No projection either — skip entirely
   return null;
+}
+
+// Totals-page RW uploader. Writes to its OWN slot (`window._totalsPageRwSlot`)
+// independent of slots[2] (the Upload tab's props RW). This way you can:
+//   - upload one RW file on the Upload tab → used for props projections
+//   - upload a DIFFERENT RW file on Totals page → used for totals model only
+// Without each replacing the other.
+function totalsHandleRwUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  // Guard: if a Totals-page RW is already loaded, confirm before replacing
+  const existing = window._totalsPageRwSlot;
+  if (existing && existing.players && existing.players.length > 0) {
+    const ok = confirm(`Totals-page RW already loaded (${existing.players.length} players from "${existing.label}").\n\nReplace with the new file?`);
+    if (!ok) {
+      input.value = "";
+      return;
+    }
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const players = parseSource(e.target.result);
+    window._totalsPageRwSlot = { label: file.name, players };
+    renderTotals();
+    showToast(`Totals RW loaded · ${players.length} players (Upload-tab RW unchanged)`);
+  };
+  reader.readAsText(file);
+  input.value = "";  // reset so re-picking same file fires onchange
+}
+
+// Clear the totals-page RW override (does NOT touch slots[2])
+function totalsClearRw() {
+  if (!window._totalsPageRwSlot) return;
+  const n = window._totalsPageRwSlot.players?.length || 0;
+  if (!confirm(`Clear Totals-page RW (${n} players)? Upload-tab RW will stay intact.`)) return;
+  window._totalsPageRwSlot = null;
+  renderTotals();
+  showToast("Totals RW cleared");
 }
 
 function copyAllTotalsProjections() {
@@ -6936,16 +7092,15 @@ function renderTotals() {
     // implicitly back-fit toward market totals (they sum to ~book line). RotoWire is
     // built from rate stats × projected minutes, so it gives an independent total
     // that can disagree with the market — which is where the edge lives.
+    // Uses getTotalsPageRwTeamSum so a Totals-page-specific RW file wins over slots[2].
     let blendedTotal = null;
     const perSourceGameTotal = {};
-    if (away && home) {
-      const rwAway = away.sourceTotals["rotowire"];
-      const rwHome = home.sourceTotals["rotowire"];
-      if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
-        const sum = rwAway.sum + rwHome.sum;
-        perSourceGameTotal["rotowire"] = sum;
-        blendedTotal = sum;
-      }
+    const rwAway = getTotalsPageRwTeamSum(g.awayAbbr);
+    const rwHome = getTotalsPageRwTeamSum(g.homeAbbr);
+    if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
+      const sum = rwAway.sum + rwHome.sum;
+      perSourceGameTotal["rotowire"] = sum;
+      blendedTotal = sum;
     }
 
     // Card key & per-card season override (auto | 2025 | 2026 | blend).
@@ -7386,13 +7541,15 @@ function renderTotals() {
         <div style="font-size:13px;color:#d4dae3;">Per-card pick: Player or Pace × Eff · σ=14</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <!-- Quick RotoWire upload — same pipeline as the Upload tab's RW slot.
-             Saves a trip to Upload tab when slate dates change daily. -->
-        <label style="background:#93c5fd1a;border:1px solid #93c5fd55;color:#93c5fd;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;display:inline-flex;align-items:center;gap:6px;">
-          ⬆ RW CSV
-          <input type="file" accept=".csv" style="display:none;" onchange="loadFile(2,this); renderTotals();"/>
-          ${slots[2] ? `<span style="background:#22c55e;color:#050507;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;">${slots[2].players.length}</span>` : ''}
+        <!-- Quick RotoWire upload — INDEPENDENT from the Upload tab's RW slot.
+             This file is used ONLY for totals projections. The Upload tab's
+             props RW is untouched, so you can have both loaded at once. -->
+        <label style="background:#93c5fd1a;border:1px solid #93c5fd55;color:#93c5fd;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;display:inline-flex;align-items:center;gap:6px;" title="RW for totals only — separate from the Upload tab's props RW">
+          ⬆ RW CSV (Totals)
+          <input type="file" accept=".csv" style="display:none;" onchange="totalsHandleRwUpload(this)"/>
+          ${window._totalsPageRwSlot ? `<span style="background:#22c55e;color:#050507;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;">${window._totalsPageRwSlot.players.length}</span>` : (slots[2] ? `<span style="background:rgba(125,211,252,0.18);color:#7dd3fc;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;" title="Using Upload tab RW as fallback">via Upload (${slots[2].players.length})</span>` : '')}
         </label>
+        ${window._totalsPageRwSlot ? `<button onclick="totalsClearRw()" title="Clear Totals-page RW (Upload-tab RW stays loaded)" style="background:transparent;border:1px solid #1a1d22;color:#a8b0bb;border-radius:6px;width:32px;height:32px;font-size:14px;cursor:pointer;font-family:'Inter',sans-serif;line-height:1;">×</button>` : ''}
         <button onclick="copyAllTotalsProjections()" title="Copy a brief summary of every game's projection (with or without a line) — uses each card's active model" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY PROJECTIONS</button>
         <button onclick="copyTotalsByDate()" title="Copy every game grouped by date — forced to use the 50/50 Pace×Eff model so output is consistent" style="background:#0c0d10;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY BY DATE (50/50)</button>
       </div>
