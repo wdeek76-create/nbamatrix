@@ -145,17 +145,9 @@
 <div class="pane active" id="pane-parse">
   <textarea id="paste-area" placeholder="Paste full Dimers best bets page text here. Sport is auto-detected from the paste (WNBA, MLB, NBA supported)."></textarea>
   <div class="parse-actions">
-    <button class="btn btn-primary" onclick="parsePaste()">↯ PARSE BETS</button>
-    <button class="btn btn-secondary" onclick="document.getElementById('paste-area').value='';clearPreview();">Clear</button>
+    <button class="btn btn-primary" onclick="parsePaste()">↯ PARSE & LOG</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('paste-area').value='';">Clear</button>
     <span id="parse-status" style="font-size:11px;color:var(--muted);margin-left:4px;"></span>
-  </div>
-  <div id="preview-section" style="display:none">
-    <div class="preview-label">Parsed Preview — <span id="preview-count"></span></div>
-    <div class="bet-grid" id="preview-grid"></div>
-    <div style="margin-top:16px;display:flex;gap:10px;">
-      <button class="btn btn-primary" onclick="importBets()">↓ IMPORT ALL TO LOG</button>
-      <button class="btn btn-secondary" onclick="clearPreview()">Discard</button>
-    </div>
   </div>
 </div>
 
@@ -250,12 +242,13 @@ document.querySelectorAll('.rtab').forEach(t => t.addEventListener('click', () =
 }));
 
 // ─── UNIT CALC ────────────────────────────────────────────────────────────────
-// Dogs (+odds): risk 1u. Favs (-odds): bet to win 1u (risk = 100/|odds|)
+// Dogs (+odds): risk 1u to win odds/100u
+// Favs (-odds): risk |odds|/100u to win 1u  e.g. -120 → risk 1.2u to win 1u
 function calcStake(odds) {
   const n = parseInt(odds);
   if (isNaN(n)) return 1;
-  if (n >= 0) return 1;                        // dog: risk 1u
-  return parseFloat((100 / Math.abs(n)).toFixed(4)); // fav: risk X to win 1u
+  if (n >= 0) return 1;
+  return parseFloat((Math.abs(n) / 100).toFixed(4));
 }
 
 function oddsToDecimal(o) {
@@ -267,17 +260,20 @@ function calcPL(b) {
   if (!b.result || b.result === 'pending') return null;
   if (b.result === 'push' || b.result === 'void') return 0;
   const stake = calcStake(b.odds);
-  const dec = oddsToDecimal(b.odds);
-  if (b.result === 'win') return parseFloat(((dec - 1) * stake).toFixed(2));
+  if (b.result === 'win') {
+    const n = parseInt(b.odds);
+    // win always returns 1u profit (fav) or odds/100 (dog)
+    const profit = isNaN(n) ? 1 : n >= 0 ? parseFloat((n/100).toFixed(2)) : 1;
+    return profit;
+  }
   return -parseFloat(stake.toFixed(2));
 }
 
 function stakeDisplay(odds) {
   const n = parseInt(odds);
-  if (isNaN(n)) return '1.00u';
+  if (isNaN(n)) return '1.00u risk';
   if (n >= 0) return '1.00u risk';
-  const s = (100/Math.abs(n)).toFixed(2);
-  return s + 'u risk';
+  return (Math.abs(n)/100).toFixed(2) + 'u risk';
 }
 
 // ─── PARSER ───────────────────────────────────────────────────────────────────
@@ -367,10 +363,10 @@ function parsePaste() {
   }
 
   parsedPreview = results;
+  // Auto-import immediately — no preview/confirm step needed
+  importBets();
+  document.getElementById('paste-area').value = '';
   document.getElementById('parse-status').textContent = `✓ Detected: ${detectedSport}`;
-  document.getElementById('preview-section').style.display = 'block';
-  document.getElementById('preview-count').textContent = results.length + ' bet' + (results.length!==1?'s':'') + ' found';
-  document.getElementById('preview-grid').innerHTML = results.map(b => betCardHTML(b, false)).join('');
 }
 
 function parseGameDate(raw) {
@@ -408,12 +404,21 @@ function importBets() {
   save();
   const added = bets.length - before;
   const msg = added > 0
-    ? '✓ Imported ' + added + (skipped ? ', skipped '+skipped+' dupes' : '')
-    : '⚠ All '+skipped+' bets already in log';
+    ? '✓ ' + added + ' logged' + (skipped ? ', ' + skipped + ' dupes skipped' : '') + ' — ' + detectedSport
+    : '⚠ All ' + skipped + ' already logged';
+  document.getElementById('parse-status').textContent = msg;
   toast(msg, 3000);
-  clearPreview();
-  document.getElementById('paste-area').value = '';
+  parsedPreview = [];
   updateBadge();
+  // Switch to bet log tab
+  if (added > 0) {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(x => x.classList.remove('active'));
+    document.querySelector('[data-tab="bets"]').classList.add('active');
+    document.getElementById('pane-bets').classList.add('active');
+    populateDateFilter();
+    renderBetLog();
+  }
 }
 
 // Returns the direction/team component for dupe matching
