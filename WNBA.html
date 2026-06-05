@@ -340,6 +340,26 @@ table colgroup col.avg-col{width:16%;}
     </div>
     <div id="slots-container"></div>
     <button id="merge-btn" onclick="runMerge(true)">RUN BLEND - 0/3 SOURCES LOADED</button>
+
+    <!-- Dimers Trends — paste-based reference data. Refreshed daily by user.
+         Shown in the bet modal next to matching props (purple pill). Does NOT
+         affect projections, EV, or any math — purely informational overlay. -->
+    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-top:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Dimers Trends — Reference Hints</div>
+          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Paste the dimers.com/wnba/best-trends page. Refresh daily. Reference only — does NOT touch projections/EV.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="pasteTrends()" style="background:#a78bfa;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">PARSE</button>
+          <button onclick="clearTrendsAndRender()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+        </div>
+      </div>
+      <textarea id="trends-paste" placeholder="Copy the dimers.com WNBA Best Trends page and paste here..." spellcheck="false"
+        style="width:100%;min-height:80px;background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
+      <div id="trends-status" style="font-size:11px;margin-top:8px;color:#525a64;">No trends loaded — paste from Dimers to see contextual hints in the bet modal.</div>
+    </div>
+
     <div style="text-align:center;margin-top:24px;padding:12px 0;font-family:'Inter',sans-serif;font-size:13px;font-style:italic;font-weight:300;letter-spacing:2px;color:rgba(125,211,252,0.45);text-transform:lowercase;">ball is life</div>
   </div>
 
@@ -1918,6 +1938,43 @@ function computeSrcValsForModal(player, stat) {
   return out;
 }
 
+// Render any Dimers trends matching the currently-open modal player + stat.
+// Pure UI; doesn't influence projections or EV. Surfaces up to 6 trends with
+// a hit-rate percentage and a colored direction indicator. Stat-matching
+// trends render at full opacity; other stats for the same player dim to 55%.
+function updateTrendsInModal() {
+  const container = document.getElementById("modal-trends");
+  const list = document.getElementById("modal-trends-list");
+  if (!container || !list) return;
+  const playerEl = document.getElementById("modal-player-name");
+  const player = (playerEl && playerEl.textContent) || window._modalPlayer || "";
+  const statEl = document.getElementById("modal-stat");
+  const stat = (statEl && statEl.value) || "";
+  if (!player) {
+    container.style.display = "none";
+    list.innerHTML = "";
+    return;
+  }
+  const statU = (stat || "").toUpperCase();
+  const matching = getTrendsForPlayer(player, statU);
+  const otherStats = getTrendsForPlayer(player).filter(t => t.stat !== statU);
+  const display = [...matching, ...otherStats].slice(0, 6);
+  if (display.length === 0) {
+    container.style.display = "none";
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = display.map(t => {
+    const isMatchStat = t.stat === statU;
+    const opacity = isMatchStat ? "1" : "0.5";
+    const fmt = (n) => Number.isInteger(n) ? n.toString() : n.toFixed(1);
+    const dir = t.ou === "over" ? "OVER" : "UNDER";
+    const rate = Math.round((t.hits / t.games) * 100);
+    return `<div style="font-size:12px;color:#fff;font-weight:700;opacity:${opacity};font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:0.3px;">${dir} ${fmt(t.line)} ${t.stat} — ${t.hits}/${t.games} <span style="color:#7dd3fc;font-weight:800;">${rate}%</span></div>`;
+  }).join("");
+  container.style.display = "block";
+}
+
 function populateSourceAgreement() {
   const panel = document.getElementById("modal-src-agreement");
   const pillsEl = document.getElementById("modal-src-pills");
@@ -2051,6 +2108,7 @@ function openTrackModal(player, pos, stat, proj, team, presetDate) {
   modalPlayer = player;
   modalPos = pos;
   document.getElementById("modal-player-name").textContent = player;
+  window._modalPlayer = player;
   document.getElementById("modal-player-sub").textContent = (pos||"") + " · Add a bet";
   // Reset shorthand and hidden fields
   window._modalPresetDate = presetDate || null;
@@ -2059,6 +2117,7 @@ function openTrackModal(player, pos, stat, proj, team, presetDate) {
   // user types. Key: source label (RG/RW/SABER/DIM). Value: number or null.
   window._modalSrcVals = computeSrcValsForModal(player, stat);
   populateSourceAgreement();
+  updateTrendsInModal();
   const shorthand = document.getElementById("modal-shorthand");
   if (shorthand) { shorthand.value = ""; shorthand.style.borderColor = "#1a1d22"; }
   const sp = document.getElementById("shorthand-preview");
@@ -2705,6 +2764,21 @@ function saveBet() {
         if (Object.keys(ctx).length) bet.injuryContext = ctx;
       }
     } catch (e) { /* injury snapshot is non-critical */ }
+    // Snapshot any Dimers trends that match THIS bet (same player + stat + side).
+    // Stored as an array of {line, hits, games, rate} so analytics can show how
+    // trend-confirmed bets perform vs unmatched ones over time.
+    try {
+      if (typeof getTrendsForPlayer === "function" && bet.player && bet.stat && bet.ou) {
+        const all = getTrendsForPlayer(bet.player, bet.stat);
+        const matched = all.filter(t => t.ou === bet.ou);
+        if (matched.length > 0) {
+          bet.trendMatches = matched.map(t => ({
+            line: t.line, hits: t.hits, games: t.games,
+            rate: +((t.hits / t.games) * 100).toFixed(1),
+          }));
+        }
+      }
+    } catch (e) { /* trend snapshot is non-critical */ }
   }
   bets.unshift(bet);
   // Remember the date used for totals so the next total prefills it (slate is days out)
@@ -4427,6 +4501,39 @@ function renderSrcAnalytics() {
     statCard("↓ Floor · Unders",    injCtx.floorUnder)
   ].filter(Boolean).join("");
 
+  // Section: Dimers trend matches — bucketed by strongest matching trend rate.
+  // For each bet, take the highest hit-rate trend that aligned (same player +
+  // stat + direction). Bucket: matched-any (any trend lined up at all),
+  // strong60 (≥60%), strong70 (≥70%), strong80 (≥80%). Compare against bets
+  // with NO matching trend ("unmatched") to see if trend confirmation helps.
+  const trendBuckets = {
+    matched: emptyStats(),    // any trend lined up
+    strong60: emptyStats(),
+    strong70: emptyStats(),
+    strong80: emptyStats(),
+    unmatched: emptyStats(),  // no trend lined up
+  };
+  settled.forEach(b => {
+    if (Array.isArray(b.trendMatches) && b.trendMatches.length > 0) {
+      const topRate = Math.max(...b.trendMatches.map(t => t.rate));
+      accum(b, trendBuckets.matched);
+      if (topRate >= 60) accum(b, trendBuckets.strong60);
+      if (topRate >= 70) accum(b, trendBuckets.strong70);
+      if (topRate >= 80) accum(b, trendBuckets.strong80);
+    } else {
+      accum(b, trendBuckets.unmatched);
+    }
+  });
+  const trendCards = [
+    statCard("Trend Matched",      trendBuckets.matched),
+    statCard("≥60% Trend",         trendBuckets.strong60),
+    statCard("≥70% Trend",         trendBuckets.strong70),
+    statCard("≥80% Trend",         trendBuckets.strong80),
+    statCard("No Trend",           trendBuckets.unmatched),
+  ].filter(Boolean).join("");
+  const totalTrendMatched = trendBuckets.matched.total + trendBuckets.matched.pushes;
+  const totalUnmatched = trendBuckets.unmatched.total + trendBuckets.unmatched.pushes;
+
   // Section: solo source performance
   const soloCards = SRC_KEYS.map(k => statCard(SRC_LABELS[k], solo[k])).filter(Boolean).join("");
 
@@ -4617,6 +4724,13 @@ function renderSrcAnalytics() {
     </div>
 
     <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Dimers Trends · Match Performance</h4>
+      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">When a bet you placed lined up with a Dimers trend (same player + stat + side), did it perform better? "Trend Matched" = any matching trend existed at save time. "≥X% Trend" = strongest matching trend hit at that rate or higher. "No Trend" = bet placed without a confirming trend. Compare the Matched rows vs No Trend to see if trends are useful filters.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${trendCards || '<p style="color:#525a64;font-size:13px;">No graded bets with trend snapshots yet — paste trends + grade bets to populate.</p>'}</div>
+      ${totalTrendMatched > 0 || totalUnmatched > 0 ? `<p style="font-size:10px;color:#525a64;margin-top:6px;">${totalTrendMatched} matched · ${totalUnmatched} unmatched</p>` : ""}
+    </div>
+
+    <div class="tracker-section">
       <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">By Market Type</h4>
       ${byStatHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}
     </div>
@@ -4627,6 +4741,351 @@ function renderSrcAnalytics() {
       ${bySideHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}
     </div>
   </div>`;
+}
+
+// Tracker period filter for the performance chart. Persisted on window so it
+// survives re-renders without forcing a full state object.
+window._trackerPeriod = window._trackerPeriod || "all";
+
+function setTrackerPeriod(p) {
+  window._trackerPeriod = p;
+  if (typeof renderTracker === "function") renderTracker();
+}
+
+// Build the performance dashboard HTML (cumulative units + this week + weekly
+// history). Returns the HTML string and registers hover handlers in a
+// micro-tick after the DOM is updated by renderTracker.
+function buildPerformancePanel(scopedBets) {
+  // 1. Get settled bets (hit/miss only — voids ignore), compute P/L, sort by date.
+  const settledForChart = scopedBets
+    .filter(b => b.result === "hit" || b.result === "miss")
+    .map(b => {
+      const dateStr = b.gameDate || b.date || b.timestamp;
+      if (!dateStr) return null;
+      const dt = new Date(dateStr);
+      if (isNaN(dt.getTime())) return null;
+      const stake = b.stake != null ? Number(b.stake) : 1;
+      const odds = Number(b.odds || 0);
+      let pl;
+      if (b.result === "hit") {
+        const payout = odds > 0 ? odds / 100 : 100 / Math.abs(odds);
+        pl = stake * payout;
+      } else {
+        pl = -stake;
+      }
+      return { date: dt, pl, isHit: b.result === "hit", stake };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date - b.date);
+
+  // 2. Cumulative series across all time (used for headline + min/max markers)
+  let runningSum = 0;
+  const fullSeries = settledForChart.map(s => {
+    runningSum += s.pl;
+    return { date: s.date, cum: +runningSum.toFixed(2), pl: s.pl, isHit: s.isHit, stake: s.stake };
+  });
+  const allTimeTotal = runningSum;
+
+  // 3. Apply period filter (7D / 30D / All)
+  const period = window._trackerPeriod || "all";
+  const now = Date.now();
+  let cutoff = 0;
+  if (period === "7d") cutoff = now - 7 * 86400000;
+  else if (period === "30d") cutoff = now - 30 * 86400000;
+  // For period-scoped chart: keep the running cum from start so trend is preserved
+  const periodSeries = cutoff > 0 ? fullSeries.filter(p => p.date.getTime() >= cutoff) : fullSeries;
+
+  // 4. Min/max markers — use the active period's series
+  let minPoint = null, maxPoint = null;
+  periodSeries.forEach(p => {
+    if (!minPoint || p.cum < minPoint.cum) minPoint = p;
+    if (!maxPoint || p.cum > maxPoint.cum) maxPoint = p;
+  });
+
+  // 5. Last-7-days delta
+  const sevenAgo = now - 7 * 86400000;
+  const last7PL = fullSeries.filter(p => p.date.getTime() >= sevenAgo).reduce((a, b) => a + b.pl, 0);
+
+  // 6. This Week (Mon-Sun based on local time)
+  function getMondayMs(d) {
+    const x = new Date(d);
+    const dow = (x.getDay() + 6) % 7;  // 0 = Monday
+    x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - dow);
+    return x.getTime();
+  }
+  const thisMonday = getMondayMs(new Date());
+  const nextMonday = thisMonday + 7 * 86400000;
+  const weekBets = fullSeries.filter(p => p.date.getTime() >= thisMonday && p.date.getTime() < nextMonday);
+  const dayKeys = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+  const dayPL = { MON: null, TUE: null, WED: null, THU: null, FRI: null, SAT: null, SUN: null };
+  weekBets.forEach(p => {
+    const dayIdx = (p.date.getDay() + 6) % 7;  // 0=Mon
+    const k = dayKeys[dayIdx];
+    if (dayPL[k] == null) dayPL[k] = 0;
+    dayPL[k] += p.pl;
+  });
+  const weekTotal = weekBets.reduce((a, b) => a + b.pl, 0);
+  const weekHits = weekBets.filter(p => p.isHit).length;
+  const weekMisses = weekBets.length - weekHits;
+  // Week label
+  const weekStart = new Date(thisMonday);
+  const weekEnd = new Date(thisMonday + 6 * 86400000);
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const weekLabel = `${monthNames[weekStart.getMonth()]} ${weekStart.getDate()}–${weekStart.getMonth() === weekEnd.getMonth() ? weekEnd.getDate() : monthNames[weekEnd.getMonth()] + " " + weekEnd.getDate()}`;
+
+  // 7. Weekly history (last 6 completed weeks before this one)
+  const weekly = [];
+  for (let i = 1; i <= 6; i++) {
+    const wMon = thisMonday - i * 7 * 86400000;
+    const wNextMon = wMon + 7 * 86400000;
+    const wBets = fullSeries.filter(p => p.date.getTime() >= wMon && p.date.getTime() < wNextMon);
+    if (wBets.length === 0) continue;
+    const wTotal = wBets.reduce((a, b) => a + b.pl, 0);
+    const wHits = wBets.filter(p => p.isHit).length;
+    const ws = new Date(wMon);
+    const we = new Date(wMon + 6 * 86400000);
+    const label = `${monthNames[ws.getMonth()]} ${ws.getDate()} – ${ws.getMonth() === we.getMonth() ? we.getDate() : monthNames[we.getMonth()] + " " + we.getDate()}`;
+    weekly.push({ label, total: wTotal, hits: wHits, misses: wBets.length - wHits });
+  }
+
+  // 8. SVG chart construction
+  const CHART_W = 600, CHART_H = 180;
+  const PAD = { top: 18, right: 14, bottom: 22, left: 8 };
+  const innerW = CHART_W - PAD.left - PAD.right;
+  const innerH = CHART_H - PAD.top - PAD.bottom;
+  let chartHtml = "";
+  let pathD = "", areaD = "", xTicksHtml = "", minMarker = "", maxMarker = "", zeroLine = "";
+  if (periodSeries.length >= 2) {
+    const xMin = periodSeries[0].date.getTime();
+    const xMax = periodSeries[periodSeries.length - 1].date.getTime();
+    const xSpan = xMax - xMin || 1;
+    const yVals = periodSeries.map(p => p.cum).concat([0]);
+    const yMin = Math.min(...yVals);
+    const yMax = Math.max(...yVals);
+    const ySpan = (yMax - yMin) || 1;
+    const xScale = t => PAD.left + ((t - xMin) / xSpan) * innerW;
+    const yScale = v => PAD.top + (1 - (v - yMin) / ySpan) * innerH;
+
+    const pts = periodSeries.map(p => ({ x: xScale(p.date.getTime()), y: yScale(p.cum), data: p }));
+    pathD = "M " + pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L ");
+    areaD = pathD + ` L ${pts[pts.length-1].x.toFixed(1)},${(PAD.top + innerH).toFixed(1)} L ${pts[0].x.toFixed(1)},${(PAD.top + innerH).toFixed(1)} Z`;
+
+    // Zero line if it falls in range
+    if (yMin <= 0 && yMax >= 0) {
+      const zy = yScale(0);
+      zeroLine = `<line x1="${PAD.left}" y1="${zy.toFixed(1)}" x2="${(PAD.left + innerW).toFixed(1)}" y2="${zy.toFixed(1)}" stroke="#525a64" stroke-width="0.5" stroke-dasharray="3,3" opacity="0.5"/>`;
+    }
+
+    // X-axis ticks (about 6 evenly distributed)
+    const tickCount = Math.min(6, periodSeries.length);
+    const ticks = [];
+    for (let i = 0; i < tickCount; i++) {
+      const idx = Math.round(i * (periodSeries.length - 1) / Math.max(1, tickCount - 1));
+      const p = periodSeries[idx];
+      const lbl = `${p.date.getMonth()+1}/${p.date.getDate()}`;
+      ticks.push(`<text x="${xScale(p.date.getTime()).toFixed(1)}" y="${(PAD.top + innerH + 14).toFixed(1)}" text-anchor="middle" font-size="9" fill="#525a64" font-family="Inter">${lbl}</text>`);
+    }
+    xTicksHtml = ticks.join("");
+
+    // Min/Max markers
+    if (minPoint && maxPoint && periodSeries.length >= 3) {
+      const minX = xScale(minPoint.date.getTime()), minY = yScale(minPoint.cum);
+      const maxX = xScale(maxPoint.date.getTime()), maxY = yScale(maxPoint.cum);
+      minMarker = `
+        <circle cx="${minX.toFixed(1)}" cy="${minY.toFixed(1)}" r="3.5" fill="#f87171" stroke="#0c0d10" stroke-width="1.5"/>
+        <text x="${minX.toFixed(1)}" y="${(minY + 14).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#f87171" font-family="Inter">LOW ${minPoint.cum > 0 ? "+" : ""}${minPoint.cum.toFixed(1)}u</text>`;
+      maxMarker = `
+        <circle cx="${maxX.toFixed(1)}" cy="${maxY.toFixed(1)}" r="3.5" fill="#4ade80" stroke="#0c0d10" stroke-width="1.5"/>
+        <text x="${maxX.toFixed(1)}" y="${(maxY - 8).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#4ade80" font-family="Inter">HIGH ${maxPoint.cum > 0 ? "+" : ""}${maxPoint.cum.toFixed(1)}u</text>`;
+    }
+
+    // Stash the points for hover handler (set later)
+    window._trackerChartPts = pts;
+    window._trackerChartGeom = { CHART_W, CHART_H, PAD };
+
+    chartHtml = `
+      <svg id="tracker-perf-chart" viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="none" style="width:100%;height:200px;cursor:crosshair;display:block;touch-action:none;">
+        <defs>
+          <linearGradient id="trkAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${allTimeTotal >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0.32"/>
+            <stop offset="100%" stop-color="${allTimeTotal >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        ${zeroLine}
+        <path d="${areaD}" fill="url(#trkAreaGrad)"/>
+        <path d="${pathD}" fill="none" stroke="${allTimeTotal >= 0 ? '#4ade80' : '#f87171'}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${minMarker}
+        ${maxMarker}
+        <line id="trk-hover-line" x1="0" y1="${PAD.top}" x2="0" y2="${PAD.top + innerH}" stroke="#7dd3fc" stroke-width="1" opacity="0" stroke-dasharray="2,2"/>
+        <circle id="trk-hover-dot" cx="0" cy="0" r="4" fill="#7dd3fc" stroke="#0c0d10" stroke-width="1.5" opacity="0"/>
+        ${xTicksHtml}
+      </svg>
+      <div id="trk-hover-tip" style="position:absolute;background:#0c0d10;border:1px solid #1e40af;border-radius:4px;padding:4px 8px;font-size:11px;color:#fff;font-family:'JetBrains Mono','Menlo',monospace;pointer-events:none;opacity:0;transition:opacity 0.1s;white-space:nowrap;z-index:10;"></div>`;
+  } else {
+    chartHtml = `<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#525a64;font-size:12px;">Not enough graded bets yet — grade a few to populate the curve.</div>`;
+  }
+
+  // 9. Period toggle buttons
+  const periodBtn = (val, label) => {
+    const active = period === val;
+    return `<button onclick="setTrackerPeriod('${val}')" style="background:${active ? '#0c0d10' : 'transparent'};border:1px solid ${active ? '#1e40af' : '#1a1d22'};color:${active ? '#fff' : '#a8b0bb'};border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.5px;">${label}</button>`;
+  };
+
+  // 10. Headline
+  const headColor = allTimeTotal >= 0 ? "#4ade80" : "#f87171";
+  const last7Color = last7PL >= 0 ? "#4ade80" : "#f87171";
+  const last7Str = `${last7PL >= 0 ? "+" : ""}${last7PL.toFixed(2)}u last 7 days`;
+
+  // 11. This Week panel content
+  const weekColor = weekTotal >= 0 ? "#4ade80" : (weekTotal < 0 ? "#f87171" : "#a8b0bb");
+  const dayCells = dayKeys.map(k => {
+    const v = dayPL[k];
+    if (v == null) {
+      return `<div style="background:transparent;border:1px solid #1a1d22;border-radius:6px;padding:8px 4px;text-align:center;min-width:0;">
+        <div style="font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.6px;">${k}</div>
+        <div style="font-size:13px;color:#525a64;font-weight:700;margin-top:2px;font-family:'JetBrains Mono','Menlo',monospace;">—</div>
+      </div>`;
+    }
+    const c = v > 0 ? "#4ade80" : v < 0 ? "#f87171" : "#a8b0bb";
+    const bgC = v > 0 ? "rgba(74,222,128,0.06)" : v < 0 ? "rgba(248,113,113,0.06)" : "transparent";
+    return `<div style="background:${bgC};border:1px solid #1a1d22;border-radius:6px;padding:8px 4px;text-align:center;min-width:0;">
+      <div style="font-size:9px;color:#a8b0bb;font-weight:700;letter-spacing:0.6px;">${k}</div>
+      <div style="font-size:13px;color:${c};font-weight:700;margin-top:2px;font-family:'JetBrains Mono','Menlo',monospace;">${v > 0 ? "+" : ""}${v.toFixed(1)}</div>
+    </div>`;
+  }).join("");
+
+  // 12. Weekly history rows
+  const historyRows = weekly.map(w => {
+    const c = w.total >= 0 ? "#4ade80" : "#f87171";
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1a1d22;">
+      <div style="font-size:12px;color:#d4dae3;">${w.label}</div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:11px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;">${w.hits}W–${w.misses}L</div>
+        <div style="font-size:13px;color:${c};font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;min-width:48px;text-align:right;">${w.total >= 0 ? "+" : ""}${w.total.toFixed(1)}u</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  // 13. Sub-stats line
+  const totalSettled = settledForChart.length;
+  const totalHits = settledForChart.filter(s => s.isHit).length;
+  const winRate = totalSettled > 0 ? (totalHits / totalSettled * 100).toFixed(1) : "—";
+  const weeksWithBets = weekly.length + (weekBets.length > 0 ? 1 : 0);
+  const avgPerWeek = weeksWithBets > 0 ? (allTimeTotal / weeksWithBets).toFixed(1) : "—";
+
+  return `
+    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:10px;padding:16px 18px;margin-bottom:18px;">
+      <div style="display:grid;grid-template-columns:1fr;gap:18px;" id="tracker-perf-grid">
+        <!-- LEFT: Cumulative Units chart -->
+        <div style="position:relative;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#fff;letter-spacing:0.3px;">Cumulative Units</div>
+              <div style="font-size:11px;color:#a8b0bb;margin-top:2px;">Performance over time by game date</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:10px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:34px;font-weight:800;color:${headColor};font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:-0.5px;line-height:1;">${allTimeTotal >= 0 ? "+" : ""}${allTimeTotal.toFixed(2)}u</div>
+              <div style="font-size:10px;color:#a8b0bb;margin-top:4px;letter-spacing:0.4px;">cumulative · all time</div>
+            </div>
+            ${Math.abs(last7PL) > 0.01 ? `<div style="background:rgba(74,222,128,0.08);border:1px solid ${last7Color}55;color:${last7Color};border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">⚡ ${last7Str}</div>` : ""}
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            ${periodBtn("7d", "7D")}
+            ${periodBtn("30d", "30D")}
+            ${periodBtn("all", "All Time")}
+          </div>
+          <div style="position:relative;">${chartHtml}</div>
+        </div>
+        <!-- RIGHT: This Week + History -->
+        <div>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:14px;font-weight:700;color:#fff;letter-spacing:0.3px;">This Week</div>
+            <div style="font-size:11px;color:#a8b0bb;margin-top:2px;">Rolling weekly performance</div>
+          </div>
+          <div style="background:#050507;border:1px solid #1a1d22;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div style="font-size:12px;color:#d4dae3;font-weight:600;">This Week</div>
+              <div style="font-size:10px;color:#a8b0bb;">${weekLabel}</div>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;">
+              <div style="font-size:24px;font-weight:800;color:${weekColor};font-family:'JetBrains Mono','Menlo',monospace;line-height:1;">${weekTotal >= 0 ? "+" : ""}${weekTotal.toFixed(1)}u</div>
+              <div style="font-size:11px;color:#a8b0bb;font-family:'JetBrains Mono','Menlo',monospace;">${weekHits}W–${weekMisses}L</div>
+            </div>
+            <div style="font-size:11px;color:#a8b0bb;margin-bottom:10px;">Season: <span style="color:${headColor};font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">${allTimeTotal >= 0 ? "+" : ""}${allTimeTotal.toFixed(2)}u</span></div>
+            <div style="display:grid;grid-template-columns:repeat(7, 1fr);gap:4px;">${dayCells}</div>
+          </div>
+          <div style="font-size:11px;color:#a8b0bb;margin-bottom:8px;letter-spacing:0.3px;">
+            <span style="color:#fff;font-weight:700;">${winRate === "—" ? "—" : winRate + "%"}</span> Win Rate · <span style="color:#fff;font-weight:700;">${totalSettled}</span> Bets · <span style="color:#fff;font-weight:700;">${avgPerWeek}u/wk</span> Avg
+          </div>
+          ${weekly.length > 0 ? `
+            <div style="margin-top:14px;">
+              <div style="font-size:12px;color:#d4dae3;font-weight:600;margin-bottom:4px;">Weekly History</div>
+              ${historyRows}
+            </div>` : ""}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Wire hover interactivity on the perf chart. Called by renderTracker after
+// the DOM is updated. Looks up the nearest data point on mouse/touch move and
+// shows the dashed line + dot + tooltip overlay.
+function _attachTrackerChartHover() {
+  const svg = document.getElementById("tracker-perf-chart");
+  const tip = document.getElementById("trk-hover-tip");
+  const line = document.getElementById("trk-hover-line");
+  const dot = document.getElementById("trk-hover-dot");
+  const pts = window._trackerChartPts;
+  const geom = window._trackerChartGeom;
+  if (!svg || !tip || !line || !dot || !pts || !geom) return;
+
+  function onMove(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    // Map screen X to SVG x (geom.CHART_W maps to rect.width)
+    const svgX = ((clientX - rect.left) / rect.width) * geom.CHART_W;
+    let nearest = pts[0];
+    let nearestDist = Math.abs(pts[0].x - svgX);
+    for (let i = 1; i < pts.length; i++) {
+      const d = Math.abs(pts[i].x - svgX);
+      if (d < nearestDist) { nearestDist = d; nearest = pts[i]; }
+    }
+    // Update overlay positions
+    line.setAttribute("x1", nearest.x);
+    line.setAttribute("x2", nearest.x);
+    line.setAttribute("opacity", "1");
+    dot.setAttribute("cx", nearest.x);
+    dot.setAttribute("cy", nearest.y);
+    dot.setAttribute("opacity", "1");
+    // Tooltip text + position (in screen coords relative to chart container)
+    const d = nearest.data;
+    const dateStr = `${d.date.getMonth()+1}/${d.date.getDate()}`;
+    const c = d.cum >= 0 ? "#4ade80" : "#f87171";
+    tip.innerHTML = `<span style="color:#a8b0bb;">${dateStr}</span>  <span style="color:${c};font-weight:700;">${d.cum >= 0 ? "+" : ""}${d.cum.toFixed(2)}u</span>`;
+    // Position tooltip inside parent container, biased to avoid edge clipping
+    const parent = svg.parentElement;
+    const pRect = parent.getBoundingClientRect();
+    const tipPxX = (nearest.x / geom.CHART_W) * rect.width;
+    const tipPxY = (nearest.y / geom.CHART_H) * rect.height;
+    const tipW = tip.offsetWidth || 100;
+    const leftPx = Math.min(Math.max(tipPxX - tipW / 2, 4), pRect.width - tipW - 4);
+    tip.style.left = leftPx + "px";
+    tip.style.top = (tipPxY - 32) + "px";
+    tip.style.opacity = "1";
+  }
+  function onLeave() {
+    line.setAttribute("opacity", "0");
+    dot.setAttribute("opacity", "0");
+    tip.style.opacity = "0";
+  }
+  svg.addEventListener("mousemove", e => onMove(e.clientX, e.clientY));
+  svg.addEventListener("mouseleave", onLeave);
+  svg.addEventListener("touchstart", e => { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  svg.addEventListener("touchmove", e => { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  svg.addEventListener("touchend", onLeave);
 }
 
 function renderTracker() {
@@ -4870,16 +5329,23 @@ function renderTracker() {
                 // Injury context badge (FLOOR/CEILING) — snapshot at save time.
                 // Shows on PROP bets only; totals don't have player-level context.
                 const ctx = b.injuryContext;
-                if (!ctx) return "";
-                if (ctx.floor) {
-                  const tip = `Floor ↓ at save · ${ctx.status||""}${ctx.type?' · '+ctx.type:''}`.replace(/"/g,"'");
-                  return ` <span title="${tip}" style="background:#f8717122;border:1px solid #f8717177;color:#f87171;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">FLOOR ↓</span>`;
+                let badge = "";
+                if (ctx) {
+                  if (ctx.floor) {
+                    const tip = `Floor ↓ at save · ${ctx.status||""}${ctx.type?' · '+ctx.type:''}`.replace(/"/g,"'");
+                    badge += ` <span title="${tip}" style="background:#f8717122;border:1px solid #f8717177;color:#f87171;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">FLOOR ↓</span>`;
+                  } else if (ctx.ceiling) {
+                    const tip = `Ceiling ↑ at save · ${ctx.causedBy||""} ${ctx.causedByStatus?'('+ctx.causedByStatus+')':''}`.replace(/"/g,"'");
+                    badge += ` <span title="${tip}" style="background:#22c55e22;border:1px solid #22c55e77;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">CEILING ↑</span>`;
+                  }
                 }
-                if (ctx.ceiling) {
-                  const tip = `Ceiling ↑ at save · ${ctx.causedBy||""} ${ctx.causedByStatus?'('+ctx.causedByStatus+')':''}`.replace(/"/g,"'");
-                  return ` <span title="${tip}" style="background:#22c55e22;border:1px solid #22c55e77;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">CEILING ↑</span>`;
+                // Trend-match badge — shows the strongest matching Dimers trend rate
+                if (Array.isArray(b.trendMatches) && b.trendMatches.length > 0) {
+                  const top = b.trendMatches.reduce((a,c) => c.rate > a.rate ? c : a, b.trendMatches[0]);
+                  const tip = b.trendMatches.map(t => `${t.hits}/${t.games} (${t.rate}%)`).join(" · ").replace(/"/g,"'");
+                  badge += ` <span title="Dimers trend at save: ${tip}" style="background:#7dd3fc22;border:1px solid #7dd3fc77;color:#7dd3fc;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">TREND ${Math.round(top.rate)}%</span>`;
                 }
-                return "";
+                return badge;
               })()}
             </div>
             <div style="font-size:10px;color:#a8b0bb;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#7dd3fc;font-weight:700;letter-spacing:0.5px;">${b.projSource === "blended" ? "PLAYER" : b.projSource.toUpperCase()}</span>` : ''}</div>
@@ -4981,7 +5447,12 @@ function renderTracker() {
     </div>`;
   }).join("");
 
+  // Performance dashboard (cumulative units + this week + history). Lives at
+  // the top of the tracker tab. Hover handlers attached after innerHTML is set.
+  const perfPanelHtml = buildPerformancePanel(scopedBets);
+
   el.innerHTML = `
+    ${perfPanelHtml}
     <div id="bulk-copy-bar" style="display:none;position:sticky;top:0;z-index:50;background:#1e40af;border-radius:8px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(30,64,175,0.4);">
       <span style="color:#fff;font-size:13px;font-weight:700;letter-spacing:0.3px;"><span id="bulk-copy-count">0</span> selected</span>
       <span style="margin-left:auto;display:flex;gap:8px;">
@@ -5116,6 +5587,10 @@ function renderTracker() {
   // Fill the embedded Auto Grade slot we just created. Targeting is handled by
   // renderAutoGrade itself (it preferentially writes to #autograde-embed-slot).
   renderAutoGrade();
+  // Wire hover handlers on the perf chart now that the SVG is in the DOM
+  if (typeof _attachTrackerChartHover === "function") {
+    try { _attachTrackerChartHover(); } catch (e) { /* hover is non-critical */ }
+  }
 }
 
 function filterBetRows(val) {
@@ -5213,6 +5688,162 @@ document.addEventListener("keydown", e => {
 // Slate is determined entirely from the Betstamp paste — no external API.
 
 let betstampGames = []; // ordered: [{awayAbbr, homeAbbr, awayName, homeName, time, books:[...]}]
+
+// ── DIMERS TRENDS (paste-based, reference only) ────────────────────────────
+// User pastes the Dimers trends page once a day; we parse out each
+// "X has scored fewer than Y points in N of their last M appearances" line
+// and store it keyed by normalized player name. Shown in the bet modal as a
+// contextual hint (NOT used in projections or EV — purely informational).
+let trendsCache = null;   // Map<norm(playerName), [trendObject, ...]>
+let trendsUpdatedAt = null;
+
+// Verbs Dimers uses, mapped roughly to stat domains. We don't strictly need
+// the verb since the stat name itself is in the line, but it disambiguates
+// in edge cases like "3-pointers made" where the noun is ambiguous.
+const TREND_STAT_NORMALIZE = {
+  "points": "PTS",
+  "rebounds": "REB",
+  "assists": "AST",
+  "three pointers made": "3PM",
+  "three-pointers made": "3PM",
+  "3-pointers made": "3PM",
+  "threes": "3PM",
+  "blocks": "BLK",
+  "steals": "STL",
+  "turnovers": "TOV",
+  "fantasy points": "FP",
+  "minutes": "MIN",
+  "double-doubles": "DD",
+  "triple-doubles": "TD",
+};
+
+function parseTrendsPaste(text) {
+  if (!text) return [];
+  // Match lines like: "Azura Stevens has scored fewer than 8.5 points in 8 of their last 10 appearances."
+  // Player names can contain apostrophes, hyphens, accents — keep regex permissive.
+  const TREND_RE = /^(.+?)\s+has\s+(scored|recorded|collected|made|hit)\s+(fewer|more)\s+than\s+([\d.]+)\s+([\w\s\-]+?)\s+in\s+(\d+)\s+of\s+(?:their\s+)?last\s+(\d+)\s+appearances?\.?$/i;
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const trends = [];
+  for (const line of lines) {
+    const m = line.match(TREND_RE);
+    if (!m) continue;
+    const player = m[1].trim();
+    const direction = m[3].toLowerCase() === "fewer" ? "under" : "over";
+    const lineVal = parseFloat(m[4]);
+    if (isNaN(lineVal)) continue;
+    const statRaw = m[5].trim().toLowerCase();
+    const stat = TREND_STAT_NORMALIZE[statRaw] || statRaw.toUpperCase();
+    const hits = parseInt(m[6]);
+    const games = parseInt(m[7]);
+    if (isNaN(hits) || isNaN(games) || games <= 0) continue;
+    trends.push({ player, ou: direction, line: lineVal, stat, hits, games });
+  }
+  return trends;
+}
+
+function saveTrends(trends) {
+  trendsCache = new Map();
+  trends.forEach(t => {
+    const key = norm(t.player);
+    if (!trendsCache.has(key)) trendsCache.set(key, []);
+    trendsCache.get(key).push(t);
+  });
+  trendsUpdatedAt = new Date().toISOString();
+  try {
+    localStorage.setItem("wnba_trends_cache", JSON.stringify({ trends, savedAt: trendsUpdatedAt }));
+  } catch (e) {}
+}
+
+function loadTrendsFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem("wnba_trends_cache");
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.trends)) return;
+    trendsCache = new Map();
+    parsed.trends.forEach(t => {
+      const key = norm(t.player);
+      if (!trendsCache.has(key)) trendsCache.set(key, []);
+      trendsCache.get(key).push(t);
+    });
+    trendsUpdatedAt = parsed.savedAt || null;
+  } catch (e) { /* corrupt cache, ignore */ }
+}
+
+// Get matching trends for a specific player + (optional) stat
+function getTrendsForPlayer(playerName, stat) {
+  if (!trendsCache || !playerName) return [];
+  const key = norm(playerName);
+  const all = trendsCache.get(key) || [];
+  if (!stat) return all;
+  const statU = (stat || "").toUpperCase();
+  return all.filter(t => t.stat === statU);
+}
+
+function clearTrends() {
+  trendsCache = null;
+  trendsUpdatedAt = null;
+  try { localStorage.removeItem("wnba_trends_cache"); } catch (e) {}
+}
+
+// Format an ISO timestamp as a human-friendly relative time (e.g., "12m ago")
+function _relativeTime(isoString) {
+  try {
+    const then = new Date(isoString).getTime();
+    const diffMin = Math.floor((Date.now() - then) / 60000);
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
+  } catch (e) { return ""; }
+}
+
+// Refresh the inline status line under the trends textarea
+function _refreshTrendsStatus() {
+  const status = document.getElementById("trends-status");
+  if (!status) return;
+  if (trendsCache && trendsCache.size > 0) {
+    const total = [...trendsCache.values()].reduce((n, a) => n + a.length, 0);
+    const when = trendsUpdatedAt ? ` · saved ${_relativeTime(trendsUpdatedAt)}` : "";
+    status.style.color = "#a78bfa";
+    status.textContent = `${total} trends loaded · ${trendsCache.size} players${when}`;
+  } else {
+    status.style.color = "#525a64";
+    status.textContent = "No trends loaded — paste from Dimers to see contextual hints in the bet modal.";
+  }
+}
+
+// Parse the trends textarea and persist. Updates the status line and any open modal.
+function pasteTrends() {
+  const ta = document.getElementById("trends-paste");
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) { showToast("Paste Dimers trends first"); return; }
+  const trends = parseTrendsPaste(text);
+  if (trends.length === 0) {
+    showToast("No trends recognized — check format");
+    return;
+  }
+  saveTrends(trends);
+  showToast(`Loaded ${trends.length} trends (${trendsCache.size} players)`);
+  ta.value = "";
+  _refreshTrendsStatus();
+  if (typeof updateTrendsInModal === "function") updateTrendsInModal();
+}
+
+function clearTrendsAndRender() {
+  if (!trendsCache || trendsCache.size === 0) { showToast("No trends to clear"); return; }
+  if (!confirm("Clear all loaded Dimers trends?")) return;
+  clearTrends();
+  showToast("Trends cleared");
+  _refreshTrendsStatus();
+  if (typeof updateTrendsInModal === "function") updateTrendsInModal();
+}
+
+// Load on boot so saved trends survive page reloads
+try { loadTrendsFromLocalStorage(); } catch (e) {}
 
 // ── INJURY REPORT (ESPN, powered by RotoWire) ─────────────────────────────
 // ESPN's WNBA injury endpoint at site.api.espn.com is RotoWire-sourced, so
@@ -8815,6 +9446,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (oddsEl) oddsEl.addEventListener("input", () => { updateStakePreview(); updateEvPreview(); });
   const fairEl = document.getElementById("modal-fair");
   if (fairEl) fairEl.addEventListener("input", updateEvPreview);
+  // Refresh the trends status line so saved trends show their count on reload
+  if (typeof _refreshTrendsStatus === "function") _refreshTrendsStatus();
   // Boot the WNBA scoreboard ticker — pulls today's games from ESPN and starts
   // auto-refreshing every 30s for live updates.
   startScoreboardTicker();
@@ -9893,6 +10526,9 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
         <span id="modal-src-badge" style="font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;"></span>
       </div>
       <div id="modal-src-pills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    </div>
+    <div id="modal-trends" style="margin-top:8px;display:none;">
+      <div id="modal-trends-list" style="display:flex;flex-direction:column;gap:3px;"></div>
     </div>
     <div id="modal-stake-preview"></div>
     <div id="modal-ev-preview" style="margin-top:6px;font-size:13px;font-weight:700;"></div>
