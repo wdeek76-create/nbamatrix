@@ -1968,9 +1968,19 @@ function updateTrendsInModal() {
     const isMatchStat = t.stat === statU;
     const opacity = isMatchStat ? "1" : "0.5";
     const fmt = (n) => Number.isInteger(n) ? n.toString() : n.toFixed(1);
-    const dir = t.ou === "over" ? "OVER" : "UNDER";
     const rate = Math.round((t.hits / t.games) * 100);
-    return `<div style="font-size:12px;color:#fff;font-weight:700;opacity:${opacity};font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:0.3px;">${dir} ${fmt(t.line)} ${t.stat} — ${t.hits}/${t.games} <span style="color:#7dd3fc;font-weight:800;">${rate}%</span></div>`;
+    const dirChar = t.ou === "over" ? "o" : "u";
+    // Bar + percentage color graduate by trend strength
+    const barColor = rate >= 80 ? "#4ade80" : rate >= 70 ? "#22c55e" : rate >= 60 ? "#fbbf24" : "#a8b0bb";
+    const pctColor = rate >= 70 ? "#4ade80" : rate >= 60 ? "#fbbf24" : "#a8b0bb";
+    return `<div style="display:grid;grid-template-columns:26px 42px 1fr 60px;gap:8px;align-items:center;opacity:${opacity};font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;">
+      <span style="color:#a8b0bb;font-weight:700;letter-spacing:0.3px;">${t.stat}</span>
+      <span style="color:#fff;font-weight:700;">${dirChar}${fmt(t.line)}</span>
+      <div style="height:5px;background:#1a1d22;border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${rate}%;background:${barColor};border-radius:3px;"></div>
+      </div>
+      <span style="text-align:right;"><span style="color:#a8b0bb;">${t.hits}/${t.games}</span> <span style="color:${pctColor};font-weight:800;">${rate}%</span></span>
+    </div>`;
   }).join("");
   container.style.display = "block";
 }
@@ -4967,17 +4977,19 @@ function buildPerformancePanel(scopedBets) {
     if (minPoint && maxPoint && periodSeries.length >= 3 && minPoint !== maxPoint) {
       const minX = xScale(minPoint.date.getTime()), minY = yScale(minPoint.cum);
       const maxX = xScale(maxPoint.date.getTime()), maxY = yScale(maxPoint.cum);
-      // LOW only if cum actually went negative
+      // LOW only if cum actually went negative — position label BELOW the dot
+      // since LOW sits at the chart's bottom and there's more breathing room
+      // toward the date axis than upward where the curve sits.
       if (minPoint.cum < 0) {
         minMarker = `
-          <circle cx="${minX.toFixed(1)}" cy="${minY.toFixed(1)}" r="3" fill="#f87171" stroke="#0c0d10" stroke-width="1.5"/>
-          <text x="${minX.toFixed(1)}" y="${(minY - 7).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#f87171" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3">${minPoint.cum.toFixed(1)}u</text>`;
+          <circle cx="${minX.toFixed(1)}" cy="${minY.toFixed(1)}" r="4" fill="#f87171" stroke="#0c0d10" stroke-width="2" filter="url(#trkDotGlow)"/>
+          <text x="${minX.toFixed(1)}" y="${(minY + 16).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="800" fill="#f87171" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3" stroke="#0c0d10" stroke-width="3" paint-order="stroke fill" filter="url(#trkGlow)">${minPoint.cum.toFixed(2)}u</text>`;
       }
-      // HIGH only if cum actually went positive
+      // HIGH only if cum actually went positive — position label ABOVE the dot
       if (maxPoint.cum > 0) {
         maxMarker = `
-          <circle cx="${maxX.toFixed(1)}" cy="${maxY.toFixed(1)}" r="3" fill="#4ade80" stroke="#0c0d10" stroke-width="1.5"/>
-          <text x="${maxX.toFixed(1)}" y="${(maxY - 7).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#4ade80" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3">+${maxPoint.cum.toFixed(1)}u</text>`;
+          <circle cx="${maxX.toFixed(1)}" cy="${maxY.toFixed(1)}" r="4" fill="#4ade80" stroke="#0c0d10" stroke-width="2" filter="url(#trkDotGlow)"/>
+          <text x="${maxX.toFixed(1)}" y="${(maxY - 10).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="800" fill="#4ade80" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3" stroke="#0c0d10" stroke-width="3" paint-order="stroke fill" filter="url(#trkGlow)">+${maxPoint.cum.toFixed(2)}u</text>`;
       }
     }
 
@@ -4993,6 +5005,24 @@ function buildPerformancePanel(scopedBets) {
             <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.28"/>
             <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
           </linearGradient>
+          <!-- Soft glow for unit labels (HIGH/LOW values) — sits underneath the
+               stroke outline to give the text a subtle luminous edge. -->
+          <filter id="trkGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          <!-- Stronger glow for the marker dots so the LOW dot pops against
+               the chart's dark bottom edge. -->
+          <filter id="trkDotGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="dotBlur"/>
+            <feMerge>
+              <feMergeNode in="dotBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
         </defs>
         ${zeroLine}
         <path d="${areaD}" fill="url(#trkAreaGrad)"/>
@@ -10614,8 +10644,12 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
       </div>
       <div id="modal-src-pills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
     </div>
-    <div id="modal-trends" style="margin-top:8px;display:none;">
-      <div id="modal-trends-list" style="display:flex;flex-direction:column;gap:3px;"></div>
+    <!-- Dimers trends — compact horizontal bars showing recent hit rates.
+         Populated by updateTrendsInModal() when the modal opens or after
+         paste/clear of the trends data. -->
+    <div id="modal-trends" style="margin-top:10px;display:none;">
+      <div style="font-size:10px;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">Recent Form</div>
+      <div id="modal-trends-list" style="display:flex;flex-direction:column;gap:5px;"></div>
     </div>
     <div id="modal-stake-preview"></div>
     <div id="modal-ev-preview" style="margin-top:6px;font-size:13px;font-weight:700;"></div>
