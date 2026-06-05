@@ -244,6 +244,13 @@ document.querySelectorAll('.rtab').forEach(t => t.addEventListener('click', () =
 // ─── UNIT CALC ────────────────────────────────────────────────────────────────
 // Dogs (+odds): risk 1u to win odds/100u
 // Favs (-odds): risk |odds|/100u to win 1u  e.g. -120 → risk 1.2u to win 1u
+function probToAmerican(pct) {
+  const p = pct / 100;
+  if (p <= 0 || p >= 1) return '—';
+  if (p >= 0.5) return '-' + Math.round(p / (1 - p) * 100);
+  return '+' + Math.round((1 - p) / p * 100);
+}
+
 function calcStake(odds) {
   const n = parseInt(odds);
   if (isNaN(n)) return 1;
@@ -544,7 +551,7 @@ function betCardHTML(b, withControls) {
       <div class="bet-game">${gameLogosHTML(b.game, b.sport)}${b.game}</div>
       <div class="bet-pick">${b.pick||'—'}</div>
       <div class="bet-stats">
-        ${b.prob!==null?`<div class="stat"><div class="stat-label">Prob</div><div class="stat-val blue">${b.prob}%</div></div>`:''}
+        ${b.prob!==null?`<div class="stat"><div class="stat-label">Prob</div><div class="stat-val blue">${b.prob}% <span style="font-size:11px;color:var(--muted);font-weight:400;">(${probToAmerican(b.prob)})</span></div></div>`:''}
         ${b.edge!==null?`<div class="stat"><div class="stat-label">Edge</div><div class="stat-val ${ec}">${b.edge}%</div></div>`:''}
         ${b.book?`<div class="stat"><div class="stat-label">Book</div><div class="stat-val">${b.book}</div></div>`:''}
       </div>
@@ -753,6 +760,15 @@ function buildBreakdown(filtered) {
     if (b.tags?.includes('SWEET')) return 'Sweet Spot';
     return 'No Tag';
   });
+
+  // Tag × Market cross: e.g. "High Edge Over", "Sweet Spot Under", "Sweet Spot ML"
+  const byTagMarket = groupBy(b => {
+    const tag = b.tags?.includes('HIGH') && b.tags?.includes('SWEET') ? 'High+Sweet'
+              : b.tags?.includes('HIGH')  ? 'High Edge'
+              : b.tags?.includes('SWEET') ? 'Sweet Spot'
+              : 'No Tag';
+    return tag + ' ' + marketType(b.pick);
+  });
   const byOdds   = groupBy(b => oddsBucket(b.odds));
   const byFavDog = groupBy(b => {
     const n=parseInt(b.odds); if(isNaN(n)) return 'Unknown';
@@ -762,6 +778,7 @@ function buildBreakdown(filtered) {
   return tableHTML('Market Type', byMarket) +
          tableHTML('Sport', bySport) +
          tableHTML('Tag', byTag) +
+         tableHTML('Tag × Market', byTagMarket, true) +
          tableHTML('Fav vs Dog', byFavDog) +
          tableHTML('Odds Bucket', byOdds, true);
 }
