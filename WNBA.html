@@ -6230,8 +6230,9 @@ function openDailyBrief() {
 
   // Pull today's games from ticker scoreboard (always fresh — refreshed by
   // the ticker every 2-5 min). Falls back to betstampGames if ticker hasn't
-  // loaded yet.
-  const todayEvents = (window._tickerCachedEvents || []).filter(e => e._ticker_day === "today");
+  // loaded yet. Variable is module-level let, not on window — guard with typeof.
+  const tickerEvents = (typeof _tickerCachedEvents !== "undefined" && Array.isArray(_tickerCachedEvents)) ? _tickerCachedEvents : [];
+  const todayEvents = tickerEvents.filter(e => e._ticker_day === "today");
   let todaysGames = [];
   if (todayEvents.length > 0) {
     todaysGames = todayEvents.map(ev => {
