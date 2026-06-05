@@ -4757,6 +4757,8 @@ function setTrackerPeriod(p) {
 // micro-tick after the DOM is updated by renderTracker.
 function buildPerformancePanel(scopedBets) {
   // 1. Get settled bets (hit/miss only — voids ignore), compute P/L, sort by date.
+  // Keep ALL bets — even outliers contribute to lifetime totals. We adjust the
+  // chart's visual start range later, not the underlying data.
   const settledForChart = scopedBets
     .filter(b => b.result === "hit" || b.result === "miss")
     .map(b => {
@@ -4778,12 +4780,25 @@ function buildPerformancePanel(scopedBets) {
     .filter(Boolean)
     .sort((a, b) => a.date - b.date);
 
-  // 2. Cumulative series across all time (used for headline + min/max markers)
+  // 2. Cumulative series across all time (used for headline + min/max markers).
+  // Aggregated by date — one point per game day with the end-of-day cumulative
+  // total. Removes the jagged per-bet sawtooth and gives a smooth trend curve.
   let runningSum = 0;
-  const fullSeries = settledForChart.map(s => {
+  const cumByDate = new Map();  // key: YYYY-MM-DD → {date, cum, dayPL, hits, misses}
+  const fullSeries = [];
+  settledForChart.forEach(s => {
     runningSum += s.pl;
-    return { date: s.date, cum: +runningSum.toFixed(2), pl: s.pl, isHit: s.isHit, stake: s.stake };
+    const key = `${s.date.getFullYear()}-${String(s.date.getMonth()+1).padStart(2,"0")}-${String(s.date.getDate()).padStart(2,"0")}`;
+    if (!cumByDate.has(key)) {
+      cumByDate.set(key, { date: new Date(s.date.getFullYear(), s.date.getMonth(), s.date.getDate()), cum: 0, dayPL: 0, hits: 0, misses: 0 });
+    }
+    const entry = cumByDate.get(key);
+    entry.cum = +runningSum.toFixed(2);
+    entry.dayPL += s.pl;
+    if (s.isHit) entry.hits++; else entry.misses++;
   });
+  // Iterate the map in insertion order (which IS date order since settledForChart was sorted)
+  cumByDate.forEach(v => fullSeries.push(v));
   const allTimeTotal = runningSum;
 
   // 3. Apply period filter (7D / 30D / All)
@@ -4793,7 +4808,36 @@ function buildPerformancePanel(scopedBets) {
   if (period === "7d") cutoff = now - 7 * 86400000;
   else if (period === "30d") cutoff = now - 30 * 86400000;
   // For period-scoped chart: keep the running cum from start so trend is preserved
-  const periodSeries = cutoff > 0 ? fullSeries.filter(p => p.date.getTime() >= cutoff) : fullSeries;
+  let periodSeries = cutoff > 0 ? fullSeries.filter(p => p.date.getTime() >= cutoff) : fullSeries;
+
+  // For "All Time", visually anchor the chart to where actual continuous
+  // activity begins. Strategy: find the LAST gap > 14 days in the series, then
+  // start the chart immediately after it. This handles multiple isolated old
+  // bets — the chart anchors to the start of your current active cluster, not
+  // the first stray bet from months ago. The earlier bets still count toward
+  // cumulative (their P/L is in the running sum at the visual start point).
+  if (period === "all" && periodSeries.length >= 2) {
+    let visualStartIdx = 0;
+    for (let i = 0; i < periodSeries.length - 1; i++) {
+      const dayGap = (periodSeries[i + 1].date.getTime() - periodSeries[i].date.getTime()) / 86400000;
+      if (dayGap > 14) visualStartIdx = i + 1;
+    }
+    if (visualStartIdx > 0) periodSeries = periodSeries.slice(visualStartIdx);
+  }
+
+  // 4. Period-scoped headline P/L. Reflects whichever tab is active:
+  //   - All   → lifetime total
+  //   - 30D   → sum of P/L in the last 30 days
+  //   - 7D    → sum of P/L in the last 7 days
+  let displayedPL;
+  if (period === "all") {
+    displayedPL = allTimeTotal;
+  } else {
+    displayedPL = fullSeries
+      .filter(p => p.date.getTime() >= cutoff)
+      .reduce((sum, p) => sum + p.dayPL, 0);
+  }
+  const periodSubLabel = period === "all" ? "cumulative · all time" : period === "30d" ? "last 30 days" : "last 7 days";
 
   // 4. Min/max markers — use the active period's series
   let minPoint = null, maxPoint = null;
@@ -4804,7 +4848,7 @@ function buildPerformancePanel(scopedBets) {
 
   // 5. Last-7-days delta
   const sevenAgo = now - 7 * 86400000;
-  const last7PL = fullSeries.filter(p => p.date.getTime() >= sevenAgo).reduce((a, b) => a + b.pl, 0);
+  const last7PL = fullSeries.filter(p => p.date.getTime() >= sevenAgo).reduce((a, b) => a + b.dayPL, 0);
 
   // 6. This Week (Mon-Sun based on local time)
   function getMondayMs(d) {
@@ -4816,18 +4860,18 @@ function buildPerformancePanel(scopedBets) {
   }
   const thisMonday = getMondayMs(new Date());
   const nextMonday = thisMonday + 7 * 86400000;
-  const weekBets = fullSeries.filter(p => p.date.getTime() >= thisMonday && p.date.getTime() < nextMonday);
+  const weekDays = fullSeries.filter(p => p.date.getTime() >= thisMonday && p.date.getTime() < nextMonday);
   const dayKeys = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
   const dayPL = { MON: null, TUE: null, WED: null, THU: null, FRI: null, SAT: null, SUN: null };
-  weekBets.forEach(p => {
+  weekDays.forEach(p => {
     const dayIdx = (p.date.getDay() + 6) % 7;  // 0=Mon
     const k = dayKeys[dayIdx];
     if (dayPL[k] == null) dayPL[k] = 0;
-    dayPL[k] += p.pl;
+    dayPL[k] += p.dayPL;
   });
-  const weekTotal = weekBets.reduce((a, b) => a + b.pl, 0);
-  const weekHits = weekBets.filter(p => p.isHit).length;
-  const weekMisses = weekBets.length - weekHits;
+  const weekTotal = weekDays.reduce((a, b) => a + b.dayPL, 0);
+  const weekHits = weekDays.reduce((a, b) => a + b.hits, 0);
+  const weekMisses = weekDays.reduce((a, b) => a + b.misses, 0);
   // Week label
   const weekStart = new Date(thisMonday);
   const weekEnd = new Date(thisMonday + 6 * 86400000);
@@ -4839,19 +4883,20 @@ function buildPerformancePanel(scopedBets) {
   for (let i = 1; i <= 6; i++) {
     const wMon = thisMonday - i * 7 * 86400000;
     const wNextMon = wMon + 7 * 86400000;
-    const wBets = fullSeries.filter(p => p.date.getTime() >= wMon && p.date.getTime() < wNextMon);
-    if (wBets.length === 0) continue;
-    const wTotal = wBets.reduce((a, b) => a + b.pl, 0);
-    const wHits = wBets.filter(p => p.isHit).length;
+    const wDays = fullSeries.filter(p => p.date.getTime() >= wMon && p.date.getTime() < wNextMon);
+    if (wDays.length === 0) continue;
+    const wTotal = wDays.reduce((a, b) => a + b.dayPL, 0);
+    const wHits = wDays.reduce((a, b) => a + b.hits, 0);
+    const wMisses = wDays.reduce((a, b) => a + b.misses, 0);
     const ws = new Date(wMon);
     const we = new Date(wMon + 6 * 86400000);
     const label = `${monthNames[ws.getMonth()]} ${ws.getDate()} – ${ws.getMonth() === we.getMonth() ? we.getDate() : monthNames[we.getMonth()] + " " + we.getDate()}`;
-    weekly.push({ label, total: wTotal, hits: wHits, misses: wBets.length - wHits });
+    weekly.push({ label, total: wTotal, hits: wHits, misses: wMisses });
   }
 
   // 8. SVG chart construction
-  const CHART_W = 600, CHART_H = 180;
-  const PAD = { top: 18, right: 14, bottom: 22, left: 8 };
+  const CHART_W = 600, CHART_H = 200;
+  const PAD = { top: 26, right: 14, bottom: 28, left: 8 };
   const innerW = CHART_W - PAD.left - PAD.right;
   const innerH = CHART_H - PAD.top - PAD.bottom;
   let chartHtml = "";
@@ -4863,58 +4908,95 @@ function buildPerformancePanel(scopedBets) {
     const yVals = periodSeries.map(p => p.cum).concat([0]);
     const yMin = Math.min(...yVals);
     const yMax = Math.max(...yVals);
-    const ySpan = (yMax - yMin) || 1;
+    // Pad y-range slightly so the curve doesn't kiss the top/bottom edges
+    const yPad = Math.max(0.5, (yMax - yMin) * 0.08);
+    const yMinPad = yMin - yPad;
+    const yMaxPad = yMax + yPad;
+    const ySpan = (yMaxPad - yMinPad) || 1;
     const xScale = t => PAD.left + ((t - xMin) / xSpan) * innerW;
-    const yScale = v => PAD.top + (1 - (v - yMin) / ySpan) * innerH;
+    const yScale = v => PAD.top + (1 - (v - yMinPad) / ySpan) * innerH;
 
     const pts = periodSeries.map(p => ({ x: xScale(p.date.getTime()), y: yScale(p.cum), data: p }));
-    pathD = "M " + pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L ");
+
+    // Catmull-Rom → Bezier smoothing. Produces a flowing curve through every
+    // data point without the jagged L-segments of a polyline. Tension 0.5 is
+    // standard; lower = tighter, higher = looser (more bulgy).
+    function smoothPath(points) {
+      if (points.length < 2) return "";
+      if (points.length === 2) return `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)} L ${points[1].x.toFixed(1)},${points[1].y.toFixed(1)}`;
+      const t = 0.2;  // tension; lower number = smoother
+      let d = `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i === 0 ? 0 : i - 1];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+        const cp1x = p1.x + (p2.x - p0.x) * t;
+        const cp1y = p1.y + (p2.y - p0.y) * t;
+        const cp2x = p2.x - (p3.x - p1.x) * t;
+        const cp2y = p2.y - (p3.y - p1.y) * t;
+        d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+      }
+      return d;
+    }
+    pathD = smoothPath(pts);
     areaD = pathD + ` L ${pts[pts.length-1].x.toFixed(1)},${(PAD.top + innerH).toFixed(1)} L ${pts[0].x.toFixed(1)},${(PAD.top + innerH).toFixed(1)} Z`;
 
     // Zero line if it falls in range
-    if (yMin <= 0 && yMax >= 0) {
+    if (yMinPad <= 0 && yMaxPad >= 0) {
       const zy = yScale(0);
       zeroLine = `<line x1="${PAD.left}" y1="${zy.toFixed(1)}" x2="${(PAD.left + innerW).toFixed(1)}" y2="${zy.toFixed(1)}" stroke="#525a64" stroke-width="0.5" stroke-dasharray="3,3" opacity="0.5"/>`;
     }
 
-    // X-axis ticks (about 6 evenly distributed)
-    const tickCount = Math.min(6, periodSeries.length);
+    // X-axis ticks (5 evenly distributed, slightly above bottom edge)
+    const tickCount = Math.min(5, periodSeries.length);
     const ticks = [];
     for (let i = 0; i < tickCount; i++) {
       const idx = Math.round(i * (periodSeries.length - 1) / Math.max(1, tickCount - 1));
       const p = periodSeries[idx];
       const lbl = `${p.date.getMonth()+1}/${p.date.getDate()}`;
-      ticks.push(`<text x="${xScale(p.date.getTime()).toFixed(1)}" y="${(PAD.top + innerH + 14).toFixed(1)}" text-anchor="middle" font-size="9" fill="#525a64" font-family="Inter">${lbl}</text>`);
+      const anchor = i === 0 ? "start" : i === tickCount - 1 ? "end" : "middle";
+      ticks.push(`<text x="${xScale(p.date.getTime()).toFixed(1)}" y="${(PAD.top + innerH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="9" font-weight="500" fill="#7a8390" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif">${lbl}</text>`);
     }
     xTicksHtml = ticks.join("");
 
-    // Min/Max markers
-    if (minPoint && maxPoint && periodSeries.length >= 3) {
+    // Min/Max markers. LOW only shows if cumulative actually went below zero —
+    // i.e., a real drawdown from losses. If the user has been net-positive the
+    // whole time, the "lowest point" is just where the chart starts, which is
+    // not informative. HIGH shows whenever there's a clear peak above zero.
+    if (minPoint && maxPoint && periodSeries.length >= 3 && minPoint !== maxPoint) {
       const minX = xScale(minPoint.date.getTime()), minY = yScale(minPoint.cum);
       const maxX = xScale(maxPoint.date.getTime()), maxY = yScale(maxPoint.cum);
-      minMarker = `
-        <circle cx="${minX.toFixed(1)}" cy="${minY.toFixed(1)}" r="3.5" fill="#f87171" stroke="#0c0d10" stroke-width="1.5"/>
-        <text x="${minX.toFixed(1)}" y="${(minY + 14).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#f87171" font-family="Inter">LOW ${minPoint.cum > 0 ? "+" : ""}${minPoint.cum.toFixed(1)}u</text>`;
-      maxMarker = `
-        <circle cx="${maxX.toFixed(1)}" cy="${maxY.toFixed(1)}" r="3.5" fill="#4ade80" stroke="#0c0d10" stroke-width="1.5"/>
-        <text x="${maxX.toFixed(1)}" y="${(maxY - 8).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#4ade80" font-family="Inter">HIGH ${maxPoint.cum > 0 ? "+" : ""}${maxPoint.cum.toFixed(1)}u</text>`;
+      // LOW only if cum actually went negative
+      if (minPoint.cum < 0) {
+        minMarker = `
+          <circle cx="${minX.toFixed(1)}" cy="${minY.toFixed(1)}" r="3" fill="#f87171" stroke="#0c0d10" stroke-width="1.5"/>
+          <text x="${minX.toFixed(1)}" y="${(minY - 7).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#f87171" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3">${minPoint.cum.toFixed(1)}u</text>`;
+      }
+      // HIGH only if cum actually went positive
+      if (maxPoint.cum > 0) {
+        maxMarker = `
+          <circle cx="${maxX.toFixed(1)}" cy="${maxY.toFixed(1)}" r="3" fill="#4ade80" stroke="#0c0d10" stroke-width="1.5"/>
+          <text x="${maxX.toFixed(1)}" y="${(maxY - 7).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#4ade80" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3">+${maxPoint.cum.toFixed(1)}u</text>`;
+      }
     }
 
     // Stash the points for hover handler (set later)
     window._trackerChartPts = pts;
     window._trackerChartGeom = { CHART_W, CHART_H, PAD };
 
+    const lineColor = allTimeTotal >= 0 ? "#4ade80" : "#f87171";
     chartHtml = `
       <svg id="tracker-perf-chart" viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="none" style="width:100%;height:200px;cursor:crosshair;display:block;touch-action:none;">
         <defs>
           <linearGradient id="trkAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="${allTimeTotal >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0.32"/>
-            <stop offset="100%" stop-color="${allTimeTotal >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0"/>
+            <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.28"/>
+            <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
           </linearGradient>
         </defs>
         ${zeroLine}
         <path d="${areaD}" fill="url(#trkAreaGrad)"/>
-        <path d="${pathD}" fill="none" stroke="${allTimeTotal >= 0 ? '#4ade80' : '#f87171'}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
         ${minMarker}
         ${maxMarker}
         <line id="trk-hover-line" x1="0" y1="${PAD.top}" x2="0" y2="${PAD.top + innerH}" stroke="#7dd3fc" stroke-width="1" opacity="0" stroke-dasharray="2,2"/>
@@ -4932,8 +5014,8 @@ function buildPerformancePanel(scopedBets) {
     return `<button onclick="setTrackerPeriod('${val}')" style="background:${active ? '#0c0d10' : 'transparent'};border:1px solid ${active ? '#1e40af' : '#1a1d22'};color:${active ? '#fff' : '#a8b0bb'};border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.5px;">${label}</button>`;
   };
 
-  // 10. Headline
-  const headColor = allTimeTotal >= 0 ? "#4ade80" : "#f87171";
+  // 10. Headline — tracks the selected period (changes when user clicks 7D/30D/All Time)
+  const headColor = displayedPL >= 0 ? "#4ade80" : "#f87171";
   const last7Color = last7PL >= 0 ? "#4ade80" : "#f87171";
   const last7Str = `${last7PL >= 0 ? "+" : ""}${last7PL.toFixed(2)}u last 7 days`;
 
@@ -4971,12 +5053,17 @@ function buildPerformancePanel(scopedBets) {
   const totalSettled = settledForChart.length;
   const totalHits = settledForChart.filter(s => s.isHit).length;
   const winRate = totalSettled > 0 ? (totalHits / totalSettled * 100).toFixed(1) : "—";
-  const weeksWithBets = weekly.length + (weekBets.length > 0 ? 1 : 0);
+  const weeksWithBets = weekly.length + (weekDays.length > 0 ? 1 : 0);
   const avgPerWeek = weeksWithBets > 0 ? (allTimeTotal / weeksWithBets).toFixed(1) : "—";
 
   return `
+    <style>
+      @media (min-width: 720px) {
+        #tracker-perf-grid { grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr) !important; }
+      }
+    </style>
     <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:10px;padding:16px 18px;margin-bottom:18px;">
-      <div style="display:grid;grid-template-columns:1fr;gap:18px;" id="tracker-perf-grid">
+      <div style="display:grid;grid-template-columns:1fr;gap:22px;align-items:start;" id="tracker-perf-grid">
         <!-- LEFT: Cumulative Units chart -->
         <div style="position:relative;">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
@@ -4987,10 +5074,10 @@ function buildPerformancePanel(scopedBets) {
           </div>
           <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:10px;flex-wrap:wrap;">
             <div>
-              <div style="font-size:34px;font-weight:800;color:${headColor};font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:-0.5px;line-height:1;">${allTimeTotal >= 0 ? "+" : ""}${allTimeTotal.toFixed(2)}u</div>
-              <div style="font-size:10px;color:#a8b0bb;margin-top:4px;letter-spacing:0.4px;">cumulative · all time</div>
+              <div style="font-size:34px;font-weight:800;color:${headColor};font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:-0.5px;line-height:1;">${displayedPL >= 0 ? "+" : ""}${displayedPL.toFixed(2)}u</div>
+              <div style="font-size:10px;color:#a8b0bb;margin-top:4px;letter-spacing:0.4px;">${periodSubLabel}</div>
             </div>
-            ${Math.abs(last7PL) > 0.01 ? `<div style="background:rgba(74,222,128,0.08);border:1px solid ${last7Color}55;color:${last7Color};border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">⚡ ${last7Str}</div>` : ""}
+            ${period !== "7d" && Math.abs(last7PL) > 0.01 ? `<div style="background:rgba(74,222,128,0.08);border:1px solid ${last7Color}55;color:${last7Color};border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">⚡ ${last7Str}</div>` : ""}
           </div>
           <div style="display:flex;gap:6px;margin-bottom:8px;">
             ${periodBtn("7d", "7D")}
