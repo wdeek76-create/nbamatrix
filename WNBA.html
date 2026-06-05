@@ -4286,7 +4286,9 @@ function renderSrcAnalytics() {
   const combos = {};
   settled.forEach(b => {
     const agreed = SRC_KEYS.filter(k => srcAgreed(b, k) === true);
-    if (agreed.length === 0) return;
+    // Combos are 2+ sources by definition. Single-source agreement is already
+    // covered by the Solo Source section — including it here would double-count.
+    if (agreed.length < 2) return;
     const key = agreed.join("+");
     if (!combos[key]) combos[key] = { sources: agreed, stats: emptyStats() };
     accum(b, combos[key].stats);
@@ -4314,7 +4316,8 @@ function renderSrcAnalytics() {
     const stat = (b.stat || "").toUpperCase();
     if (!stat) return;
     const agreed = SRC_KEYS.filter(k => srcAgreed(b, k) === true);
-    if (agreed.length === 0) return;
+    // 2+ sources only — solo is already in By Market Type below
+    if (agreed.length < 2) return;
     const key = agreed.join("+");
     if (!combosByStat[stat]) combosByStat[stat] = {};
     if (!combosByStat[stat][key]) combosByStat[stat][key] = { sources: agreed, stats: emptyStats() };
