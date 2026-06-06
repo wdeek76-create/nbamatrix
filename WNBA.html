@@ -4695,18 +4695,27 @@ async function shareOpenPropsAsImageExclusive() {
   if (_curChunk.length) chunks.push(_curChunk);
   const totalPages = chunks.length;
 
-  // Render one chunk's HTML — same fancy layout, header shows page indicator
-  // when there are multiple chunks (e.g. "11 · 1/3").
+  // Render one chunk's HTML — Apple-clean layout. No branding, all odds same
+  // color, direction emphasized via bold + glow (no red/green), play-to bold
+  // with subtle purple glow.
   function renderChunkHtml(chunkBets, pageIdx) {
-    let h = `<div id="_propsImageRootEx${pageIdx}" style="width:560px;background:linear-gradient(180deg,#0c0d10 0%,#070809 100%);border:1px solid #1a1d22;border-radius:14px;padding:24px 24px 18px;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:#fff;box-sizing:border-box;">`;
+    // Header: date + counts. Over/under split is computed over the FULL
+    // enriched list (the same header info on every page).
+    const overCount = enriched.filter(e => (e.bet.ou || "").toLowerCase() === "over").length;
+    const underCount = enriched.filter(e => (e.bet.ou || "").toLowerCase() === "under").length;
+    // Apple-style date: "Sat, Jun 6 · 2026" (mixed case, cleaner than all-caps)
+    const dayShort = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][now.getDay()];
+    const monthShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][now.getMonth()];
+    const niceDate = `${dayShort}, ${monthShort} ${now.getDate()} · ${now.getFullYear()}`;
+    const pageStr = totalPages > 1 ? `  ·  ${pageIdx + 1} of ${totalPages}` : "";
+    const subtitle = `${enriched.length} props · ${overCount} over · ${underCount} under${pageStr}`;
 
-    const badgeText = totalPages > 1
-      ? `${chunkBets.length} · ${pageIdx + 1}/${totalPages}`
-      : `${chunkBets.length} PROPS`;
-    h += `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #1a1d22;">`;
-    h += `<div><div style="font-size:19px;font-weight:800;line-height:1;letter-spacing:-0.3px;"><span style="color:#a78bfa;">ballislife</span><span style="color:#7dd3fc;">.blend</span></div>`;
-    h += `<div style="font-size:10px;color:#a8b0bb;margin-top:5px;letter-spacing:0.4px;">OPEN PROPS · ${headerDate}</div></div>`;
-    h += `<div style="background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.3);color:#7dd3fc;border-radius:5px;padding:3px 8px;font-size:11px;font-weight:800;font-family:'JetBrains Mono','Menlo',monospace;">${badgeText}</div>`;
+    let h = `<div id="_propsImageRootEx${pageIdx}" style="width:560px;background:linear-gradient(180deg,#0c0d10 0%,#070809 100%);border:1px solid #1a1d22;border-radius:18px;padding:28px 26px 24px;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:#fff;box-sizing:border-box;">`;
+
+    // Apple-clean header — date + subtitle stacked, no branding, no badge
+    h += `<div style="margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #1a1d22;">`;
+    h += `<div style="font-size:17px;font-weight:700;color:#fff;letter-spacing:-0.2px;line-height:1;">${niceDate}</div>`;
+    h += `<div style="font-size:11px;font-weight:600;color:#8b93a0;margin-top:8px;letter-spacing:0.3px;font-family:'JetBrains Mono','Menlo',monospace;">${subtitle}</div>`;
     h += `</div>`;
 
     let lastPlayer = null;
@@ -4716,14 +4725,21 @@ async function shareOpenPropsAsImageExclusive() {
       if (bet.player !== lastPlayer) {
         if (playerBlockOpen) h += `</div></div>`;
         const teamStr = bet.team ? esc(bet.team) : "";
-        const countStr = propsPerPlayer[bet.player] > 1 ? ` · ${propsPerPlayer[bet.player]} PROPS` : "";
-        const tLogo = teamLogoHtml(bet.team, 16);
-        h += `<div style="margin-bottom:16px;">`;
-        h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">`;
-        h += `<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:0.1px;display:flex;align-items:center;gap:7px;">${tLogo}<span>${esc(bet.player)}</span></div>`;
-        h += `<div style="font-size:10px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;font-weight:700;letter-spacing:0.3px;">${teamStr}${countStr}</div>`;
+        const countStr = propsPerPlayer[bet.player] > 1 ? `${propsPerPlayer[bet.player]} props` : "";
+        const tLogo = teamLogoHtml(bet.team, 18);
+        h += `<div style="margin-bottom:18px;">`;
+        h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">`;
+        // Left: logo + name + team abbr CLUSTERED together
+        h += `<div style="display:flex;align-items:center;gap:8px;min-width:0;">`;
+        h += `${tLogo}<span style="font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.1px;">${esc(bet.player)}</span>`;
+        if (teamStr) {
+          h += `<span style="font-size:10px;color:#8b93a0;font-family:'JetBrains Mono','Menlo',monospace;font-weight:700;letter-spacing:0.4px;">${teamStr}</span>`;
+        }
         h += `</div>`;
-        h += `<div style="display:flex;flex-direction:column;gap:5px;">`;
+        // Right: prop count if multi
+        h += `<div style="font-size:10px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;font-weight:700;letter-spacing:0.4px;flex-shrink:0;">${countStr}</div>`;
+        h += `</div>`;
+        h += `<div style="display:flex;flex-direction:column;gap:7px;">`;
         lastPlayer = bet.player;
         playerBlockOpen = true;
       }
@@ -4733,7 +4749,6 @@ async function shareOpenPropsAsImageExclusive() {
       const ouUpper = ouLower.toUpperCase();
       const bestLine = best.line != null ? best.line : bet.line;
       const oddsStr = best.odds > 0 ? `+${best.odds}` : `−${Math.abs(best.odds)}`;
-      const dirColor = ouLower === "over" ? "#4ade80" : "#f87171";
 
       const allPrices = [{ book: bet.book, odds: bet.odds, line: bet.line, fair: bet.fair }];
       if (Array.isArray(bet.altBooks)) {
@@ -4759,7 +4774,7 @@ async function shareOpenPropsAsImageExclusive() {
       const altsAtBestLine = sameLine.length > 0;
       const fmtOdds = (o) => o > 0 ? `+${o}` : `−${Math.abs(o)}`;
       const booksRow = sameLine.map(p =>
-        `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;">${bookLogoHtml(p.book, 12)}<span>${fmtOdds(p.odds)}</span></span>`
+        `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:10px;">${bookLogoHtml(p.book, 13)}<span>${fmtOdds(p.odds)}</span></span>`
       ).join("");
       const headlinePlayTo = altsAtBestLine ? null : playToOdds(best.fair, 5);
       let playToValue = headlinePlayTo;
@@ -4769,16 +4784,21 @@ async function shareOpenPropsAsImageExclusive() {
       }
       const playToStr = playToValue != null ? (playToValue > 0 ? `+${playToValue}` : `−${Math.abs(playToValue)}`) : null;
 
-      h += `<div style="background:#050507;border:1px solid #1a1d22;border-left:2px solid ${dirColor};border-radius:5px;padding:8px 12px;">`;
-      h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;">`;
-      h += `<div><span style="color:${dirColor};font-size:11px;font-weight:800;letter-spacing:0.4px;">${ouUpper} ${bestLine}</span> <span style="color:#a8b0bb;font-size:10px;letter-spacing:0.3px;">${statLabel}</span></div>`;
-      h += `<div style="font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;color:#d4dae3;font-weight:700;display:flex;align-items:center;gap:5px;">${oddsStr}${bookLogoHtml(best.book, 13)}<span style="color:#525a64;font-weight:600;">${esc(best.book)}</span></div>`;
+      // Bet card — no left color bar, more rounded, more padding
+      h += `<div style="background:#050507;border:1px solid #1a1d22;border-radius:9px;padding:11px 14px;">`;
+      h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;">`;
+      // Direction: BOLD white with subtle glow (no red/green color)
+      h += `<div><span style="color:#fff;font-size:13px;font-weight:800;letter-spacing:0.3px;text-shadow:0 0 8px rgba(255,255,255,0.20),0 0 1px rgba(255,255,255,0.5);">${ouUpper} ${bestLine}</span> <span style="color:#a8b0bb;font-size:11px;letter-spacing:0.3px;margin-left:4px;">${statLabel}</span></div>`;
+      // Headline: odds + logo + book name. Odds same color as secondary row.
+      h += `<div style="font-family:'JetBrains Mono','Menlo',monospace;font-size:13px;color:#d4dae3;font-weight:700;display:flex;align-items:center;gap:6px;">${oddsStr}${bookLogoHtml(best.book, 14)}<span style="color:#525a64;font-weight:600;font-family:'Inter',sans-serif;">${esc(best.book)}</span></div>`;
       h += `</div>`;
       if (booksRow) {
-        h += `<div style="font-size:10px;color:#8b93a0;font-family:'JetBrains Mono','Menlo',monospace;line-height:1.7;">${booksRow}</div>`;
+        // Same color as headline (#d4dae3) — unified odds color
+        h += `<div style="font-size:11px;color:#d4dae3;font-family:'JetBrains Mono','Menlo',monospace;line-height:1.85;font-weight:600;">${booksRow}</div>`;
       }
       if (playToStr) {
-        h += `<div style="font-size:10px;color:#a78bfa;font-family:'JetBrains Mono','Menlo',monospace;margin-top:2px;letter-spacing:0.3px;">⚡ play to ${playToStr}</div>`;
+        // Play to: BOLD, no lightning icon, subtle purple glow
+        h += `<div style="font-size:12px;color:#a78bfa;font-family:'JetBrains Mono','Menlo',monospace;font-weight:800;text-shadow:0 0 6px rgba(167,139,250,0.45),0 0 1px rgba(167,139,250,0.6);margin-top:5px;letter-spacing:0.3px;">play to ${playToStr}</div>`;
       }
       const diffLineGroups = {};
       remaining.forEach(p => {
@@ -4790,19 +4810,21 @@ async function shareOpenPropsAsImageExclusive() {
       const altRowParts = Object.values(diffLineGroups).map(g => {
         const items = g.items.map(p => {
           const lineHint = `${ouLower[0]}${g.line}`;
-          return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;">${bookLogoHtml(p.book, 11)}<span>${lineHint} ${fmtOdds(p.odds)}</span></span>`;
+          return `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:10px;">${bookLogoHtml(p.book, 12)}<span>${lineHint} ${fmtOdds(p.odds)}</span></span>`;
         }).join("");
+        // Alt play-to: bold with glow, no ⚡
         const altPt = g.fair != null ? playToOdds(g.fair, 5) : null;
-        const altPtStr = altPt != null ? ` <span style="color:#a78bfa;">⚡ play to ${altPt > 0 ? `+${altPt}` : `−${Math.abs(altPt)}`}</span>` : "";
+        const altPtStr = altPt != null ? ` <span style="color:#a78bfa;font-weight:800;text-shadow:0 0 5px rgba(167,139,250,0.4);">play to ${altPt > 0 ? `+${altPt}` : `−${Math.abs(altPt)}`}</span>` : "";
         return `${items}${altPtStr}`;
       });
       if (altRowParts.length) {
-        h += `<div style="font-size:9px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;margin-top:6px;padding-left:10px;border-left:1px solid #1a1d22;letter-spacing:0.3px;line-height:1.7;"><span style="color:#7a8390;letter-spacing:0.8px;">ALTS</span> ${altRowParts.join(" ")}</div>`;
+        // Alts: same color as odds for consistency; ALTS label stays subdued
+        h += `<div style="font-size:10px;color:#d4dae3;font-family:'JetBrains Mono','Menlo',monospace;margin-top:7px;padding-left:10px;border-left:1px solid #1a1d22;letter-spacing:0.3px;line-height:1.8;font-weight:600;"><span style="color:#7a8390;letter-spacing:0.8px;font-weight:700;margin-right:4px;">ALTS</span>${altRowParts.join(" ")}</div>`;
       }
       h += `</div>`;
     });
     if (playerBlockOpen) h += `</div></div>`;
-    h += `<div style="text-align:center;padding-top:12px;border-top:1px solid #1a1d22;font-size:9px;color:#525a64;letter-spacing:1px;text-transform:uppercase;font-weight:600;">generated · ballislife.blend</div>`;
+    // No footer — clean cutoff (Apple-style)
     h += `</div>`;
     return h;
   }
