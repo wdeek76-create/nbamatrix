@@ -1953,32 +1953,58 @@ function updateTrendsInModal() {
     return;
   }
   const statU = (stat || "").toUpperCase();
+  // Detect bet direction from typed shorthand (e.g., "u17.5 +111" → "under").
+  // If empty/unclear, betDir stays null — no direction-match glow.
+  let betDir = null;
+  const shorthandEl = document.getElementById("modal-shorthand");
+  if (shorthandEl && shorthandEl.value) {
+    const firstToken = shorthandEl.value.trim().toLowerCase().split(/\s+/)[0] || "";
+    if (firstToken.startsWith("o")) betDir = "over";
+    else if (firstToken.startsWith("u")) betDir = "under";
+  }
   const matching = getTrendsForPlayer(player, statU);
   const otherStats = getTrendsForPlayer(player).filter(t => t.stat !== statU);
   const display = [...matching, ...otherStats].slice(0, 6);
+
   if (display.length === 0) {
     container.style.display = "none";
     list.innerHTML = "";
     return;
   }
-  list.innerHTML = display.map(t => {
+
+  // Renderer — also used for derived PRA. Highlight logic:
+  //   - statMatch: brighter colors + subtle background bg
+  //   - dirMatch + statMatch: glow box-shadow accent in the trend's direction color
+  function renderRow(t) {
     const isMatchStat = t.stat === statU;
-    const opacity = isMatchStat ? "1" : "0.5";
     const fmt = (n) => Number.isInteger(n) ? n.toString() : n.toFixed(1);
     const rate = Math.round((t.hits / t.games) * 100);
-    const dirChar = t.ou === "over" ? "o" : "u";
-    // Bar + percentage color graduate by trend strength
-    const barColor = rate >= 80 ? "#4ade80" : rate >= 70 ? "#22c55e" : rate >= 60 ? "#fbbf24" : "#a8b0bb";
-    const pctColor = rate >= 70 ? "#4ade80" : rate >= 60 ? "#fbbf24" : "#a8b0bb";
-    return `<div style="display:grid;grid-template-columns:26px 42px 1fr 60px;gap:8px;align-items:center;opacity:${opacity};font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;">
-      <span style="color:#a8b0bb;font-weight:700;letter-spacing:0.3px;">${t.stat}</span>
-      <span style="color:#fff;font-weight:700;">${dirChar}${fmt(t.line)}</span>
+    const dirLabel = t.ou === "over" ? "OVER" : "UNDER";
+    // Single-color signal scheme: blue by default, green when the trend's
+    // direction matches the user's typed pick on the matching stat, red when
+    // it opposes. Non-matching stats stay blue at reduced opacity.
+    let signalColor = "#7dd3fc"; // blue default
+    if (isMatchStat && betDir) {
+      signalColor = (t.ou === betDir) ? "#4ade80" : "#f87171";
+    }
+    const opacity = isMatchStat ? 1 : 0.5;
+    const statLabelColor = isMatchStat ? "#fff" : "#a8b0bb";
+    let bg = "transparent", border = "1px solid transparent";
+    if (isMatchStat) {
+      bg = "rgba(255,255,255,0.025)";
+      border = "1px solid rgba(255,255,255,0.06)";
+    }
+    return `<div style="display:grid;grid-template-columns:26px 68px 1fr 56px;gap:8px;align-items:center;opacity:${opacity};font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;background:${bg};border:${border};border-radius:3px;padding:3px 4px;transition:all 0.15s;">
+      <span style="color:${statLabelColor};font-weight:700;letter-spacing:0.3px;">${t.stat}</span>
+      <span style="color:#fff;font-weight:800;font-size:9.5px;letter-spacing:0.3px;">${dirLabel} ${fmt(t.line)}</span>
       <div style="height:5px;background:#1a1d22;border-radius:3px;overflow:hidden;">
-        <div style="height:100%;width:${rate}%;background:${barColor};border-radius:3px;"></div>
+        <div style="height:100%;width:${rate}%;background:${signalColor};border-radius:3px;"></div>
       </div>
-      <span style="text-align:right;"><span style="color:#a8b0bb;">${t.hits}/${t.games}</span> <span style="color:${pctColor};font-weight:800;">${rate}%</span></span>
+      <span style="text-align:right;"><span style="color:#a8b0bb;">${t.hits}/${t.games}</span> <span style="color:${signalColor};font-weight:800;">${rate}%</span></span>
     </div>`;
-  }).join("");
+  }
+
+  list.innerHTML = display.map(renderRow).join("");
   container.style.display = "block";
 }
 
@@ -2182,6 +2208,8 @@ function parseShorthand(el) {
   const oddsHidden = document.getElementById("modal-odds");
   const fairHidden = document.getElementById("modal-fair");
   const bookEl = document.getElementById("modal-book");
+  // Re-render trends panel — direction glow depends on first token of shorthand
+  if (typeof updateTrendsInModal === "function") updateTrendsInModal();
   if (!raw) {
     el.style.borderColor = "#1a1d22";
     if (preview) preview.textContent = "";
@@ -2473,6 +2501,34 @@ function teamLogoImg(abbr, size) {
   if (!url) return "";
   const s = size || 14;
   return `<img src="${url}" alt="${abbr}" style="width:${s}px;height:${s}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'"/>`;
+}
+
+// Pre-fetch ESPN team logos as data URIs. html2canvas can't reliably capture
+// cross-origin images unless the server sends CORS headers; converting to data
+// URIs up-front sidesteps that. Results cached so repeat shares are fast.
+const _teamLogoDataUriCache = new Map();
+async function _teamLogoAsDataUri(abbr) {
+  if (!abbr) return null;
+  if (_teamLogoDataUriCache.has(abbr)) return _teamLogoDataUriCache.get(abbr);
+  const url = teamLogoUrl(abbr);
+  if (!url) { _teamLogoDataUriCache.set(abbr, null); return null; }
+  try {
+    const resp = await fetch(url, { mode: "cors" });
+    if (!resp.ok) { _teamLogoDataUriCache.set(abbr, null); return null; }
+    const blob = await resp.blob();
+    const dataUri = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    _teamLogoDataUriCache.set(abbr, dataUri);
+    return dataUri;
+  } catch (err) {
+    console.warn("Team logo fetch failed for", abbr, err);
+    _teamLogoDataUriCache.set(abbr, null);
+    return null;
+  }
 }
 
 
@@ -4249,6 +4305,485 @@ function _copyOpenFiltered(kind) {
   }
 }
 
+// Generate a clean PNG of open props (matches the structure of Copy Props
+// text but renders to image). Same filtering, sorting, and alt-grouping
+// logic — different output. Copy Props text function above is untouched.
+async function shareOpenPropsAsImage() {
+  const open = bets.filter(b => b.result === "pending");
+  if (!open.length) { showToast("No open props to share"); return; }
+  const isTotal = b => (b.stat || "").toUpperCase() === "GAME_TOTAL";
+  const filtered = open.filter(b => !isTotal(b));
+  if (!filtered.length) { showToast("No open props"); return; }
+
+  // Pick best price across primary + alts (same logic as _copyOpenFiltered)
+  const pickBest = (b) => {
+    const candidates = [{ book: b.book, odds: b.odds, fair: b.fair, line: b.line }];
+    if (Array.isArray(b.altBooks)) {
+      b.altBooks.forEach(a => {
+        if (a && a.book && a.odds != null) {
+          candidates.push({
+            book: a.book,
+            odds: a.odds,
+            fair: a.fair != null ? a.fair : b.fair,
+            line: a.line != null ? a.line : b.line
+          });
+        }
+      });
+    }
+    let best = null;
+    candidates.forEach(c => {
+      if (!c.fair) return;
+      const ev = calcEdge(c.odds, c.fair);
+      if (ev == null) return;
+      if (!best || ev > best.ev) best = { ...c, ev };
+    });
+    return best;
+  };
+  const enriched = filtered.map(b => {
+    const best = pickBest(b);
+    return best ? { bet: b, best } : null;
+  }).filter(x => x);
+  if (!enriched.length) { showToast("No open props"); return; }
+
+  // Sort: players by their best bet's EV, within player by stat order then line
+  const playerOrder = [];
+  const playerBestEv = new Map();
+  enriched.forEach(e => {
+    const p = e.bet.player;
+    if (!playerBestEv.has(p)) { playerOrder.push(p); playerBestEv.set(p, e.best.ev); }
+    else if (e.best.ev > playerBestEv.get(p)) playerBestEv.set(p, e.best.ev);
+  });
+  playerOrder.sort((a, b) => playerBestEv.get(b) - playerBestEv.get(a));
+  enriched.sort((a, b) => {
+    const ai = playerOrder.indexOf(a.bet.player);
+    const bi = playerOrder.indexOf(b.bet.player);
+    if (ai !== bi) return ai - bi;
+    const ra = statRank(a.bet.stat), rb = statRank(b.bet.stat);
+    if (ra !== rb) return ra - rb;
+    return (a.bet.line || 0) - (b.bet.line || 0);
+  });
+
+  const propsPerPlayer = {};
+  enriched.forEach(e => {
+    propsPerPlayer[e.bet.player] = (propsPerPlayer[e.bet.player] || 0) + 1;
+  });
+
+  // HTML-escape user-supplied strings (player/book/team names) since we're
+  // injecting them into innerHTML for the offscreen render container.
+  const esc = (s) => String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const now = new Date();
+  const dateStr = `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+
+  // Build the image HTML — mirrors the simplified preview
+  let html = `<div id="_propsImageRoot" style="width:560px;background:#0a0b0d;padding:24px 28px;font-family:'JetBrains Mono','Menlo','SF Mono',monospace;color:#d4dae3;font-size:12px;line-height:1.7;box-sizing:border-box;">`;
+  html += `<div style="margin-bottom:4px;">${dateStr}</div>`;
+  html += `<div style="margin-bottom:18px;">${enriched.length} WNBA props</div>`;
+
+  let lastPlayer = null;
+  let playerBlockOpen = false;
+  enriched.forEach((e) => {
+    const { bet, best } = e;
+    if (bet.player !== lastPlayer) {
+      if (playerBlockOpen) html += `</div></div>`;
+      const teamStr = bet.team ? ` (${esc(bet.team)})` : "";
+      const countStr = propsPerPlayer[bet.player] > 1 ? `   ${propsPerPlayer[bet.player]} props` : "";
+      html += `<div style="margin-bottom:18px;"><div style="margin-bottom:6px;">${esc(bet.player)}${teamStr}${countStr}</div><div style="padding-left:14px;">`;
+      lastPlayer = bet.player;
+      playerBlockOpen = true;
+    }
+    const statName = (typeof STAT_FULL_NAME !== "undefined" && STAT_FULL_NAME[bet.stat]) ? STAT_FULL_NAME[bet.stat] : bet.stat;
+    const ouLower = (bet.ou || "").toLowerCase();
+    const bestLine = best.line != null ? best.line : bet.line;
+    const oddsStr = best.odds > 0 ? `+${best.odds}` : `${best.odds}`;
+
+    // Build the candidate pool (primary + alts), dedupe the headline
+    const allPrices = [{ book: bet.book, odds: bet.odds, line: bet.line, fair: bet.fair }];
+    if (Array.isArray(bet.altBooks)) {
+      bet.altBooks.forEach(a => {
+        if (a && a.book && a.odds != null) {
+          allPrices.push({
+            book: a.book,
+            odds: a.odds,
+            line: a.line != null ? a.line : bet.line,
+            fair: a.fair != null ? a.fair : bet.fair
+          });
+        }
+      });
+    }
+    const seen = new Set();
+    const remaining = allPrices.filter(p => {
+      if (p.book === best.book && p.odds === best.odds && p.line === bestLine) return false;
+      const key = `${p.book}|${p.odds}|${p.line}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Same-line secondaries inline; different-line alts on their own row
+    const sameLine = remaining.filter(p => (p.line ?? bet.line) === bestLine);
+    const altsAtBestLine = sameLine.length > 0;
+    const headlinePlayTo = altsAtBestLine ? null : playToOdds(best.fair, 5);
+
+    const booksRow = [`${esc(best.book)} ${oddsStr}`].concat(sameLine.map(p => {
+      const o = p.odds > 0 ? `+${p.odds}` : `${p.odds}`;
+      return `${esc(p.book)} ${o}`;
+    })).join("  ");
+
+    html += `<div style="margin-bottom:10px;">`;
+    html += `<div>${ouLower} ${bestLine} ${statName}</div>`;
+    html += `<div style="font-size:11px;">${booksRow}</div>`;
+    if (headlinePlayTo != null) {
+      const ptStr = headlinePlayTo > 0 ? `+${headlinePlayTo}` : `${headlinePlayTo}`;
+      html += `<div style="font-size:11px;">play to ${ptStr}</div>`;
+    } else if (altsAtBestLine) {
+      // play-to lives with the same-line group — find the best fair on that line
+      const groupFair = sameLine.reduce((f, p) => (p.fair != null && (f == null || p.fair < f)) ? p.fair : f, best.fair);
+      const pt = playToOdds(groupFair, 5);
+      if (pt != null) {
+        const ptStr = pt > 0 ? `+${pt}` : `${pt}`;
+        html += `<div style="font-size:11px;">play to ${ptStr}</div>`;
+      }
+    }
+
+    // Different-line alts — group by line, one row per group with own play-to
+    const diffLineGroups = {};
+    remaining.forEach(p => {
+      if ((p.line ?? bet.line) === bestLine) return;
+      const k = String(p.line);
+      if (!diffLineGroups[k]) diffLineGroups[k] = { line: p.line, fair: p.fair, items: [] };
+      diffLineGroups[k].items.push(p);
+    });
+    const altRowParts = Object.values(diffLineGroups).map(g => {
+      const items = g.items.map(p => {
+        const o = p.odds > 0 ? `+${p.odds}` : `${p.odds}`;
+        const lineHint = `${ouLower[0]}${g.line} `;
+        return `${esc(p.book)} ${lineHint}${o}`;
+      }).join("  ");
+      const altPt = g.fair != null ? playToOdds(g.fair, 5) : null;
+      const ptStr = altPt != null ? `  play to ${altPt > 0 ? "+" + altPt : altPt}` : "";
+      return `${items}${ptStr}`;
+    });
+    if (altRowParts.length) {
+      html += `<div style="font-size:11px;padding-left:12px;">alts: ${altRowParts.join("  ")}</div>`;
+    }
+    html += `</div>`;
+  });
+  if (playerBlockOpen) html += `</div></div>`;
+  html += `</div>`;
+
+  // Render off-screen, capture via html2canvas, then share or download
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.left = "-9999px";
+  container.style.top = "0";
+  container.innerHTML = html;
+  document.body.appendChild(container);
+  const target = container.firstChild;
+
+  showToast("Generating image…");
+  try {
+    const h2c = await _ensureHtml2Canvas();
+    const canvas = await h2c(target, {
+      backgroundColor: "#0a0b0d",
+      scale: 2,
+      logging: false,
+      useCORS: true,
+    });
+    const fileDate = new Date().toISOString().slice(0, 10);
+    const filename = `props-${fileDate}.png`;
+    canvas.toBlob(async (blob) => {
+      if (!blob) { showToast("Image failed"); return; }
+      const file = new File([blob], filename, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: `${enriched.length} WNBA props` });
+          showToast("Shared");
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast("Saved");
+    }, "image/png");
+  } catch (err) {
+    console.error("Image generation failed:", err);
+    showToast("Image failed");
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+// Fancy/branded version — full ballislife.blend treatment with color-coded
+// direction bars, accent colors, gradient header. Same data as PartnerSC,
+// different render. Use this when sharing with friends; PartnerSC for partners.
+async function shareOpenPropsAsImageExclusive() {
+  const open = bets.filter(b => b.result === "pending");
+  if (!open.length) { showToast("No open props to share"); return; }
+  const isTotal = b => (b.stat || "").toUpperCase() === "GAME_TOTAL";
+  const filtered = open.filter(b => !isTotal(b));
+  if (!filtered.length) { showToast("No open props"); return; }
+
+  const pickBest = (b) => {
+    const candidates = [{ book: b.book, odds: b.odds, fair: b.fair, line: b.line }];
+    if (Array.isArray(b.altBooks)) {
+      b.altBooks.forEach(a => {
+        if (a && a.book && a.odds != null) {
+          candidates.push({
+            book: a.book, odds: a.odds,
+            fair: a.fair != null ? a.fair : b.fair,
+            line: a.line != null ? a.line : b.line
+          });
+        }
+      });
+    }
+    let best = null;
+    candidates.forEach(c => {
+      if (!c.fair) return;
+      const ev = calcEdge(c.odds, c.fair);
+      if (ev == null) return;
+      if (!best || ev > best.ev) best = { ...c, ev };
+    });
+    return best;
+  };
+  const enriched = filtered.map(b => {
+    const best = pickBest(b);
+    return best ? { bet: b, best } : null;
+  }).filter(x => x);
+  if (!enriched.length) { showToast("No open props"); return; }
+
+  const playerOrder = [];
+  const playerBestEv = new Map();
+  enriched.forEach(e => {
+    const p = e.bet.player;
+    if (!playerBestEv.has(p)) { playerOrder.push(p); playerBestEv.set(p, e.best.ev); }
+    else if (e.best.ev > playerBestEv.get(p)) playerBestEv.set(p, e.best.ev);
+  });
+  playerOrder.sort((a, b) => playerBestEv.get(b) - playerBestEv.get(a));
+  enriched.sort((a, b) => {
+    const ai = playerOrder.indexOf(a.bet.player);
+    const bi = playerOrder.indexOf(b.bet.player);
+    if (ai !== bi) return ai - bi;
+    const ra = statRank(a.bet.stat), rb = statRank(b.bet.stat);
+    if (ra !== rb) return ra - rb;
+    return (a.bet.line || 0) - (b.bet.line || 0);
+  });
+
+  const propsPerPlayer = {};
+  enriched.forEach(e => {
+    propsPerPlayer[e.bet.player] = (propsPerPlayer[e.bet.player] || 0) + 1;
+  });
+
+  const esc = (s) => String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const now = new Date();
+  const headerDate = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()} · ${now.getFullYear()}`;
+
+  // Pre-fetch ESPN team logos as data URIs so html2canvas can capture them
+  // (cross-origin images sometimes don't render in canvas without CORS headers).
+  // Book logos in BOOK_LOGOS are already data URIs so no fetch needed.
+  const teamsNeeded = new Set();
+  enriched.forEach(e => { if (e.bet.team) teamsNeeded.add(e.bet.team); });
+  const teamLogosMap = {};
+  showToast("Loading logos…");
+  await Promise.all(Array.from(teamsNeeded).map(async (abbr) => {
+    const uri = await _teamLogoAsDataUri(abbr);
+    if (uri) teamLogosMap[abbr] = uri;
+  }));
+  // Book logo: returns inline <img> using BOOK_LOGOS data URI, or a small
+  // 2-letter abbreviation badge for books without a stored logo (Caesars, etc.)
+  const bookLogoHtml = (book, size) => {
+    const sz = size || 13;
+    const data = (typeof logoFor === "function") ? logoFor(book) : null;
+    if (data) {
+      return `<img src="${data}" alt="${esc(book)}" style="width:${sz}px;height:${sz}px;border-radius:3px;object-fit:cover;vertical-align:middle;display:inline-block;flex-shrink:0;"/>`;
+    }
+    return `<span style="display:inline-flex;width:${sz}px;height:${sz}px;border-radius:3px;background:#1a1d22;color:#d4dae3;font-size:${Math.round(sz*0.5)}px;font-weight:700;align-items:center;justify-content:center;letter-spacing:-0.3px;vertical-align:middle;flex-shrink:0;font-family:'Inter',sans-serif;">${esc(book).slice(0,2).toUpperCase()}</span>`;
+  };
+  const teamLogoHtml = (abbr, size) => {
+    if (!abbr || !teamLogosMap[abbr]) return "";
+    const sz = size || 14;
+    return `<img src="${teamLogosMap[abbr]}" alt="${esc(abbr)}" style="width:${sz}px;height:${sz}px;object-fit:contain;vertical-align:middle;display:inline-block;flex-shrink:0;"/>`;
+  };
+
+  // Build HTML — fancy branded card
+  let html = `<div id="_propsImageRootEx" style="width:560px;background:linear-gradient(180deg,#0c0d10 0%,#070809 100%);border:1px solid #1a1d22;border-radius:14px;padding:24px 24px 18px;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:#fff;box-sizing:border-box;">`;
+
+  // Branded header
+  html += `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #1a1d22;">`;
+  html += `<div><div style="font-size:19px;font-weight:800;line-height:1;letter-spacing:-0.3px;"><span style="color:#a78bfa;">ballislife</span><span style="color:#7dd3fc;">.blend</span></div>`;
+  html += `<div style="font-size:10px;color:#a8b0bb;margin-top:5px;letter-spacing:0.4px;">OPEN PROPS · ${headerDate}</div></div>`;
+  html += `<div style="background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.3);color:#7dd3fc;border-radius:5px;padding:3px 8px;font-size:11px;font-weight:800;font-family:'JetBrains Mono','Menlo',monospace;">${enriched.length} PROPS</div>`;
+  html += `</div>`;
+
+  // Per player
+  let lastPlayer = null;
+  let playerBlockOpen = false;
+  enriched.forEach((e) => {
+    const { bet, best } = e;
+    if (bet.player !== lastPlayer) {
+      if (playerBlockOpen) html += `</div></div>`;
+      const teamStr = bet.team ? esc(bet.team) : "";
+      const countStr = propsPerPlayer[bet.player] > 1 ? ` · ${propsPerPlayer[bet.player]} PROPS` : "";
+      const tLogo = teamLogoHtml(bet.team, 16);
+      html += `<div style="margin-bottom:16px;">`;
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">`;
+      html += `<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:0.1px;display:flex;align-items:center;gap:7px;">${tLogo}<span>${esc(bet.player)}</span></div>`;
+      html += `<div style="font-size:10px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;font-weight:700;letter-spacing:0.3px;">${teamStr}${countStr}</div>`;
+      html += `</div>`;
+      html += `<div style="display:flex;flex-direction:column;gap:5px;">`;
+      lastPlayer = bet.player;
+      playerBlockOpen = true;
+    }
+    const statName = (typeof STAT_FULL_NAME !== "undefined" && STAT_FULL_NAME[bet.stat]) ? STAT_FULL_NAME[bet.stat] : bet.stat;
+    const statLabel = String(statName).toUpperCase();
+    const ouLower = (bet.ou || "").toLowerCase();
+    const ouUpper = ouLower.toUpperCase();
+    const bestLine = best.line != null ? best.line : bet.line;
+    const oddsStr = best.odds > 0 ? `+${best.odds}` : `−${Math.abs(best.odds)}`;
+    const dirColor = ouLower === "over" ? "#4ade80" : "#f87171";
+
+    // Same-line vs different-line alt grouping (same as PartnerSC)
+    const allPrices = [{ book: bet.book, odds: bet.odds, line: bet.line, fair: bet.fair }];
+    if (Array.isArray(bet.altBooks)) {
+      bet.altBooks.forEach(a => {
+        if (a && a.book && a.odds != null) {
+          allPrices.push({
+            book: a.book, odds: a.odds,
+            line: a.line != null ? a.line : bet.line,
+            fair: a.fair != null ? a.fair : bet.fair
+          });
+        }
+      });
+    }
+    const seen = new Set();
+    const remaining = allPrices.filter(p => {
+      if (p.book === best.book && p.odds === best.odds && p.line === bestLine) return false;
+      const key = `${p.book}|${p.odds}|${p.line}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const sameLine = remaining.filter(p => (p.line ?? bet.line) === bestLine);
+    const altsAtBestLine = sameLine.length > 0;
+    const fmtOdds = (o) => o > 0 ? `+${o}` : `−${Math.abs(o)}`;
+    // Secondary books row: logo + odds for each (more compact and visual than names)
+    const booksRow = sameLine.map(p =>
+      `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;">${bookLogoHtml(p.book, 12)}<span>${fmtOdds(p.odds)}</span></span>`
+    ).join("");
+    const headlinePlayTo = altsAtBestLine ? null : playToOdds(best.fair, 5);
+    let playToValue = headlinePlayTo;
+    if (playToValue == null && altsAtBestLine) {
+      const groupFair = sameLine.reduce((f, p) => (p.fair != null && (f == null || p.fair < f)) ? p.fair : f, best.fair);
+      playToValue = playToOdds(groupFair, 5);
+    }
+    const playToStr = playToValue != null ? (playToValue > 0 ? `+${playToValue}` : `−${Math.abs(playToValue)}`) : null;
+
+    // Bet card
+    html += `<div style="background:#050507;border:1px solid #1a1d22;border-left:2px solid ${dirColor};border-radius:5px;padding:8px 12px;">`;
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;">`;
+    html += `<div><span style="color:${dirColor};font-size:11px;font-weight:800;letter-spacing:0.4px;">${ouUpper} ${bestLine}</span> <span style="color:#a8b0bb;font-size:10px;letter-spacing:0.3px;">${statLabel}</span></div>`;
+    html += `<div style="font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;color:#d4dae3;font-weight:700;display:flex;align-items:center;gap:5px;">${oddsStr}${bookLogoHtml(best.book, 13)}<span style="color:#525a64;font-weight:600;">${esc(best.book)}</span></div>`;
+    html += `</div>`;
+    if (booksRow) {
+      html += `<div style="font-size:10px;color:#8b93a0;font-family:'JetBrains Mono','Menlo',monospace;line-height:1.7;">${booksRow}</div>`;
+    }
+    if (playToStr) {
+      html += `<div style="font-size:10px;color:#a78bfa;font-family:'JetBrains Mono','Menlo',monospace;margin-top:2px;letter-spacing:0.3px;">⚡ play to ${playToStr}</div>`;
+    }
+    // Different-line alts (own row with own play-to)
+    const diffLineGroups = {};
+    remaining.forEach(p => {
+      if ((p.line ?? bet.line) === bestLine) return;
+      const k = String(p.line);
+      if (!diffLineGroups[k]) diffLineGroups[k] = { line: p.line, fair: p.fair, items: [] };
+      diffLineGroups[k].items.push(p);
+    });
+    const altRowParts = Object.values(diffLineGroups).map(g => {
+      const items = g.items.map(p => {
+        const lineHint = `${ouLower[0]}${g.line}`;
+        return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;">${bookLogoHtml(p.book, 11)}<span>${lineHint} ${fmtOdds(p.odds)}</span></span>`;
+      }).join("");
+      const altPt = g.fair != null ? playToOdds(g.fair, 5) : null;
+      const altPtStr = altPt != null ? ` <span style="color:#a78bfa;">⚡ play to ${altPt > 0 ? `+${altPt}` : `−${Math.abs(altPt)}`}</span>` : "";
+      return `${items}${altPtStr}`;
+    });
+    if (altRowParts.length) {
+      html += `<div style="font-size:9px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;margin-top:6px;padding-left:10px;border-left:1px solid #1a1d22;letter-spacing:0.3px;line-height:1.7;"><span style="color:#7a8390;letter-spacing:0.8px;">ALTS</span> ${altRowParts.join(" ")}</div>`;
+    }
+    html += `</div>`;
+  });
+  if (playerBlockOpen) html += `</div></div>`;
+
+  // Footer
+  html += `<div style="text-align:center;padding-top:12px;border-top:1px solid #1a1d22;font-size:9px;color:#525a64;letter-spacing:1px;text-transform:uppercase;font-weight:600;">generated · ballislife.blend</div>`;
+  html += `</div>`;
+
+  // Render & share — same as PartnerSC
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.left = "-9999px";
+  container.style.top = "0";
+  container.innerHTML = html;
+  document.body.appendChild(container);
+  const target = container.firstChild;
+  showToast("Generating image…");
+  try {
+    const h2c = await _ensureHtml2Canvas();
+    const canvas = await h2c(target, {
+      backgroundColor: null,
+      scale: 2,
+      logging: false,
+      useCORS: true,
+    });
+    const fileDate = new Date().toISOString().slice(0, 10);
+    const filename = `props-exclusive-${fileDate}.png`;
+    canvas.toBlob(async (blob) => {
+      if (!blob) { showToast("Image failed"); return; }
+      const file = new File([blob], filename, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: `${enriched.length} WNBA props` });
+          showToast("Shared");
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast("Saved");
+    }, "image/png");
+  } catch (err) {
+    console.error("Image generation failed:", err);
+    showToast("Image failed");
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
 // ── SOURCE ANALYTICS ──────────────────────────────────────────────────────
 // Analyzes settled prop bets (props only — totals are tracked separately) to
 // surface which projection sources (RG, RW, DIMERS) have been profitable when
@@ -4457,33 +4992,56 @@ function renderSrcAnalytics() {
     ? `${eligible} of ${totalSettledProps} settled props have source snapshots. Older bets (tracked before this feature) won't appear.`
     : `${eligible} settled props analyzed.`;
 
-  // ── Render helpers ──
-  // Compact stat card: label + hit% + W-L + P/L + ROI
-  function statCard(label, s, opts) {
+  // ── Render helpers — TABLE ROW style (data-archive feel) ──
+  // Single row per record: label / W-L / Win% / P/L / ROI. Skips empty.
+  function row(label, s, opts) {
     opts = opts || {};
-    if (s.total === 0) return "";
+    if (!s || s.total === 0) return "";
     const hitPct = Math.round((s.hits / s.total) * 100);
-    const roi = s.staked > 0 ? ((s.pl / s.staked) * 100).toFixed(1) : "—";
+    const wl = `${s.hits}-${s.total - s.hits}${s.pushes ? "-" + s.pushes : ""}`;
+    const roi = s.staked > 0 ? (s.pl / s.staked) * 100 : null;
     const hitColor = hitPct >= 55 ? "#22c55e" : hitPct >= 45 ? "#d4dae3" : "#f87171";
     const plColor = s.pl >= 0 ? "#22c55e" : "#f87171";
-    const roiNum = Number(roi);
-    const roiColor = roiNum >= 0 ? "#7dd3fc" : "#f87171";
-    return `<div style="background:#050507;border:1px solid ${opts.featured ? "#1e40af" : "#1a1d22"};border-radius:6px;padding:10px 14px;min-width:200px;flex:1;">
-      <div style="font-size:10px;color:#a8b0bb;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">${label}</div>
-      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
-        <span style="font-size:22px;font-weight:800;color:${hitColor};letter-spacing:-0.5px;">${hitPct}%</span>
-        <span style="font-size:11px;color:#d4dae3;">${s.hits}-${s.total - s.hits}${s.pushes ? `-${s.pushes}` : ""}</span>
-        <span style="font-size:11px;color:${plColor};font-weight:700;">${s.pl>=0?'+':''}${s.pl.toFixed(2)}u</span>
-        <span style="font-size:11px;color:${roiColor};font-weight:700;margin-left:auto;">ROI ${roi}${roi!=="—"?'%':''}</span>
-      </div>
-    </div>`;
+    const roiColor = roi != null && roi >= 0 ? "#7dd3fc" : "#f87171";
+    const labelStyle = opts.featured ? "color:#7dd3fc;font-weight:700;" : opts.dim ? "color:#8b93a0;" : "color:#d4dae3;";
+    return `<tr style="border-bottom:1px solid #0f1217;">
+      <td style="padding:7px 10px;font-size:12px;${labelStyle}">${label}</td>
+      <td style="padding:7px 10px;font-size:11px;text-align:right;font-family:'JetBrains Mono','Menlo',monospace;color:#a8b0bb;">${wl}</td>
+      <td style="padding:7px 10px;font-size:11px;text-align:right;font-family:'JetBrains Mono','Menlo',monospace;color:${hitColor};font-weight:700;">${hitPct}%</td>
+      <td style="padding:7px 10px;font-size:11px;text-align:right;font-family:'JetBrains Mono','Menlo',monospace;color:${plColor};font-weight:700;">${s.pl >= 0 ? "+" : ""}${s.pl.toFixed(2)}u</td>
+      <td style="padding:7px 10px;font-size:11px;text-align:right;font-family:'JetBrains Mono','Menlo',monospace;color:${roiColor};font-weight:700;">${roi != null ? (roi >= 0 ? "+" : "") + roi.toFixed(1) + "%" : "—"}</td>
+    </tr>`;
   }
-
-  function comboLabel(srcs) {
-    return srcs.map(k => SRC_LABELS[k]).join(" + ");
+  function tableShell(rows, opts) {
+    opts = opts || {};
+    if (!rows || !rows.trim()) return "";
+    return `<table style="width:100%;border-collapse:collapse;font-family:'Inter',sans-serif;">
+      <thead>
+        <tr style="border-bottom:1px solid #1a1d22;">
+          <th style="text-align:left;padding:6px 10px;font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">${opts.labelHead || "Source"}</th>
+          <th style="text-align:right;padding:6px 10px;font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">Record</th>
+          <th style="text-align:right;padding:6px 10px;font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">Win%</th>
+          <th style="text-align:right;padding:6px 10px;font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">P/L</th>
+          <th style="text-align:right;padding:6px 10px;font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">ROI</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
   }
+  function section(title, subtitle, contentHtml, defaultOpen) {
+    if (!contentHtml || !contentHtml.trim()) return "";
+    return `<details ${defaultOpen ? "open" : ""} style="background:#0c0d10;border:1px solid #1a1d22;border-radius:6px;margin-bottom:8px;overflow:hidden;">
+      <summary style="cursor:pointer;list-style:none;padding:12px 14px;display:flex;align-items:center;gap:10px;user-select:none;">
+        <span style="font-size:10px;color:#d4dae3;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;flex:1;">${title}</span>
+        ${subtitle ? `<span style="font-size:10px;color:#525a64;">${subtitle}</span>` : ""}
+        <span style="color:#525a64;font-size:11px;transition:transform 0.2s;">▾</span>
+      </summary>
+      <div style="border-top:1px solid #1a1d22;">${contentHtml}</div>
+    </details>`;
+  }
+  function comboLabel(srcs) { return srcs.map(k => SRC_LABELS[k]).join(" + "); }
 
-  // ── Injury Context breakdown: 4 cards (CEILING ↑ Over/Under + FLOOR ↓ Over/Under) ──
+  // ── Injury Context breakdown ──
   // Snapshot was taken at save time (locked in injuryContext), so this reflects
   // each bet's actual context regardless of later injury data changes.
   const injCtx = {
@@ -4501,18 +5059,8 @@ function renderSrcAnalytics() {
     if (ctx.floor   && side === "over")  accum(b, injCtx.floorOver);
     if (ctx.floor   && side === "under") accum(b, injCtx.floorUnder);
   });
-  const injCtxCards = [
-    statCard("↑ Ceiling · Overs",   injCtx.ceilingOver),
-    statCard("↑ Ceiling · Unders",  injCtx.ceilingUnder),
-    statCard("↓ Floor · Overs",     injCtx.floorOver),
-    statCard("↓ Floor · Unders",    injCtx.floorUnder)
-  ].filter(Boolean).join("");
 
-  // Section: Dimers trend matches — bucketed by strongest matching trend rate.
-  // For each bet, take the highest hit-rate trend that aligned (same player +
-  // stat + direction). Bucket: matched-any (any trend lined up at all),
-  // strong60 (≥60%), strong70 (≥70%), strong80 (≥80%). Compare against bets
-  // with NO matching trend ("unmatched") to see if trend confirmation helps.
+  // Section: trend buckets — bucketed by strongest matching trend rate.
   const trendBuckets = {
     matched: emptyStats(),    // any trend lined up
     strong60: emptyStats(),
@@ -4531,222 +5079,136 @@ function renderSrcAnalytics() {
       accum(b, trendBuckets.unmatched);
     }
   });
-  const trendCards = [
-    statCard("Trend Matched",      trendBuckets.matched),
-    statCard("≥60% Trend",         trendBuckets.strong60),
-    statCard("≥70% Trend",         trendBuckets.strong70),
-    statCard("≥80% Trend",         trendBuckets.strong80),
-    statCard("No Trend",           trendBuckets.unmatched),
-  ].filter(Boolean).join("");
   const totalTrendMatched = trendBuckets.matched.total + trendBuckets.matched.pushes;
   const totalUnmatched = trendBuckets.unmatched.total + trendBuckets.unmatched.pushes;
-
-  // Section: solo source performance
-  const soloCards = SRC_KEYS.map(k => statCard(SRC_LABELS[k], solo[k])).filter(Boolean).join("");
-
-  // Section: combos — sort by P/L desc so the winners surface
-  const sortedCombos = Object.entries(combos)
-    .sort((a, b) => b[1].stats.pl - a[1].stats.pl);
-  const comboCards = sortedCombos
-    .map(([k, v]) => statCard(comboLabel(v.sources), v.stats, { featured: v.sources.length === 3 }))
-    .filter(Boolean).join("");
-
-  // Section: fade — when source disagreed
-  const fadeCards = SRC_KEYS.map(k => statCard(`Fade ${SRC_LABELS[k]}`, fade[k])).filter(Boolean).join("");
-
-  // Section: per-source EDGE buckets — group bets by the forecast edge magnitude
-  // each source put on them at save time. Three buckets per source: 0-5% (low),
-  // 5-10% (med), 10%+ (high). High-bucket conversion rate is the key metric —
-  // if a source's "+15% EV" calls actually hit at 60%+, that's a useful signal.
-  const edgeBucketHtml = SRC_KEYS.map(k => {
-    const b = edgeBuckets[k];
-    const cards = [
-      statCard("0–5% edge", b.low),
-      statCard("5–10% edge", b.med),
-      statCard("10%+ edge", b.high, { featured: true })
-    ].filter(Boolean).join("");
-    if (!cards) return "";
-    return `<div style="margin-top:14px;">
-      <div style="font-size:11px;color:#7dd3fc;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${SRC_LABELS[k]}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${cards}</div>
-    </div>`;
-  }).filter(Boolean).join("");
-
-  // Section: by stat — combined per source + per-side breakdown so user can see
-  // e.g. "RG calls REB overs at 60% but unders only 40%" → directional weighting clue
-  const STATS_ORDER = ["PTS", "REB", "AST", "PRA", "3PM"];
-  const byStatHtml = STATS_ORDER
-    .filter(st => byStat[st])
-    .map(st => {
-      const combinedCards = SRC_KEYS
-        .map(k => statCard(SRC_LABELS[k], byStat[st][k]))
-        .filter(Boolean).join("");
-      if (!combinedCards) return "";
-      // Per-side sub-rows: skipped entirely if no qualifying bets on that side.
-      const renderSideRow = (side) => {
-        if (!byStatSide[st] || !byStatSide[st][side]) return "";
-        const sideCards = SRC_KEYS
-          .map(k => statCard(SRC_LABELS[k], byStatSide[st][side][k]))
-          .filter(Boolean).join("");
-        if (!sideCards) return "";
-        const label = side === "over" ? "↑ Overs" : "↓ Unders";
-        const color = side === "over" ? "#4ade80" : "#f87171";
-        return `<div style="margin-top:8px;">
-          <div style="font-size:10px;color:${color};font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;opacity:0.85;">${label}</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">${sideCards}</div>
-        </div>`;
-      };
-      return `<div style="margin-top:18px;padding-bottom:14px;border-bottom:1px solid rgba(125,211,252,0.06);">
-        <div style="font-size:11px;color:#7dd3fc;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${st}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">${combinedCards}</div>
-        ${renderSideRow("over")}
-        ${renderSideRow("under")}
-      </div>`;
-    }).filter(Boolean).join("");
-
-  // ── Combos by Stat HTML — sub-grouped by market, then by combo ──
-  const combosByStatHtml = STATS_ORDER
-    .filter(st => combosByStat[st])
-    .map(st => {
-      // Sort combos for this stat by P/L descending, same as overall combos
-      const comboKeys = Object.keys(combosByStat[st]).sort((a, b) =>
-        combosByStat[st][b].stats.pl - combosByStat[st][a].stats.pl
-      );
-      const cards = comboKeys.map(key => {
-        const combo = combosByStat[st][key];
-        const label = combo.sources.map(s => SRC_LABELS[s]).join(" + ");
-        const isFullCombo = combo.sources.length === SRC_KEYS.length;
-        return statCard(label, combo.stats, isFullCombo ? { featured: true } : undefined);
-      }).filter(Boolean).join("");
-      if (!cards) return "";
-      return `<div style="margin-top:14px;">
-        <div style="font-size:11px;color:#7dd3fc;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${st}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">${cards}</div>
-      </div>`;
-    }).filter(Boolean).join("");
-
-  // ── By Side HTML — over vs under, each side gets a solo-per-source row ──
-  // Helps spot directional bias: "RG calls on overs hit 60%, on unders only 48%"
-  const bySideHtml = ["over", "under"].map(side => {
-    const cards = SRC_KEYS
-      .map(k => statCard(SRC_LABELS[k], bySide[side][k]))
-      .filter(Boolean).join("");
-    if (!cards) return "";
-    const sideLabel = side === "over" ? "↑ Overs" : "↓ Unders";
-    const sideColor = side === "over" ? "#4ade80" : "#f87171";
-    return `<div style="margin-top:14px;">
-      <div style="font-size:11px;color:${sideColor};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${sideLabel}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${cards}</div>
-    </div>`;
-  }).filter(Boolean).join("");
 
   // Empty state — show a diagnostic breakdown so user knows WHY there's no data
   if (eligible === 0) {
     const totalBets = bets.length;
     const settledBets = bets.filter(b => b.result === "hit" || b.result === "miss" || b.result === "void").length;
     const settledProps = totalSettledProps;
-    const settledPropsNoSnap = settledProps - settled.length;  // graded but missing srcProjs
+    const settledPropsNoSnap = settledProps - settled.length;
     const openBets = bets.filter(b => !b.result || b.result === "pending" || b.result === "open").length;
     const reasons = [];
     if (totalBets === 0) {
       reasons.push("No bets tracked yet — track a few from the Results tab.");
     } else {
       if (openBets > 0) reasons.push(`<strong style="color:#fb923c;">${openBets}</strong> still open — grade them once games finish.`);
-      if (settledPropsNoSnap > 0) reasons.push(`<strong style="color:#f87171;">${settledPropsNoSnap}</strong> graded but missing source snapshot (tracked before this feature shipped — those bets can't be retroactively analyzed).`);
+      if (settledPropsNoSnap > 0) reasons.push(`<strong style="color:#f87171;">${settledPropsNoSnap}</strong> graded but missing source snapshot (tracked before this feature shipped).`);
       const gameTotals = settledBets - settledProps;
-      if (gameTotals > 0) reasons.push(`<strong style="color:#8b93a0;">${gameTotals}</strong> are game totals (not player props — excluded from this view).`);
+      if (gameTotals > 0) reasons.push(`<strong style="color:#8b93a0;">${gameTotals}</strong> are game totals (excluded).`);
     }
     root.innerHTML = `<div style="padding:24px;">
       <h3 style="margin:0 0 8px 0;font-size:16px;color:#fff;">Source Analytics</h3>
-      <p style="color:#a8b0bb;font-size:13px;line-height:1.5;max-width:600px;">
-        Track and grade some prop bets, then this tab will show how each projection source (RG / RW / DIMERS) performed when it agreed with your pick — solo and in combinations.
-      </p>
-      ${reasons.length ? `
-        <div style="margin-top:18px;padding:14px 16px;background:rgba(125,211,252,0.04);border:1px solid rgba(125,211,252,0.15);border-radius:6px;max-width:600px;">
+      <p style="color:#a8b0bb;font-size:13px;line-height:1.5;max-width:600px;">Track and grade prop bets to populate this archive.</p>
+      ${reasons.length ? `<div style="margin-top:18px;padding:14px 16px;background:rgba(125,211,252,0.04);border:1px solid rgba(125,211,252,0.15);border-radius:6px;max-width:600px;">
           <div style="font-size:10px;color:#7dd3fc;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px;">Why nothing here?</div>
           <ul style="margin:0;padding-left:18px;color:#a8b0bb;font-size:12px;line-height:1.7;">
             ${reasons.map(r => `<li>${r}</li>`).join("")}
           </ul>
-          ${settledPropsNoSnap > 0 ? `<div style="margin-top:10px;font-size:11px;color:#a8b0bb;line-height:1.5;border-top:1px solid rgba(125,211,252,0.1);padding-top:10px;">New bets tracked from now on will be captured with their per-source projections, so the analytics will populate going forward.</div>` : ""}
-        </div>
-      ` : ""}
-      <p style="color:#525a64;font-size:11px;margin-top:14px;">${sampleNote}</p>
+        </div>` : ""}
     </div>`;
     return;
   }
+
+  // ── Build all tables ──
+
+  // SOURCES — solo rows + combos rows + fades rows in three small tables
+  const soloRows = SRC_KEYS.map(k => row(SRC_LABELS[k], solo[k])).join("");
+  const sortedCombos = Object.entries(combos).sort((a, b) => b[1].stats.pl - a[1].stats.pl);
+  const comboRows = sortedCombos.map(([k, v]) => row(comboLabel(v.sources), v.stats, { featured: v.sources.length === 3 })).join("");
+  const fadeRows = SRC_KEYS.map(k => row(`Fade ${SRC_LABELS[k]}`, fade[k], { dim: true })).join("");
+
+  // BY MARKET — one row per stat × source × all/overs/unders
+  const STATS_ORDER = ["PTS", "REB", "AST", "PRA", "3PM"];
+  const byMarketRows = STATS_ORDER
+    .filter(st => byStat[st])
+    .map(st => {
+      const statRows = [];
+      SRC_KEYS.forEach(k => {
+        const all = byStat[st][k];
+        if (all.total === 0) return;
+        statRows.push(row(`${st} · ${SRC_LABELS[k]}`, all));
+        const overSide = byStatSide[st]?.over?.[k];
+        const underSide = byStatSide[st]?.under?.[k];
+        if (overSide && overSide.total > 0) statRows.push(row(`<span style="padding-left:14px;color:#525a64;">↑ overs</span>`, overSide, { dim: true }));
+        if (underSide && underSide.total > 0) statRows.push(row(`<span style="padding-left:14px;color:#525a64;">↓ unders</span>`, underSide, { dim: true }));
+      });
+      return statRows.join("");
+    }).filter(Boolean).join("");
+
+  // COMBOS BY MARKET — table per stat showing combo records
+  const combosByMarketRows = STATS_ORDER
+    .filter(st => combosByStat[st])
+    .map(st => {
+      const comboKeys = Object.keys(combosByStat[st]).sort((a, b) =>
+        combosByStat[st][b].stats.pl - combosByStat[st][a].stats.pl
+      );
+      const rows = comboKeys.map(key => {
+        const c = combosByStat[st][key];
+        const label = `<span style="color:#7dd3fc;font-weight:600;">${st}</span> <span style="color:#525a64;">·</span> ${c.sources.map(s => SRC_LABELS[s]).join(" + ")}`;
+        return row(label, c.stats, { featured: c.sources.length === SRC_KEYS.length });
+      }).filter(Boolean).join("");
+      return rows;
+    }).filter(Boolean).join("");
+
+  // EDGE MAGNITUDE — one row per source per bucket
+  const edgeRows = SRC_KEYS.map(k => {
+    const b = edgeBuckets[k];
+    const r = [];
+    if (b.low.total) r.push(row(`<span style="color:#7dd3fc;font-weight:600;">${SRC_LABELS[k]}</span> <span style="color:#525a64;">·</span> 0–5% edge`, b.low));
+    if (b.med.total) r.push(row(`<span style="color:#7dd3fc;font-weight:600;">${SRC_LABELS[k]}</span> <span style="color:#525a64;">·</span> 5–10% edge`, b.med));
+    if (b.high.total) r.push(row(`<span style="color:#7dd3fc;font-weight:600;">${SRC_LABELS[k]}</span> <span style="color:#525a64;">·</span> 10%+ edge`, b.high, { featured: true }));
+    return r.join("");
+  }).join("");
+
+  // BY DIRECTION — over vs under per source
+  const bySideRows = ["over", "under"].map(side => {
+    const r = SRC_KEYS.map(k => {
+      const arrow = side === "over" ? "↑" : "↓";
+      const dirColor = side === "over" ? "#4ade80" : "#f87171";
+      return row(`<span style="color:${dirColor};font-weight:700;">${arrow}</span> ${SRC_LABELS[k]} <span style="color:#525a64;font-size:10px;">${side}s</span>`, bySide[side][k]);
+    }).join("");
+    return r;
+  }).join("");
+
+  // SIGNALS — trends + injury context together
+  const signalRows = [
+    trendBuckets.matched.total ? row(`<span style="color:#a78bfa;">●</span> Trend matched`, trendBuckets.matched) : "",
+    trendBuckets.strong60.total ? row(`<span style="color:#a78bfa;">●●</span> ≥60% trend`, trendBuckets.strong60) : "",
+    trendBuckets.strong70.total ? row(`<span style="color:#a78bfa;">●●●</span> ≥70% trend`, trendBuckets.strong70) : "",
+    trendBuckets.strong80.total ? row(`<span style="color:#a78bfa;">●●●●</span> ≥80% trend`, trendBuckets.strong80, { featured: true }) : "",
+    trendBuckets.unmatched.total ? row(`<span style="color:#525a64;">○</span> No trend`, trendBuckets.unmatched, { dim: true }) : "",
+    injCtx.ceilingOver.total ? row(`<span style="color:#22c55e;">↑</span> Ceiling · overs`, injCtx.ceilingOver) : "",
+    injCtx.ceilingUnder.total ? row(`<span style="color:#22c55e;">↑</span> Ceiling · unders`, injCtx.ceilingUnder) : "",
+    injCtx.floorOver.total ? row(`<span style="color:#f87171;">↓</span> Floor · overs`, injCtx.floorOver) : "",
+    injCtx.floorUnder.total ? row(`<span style="color:#f87171;">↓</span> Floor · unders`, injCtx.floorUnder) : "",
+  ].join("");
 
   const modeIsEV = _srcAnalyticsMode === "ev";
   const modePillStyle = (active) => `background:${active ? "rgba(125,211,252,0.18)" : "transparent"};color:${active ? "#7dd3fc" : "#8b93a0"};border:1px solid ${active ? "rgba(125,211,252,0.4)" : "#1a1d22"};padding:5px 12px;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;border-radius:4px;cursor:pointer;font-family:'Inter',sans-serif;`;
 
   root.innerHTML = `<div style="padding:0;">
-    <div style="margin-bottom:14px;">
-      <h3 style="margin:0;font-size:16px;color:#fff;">Source Analytics</h3>
-      <p style="font-size:11px;color:#a8b0bb;margin:4px 0 0 0;line-height:1.4;">${sampleNote} Records only count bets where the source agreed with your pick at its line.</p>
-    </div>
-
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:10px 12px;background:rgba(125,211,252,0.04);border:1px solid rgba(125,211,252,0.12);border-radius:6px;">
-      <span style="font-size:9px;color:#a8b0bb;letter-spacing:1.2px;text-transform:uppercase;font-weight:700;">Agreement</span>
-      <div style="display:flex;gap:4px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;gap:12px;flex-wrap:wrap;">
+      <div>
+        <h3 style="margin:0;font-size:16px;color:#fff;letter-spacing:0.2px;">Data Archive</h3>
+        <p style="font-size:11px;color:#525a64;margin:4px 0 0 0;">Source agreement performance · ${sampleNote}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:9px;color:#525a64;letter-spacing:1px;text-transform:uppercase;font-weight:700;">Mode</span>
         <button onclick="setSrcAnalyticsMode('directional')" style="${modePillStyle(!modeIsEV)}">Directional</button>
         <button onclick="setSrcAnalyticsMode('ev')" style="${modePillStyle(modeIsEV)}">+EV</button>
       </div>
-      <span style="font-size:10px;color:#525a64;margin-left:auto;flex:1;text-align:right;line-height:1.3;">${modeIsEV
-        ? "Source agrees if its projection produces +EV at the price paid."
-        : "Source agrees if its projection sits on the same side of the line as your pick."}</span>
     </div>
 
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Solo · Each Source Standalone</h4>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${soloCards || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}</div>
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Combos · Exact Source Agreement</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Sorted by P/L. Each bet counts only toward the EXACT combo of sources that agreed — e.g. a bet where RG+RW agreed but Dimers didn't appears under "RG + RW" only, not under solo RG or RW.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${comboCards || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}</div>
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Combos · By Market</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Same exclusive-combo logic, sliced per stat. Lets you spot e.g. "the 3/3 consensus combo crushes AST but lags PTS" so you can weight differently by market.</p>
-      ${combosByStatHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Fade · When Source DISAGREED With Pick</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Hit% on bets where the source projected the opposite side. Low hit% means you should trust the source's warning; high hit% means it's been wrong to fade.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${fadeCards || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}</div>
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Edge Magnitude · By Source</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Each source's individual forecasted edge at save time (per-source EV%) bucketed into 0-5%, 5-10%, and 10%+. Helps see whether a source's "high edge" calls actually convert — if RG's 10%+ EV picks hit 60%+ but its 0-5% calls hit 48%, you've found a useful signal threshold.</p>
-      ${edgeBucketHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet — edge per source captured starting now.</p>'}
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Injury Context · Floor & Ceiling Bets</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Tracks P/L on bets where the player was tagged FLOOR ↓ (Q/GTD, downside) or CEILING ↑ (beneficiary of another player's absence). Snapshot taken at save-time. Empty cards mean no bets fit that combo yet.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${injCtxCards || '<p style="color:#525a64;font-size:13px;">No floor/ceiling bets tracked yet</p>'}</div>
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">Dimers Trends · Match Performance</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">When a bet you placed lined up with a Dimers trend (same player + stat + side), did it perform better? "Trend Matched" = any matching trend existed at save time. "≥X% Trend" = strongest matching trend hit at that rate or higher. "No Trend" = bet placed without a confirming trend. Compare the Matched rows vs No Trend to see if trends are useful filters.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${trendCards || '<p style="color:#525a64;font-size:13px;">No graded bets with trend snapshots yet — paste trends + grade bets to populate.</p>'}</div>
-      ${totalTrendMatched > 0 || totalUnmatched > 0 ? `<p style="font-size:10px;color:#525a64;margin-top:6px;">${totalTrendMatched} matched · ${totalUnmatched} unmatched</p>` : ""}
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">By Market Type</h4>
-      ${byStatHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}
-    </div>
-
-    <div class="tracker-section">
-      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:4px;">By Pick Direction · Over vs Under</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-2px 0 8px 0;line-height:1.4;">Solo source performance split by which side you bet. Useful for spotting if a source guides you better on overs vs unders — e.g. RG on overs hits 60% but on unders only 45%.</p>
-      ${bySideHtml || '<p style="color:#525a64;font-size:13px;">No qualifying bets yet</p>'}
-    </div>
+    ${section("Sources · Solo", `${SRC_KEYS.length} sources`, tableShell(soloRows, { labelHead: "Source" }), true)}
+    ${section("Sources · Combos", `${sortedCombos.length} combos · sorted by P/L`, tableShell(comboRows, { labelHead: "Combination" }))}
+    ${section("Sources · Fade", "When source disagreed with your pick", tableShell(fadeRows, { labelHead: "Fade" }))}
+    ${section("By Market", "Source records per stat (overs/unders)", tableShell(byMarketRows, { labelHead: "Stat · Source" }))}
+    ${section("Combos · By Market", "Exclusive combo records sliced per stat", tableShell(combosByMarketRows, { labelHead: "Stat · Combo" }))}
+    ${section("Edge Magnitude", "Per-source EV buckets at save time", tableShell(edgeRows, { labelHead: "Source · Edge" }))}
+    ${section("By Direction", "Solo source records split by overs vs unders", tableShell(bySideRows, { labelHead: "Direction · Source" }))}
+    ${section("Signals · Trends & Injury", `${totalTrendMatched} matched · ${totalUnmatched} unmatched`, tableShell(signalRows, { labelHead: "Signal" }))}
   </div>`;
 }
 
@@ -4757,6 +5219,90 @@ window._trackerPeriod = window._trackerPeriod || "all";
 function setTrackerPeriod(p) {
   window._trackerPeriod = p;
   if (typeof renderTracker === "function") renderTracker();
+}
+
+// Per-bet override toggle — exposes the manual HIT/MISS/VOID buttons on a
+// single settled card when the user wants to override the auto-grade. Default
+// state hides them so settled cards stay visually clean.
+window._exposeGradeId = window._exposeGradeId || null;
+function toggleExposeGrade(id) {
+  window._exposeGradeId = window._exposeGradeId === id ? null : id;
+  if (typeof renderTracker === "function") renderTracker();
+}
+
+// Lazy-load html2canvas from CDN — only fetched when the user actually
+// clicks Save. Cached on window so repeat clicks are instant.
+function _ensureHtml2Canvas() {
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  if (window._html2canvasLoading) return window._html2canvasLoading;
+  window._html2canvasLoading = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = () => reject(new Error("Failed to load html2canvas"));
+    document.head.appendChild(s);
+  });
+  return window._html2canvasLoading;
+}
+
+// Capture the performance panel as a PNG. On mobile (where the Web Share API
+// is available with files), offer the native share sheet so the user can
+// quickly post to Twitter/Messages/etc. On desktop, just download.
+async function screenshotPerfPanel() {
+  const panel = document.getElementById("tracker-perf-panel");
+  if (!panel) return;
+  const btn = panel.querySelector("[data-screenshot-btn]");
+  const origText = btn ? btn.innerHTML : "";
+  if (btn) { btn.innerHTML = "...";  btn.disabled = true; }
+  try {
+    const h2c = await _ensureHtml2Canvas();
+    // Hide the screenshot button itself during capture so it doesn't appear
+    // in the image, then restore.
+    if (btn) btn.style.visibility = "hidden";
+    const canvas = await h2c(panel, {
+      backgroundColor: "#0c0d10",
+      scale: 2,             // retina-quality
+      logging: false,
+      useCORS: true,
+      // html2canvas struggles with some advanced CSS — these flags improve fidelity
+      letterRendering: true,
+      allowTaint: false,
+    });
+    if (btn) btn.style.visibility = "visible";
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `ballislife-perf-${dateStr}.png`;
+    // Try Web Share API first (mobile) — falls back to download
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], filename, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "Performance" });
+          if (btn) { btn.innerHTML = "✓ shared"; setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 1500); }
+          return;
+        } catch (err) {
+          // User cancelled share — fall through to download
+          if (err && err.name === "AbortError") {
+            if (btn) { btn.innerHTML = origText; btn.disabled = false; }
+            return;
+          }
+        }
+      }
+      // Desktop / no share API → trigger download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      if (btn) { btn.innerHTML = "✓ saved"; setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 1500); }
+    }, "image/png");
+  } catch (err) {
+    console.error("Screenshot failed:", err);
+    if (btn) { btn.innerHTML = "× failed"; btn.style.visibility = "visible"; setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 2000); }
+  }
 }
 
 // Build the performance dashboard HTML (cumulative units + this week + weekly
@@ -5089,7 +5635,8 @@ function buildPerformancePanel(scopedBets) {
         #tracker-perf-grid { grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr) !important; }
       }
     </style>
-    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:10px;padding:16px 18px;margin-bottom:18px;">
+    <div id="tracker-perf-panel" style="background:#0c0d10;border:1px solid #1a1d22;border-radius:10px;padding:16px 18px;margin-bottom:18px;position:relative;">
+      <button onclick="screenshotPerfPanel()" data-screenshot-btn title="Save / share as image" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#a8b0bb;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.4px;display:flex;align-items:center;gap:4px;z-index:2;transition:all 0.15s;" onmouseover="this.style.background='rgba(125,211,252,0.08)';this.style.borderColor='rgba(125,211,252,0.32)';this.style.color='#7dd3fc';" onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#a8b0bb';">📸 SAVE</button>
       <div style="display:grid;grid-template-columns:1fr;gap:22px;align-items:start;" id="tracker-perf-grid">
         <!-- LEFT: Cumulative Units chart -->
         <div style="position:relative;">
@@ -5414,7 +5961,13 @@ function renderTracker() {
       : "";
     // Status accent (left border color based on result)
     const accent = b.result==="hit"?"#22c55e":b.result==="miss"?"#f87171":b.result==="void"?"#f59e0b":"#1e40af";
-    const bgTint = b.result==="pending" ? "#1e40af18" : "transparent";
+    // Solid backgrounds — easier to read against the page. Subtle blue tint
+    // for pending so they're still distinguishable from settled.
+    const bgTint = b.result === "pending" ? "#0d1428" : "#0c0d10";
+    // Editing state — when toggled, the manual HIT/MISS/VOID buttons expose.
+    // Most settled bets are auto-graded so we hide the buttons by default to
+    // keep cards visually quiet. User toggles via the small ⋯ icon.
+    const isEditingGrade = window._exposeGradeId === b.id;
 
     // Stat block helper — small label + bigger value
     const stat = (label, value, color="#fff") =>
@@ -5423,7 +5976,7 @@ function renderTracker() {
         <div style="font-size:12px;color:${color};font-weight:700;white-space:nowrap;">${value}</div>
       </div>`;
 
-    const html = `<div class="bet-card" data-bet-id="${b.id}" style="background:${bgTint};border:1px solid #1a1d22;border-left:3px solid ${accent};border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;flex-direction:column;gap:8px;">
+    const html = `<div class="bet-card" data-bet-id="${b.id}" style="background:${bgTint};border:1px solid #1a1d22;border-left:3px solid ${accent};border-radius:8px;padding:9px 11px;margin-bottom:6px;max-width:760px;display:flex;flex-direction:column;gap:6px;">
       <!-- Top row: checkbox + player + bet headline + actions -->
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
         <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;flex:1;">
@@ -5431,7 +5984,6 @@ function renderTracker() {
           <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;">
             <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.2;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               ${(() => {
-                // For props: single team. For totals: "AWAY/HOME" split into two logos.
                 if (!b.team) return "";
                 if ((b.stat || "").toUpperCase() === "GAME_TOTAL" && b.team.includes("/")) {
                   const [away, home] = b.team.split("/");
@@ -5440,8 +5992,6 @@ function renderTracker() {
                 return teamLogoImg(b.team, 16);
               })()}
               <span onclick="editBet(${b.id})" style="cursor:pointer;border-bottom:1px dashed #1e40af77;" title="Click to edit">${b.player}</span> <span style="color:#7dd3fc;font-weight:600;">${b.ou} ${b.line} ${statLbl}</span>${(() => {
-                // Injury context badge (FLOOR/CEILING) — snapshot at save time.
-                // Shows on PROP bets only; totals don't have player-level context.
                 const ctx = b.injuryContext;
                 let badge = "";
                 if (ctx) {
@@ -5453,7 +6003,6 @@ function renderTracker() {
                     badge += ` <span title="${tip}" style="background:#22c55e22;border:1px solid #22c55e77;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">CEILING ↑</span>`;
                   }
                 }
-                // Trend-match badge — shows the strongest matching Dimers trend rate
                 if (Array.isArray(b.trendMatches) && b.trendMatches.length > 0) {
                   const top = b.trendMatches.reduce((a,c) => c.rate > a.rate ? c : a, b.trendMatches[0]);
                   const tip = b.trendMatches.map(t => `${t.hits}/${t.games} (${t.rate}%)`).join(" · ").replace(/"/g,"'");
@@ -5467,26 +6016,42 @@ function renderTracker() {
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
           ${(() => {
-            // Always show HIT/MISS/VOID. Current state highlighted; click another to override the grade.
             const cur = b.result || "pending";
-            const btn = (label, val, baseBg, baseBorder, baseColor) => {
+            // PENDING bets get the AUTO + manual buttons visible (need action).
+            // SETTLED bets show a compact result badge by default; user clicks
+            // the ⋯ icon to expose override buttons when auto-grade got it wrong.
+            if (cur === "pending") {
+              const hitBtn = `<button class="result-btn" onclick="setBetResult(${b.id},'hit')" style="background:#22c55e22;border:1px solid #22c55e55;color:#22c55e;font-weight:700;border-radius:3px;padding:2px 6px;font-size:9px;cursor:pointer;letter-spacing:0.3px;font-family:'Inter',sans-serif;">H</button>`;
+              const missBtn = `<button class="result-btn" onclick="setBetResult(${b.id},'miss')" style="background:#f8717122;border:1px solid #f8717155;color:#f87171;font-weight:700;border-radius:3px;padding:2px 6px;font-size:9px;cursor:pointer;letter-spacing:0.3px;font-family:'Inter',sans-serif;">M</button>`;
+              const voidBtn = `<button class="result-btn" onclick="setBetResult(${b.id},'void')" style="background:#f59e0b22;border:1px solid #f59e0b55;color:#f59e0b;font-weight:700;border-radius:3px;padding:2px 6px;font-size:9px;cursor:pointer;letter-spacing:0.3px;font-family:'Inter',sans-serif;">V</button>`;
+              const autoBtn = `<button class="result-btn" onclick="gradeOneBet(${b.id})" style="background:#1e40af;color:#fff;border:1px solid #1e40af;border-radius:3px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;" title="Auto grade via ESPN">AUTO</button>`;
+              return `${autoBtn}${hitBtn}${missBtn}${voidBtn}`;
+            }
+            // Settled bet — show small result badge + edit toggle
+            const badgeColor = cur === "hit" ? "#22c55e" : cur === "miss" ? "#f87171" : "#f59e0b";
+            const badgeBg = `${badgeColor}22`;
+            const badgeBorder = `${badgeColor}77`;
+            const label = cur === "hit" ? "HIT" : cur === "miss" ? "MISS" : "VOID";
+            const editToggle = `<button onclick="toggleExposeGrade(${b.id})" title="Override grade" style="background:transparent;border:1px solid #1a1d22;color:#525a64;font-size:10px;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:'Inter',sans-serif;line-height:1;">⋯</button>`;
+            if (!isEditingGrade) {
+              return `<span style="background:${badgeBg};border:1px solid ${badgeBorder};color:${badgeColor};font-size:10px;font-weight:800;letter-spacing:0.5px;padding:2px 8px;border-radius:3px;">${label}</span>${editToggle}`;
+            }
+            // Editing — expose override buttons
+            const btn = (lbl, val, baseBg, baseBorder, baseColor) => {
               const active = cur === val;
-              const bg = active ? baseBg.replace("22","").replace("33","").replace("66","") : baseBg;
+              const bg = active ? baseColor : baseBg;
               const border = active ? baseColor : baseBorder;
               const color = active ? "#050507" : baseColor;
-              const weight = active ? "800" : "700";
-              return `<button class="result-btn" onclick="setBetResult(${b.id},'${val}')" style="background:${bg};border:1px solid ${border};color:${color};font-weight:${weight};border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;">${label}</button>`;
+              return `<button onclick="setBetResult(${b.id},'${val}');toggleExposeGrade(${b.id})" style="background:${bg};border:1px solid ${border};color:${color};font-weight:700;border-radius:3px;padding:2px 7px;font-size:10px;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;">${lbl}</button>`;
             };
             const hitBtn = btn("HIT", "hit", "#22c55e22", "#22c55e55", "#22c55e");
             const missBtn = btn("MISS", "miss", "#f8717122", "#f8717155", "#f87171");
             const voidBtn = btn("VOID", "void", "#f59e0b22", "#f59e0b55", "#f59e0b");
-            const autoBtn = cur === "pending"
-              ? `<button class="result-btn" onclick="gradeOneBet(${b.id})" style="background:#1e40af30;color:#7dd3fc;border:1px solid #1e40af77;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.4px;font-family:'Inter',sans-serif;" title="Auto grade via ESPN">AUTO</button>`
-              : "";
-            return `${hitBtn}${missBtn}${voidBtn}${autoBtn}`;
+            const cancelBtn = `<button onclick="toggleExposeGrade(${b.id})" style="background:transparent;border:1px solid #1a1d22;color:#525a64;font-size:10px;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:'Inter',sans-serif;">×</button>`;
+            return `${hitBtn}${missBtn}${voidBtn}${cancelBtn}`;
           })()}
-          <button onclick="copySingleBet(${b.id})" style="background:#1e40af30;border:1px solid #1e40af77;color:#7dd3fc;font-size:10px;font-weight:700;cursor:pointer;padding:3px 8px;border-radius:4px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Copy this bet">COPY</button>
-          <button onclick="deleteBet(${b.id})" style="background:transparent;border:none;color:#525a64;font-size:14px;cursor:pointer;padding:0 4px;" title="Delete">✕</button>
+          <button onclick="copySingleBet(${b.id})" style="background:transparent;border:1px solid #1a1d22;color:#7dd3fc;font-size:10px;font-weight:700;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Copy this bet">COPY</button>
+          <button onclick="deleteBet(${b.id})" style="background:transparent;border:none;color:#525a64;font-size:13px;cursor:pointer;padding:0 3px;" title="Delete">✕</button>
         </div>
       </div>
       <!-- Bottom row: metric grid -->
@@ -5570,7 +6135,8 @@ function renderTracker() {
     <div id="bulk-copy-bar" style="display:none;position:sticky;top:0;z-index:50;background:#1e40af;border-radius:8px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(30,64,175,0.4);">
       <span style="color:#fff;font-size:13px;font-weight:700;letter-spacing:0.3px;"><span id="bulk-copy-count">0</span> selected</span>
       <span style="margin-left:auto;display:flex;gap:8px;">
-        <button onclick="copySelectedBets()" style="background:#7dd3fc;border:none;color:#050507;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">COPY SELECTED</button>
+        <button onclick="copySelectedBets()" style="background:#7dd3fc;border:none;color:#050507;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">COPY</button>
+        <button onclick="shareSelectedBetsAsImage()" style="background:#a78bfa;border:none;color:#050507;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">📸 IMAGE</button>
         <button onclick="clearSelectedBets()" style="background:transparent;border:1px solid #fff;color:#fff;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Clear</button>
       </span>
     </div>
@@ -5583,6 +6149,8 @@ function renderTracker() {
       <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
         <button onclick="openQuickGrade()" style="background:#1e40af;border:none;color:#050507;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Quick Grade</button>
         <button onclick="copyOpenPlays()" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Copy Props</button>
+        <button onclick="shareOpenPropsAsImageExclusive()" title="Branded ballislife.blend card — for personal sharing" style="background:#0c0d10;border:1px solid #a78bfa;color:#a78bfa;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">📸 ExclusiveSC</button>
+        <button onclick="shareOpenPropsAsImage()" title="Plain notes-style image — for partners" style="background:#0c0d10;border:1px solid #525a64;color:#a8b0bb;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">📸 PartnerSC</button>
         <button onclick="copyOpenTotals()" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Copy Totals</button>
         <button onclick="copyUA()" title="Quick grouped-by-player list — for cross-checking before adding more bets" style="background:#0c0d10;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">UA</button>
         <button onclick="copyDailyRecapProps()" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Props Recap</button>
@@ -5892,6 +6460,46 @@ function getTrendsForPlayer(playerName, stat) {
   if (!stat) return all;
   const statU = (stat || "").toUpperCase();
   return all.filter(t => t.stat === statU);
+}
+
+// Synthesize combined-stat trends (PRA, PR, PA, RA) from a player's individual
+// PTS/REB/AST trends. Dimers doesn't publish combined-stat trends directly, but
+// if a player is trending the same direction on all components, the combined
+// line + average hit rate gives a useful directional signal. Marked `derived`
+// so the renderer can show "avg" instead of fake hits/games.
+function deriveCombinedTrends(playerTrends) {
+  if (!Array.isArray(playerTrends) || playerTrends.length === 0) return [];
+  // Group by direction → stat → first match
+  const byDir = { over: {}, under: {} };
+  playerTrends.forEach(t => {
+    if (!byDir[t.ou]) return;
+    if (!byDir[t.ou][t.stat]) byDir[t.ou][t.stat] = t;
+  });
+  const combos = [
+    { key: "PRA", parts: ["PTS", "REB", "AST"] },
+    { key: "PR",  parts: ["PTS", "REB"] },
+    { key: "PA",  parts: ["PTS", "AST"] },
+    { key: "RA",  parts: ["REB", "AST"] },
+  ];
+  const derived = [];
+  ["over", "under"].forEach(dir => {
+    combos.forEach(c => {
+      const comps = c.parts.map(p => byDir[dir][p]);
+      if (comps.some(x => !x)) return;  // need all components for this combo
+      const lineSum = comps.reduce((s, t) => s + t.line, 0);
+      const avgRate = comps.reduce((s, t) => s + (t.hits / t.games), 0) / comps.length;
+      derived.push({
+        player: comps[0].player,
+        ou: dir,
+        line: +lineSum.toFixed(1),
+        stat: c.key,
+        rate: +(avgRate * 100).toFixed(0),
+        derived: true,
+        sourceStats: c.parts,
+      });
+    });
+  });
+  return derived;
 }
 
 function clearTrends() {
