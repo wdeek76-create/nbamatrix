@@ -315,6 +315,19 @@ table colgroup col.avg-col{width:16%;}
   </div>
 </div>
 
+<!-- Reusable info popover — opened by any info icon (ⓘ) in the app.
+     Pattern: clicking ⓘ calls showInfoPopover(title, headerValue, sectionsHtml).
+     Tap outside or the close button to dismiss. Works on mobile & desktop. -->
+<div id="info-popover-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10000;align-items:center;justify-content:center;padding:20px;font-family:'Inter',sans-serif;" onclick="if(event.target===this)hideInfoPopover()">
+  <div id="info-popover-card" style="background:#0c0d10;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:22px 22px 18px;max-width:440px;width:100%;color:#fff;line-height:1.5;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.6);">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:12px;">
+      <div id="info-popover-title" style="font-size:17px;font-weight:800;color:#fff;letter-spacing:-0.1px;"></div>
+      <button onclick="hideInfoPopover()" style="background:transparent;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px;line-height:1;opacity:0.55;">×</button>
+    </div>
+    <div id="info-popover-content" style="font-size:14px;color:#fff;"></div>
+  </div>
+</div>
+
 <div id="tabs-wrap">
 <div id="tabs">
   <button class="tab-btn active" onclick="switchTab('upload')">UPLOAD</button>
@@ -2668,6 +2681,28 @@ function renderMatchupStatus() {
   el.textContent = `${teamCount} teams loaded · ${agoStr}`;
 }
 
+// ── INFO POPOVER ───────────────────────────────────────────────────────────
+// Reusable rich-explainer overlay. Use from any UI element by wiring an info
+// icon to call showInfoPopover(title, contentHtml). Tap outside or × to dismiss.
+function showInfoPopover(title, contentHtml) {
+  const overlay = document.getElementById("info-popover-overlay");
+  const titleEl = document.getElementById("info-popover-title");
+  const contentEl = document.getElementById("info-popover-content");
+  if (!overlay || !titleEl || !contentEl) return;
+  titleEl.textContent = title;
+  contentEl.innerHTML = contentHtml;
+  overlay.style.display = "flex";
+}
+function hideInfoPopover() {
+  const overlay = document.getElementById("info-popover-overlay");
+  if (overlay) overlay.style.display = "none";
+}
+// Convenience: render a small ⓘ icon as an inline-block button. Returns the
+// HTML string for inline embedding. Click fires the supplied JS expression.
+function infoIconHtml(jsHandler) {
+  return `<button onclick="${jsHandler}" style="background:transparent;border:none;color:#fff;opacity:0.55;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;vertical-align:baseline;font-family:'Inter',sans-serif;" aria-label="More info">ⓘ</button>`;
+}
+
 // ── TEAM LOGOS (ESPN) ──────────────────────────────────────────────────────
 // ESPN serves WNBA team logos at a predictable URL:
 //   https://a.espncdn.com/i/teamlogos/wnba/500/{lowercase_espn_abbr}.png
@@ -4037,20 +4072,79 @@ function updateMatchupInModal() {
   if (fav >= 10)      { color = "#4ade80"; tier = "favorable"; }
   else if (fav >= -5) { color = "#fbbf24"; tier = "neutral"; }
   else                { color = "#f87171"; tier = "headwind"; }
+  // Plain-English tier labels for the explanation line
+  let tierLabel;
+  if (fav >= 15)        tierLabel = "strong tailwind";
+  else if (fav >= 10)   tierLabel = "tailwind";
+  else if (fav >= 5)    tierLabel = "slight tailwind";
+  else if (fav >= -5)   tierLabel = "neutral";
+  else if (fav >= -10)  tierLabel = "slight headwind";
+  else if (fav >= -15)  tierLabel = "headwind";
+  else                  tierLabel = "strong headwind";
   // Bar fill: map |fav| from 0 to 30% → 0..100% width. Clamp at 30%+ as "full bar".
   const barPct = Math.min(100, Math.round((Math.abs(fav) / 30) * 100));
   const favLabel = (fav > 0 ? "+" : "") + fav.toFixed(1) + "%";
-  const tipText = `${adj.stat} allowed by ${adj.opp}: ${adj.oppValue} · league avg: ${adj.leagueAvg} · ${tier}`;
-  row.innerHTML = `<div title="${tipText}" style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:6px 9px;cursor:help;">
-    <span style="white-space:nowrap;">
-      <span style="color:#fff;font-weight:700;letter-spacing:0.6px;font-size:9.5px;">vs ${adj.opp}</span>
-      <span style="color:${color};font-weight:800;margin-left:6px;">${favLabel}</span>
-    </span>
-    <div style="height:6px;background:#1a1d22;border-radius:3px;overflow:hidden;">
-      <div style="height:100%;width:${barPct}%;background:linear-gradient(90deg, ${color} 0%, ${color}cc 100%);border-radius:3px;"></div>
+  const directionWord = ou === "over" ? "OVER" : "UNDER";
+  // Resolve the CSV column name for display (THREES → 3PM, etc.)
+  const col = BET_STAT_TO_OPP_COL[stat] || stat;
+  // Get team count behind the league avg so user knows the baseline's sample size
+  const data = getMatchupData();
+  const teamCount = data && data.teams ? Object.keys(data.teams).length : 0;
+  row.innerHTML = `<div style="font-family:'JetBrains Mono','Menlo',monospace;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:8px 10px;">
+    <!-- Top row: matches the volatility bar layout (label + value + bar) -->
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;font-size:10px;line-height:1;">
+      <span style="white-space:nowrap;">
+        <span style="color:#fff;font-weight:700;letter-spacing:0.6px;font-size:9.5px;">vs ${adj.opp}</span>
+        <span style="color:${color};font-weight:800;margin-left:6px;">${favLabel}</span>
+      </span>
+      <div style="height:6px;background:#1a1d22;border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${barPct}%;background:linear-gradient(90deg, ${color} 0%, ${color}cc 100%);border-radius:3px;"></div>
+      </div>
+    </div>
+    <!-- Explanation block: always visible, white-bold for the key numbers -->
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);font-size:10.5px;line-height:1.55;color:#fff;letter-spacing:0.2px;">
+      <div style="margin-bottom:3px;"><span style="font-weight:800;">${adj.opp}</span> allows <span style="font-weight:800;">${adj.oppValue}</span> ${col} per game</div>
+      <div style="margin-bottom:3px;">league avg <span style="font-weight:800;">${adj.leagueAvg}</span> <span style="opacity:0.55;font-size:9.5px;">(${teamCount} team${teamCount===1?"":"s"} uploaded)</span></div>
+      <div style="color:${color};font-weight:800;">→ ${tierLabel} for ${directionWord}</div>
     </div>
   </div>`;
-  if (summary) summary.textContent = `${adj.oppValue} vs lg ${adj.leagueAvg}`;
+  // Build the deep-dive explainer content for the info popover
+  const exampleSign = fav >= 0 ? "+" : "";
+  const explainerHtml = `
+    <div style="font-size:13.5px;color:#fff;opacity:0.85;margin-bottom:14px;">How favorable tonight's opponent is for this stat compared to a typical team in your uploaded sample.</div>
+    <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:8px;">In a betting context</div>
+      <div style="font-size:13.5px;color:#fff;opacity:0.9;line-height:1.6;">
+        <span style="color:${color};font-weight:800;">${favLabel}</span> means <span style="font-weight:700;">${adj.opp}</span> gives up <span style="font-weight:700;">${Math.abs(fav).toFixed(1)}% ${fav >= 0 ? "more" : "less"}</span> ${col} than the average team in your uploaded data.
+        For <span style="font-weight:700;">${directionWord}</span> bets, positive % is a tailwind (the opponent's tendencies help your pick). For the opposite side, the sign flips.
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:8px;">Tiers</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;color:#fff;opacity:0.9;line-height:1.4;">
+        <span style="color:#4ade80;font-weight:800;">≥ +15%</span><span>strong tailwind</span>
+        <span style="color:#4ade80;font-weight:800;">≥ +10%</span><span>tailwind</span>
+        <span style="color:#fbbf24;font-weight:800;">+5 to +10%</span><span>slight tailwind</span>
+        <span style="color:#fbbf24;font-weight:800;">±5%</span><span>neutral (line likely priced this in)</span>
+        <span style="color:#f87171;font-weight:800;">−5 to −10%</span><span>slight headwind</span>
+        <span style="color:#f87171;font-weight:800;">≤ −10%</span><span>headwind</span>
+        <span style="color:#f87171;font-weight:800;">≤ −15%</span><span>strong headwind</span>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:8px;">League average</div>
+      <div style="font-size:13.5px;color:#fff;opacity:0.9;line-height:1.6;">
+        Computed from the <span style="font-weight:800;">${teamCount}</span> team${teamCount===1?"":"s"} you've uploaded. With fewer teams the baseline is rougher — upload more daily to sharpen it. Re-uploading the same team overwrites the latest values (last write wins).
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;text-align:center;">
+      <div style="display:inline-block;background:${color}1a;border:1px solid ${color}66;color:${color};border-radius:6px;padding:8px 16px;font-size:14px;font-weight:800;letter-spacing:0.2px;">→ ${tierLabel} for ${directionWord}</div>
+    </div>
+  `;
+  // Stash content on window so the icon's onclick can grab it (avoid escaping HTML in inline JS)
+  window._matchupExplainer = { title: `Matchup · ${favLabel}`, content: explainerHtml };
+  // Now update the summary line + add an info icon next to it
+  if (summary) summary.innerHTML = `<span style="font-weight:800;">${adj.oppValue}</span> vs lg <span style="font-weight:800;">${adj.leagueAvg}</span> ${infoIconHtml("showInfoPopover(window._matchupExplainer.title, window._matchupExplainer.content)")}`;
   container.style.display = "block";
 }
 
@@ -12416,8 +12510,8 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
          Same visual treatment as the Volatility bar in Splits. -->
     <div id="modal-matchup" style="margin-top:10px;display:none;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-        <div style="font-size:10px;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;">Matchup</div>
-        <div id="modal-matchup-summary" style="font-size:9px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:0.3px;"></div>
+        <div style="font-size:10px;color:#fff;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Matchup</div>
+        <div id="modal-matchup-summary" style="font-size:10px;color:#fff;font-family:'JetBrains Mono','Menlo',monospace;font-weight:700;letter-spacing:0.3px;"></div>
       </div>
       <div id="modal-matchup-row"></div>
     </div>
