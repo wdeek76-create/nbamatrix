@@ -358,6 +358,26 @@ table colgroup col.avg-col{width:16%;}
       <div id="trends-status" style="font-size:11px;margin-top:8px;color:#525a64;"></div>
     </div>
 
+    <!-- Matchup Data — uploaded CSV (Rotowire opp-avg) drives the per-bet
+         "vs OPP · +12% favorable" row in the bet modal. Doesn't affect projections
+         directly — purely informational, but snapshots onto each bet for backtest. -->
+    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-top:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Matchup Data</div>
+          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Upload opp-avg CSV (Rotowire defensive averages) to enable matchup adjustments in the bet modal.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label style="background:#22c55e;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">
+            UPLOAD CSV
+            <input type="file" accept=".csv" style="display:none;" onchange="handleMatchupCsvUpload(this)"/>
+          </label>
+          <button onclick="clearMatchupData()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+        </div>
+      </div>
+      <div id="matchup-status" style="font-size:11px;color:#525a64;"></div>
+    </div>
+
     <div style="text-align:center;margin-top:24px;padding:12px 0;font-family:'Inter',sans-serif;font-size:13px;font-style:italic;font-weight:300;letter-spacing:2px;color:rgba(125,211,252,0.45);text-transform:lowercase;">ball is life</div>
   </div>
 
@@ -2153,6 +2173,7 @@ function openTrackModal(player, pos, stat, proj, team, presetDate) {
   populateSourceAgreement();
   updateTrendsInModal();
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
+  if (typeof updateMatchupInModal === "function") updateMatchupInModal();
   const shorthand = document.getElementById("modal-shorthand");
   if (shorthand) { shorthand.value = ""; shorthand.style.borderColor = "#1a1d22"; }
   const sp = document.getElementById("shorthand-preview");
@@ -2213,6 +2234,7 @@ function parseShorthand(el) {
   // Re-render trends panel — direction glow depends on first token of shorthand
   if (typeof updateTrendsInModal === "function") updateTrendsInModal();
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
+  if (typeof updateMatchupInModal === "function") updateMatchupInModal();
   if (!raw) {
     el.style.borderColor = "#1a1d22";
     if (preview) preview.textContent = "";
@@ -2479,6 +2501,172 @@ const BOOK_LOGOS = {
   "Fliff": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABAAEADASIAAhEBAxEB/8QAGwABAAIDAQEAAAAAAAAAAAAAAAcIAgUGBAH/xAAwEAABAwMCBQEFCQAAAAAAAAABAAIEAwURBgcSEyExQQgUFSJRYTRkdHWTobKz0f/EABsBAAEFAQEAAAAAAAAAAAAAAAEAAwQFBgIH/8QAJhEAAgIBAgYBBQAAAAAAAAAAAAECAxEEBQYSEyExcSJBUVJhgf/aAAwDAQACEQMRAD8Aq6iItEkMt4CLvdstpNabjWqZctM0LfUoQ64oVjJlikeMtDsAEdehC3c/0+bkwftMeztx3xcGnH7IqSbwvJGu1NVCzZLHsidF3U/anV0IkV6UDiHhsppXPah0xdrFHp157KAZUfwN5dUP64z1x27LuVc0stdiPRuejvnyV2Jv2aZERNpFh5CIi6bwAuL6Bm52+1N+as/opqU9atzzVUXZfbG4ay0LetQwLnc2Pt00UHxIlXgL2ctruMfMjPZe6FoKPXrClUv99LT96/0IaWiUrHJMyHEuo02OndJx/mSSNVMxIcog3r+GywfxDv4FdHuFtbaLDt/cdRRbze6kqLy+BtWSCw8TwDn4c9j81BVWrVq4FSrVeB2D3Eqfdc4pwkiq4Y2aiyyOsot5op/jj6e/2YIiKAei+AiIkAuN6Bagp6D1K49vezc/osW73qtNjsD5GsWVWw4jXt9tphpIBc4ND2gfUjI+uVV/Zbc67bc3as6jTEm0zS0TonbixnD2HxUGT9D5Uv736ti6p2fny7ZLZKiyRRLS09QRVYS0jw4diPCWmrlC12JmT4ih15V0Wx+Emln7ZNJufuVo+87YXSyW65vrT64p8un7O8A4e0nqRgdMqvIRq+pyyx2vLLjadrp2yl1Ut4bz3CIibZaoIiJAMgV649znRrdKt1GQ5sOVjm0T1a4g5BwfOQvGF9QBKEZ4UllGKIiIQiIkI//Z",
 };
 function logoFor(book) { return BOOK_LOGOS[book] || null; }
+
+// ── OPPONENT MATCHUP DATA (per-team defensive averages from CSV upload) ──
+// Source: Rotowire "Opposing Team Averages" CSV (opp-avg.csv). Each row
+// describes a team's defensive profile — what their opponents averaged
+// against them in PTS, REB, AST, STL, BLK, 3PM, etc. We use this to compute
+// a matchup boost: how favorable tonight's opponent is for a given stat,
+// expressed as a percentage delta from the league average across uploaded teams.
+const MATCHUP_STORAGE_KEY = "wnba_matchup_opp_avg_v1";
+// Maps bet-modal stat keys → CSV column names. Stats not in the CSV
+// (PRA, PR, PA, RA) are computed from their components.
+const BET_STAT_TO_OPP_COL = {
+  "PTS": "PTS", "REB": "REB", "AST": "AST", "STL": "STL", "BLK": "BLK",
+  "THREES": "3PM", "TURNOVERS": "TO", "TO": "TO",
+};
+function getMatchupData() {
+  try {
+    const raw = localStorage.getItem(MATCHUP_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) { return null; }
+}
+function saveMatchupData(payload) {
+  try { localStorage.setItem(MATCHUP_STORAGE_KEY, JSON.stringify(payload)); } catch(e) {}
+}
+// Parse the Rotowire opp-avg CSV. First row = header (Team,PTS,REB,...).
+// Returns { teams: { [teamAbbrOrName]: { PTS, REB, ... } }, updated, leagueAvg }.
+// Team identifier comes through as-is from the CSV (could be full name or abbr).
+function parseMatchupCsv(text) {
+  if (!text) return null;
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return null;
+  const headers = lines[0].split(",").map(s => s.trim());
+  const teams = {};
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(",").map(s => s.trim());
+    if (cols.length < 2 || !cols[0]) continue;
+    const teamName = cols[0];
+    const row = {};
+    for (let j = 1; j < headers.length && j < cols.length; j++) {
+      const v = parseFloat(cols[j]);
+      if (!isNaN(v)) row[headers[j]] = v;
+    }
+    // Add a computed PRA = PTS + REB + AST for prop convenience
+    if (row.PTS != null && row.REB != null && row.AST != null) {
+      row.PRA = +(row.PTS + row.REB + row.AST).toFixed(1);
+    }
+    teams[teamName] = row;
+  }
+  // Compute league averages across all loaded teams
+  const leagueAvg = {};
+  const cols = [...Object.keys(BET_STAT_TO_OPP_COL).map(k => BET_STAT_TO_OPP_COL[k]), "PRA"];
+  const uniqueCols = Array.from(new Set(cols));
+  uniqueCols.forEach(col => {
+    const vals = Object.values(teams).map(t => t[col]).filter(v => v != null);
+    if (vals.length > 0) leagueAvg[col] = +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+  });
+  return { teams, leagueAvg, updated: Date.now() };
+}
+// Map team names/abbreviations into a consistent lookup key.
+// CSV might have "Connecticut Sun", "CON", or "Con" — normalize to abbr.
+const _MATCHUP_NAME_TO_ABBR = {
+  "atlanta dream":"ATL", "chicago sky":"CHI", "connecticut sun":"CON",
+  "dallas wings":"DAL", "golden state valkyries":"GSV", "indiana fever":"IND",
+  "las vegas aces":"LVA", "los angeles sparks":"LAS", "minnesota lynx":"MIN",
+  "new york liberty":"NYL", "phoenix mercury":"PHX", "portland fire":"POR",
+  "seattle storm":"SEA", "toronto tempo":"TOR", "washington mystics":"WAS",
+  // Common abbreviation variants that might appear in the CSV
+  "lav":"LVA", "lv":"LVA", "ny":"NYL", "la":"LAS", "gs":"GSV", "wsh":"WAS",
+};
+function _matchupKey(teamStr) {
+  if (!teamStr) return null;
+  const lc = teamStr.toLowerCase().trim();
+  if (_MATCHUP_NAME_TO_ABBR[lc]) return _MATCHUP_NAME_TO_ABBR[lc];
+  // Already an abbr? Just uppercase
+  return teamStr.toUpperCase();
+}
+// Lookup matchup adjustment for a bet's stat against an opponent.
+// Returns { opp, stat, oppValue, leagueAvg, boostPct, favorable } or null.
+// `direction` is "over" or "under" — flips favorable sign for unders.
+function getMatchupAdjustment(opponentTeam, statKey, direction) {
+  const data = getMatchupData();
+  if (!data || !data.teams) return null;
+  const oppKey = _matchupKey(opponentTeam);
+  if (!oppKey) return null;
+  // Try both the abbr-normalized key and the original (in case CSV uses one form)
+  let teamRow = data.teams[oppKey];
+  if (!teamRow) {
+    // Try matching by checking each stored team's normalized form
+    const match = Object.keys(data.teams).find(k => _matchupKey(k) === oppKey);
+    if (match) teamRow = data.teams[match];
+  }
+  if (!teamRow) return null;
+  const col = BET_STAT_TO_OPP_COL[statKey] || statKey;
+  const oppValue = teamRow[col];
+  const leagueAvg = data.leagueAvg[col];
+  if (oppValue == null || leagueAvg == null || leagueAvg === 0) return null;
+  // Boost % = (opp gives up this much) ÷ (league avg gives up this much) − 1.
+  // Positive % → this opponent allows MORE of the stat → favorable for OVERS, unfavorable for UNDERS.
+  const rawBoost = +((oppValue / leagueAvg - 1) * 100).toFixed(1);
+  const favorable = direction === "under" ? -rawBoost : rawBoost;  // flip sign for unders
+  return {
+    opp: oppKey,
+    stat: statKey,
+    oppValue,
+    leagueAvg,
+    boostPct: rawBoost,         // raw % vs league avg (always opponent-perspective)
+    favorable,                  // signed toward the bet direction (positive = good for this bet)
+  };
+}
+// File-upload handler — fires when user picks an opp-avg.csv on the upload page.
+// Merges with any existing data so partial uploads accumulate (e.g., 6 teams now,
+// upload again later with 12 teams → all 12 stored). Re-uploaded teams overwrite.
+function handleMatchupCsvUpload(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const text = ev.target.result;
+    const parsed = parseMatchupCsv(text);
+    if (!parsed || Object.keys(parsed.teams).length === 0) {
+      showToast("Couldn't parse CSV — check format");
+      return;
+    }
+    // Merge with existing if present
+    const existing = getMatchupData();
+    if (existing && existing.teams) {
+      const merged = { ...existing.teams, ...parsed.teams };
+      // Recompute league averages from the merged set
+      const reparsed = { teams: merged, leagueAvg: {}, updated: Date.now() };
+      const uniqueCols = Array.from(new Set([...Object.values(BET_STAT_TO_OPP_COL), "PRA"]));
+      uniqueCols.forEach(col => {
+        const vals = Object.values(merged).map(t => t[col]).filter(v => v != null);
+        if (vals.length > 0) reparsed.leagueAvg[col] = +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+      });
+      saveMatchupData(reparsed);
+    } else {
+      saveMatchupData(parsed);
+    }
+    renderMatchupStatus();
+    showToast(`Loaded ${Object.keys(parsed.teams).length} teams`);
+    input.value = "";  // reset so re-upload of same file works
+  };
+  reader.readAsText(file);
+}
+function clearMatchupData() {
+  if (!confirm("Clear all matchup data?")) return;
+  try { localStorage.removeItem(MATCHUP_STORAGE_KEY); } catch(e) {}
+  renderMatchupStatus();
+}
+function renderMatchupStatus() {
+  const el = document.getElementById("matchup-status");
+  if (!el) return;
+  const data = getMatchupData();
+  if (!data || !data.teams || Object.keys(data.teams).length === 0) {
+    el.textContent = "no data loaded";
+    return;
+  }
+  const teamCount = Object.keys(data.teams).length;
+  const ago = Math.round((Date.now() - data.updated) / 60000);
+  let agoStr;
+  if (ago < 1) agoStr = "just now";
+  else if (ago < 60) agoStr = `${ago}m ago`;
+  else if (ago < 1440) agoStr = `${Math.round(ago/60)}h ago`;
+  else agoStr = `${Math.round(ago/1440)}d ago`;
+  el.textContent = `${teamCount} teams loaded · ${agoStr}`;
+}
 
 // ── TEAM LOGOS (ESPN) ──────────────────────────────────────────────────────
 // ESPN serves WNBA team logos at a predictable URL:
@@ -2881,6 +3069,32 @@ function saveBet() {
         }
       }
     } catch (e) { /* splits snapshot is non-critical */ }
+    // Snapshot matchup adjustment — uses Rotowire opp-avg CSV (if uploaded) to
+    // compute how favorable tonight's opponent is for this stat. The signed
+    // `favorable` value flips for UNDER bets so positive always means "matchup
+    // tailwind for this bet direction."
+    try {
+      if (typeof getMatchupAdjustment === "function" && bet.player && bet.stat && bet.ou && bet.team) {
+        // Find the opponent: look up the matchup from the cached ESPN scoreboard
+        // (built earlier in saveBet via _tickerCachedEvents). Match team to find which game.
+        let oppTeam = null;
+        if (typeof _tickerCachedEvents !== "undefined" && Array.isArray(_tickerCachedEvents)) {
+          const espnTeam = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[bet.team]) || bet.team;
+          for (const ev of _tickerCachedEvents) {
+            const comp = ev.competitions?.[0];
+            if (!comp) continue;
+            const aw = comp.competitors?.find(c => c.homeAway === "away")?.team?.abbreviation;
+            const hm = comp.competitors?.find(c => c.homeAway === "home")?.team?.abbreviation;
+            if (aw === bet.team || aw === espnTeam) { oppTeam = hm; break; }
+            if (hm === bet.team || hm === espnTeam) { oppTeam = aw; break; }
+          }
+        }
+        if (oppTeam) {
+          const adj = getMatchupAdjustment(oppTeam, bet.stat, bet.ou);
+          if (adj) bet.matchupSnap = adj;
+        }
+      }
+    } catch (e) { /* matchup snapshot is non-critical */ }
   }
   bets.unshift(bet);
   // Remember the date used for totals so the next total prefills it (slate is days out)
@@ -3764,6 +3978,79 @@ function updateSplitsInModal() {
 
   grid.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">${html}${volRow}</div>`;
   if (summary) summary.textContent = `${splits.games} GP`;
+  container.style.display = "block";
+}
+
+// Render the Matchup panel inside the bet modal. Pulls opponent from
+// _tickerCachedEvents (paired by bet.team), looks up the opp-avg row, and
+// shows a single colored bar like the Volatility row. Bar color reflects
+// favorability for the bet direction (positive favorable = green, negative = red).
+function updateMatchupInModal() {
+  const container = document.getElementById("modal-matchup");
+  const row = document.getElementById("modal-matchup-row");
+  const summary = document.getElementById("modal-matchup-summary");
+  if (!container || !row) return;
+  const playerEl = document.getElementById("modal-player-name");
+  const player = (playerEl && playerEl.textContent) || window._modalPlayer || "";
+  const stat = (document.getElementById("modal-stat") || {}).value || "";
+  const team = window._modalTeam || "";
+  if (!player || !stat || !team) { container.style.display = "none"; return; }
+
+  // Detect direction from the typed shorthand (same parse as Splits panel)
+  let ou = "over";
+  const shorthandEl = document.getElementById("modal-shorthand");
+  if (shorthandEl && shorthandEl.value) {
+    const tok = shorthandEl.value.trim().toLowerCase().split(/\s+/)[0] || "";
+    if (tok.startsWith("u")) ou = "under";
+  }
+
+  // Find opponent from cached ESPN scoreboard
+  let oppTeam = null;
+  if (typeof _tickerCachedEvents !== "undefined" && Array.isArray(_tickerCachedEvents)) {
+    const espnTeam = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[team]) || team;
+    for (const ev of _tickerCachedEvents) {
+      const comp = ev.competitions?.[0];
+      if (!comp) continue;
+      const aw = comp.competitors?.find(c => c.homeAway === "away")?.team?.abbreviation;
+      const hm = comp.competitors?.find(c => c.homeAway === "home")?.team?.abbreviation;
+      if (aw === team || aw === espnTeam) { oppTeam = hm; break; }
+      if (hm === team || hm === espnTeam) { oppTeam = aw; break; }
+    }
+  }
+  if (!oppTeam) { container.style.display = "none"; return; }
+
+  const adj = getMatchupAdjustment(oppTeam, stat, ou);
+  if (!adj) {
+    // Opponent's matchup data not loaded — show a discreet "no data" state
+    container.style.display = "block";
+    if (summary) summary.textContent = `vs ${oppTeam} · no data`;
+    row.innerHTML = `<div style="font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;color:#525a64;padding:6px 9px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;">Upload opp-avg CSV on the upload page to enable matchup adjustments.</div>`;
+    return;
+  }
+
+  // Color the bar by favorability magnitude:
+  //   ≥ +10%  → green (strong tailwind for this bet direction)
+  //   −5..+10 → amber (neutral-ish)
+  //   ≤ −5%   → red (headwind)
+  const fav = adj.favorable;  // already signed toward bet direction
+  let color, tier;
+  if (fav >= 10)      { color = "#4ade80"; tier = "favorable"; }
+  else if (fav >= -5) { color = "#fbbf24"; tier = "neutral"; }
+  else                { color = "#f87171"; tier = "headwind"; }
+  // Bar fill: map |fav| from 0 to 30% → 0..100% width. Clamp at 30%+ as "full bar".
+  const barPct = Math.min(100, Math.round((Math.abs(fav) / 30) * 100));
+  const favLabel = (fav > 0 ? "+" : "") + fav.toFixed(1) + "%";
+  const tipText = `${adj.stat} allowed by ${adj.opp}: ${adj.oppValue} · league avg: ${adj.leagueAvg} · ${tier}`;
+  row.innerHTML = `<div title="${tipText}" style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:6px 9px;cursor:help;">
+    <span style="white-space:nowrap;">
+      <span style="color:#fff;font-weight:700;letter-spacing:0.6px;font-size:9.5px;">vs ${adj.opp}</span>
+      <span style="color:${color};font-weight:800;margin-left:6px;">${favLabel}</span>
+    </span>
+    <div style="height:6px;background:#1a1d22;border-radius:3px;overflow:hidden;">
+      <div style="height:100%;width:${barPct}%;background:linear-gradient(90deg, ${color} 0%, ${color}cc 100%);border-radius:3px;"></div>
+    </div>
+  </div>`;
+  if (summary) summary.textContent = `${adj.oppValue} vs lg ${adj.leagueAvg}`;
   container.style.display = "block";
 }
 
@@ -5952,6 +6239,44 @@ function renderSrcAnalytics() {
     splitBuckets.bothOppose.total ? row(`<span style="color:#f87171;">✗✗</span> Both signals oppose pick`, splitBuckets.bothOppose, { dim: true }) : "",
   ].join("");
 
+  // ── MATCHUP — buckets by snapshotted opponent favorability (uses bet.matchupSnap) ──
+  // Only counts bets saved after the matchup CSV was uploaded (snapshot has to exist).
+  // `favorable` is signed toward the bet direction (positive = matchup tailwind).
+  const matchupBuckets = {
+    strongFav: emptyStats(),   // ≥ +15% — clear tailwind
+    favorable: emptyStats(),   // ≥ +10% — mild tailwind
+    headwind:  emptyStats(),   // ≤ −10% — unfavorable
+    strongHw:  emptyStats(),   // ≤ −15% — strong unfavorable (trap candidates)
+    tripleAgree: emptyStats(), // trends + splits + matchup all confirm the pick
+  };
+  let matchupWithSnap = 0;
+  settled.forEach(b => {
+    const m = b.matchupSnap;
+    if (!m || m.favorable == null) return;
+    matchupWithSnap++;
+    if (m.favorable >= 15)  accum(b, matchupBuckets.strongFav);
+    if (m.favorable >= 10)  accum(b, matchupBuckets.favorable);
+    if (m.favorable <= -10) accum(b, matchupBuckets.headwind);
+    if (m.favorable <= -15) accum(b, matchupBuckets.strongHw);
+    // Triple-agree: all three signals confirm the pick direction
+    const sp = b.splitsSnap;
+    const hasTrends = Array.isArray(b.trendMatches) && b.trendMatches.length > 0;
+    if (sp && sp.l10Games > 0 && hasTrends) {
+      const trendsAgree = b.trendMatches.some(t => t.rate >= 60);
+      const splitsAgree = (sp.l10Hits / sp.l10Games) >= 0.60;
+      const matchupAgree = m.favorable >= 10;
+      if (trendsAgree && splitsAgree && matchupAgree) accum(b, matchupBuckets.tripleAgree);
+    }
+  });
+
+  const matchupRows = [
+    matchupBuckets.strongFav.total ? row(`<span style="color:#4ade80;">★★</span> Strong matchup tailwind (≥+15%)`, matchupBuckets.strongFav, { featured: true }) : "",
+    matchupBuckets.favorable.total ? row(`<span style="color:#4ade80;">★</span> Favorable matchup (≥+10%)`, matchupBuckets.favorable) : "",
+    matchupBuckets.headwind.total ? row(`<span style="color:#f87171;">↓</span> Matchup headwind (≤−10%)`, matchupBuckets.headwind) : "",
+    matchupBuckets.strongHw.total ? row(`<span style="color:#f87171;">↓↓</span> Strong matchup headwind (≤−15%)`, matchupBuckets.strongHw, { dim: true }) : "",
+    matchupBuckets.tripleAgree.total ? row(`<span style="color:#22c55e;">✓✓✓</span> Trends + Splits + Matchup all agree`, matchupBuckets.tripleAgree, { featured: true }) : "",
+  ].join("");
+
   const modeIsEV = _srcAnalyticsMode === "ev";
   const modePillStyle = (active) => `background:${active ? "rgba(125,211,252,0.18)" : "transparent"};color:${active ? "#7dd3fc" : "#8b93a0"};border:1px solid ${active ? "rgba(125,211,252,0.4)" : "#1a1d22"};padding:5px 12px;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;border-radius:4px;cursor:pointer;font-family:'Inter',sans-serif;`;
 
@@ -5977,6 +6302,7 @@ function renderSrcAnalytics() {
     ${section("By Direction", "Solo source records split by overs vs unders", tableShell(bySideRows, { labelHead: "Direction · Source" }))}
     ${section("Signals · Trends & Injury", `${totalTrendMatched} matched · ${totalUnmatched} unmatched`, tableShell(signalRows, { labelHead: "Signal" }))}
     ${splitsWithSnap > 0 ? section("Signals · Splits & Disagreement", `${splitsWithSnap} bet${splitsWithSnap===1?"":"s"} with snapshots · grows as you place new picks`, tableShell(splitsRows, { labelHead: "Signal" })) : ""}
+    ${matchupWithSnap > 0 ? section("Signals · Matchup", `${matchupWithSnap} bet${matchupWithSnap===1?"":"s"} with matchup data`, tableShell(matchupRows, { labelHead: "Signal" })) : ""}
   </div>`;
 }
 
@@ -7336,6 +7662,7 @@ function pasteTrends() {
   _refreshTrendsStatus();
   if (typeof updateTrendsInModal === "function") updateTrendsInModal();
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
+  if (typeof updateMatchupInModal === "function") updateMatchupInModal();
 }
 
 function clearTrendsAndRender() {
@@ -7346,6 +7673,7 @@ function clearTrendsAndRender() {
   _refreshTrendsStatus();
   if (typeof updateTrendsInModal === "function") updateTrendsInModal();
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
+  if (typeof updateMatchupInModal === "function") updateMatchupInModal();
 }
 
 // Load on boot so saved trends survive page reloads
@@ -9276,6 +9604,12 @@ function copyOneTotalProjection(awayAbbr, homeAbbr) {
   );
 }
 
+// Date filter for the totals tab — wired by the pill buttons rendered by renderTotals
+function setTotalsDateFilter(filter) {
+  window._totalsDateFilter = filter;
+  renderTotals();
+}
+
 function renderTotals() {
   const el = document.getElementById("totals-tab");
   const noProjections = !merged;
@@ -9283,17 +9617,32 @@ function renderTotals() {
 
   // Build a set of tracked-totals signatures so we can show ✓ TRACKED on rows
   // that already have a logged bet. Signature: "AWAY/HOME|side|line|book"
-  // Only counts pending or unsettled bets (settled bets shouldn't keep the row "tracked").
+  // Includes ALL tracked totals regardless of grading status — once tracked,
+  // stays marked so you never accidentally re-track the same play.
   const trackedTotalsSig = new Set();
   bets.forEach(b => {
     if (b.stat !== "GAME_TOTAL") return;
-    if (b.result !== "pending") return;
     // b.team was stored as "AWAY/HOME" by trackTotal()
     const sig = `${b.team}|${b.ou}|${b.line}|${b.book}`;
     trackedTotalsSig.add(sig);
   });
 
-  const cards = betstampGames.map(g => {
+  // ── Date filter ──
+  // Collect unique game dates (ISO format from ESPN parse) sorted chronologically.
+  // Persist active filter via window state so it survives re-renders.
+  const allDates = Array.from(new Set(betstampGames.map(g => g.gameDate).filter(Boolean))).sort();
+  if (window._totalsDateFilter === undefined) window._totalsDateFilter = "all";
+  // If the previously-selected date no longer exists in the slate, reset
+  if (window._totalsDateFilter !== "all" && !allDates.includes(window._totalsDateFilter)) {
+    window._totalsDateFilter = "all";
+  }
+  const activeFilter = window._totalsDateFilter;
+  // Filter the games list by active date before mapping to cards
+  const filteredGames = activeFilter === "all"
+    ? betstampGames
+    : betstampGames.filter(g => g.gameDate === activeFilter);
+
+  const cards = filteredGames.map(g => {
     const away = buildTeamProjection(g.awayAbbr);
     const home = buildTeamProjection(g.homeAbbr);
 
@@ -9715,8 +10064,8 @@ function renderTotals() {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:12px;">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <div>
-              <div style="font-size:16px;font-weight:800;color:#fff;">${g.awayAbbr} <span style="color:#d4dae3;font-weight:500">@</span> ${g.homeAbbr}</div>
-              <div style="font-size:12px;color:#d4dae3;margin-top:2px">${g.awayName} at ${g.homeName} · ${g.time}</div>
+              <div style="font-size:16px;font-weight:800;color:#fff;">${g.awayName || g.awayAbbr} <span style="color:#d4dae3;font-weight:500">@</span> ${g.homeName || g.homeAbbr}</div>
+              <div style="font-size:12px;color:#d4dae3;margin-top:2px">${g.awayAbbr} @ ${g.homeAbbr} · ${g.time}</div>
             </div>
             <button onclick="copyOneTotalProjection('${g.awayAbbr}','${g.homeAbbr}')" title="Copy this game's brief projection" style="background:#1e40af30;border:1px solid #1e40af77;color:#7dd3fc;border-radius:4px;padding:4px 9px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY</button>
           </div>
@@ -9840,6 +10189,33 @@ function renderTotals() {
         </div>
       </div>
     </div>
+
+    ${(() => {
+      // Date filter pill row — only render if we have at least 2 unique dates
+      if (allDates.length < 2) return "";
+      const formatShort = (iso) => {
+        try {
+          // iso is "YYYY-MM-DD"; force interpretation as local date to avoid TZ shift
+          const [y, m, d] = iso.split("-").map(Number);
+          const date = new Date(y, m - 1, d);
+          return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        } catch (e) { return iso; }
+      };
+      const pillStyle = (active) => `background:${active?'#1e40af':'#0c0d10'};border:1px solid ${active?'#1e40af':'#1a1d22'};color:${active?'#fff':'#fff'};border-radius:6px;padding:7px 14px;font-size:12px;font-weight:${active?'800':'600'};cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;`;
+      const pills = [`<button onclick="setTotalsDateFilter('all')" style="${pillStyle(activeFilter==='all')}">ALL DATES</button>`]
+        .concat(allDates.map(iso => `<button onclick="setTotalsDateFilter('${iso}')" style="${pillStyle(activeFilter===iso)}">${formatShort(iso)}</button>`))
+        .join("");
+      const filteredCount = filteredGames.length;
+      const totalCount = betstampGames.length;
+      const countStr = activeFilter === "all" ? `${totalCount} games` : `${filteredCount} of ${totalCount} games`;
+      return `<div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:13px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">Filter by Date</div>
+          <div style="font-size:11px;color:#fff;">${countStr}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">${pills}</div>
+      </div>`;
+    })()}
 
     ${cards}`;
 
@@ -10954,6 +11330,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (fairEl) fairEl.addEventListener("input", updateEvPreview);
   // Refresh the trends status line so saved trends show their count on reload
   if (typeof _refreshTrendsStatus === "function") _refreshTrendsStatus();
+  // Refresh the matchup status line so uploaded opp-avg data shows team count on reload
+  if (typeof renderMatchupStatus === "function") renderMatchupStatus();
   // Boot the WNBA scoreboard ticker — pulls today's games from ESPN and starts
   // auto-refreshing every 30s for live updates.
   startScoreboardTicker();
@@ -12032,6 +12410,16 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
         <span id="modal-src-badge" style="font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;"></span>
       </div>
       <div id="modal-src-pills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    </div>
+    <!-- Matchup adjustment — pulls from uploaded opp-avg CSV (Rotowire defensive
+         averages) and shows how favorable tonight's opponent is for this stat.
+         Same visual treatment as the Volatility bar in Splits. -->
+    <div id="modal-matchup" style="margin-top:10px;display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <div style="font-size:10px;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;">Matchup</div>
+        <div id="modal-matchup-summary" style="font-size:9px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:0.3px;"></div>
+      </div>
+      <div id="modal-matchup-row"></div>
     </div>
     <!-- Splits panel — L5/L10/Season averages from the ESPN season logs.
          When user types a line in shorthand (e.g. "u17.5"), also shows hit
