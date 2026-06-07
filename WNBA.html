@@ -2151,6 +2151,7 @@ function openTrackModal(player, pos, stat, proj, team, presetDate) {
   window._modalSrcVals = computeSrcValsForModal(player, stat);
   populateSourceAgreement();
   updateTrendsInModal();
+  if (typeof updateSplitsInModal === "function") updateSplitsInModal();
   const shorthand = document.getElementById("modal-shorthand");
   if (shorthand) { shorthand.value = ""; shorthand.style.borderColor = "#1a1d22"; }
   const sp = document.getElementById("shorthand-preview");
@@ -2210,6 +2211,7 @@ function parseShorthand(el) {
   const bookEl = document.getElementById("modal-book");
   // Re-render trends panel — direction glow depends on first token of shorthand
   if (typeof updateTrendsInModal === "function") updateTrendsInModal();
+  if (typeof updateSplitsInModal === "function") updateSplitsInModal();
   if (!raw) {
     el.style.borderColor = "#1a1d22";
     if (preview) preview.textContent = "";
@@ -3541,6 +3543,146 @@ function renderSeasonLogsStatus() {
   else if (ago < 1440) agoStr = `${Math.round(ago/60)}h ago`;
   else agoStr = `${Math.round(ago/1440)}d ago`;
   status.textContent = `${rowCount.toLocaleString()} rows · ${playerCount} players · ${dateCount} days · ${agoStr}`;
+}
+
+// ── SEASON LOG QUERIES (SLICE 3) ───────────────────────────────────────────
+// Helpers that turn the raw rows into useful per-player views.
+
+function _statFromGameRow(row, statKey) {
+  if (!row) return 0;
+  const s = (statKey || "").toUpperCase();
+  switch (s) {
+    case "PTS": return row.pts || 0;
+    case "REB": return row.reb || 0;
+    case "AST": return row.ast || 0;
+    case "STL": return row.stl || 0;
+    case "BLK": return row.blk || 0;
+    case "3PM": return row.tpm || 0;
+    case "PRA": return (row.pts||0) + (row.reb||0) + (row.ast||0);
+    case "PR":  return (row.pts||0) + (row.reb||0);
+    case "PA":  return (row.pts||0) + (row.ast||0);
+    case "RA":  return (row.reb||0) + (row.ast||0);
+    case "MIN": return row.min || 0;
+    case "TO":  return row.to || 0;
+    default: return 0;
+  }
+}
+
+// Return a player's game log, newest first. Uses norm() for case/accent/suffix
+// tolerance so "Jonquel Jones" matches "jonquel jones" matches "Jonquel B. Jones".
+function getPlayerGameLog(playerName) {
+  const data = getSeasonLogs();
+  if (!data || !data.rows) return [];
+  const target = norm(playerName);
+  if (!target) return [];
+  return data.rows
+    .filter(r => norm(r.p) === target)
+    .sort((a, b) => b.d.localeCompare(a.d));
+}
+
+// Compute splits + optional hit rate at line. Returns null if no games found.
+// opts: { line: number, ou: "over"|"under" } — both optional. When both given,
+// the result includes l5Hits/l10Hits/seasonHits counts and a "line" field.
+function getPlayerSplits(playerName, statKey, opts = {}) {
+  const games = getPlayerGameLog(playerName);
+  if (!games.length) return null;
+  const vals = games.map(g => _statFromGameRow(g, statKey));
+  const avg = (arr) => arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
+  const l5 = vals.slice(0, 5);
+  const l10 = vals.slice(0, 10);
+  const result = {
+    l5: l5.length ? +avg(l5).toFixed(1) : null,
+    l10: l10.length ? +avg(l10).toFixed(1) : null,
+    season: vals.length ? +avg(vals).toFixed(1) : null,
+    games: vals.length,
+    l5Games: l5.length,
+    l10Games: l10.length,
+  };
+  if (opts.line != null && opts.ou) {
+    const line = parseFloat(opts.line);
+    const dir = String(opts.ou).toLowerCase();
+    const count = (arr) => {
+      if (dir === "over")  return arr.filter(v => v > line).length;
+      if (dir === "under") return arr.filter(v => v < line).length;
+      return 0;
+    };
+    result.line = line;
+    result.dir = dir;
+    result.l5Hits = count(l5);
+    result.l10Hits = count(l10);
+    result.seasonHits = count(vals);
+  }
+  return result;
+}
+
+// Render the splits panel inside the bet modal. Pulls player+stat from modal
+// state, line+ou from the shorthand input. Visual matches the Recent Form
+// (Dimers trends) panel: same grid, same bar style, same monospace, so the
+// two panels read as a pair.
+function updateSplitsInModal() {
+  const container = document.getElementById("modal-splits");
+  const grid = document.getElementById("modal-splits-grid");
+  const summary = document.getElementById("modal-splits-summary");
+  if (!container || !grid) return;
+  const playerEl = document.getElementById("modal-player-name");
+  const player = (playerEl && playerEl.textContent) || window._modalPlayer || "";
+  const stat = (document.getElementById("modal-stat") || {}).value || "";
+  if (!player || !stat) { container.style.display = "none"; return; }
+
+  // Detect line/direction from shorthand (same parse as the trends panel)
+  let line = null, ou = null;
+  const shorthandEl = document.getElementById("modal-shorthand");
+  if (shorthandEl && shorthandEl.value) {
+    const tok = shorthandEl.value.trim().toLowerCase().split(/\s+/)[0] || "";
+    const m = tok.match(/^([ou])(\d+(?:\.\d+)?)$/);
+    if (m) {
+      ou = m[1] === "o" ? "over" : "under";
+      line = parseFloat(m[2]);
+    }
+  }
+
+  const splits = getPlayerSplits(player, stat, { line, ou });
+  if (!splits || splits.games === 0) { container.style.display = "none"; return; }
+
+  const fmt = (n) => n == null ? "—" : (Number.isInteger(n) ? n.toString() : n.toFixed(1));
+  const hasLine = splits.line != null;
+  const dirLabel = splits.dir === "over" ? "OVER" : "UNDER";
+
+  // 3 rows: L5, L10, SEASON. Same grid as Recent Form: [label] [DIR line] [bar] [hits %]
+  const rows = [
+    { label: "L5",     avg: splits.l5,     hits: splits.l5Hits,     games: splits.l5Games },
+    { label: "L10",    avg: splits.l10,    hits: splits.l10Hits,    games: splits.l10Games },
+    { label: "SEASON", avg: splits.season, hits: splits.seasonHits, games: splits.games },
+  ];
+
+  const html = rows.map(r => {
+    if (hasLine && r.games > 0) {
+      const rate = Math.round((r.hits / r.games) * 100);
+      // Bar color reflects hit rate strength (independent of direction-match
+      // since this IS the user's chosen direction by definition)
+      const color = rate >= 60 ? "#4ade80" : rate >= 40 ? "#fbbf24" : "#f87171";
+      return `<div style="display:grid;grid-template-columns:50px 72px 1fr 60px;gap:8px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:4px 5px;">
+        <span style="color:#fff;font-weight:700;letter-spacing:0.3px;">${r.label}</span>
+        <span style="color:#fff;font-weight:800;font-size:9.5px;letter-spacing:0.3px;">${dirLabel} ${splits.line}</span>
+        <div style="height:5px;background:#1a1d22;border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${rate}%;background:${color};border-radius:3px;"></div>
+        </div>
+        <span style="text-align:right;"><span style="color:#a8b0bb;">${r.hits}/${r.games}</span> <span style="color:${color};font-weight:800;">${rate}%</span></span>
+      </div>`;
+    } else {
+      // No line — clean averages row, no bar
+      return `<div style="display:grid;grid-template-columns:50px 72px 1fr 60px;gap:8px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;padding:4px 5px;">
+        <span style="color:#fff;font-weight:700;letter-spacing:0.3px;">${r.label}</span>
+        <span style="color:#525a64;font-weight:600;font-size:9.5px;letter-spacing:0.3px;">AVG</span>
+        <span style="color:#525a64;font-size:9px;">${r.games}g</span>
+        <span style="text-align:right;color:#fff;font-weight:800;font-size:13px;">${fmt(r.avg)}</span>
+      </div>`;
+    }
+  }).join("");
+
+  grid.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">${html}</div>`;
+  if (summary) summary.textContent = `${splits.games} GP`;
+  container.style.display = "block";
 }
 
 async function gradeBet(b) {
@@ -6979,6 +7121,7 @@ function pasteTrends() {
   ta.value = "";
   _refreshTrendsStatus();
   if (typeof updateTrendsInModal === "function") updateTrendsInModal();
+  if (typeof updateSplitsInModal === "function") updateSplitsInModal();
 }
 
 function clearTrendsAndRender() {
@@ -6988,6 +7131,7 @@ function clearTrendsAndRender() {
   showToast("Trends cleared");
   _refreshTrendsStatus();
   if (typeof updateTrendsInModal === "function") updateTrendsInModal();
+  if (typeof updateSplitsInModal === "function") updateSplitsInModal();
 }
 
 // Load on boot so saved trends survive page reloads
@@ -11674,6 +11818,16 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
         <span id="modal-src-badge" style="font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;"></span>
       </div>
       <div id="modal-src-pills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    </div>
+    <!-- Splits panel — L5/L10/Season averages from the ESPN season logs.
+         When user types a line in shorthand (e.g. "u17.5"), also shows hit
+         rates at that line across each window. Populated by updateSplitsInModal. -->
+    <div id="modal-splits" style="margin-top:10px;display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <div style="font-size:10px;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;">Splits</div>
+        <div id="modal-splits-summary" style="font-size:9px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:0.3px;"></div>
+      </div>
+      <div id="modal-splits-grid"></div>
     </div>
     <!-- Dimers trends — compact horizontal bars showing recent hit rates.
          Populated by updateTrendsInModal() when the modal opens or after
