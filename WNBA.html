@@ -5246,16 +5246,21 @@ async function shareOpenPropsAsImageExclusive() {
     const monthShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][now.getMonth()];
     // Date uses comma separator (no dot), subtitle uses span-based spacing
     const niceDate = `${dayShort}, ${monthShort} ${now.getDate()}, ${now.getFullYear()}`;
-    const pageStr = totalPages > 1 ? `<span style="margin-left:18px;">${pageIdx + 1} of ${totalPages}</span>` : "";
-    const subtitle = `<span>${enriched.length} props</span><span style="margin-left:16px;">${overCount} over</span><span style="margin-left:16px;">${underCount} under</span>${pageStr}`;
+    const pageStr = totalPages > 1 ? `${pageIdx + 1} of ${totalPages}` : "";
+    const subtitle = `<span>${enriched.length} props</span><span style="margin-left:14px;">${overCount} over</span><span style="margin-left:14px;">${underCount} under</span>`;
 
-    // System-font stack — true SF Pro on Apple devices, fallback elsewhere.
-    let h = `<div id="_propsImageRootEx${pageIdx}" style="width:560px;background:linear-gradient(180deg,#0c0d10 0%,#070809 100%);border:1px solid #1a1d22;border-radius:18px;padding:28px 26px 24px;font-family:'Thernaly',sans-serif;color:#fff;box-sizing:border-box;">`;
+    // Wrapper uses Inter (Results page font). Odds + team abbrs explicitly use Thernaly.
+    let h = `<div id="_propsImageRootEx${pageIdx}" style="width:560px;background:linear-gradient(180deg,#0c0d10 0%,#070809 100%);border:1px solid #1a1d22;border-radius:18px;padding:28px 26px 24px;font-family:'Inter',sans-serif;color:#fff;box-sizing:border-box;">`;
 
-    // Apple-clean header — date + subtitle stacked, no branding, no badge
-    h += `<div style="margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #1a1d22;">`;
-    h += `<div style="font-size:17px;font-weight:700;color:#fff;letter-spacing:-0.2px;line-height:1;">${niceDate}</div>`;
-    h += `<div style="font-size:11px;font-weight:600;color:#8b93a0;margin-top:8px;letter-spacing:0.3px;font-family:'Thernaly',monospace;">${subtitle}</div>`;
+    // Header: date + counts (white/bold) on left, page indicator pinned to top-right corner.
+    h += `<div style="margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #1a1d22;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">`;
+    h += `<div>`;
+    h += `<div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.2px;line-height:1;">${niceDate}</div>`;
+    h += `<div style="font-size:12px;font-weight:700;color:#fff;margin-top:9px;letter-spacing:0.3px;">${subtitle}</div>`;
+    h += `</div>`;
+    if (pageStr) {
+      h += `<div style="font-size:10px;font-weight:700;color:#8b93a0;letter-spacing:0.5px;flex-shrink:0;margin-top:4px;">${pageStr}</div>`;
+    }
     h += `</div>`;
 
     let lastPlayer = null;
@@ -5282,7 +5287,7 @@ async function shareOpenPropsAsImageExclusive() {
           h += `${teamLogoHtml(e.matchup, 20)}<span>${esc(e.matchup)}</span>`;
         }
         h += `</div>`;
-        h += `<div style="font-size:10px;color:#8b93a0;font-family:'Thernaly',monospace;font-weight:700;letter-spacing:0.4px;">${matchupCount} props</div>`;
+        h += `<div style="font-size:10px;color:#8b93a0;font-weight:700;letter-spacing:0.4px;">${matchupCount} props</div>`;
         h += `</div>`;
         lastMatchup = e.matchup;
         matchupBlockOpen = true;
@@ -5298,10 +5303,10 @@ async function shareOpenPropsAsImageExclusive() {
         h += `<div style="display:flex;align-items:center;gap:8px;min-width:0;">`;
         h += `${tLogo}<span style="font-size:14px;font-weight:700;color:#fff;letter-spacing:-0.1px;">${esc(bet.player)}</span>`;
         if (teamStr) {
-          h += `<span style="display:inline-block;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.10);padding:2px 8px;border-radius:5px;font-size:9.5px;font-weight:800;color:#fff;letter-spacing:0.5px;">${teamStr}</span>`;
+          h += `<span style="display:inline-block;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.10);padding:2px 8px;border-radius:5px;font-size:10px;font-weight:800;color:#fff;letter-spacing:0.5px;font-family:'Thernaly',sans-serif;">${teamStr}</span>`;
         }
         h += `</div>`;
-        h += `<div style="font-size:10px;color:#525a64;font-family:'Thernaly',monospace;font-weight:700;letter-spacing:0.4px;flex-shrink:0;">${countStr}</div>`;
+        h += `<div style="font-size:10px;color:#525a64;font-weight:700;letter-spacing:0.4px;flex-shrink:0;">${countStr}</div>`;
         h += `</div>`;
         h += `<div style="display:flex;flex-direction:column;gap:7px;">`;
         lastPlayer = bet.player;
@@ -5355,7 +5360,7 @@ async function shareOpenPropsAsImageExclusive() {
       // Direction: BOLD white with subtle glow (no red/green color)
       h += `<div><span style="color:#fff;font-size:13px;font-weight:800;letter-spacing:0.3px;text-shadow:0 0 8px rgba(255,255,255,0.20),0 0 1px rgba(255,255,255,0.5);">${ouUpper} ${bestLine}</span> <span style="display:inline-block;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.10);padding:2px 8px;border-radius:5px;font-size:9.5px;font-weight:800;color:#fff;letter-spacing:0.5px;margin-left:6px;vertical-align:1px;">${statLabel}</span></div>`;
       // Headline: odds + logo + book name. Odds same color as secondary row.
-      h += `<div style="font-family:'Thernaly',monospace;font-size:14px;color:#d4dae3;font-weight:700;display:flex;align-items:center;gap:6px;">${oddsStr}${bookLogoHtml(best.book, 17)}<span style="color:#fff;font-weight:700;font-family:'Thernaly',sans-serif;">${esc(best.book)}</span></div>`;
+      h += `<div style="font-family:'Thernaly',monospace;font-size:14px;color:#d4dae3;font-weight:700;display:flex;align-items:center;gap:6px;">${oddsStr}${bookLogoHtml(best.book, 17)}<span style="color:#fff;font-weight:700;">${esc(best.book)}</span></div>`;
       h += `</div>`;
       // Stop-sign entry — acts as the "play to" book at the end of the row.
       // Bold white value with subtle glow preserved.
