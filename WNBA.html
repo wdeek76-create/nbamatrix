@@ -132,22 +132,22 @@ table colgroup col.avg-col{width:16%;}
 .copyable:hover{opacity:0.8;}
 
 /* MODAL */
-#track-modal{display:none;position:fixed;inset:0;background:#0008;z-index:1000;align-items:center;justify-content:center;}
+#track-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
 #track-modal.open{display:flex;}
-#track-modal-box{background:#0c0d10;border:1px solid #1a1d22;border-radius:12px;padding:18px 20px 16px;width:380px;max-width:95vw;}
-#track-modal-box h3{font-size:15px;font-weight:800;color:#fff;margin-bottom:1px;}
-#track-modal-box .sub{font-size:11px;color:#d4dae3;margin-bottom:14px;}
-.modal-row{display:flex;gap:8px;margin-bottom:8px;}
-.modal-field{flex:1;display:flex;flex-direction:column;gap:3px;}
-.modal-field label{font-size:9px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;}
-.modal-field input,.modal-field select{background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:7px 10px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color 0.15s;width:100%;}
+#track-modal-box{background:#0f1216;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px 22px 20px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+#track-modal-box h3{font-size:22px;font-weight:800;color:#fff;margin-bottom:2px;letter-spacing:-0.3px;}
+#track-modal-box .sub{font-size:12px;color:#a8b0bb;margin-bottom:18px;letter-spacing:0.2px;}
+.modal-row{display:flex;gap:10px;margin-bottom:12px;}
+.modal-field{flex:1;display:flex;flex-direction:column;gap:5px;}
+.modal-field label{font-size:10px;font-weight:800;color:#fff;letter-spacing:1px;text-transform:uppercase;}
+.modal-field input,.modal-field select{background:#050507;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;outline:none;transition:border-color 0.15s;width:100%;}
 .modal-field input:focus,.modal-field select:focus{border-color:#1e40af;}
 .modal-field select option{background:#0c0d10;}
-#modal-proj-display{font-size:12px;color:#7dd3fc;font-weight:600;margin-bottom:2px;min-height:16px;}
+#modal-proj-display{font-size:13px;color:#7dd3fc;font-weight:700;margin-bottom:4px;min-height:18px;letter-spacing:0.2px;}
 #modal-stake-preview{font-size:12px;color:#d4dae3;margin-bottom:10px;min-height:14px;}
-.modal-btns{display:flex;gap:6px;justify-content:flex-end;margin-top:4px;}
-.modal-btn-cancel{background:transparent;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:8px 18px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
-.modal-btn-save{background:#1e40af;border:none;color:#050507;border-radius:6px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+.modal-btn-cancel{background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:10px;padding:11px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.2px;}
+.modal-btn-save{background:#1e40af;border:none;color:#fff;border-radius:10px;padding:11px 22px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.2px;box-shadow:0 4px 14px rgba(30,64,175,0.4);}
 
 /* QUICK GRADE */
 #qg-overlay{display:none;position:fixed;inset:0;background:#0a0e13;z-index:2000;flex-direction:column;align-items:center;justify-content:center;font-family:'Inter',sans-serif;}
@@ -2703,6 +2703,99 @@ function infoIconHtml(jsHandler) {
   return `<button onclick="${jsHandler}" style="background:transparent;border:none;color:#fff;opacity:0.55;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;vertical-align:baseline;font-family:'Inter',sans-serif;" aria-label="More info">ⓘ</button>`;
 }
 
+// ── VOLATILITY POPOVER (carousel) ─────────────────────────────────────────────
+// Three-page explainer for the CV stat: steady / mixed / volatile.
+// Each page shows a mini bar-chart illustrating the distribution shape, plus
+// the player's own values when on their current tier's page. Carousel pages
+// share the same definition + variance-source explanation at the top.
+function showVolatilityPopover() {
+  const data = window._volatilityExplainer;
+  if (!data) return;
+  // Default to current tier page
+  const tierToPage = { steady: 0, mixed: 1, volatile: 2 };
+  window._volatilityPopoverPage = tierToPage[data.tierKey] || 0;
+  showInfoPopover(`Volatility · CV ${data.cv.toFixed(2)}`, _renderVolatilityPopoverContent());
+}
+function switchVolatilityPage(delta) {
+  const cur = window._volatilityPopoverPage || 0;
+  const next = (cur + delta + 3) % 3;
+  window._volatilityPopoverPage = next;
+  const contentEl = document.getElementById("info-popover-content");
+  if (contentEl) contentEl.innerHTML = _renderVolatilityPopoverContent();
+}
+function _renderVolatilityPopoverContent() {
+  const data = window._volatilityExplainer;
+  if (!data) return "";
+  const page = window._volatilityPopoverPage || 0;
+  const pages = [
+    { key: "steady",   color: "#4ade80", title: "Steady",   subtitle: "low variance, game to game",
+      // Bar heights for the mini chart — all roughly equal (steady)
+      bars: [60, 65, 58, 70, 64, 68, 62, 66], range: "CV < 0.25" },
+    { key: "mixed",    color: "#fbbf24", title: "Mixed",    subtitle: "moderate variance",
+      // More spread (some highs, some lows)
+      bars: [40, 78, 55, 88, 50, 72, 60, 82], range: "CV 0.25–0.40" },
+    { key: "volatile", color: "#f87171", title: "Volatile", subtitle: "spike & dud games",
+      // Big spikes and dips
+      bars: [20, 90, 35, 95, 15, 85, 25, 92], range: "CV ≥ 0.40" },
+  ];
+  const p = pages[page];
+  const isCurrent = (data.tierKey === p.key);
+  // Render the mini bar-chart (8 bars showing the tier's signature shape)
+  const miniBars = p.bars.map(h => `<div style="width:8px;height:${h}%;background:${p.color};border-radius:1.5px;"></div>`).join("");
+
+  // Variance source section — only render when we have decomposed data
+  let varianceSourceHtml = "";
+  if (data.minutesShare != null && data.rateShare != null) {
+    const dominant = data.minutesShare > data.rateShare ? "minutes" : "rate";
+    const interpretation = dominant === "minutes"
+      ? "Volatility is mostly minutes-driven — his per-minute production is steady, but his minutes swing (foul trouble, blowouts, role shifts). The variable is opportunity."
+      : "Volatility is mostly rate-driven — he gets consistent minutes, but his per-minute output swings (hot vs cold nights). The variable is execution.";
+    varianceSourceHtml = `
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-bottom:14px;">
+        <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:8px;">Variance source</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:11.5px;font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:0.3px;">
+          <span style="color:#7dd3fc;font-weight:700;white-space:nowrap;">MIN ${data.minutesShare}%</span>
+          <div style="flex:1;height:7px;background:#1a1d22;border-radius:4px;overflow:hidden;display:flex;">
+            <div style="height:100%;width:${data.minutesShare}%;background:#7dd3fc;"></div>
+            <div style="height:100%;width:${data.rateShare}%;background:#a78bfa;"></div>
+          </div>
+          <span style="color:#a78bfa;font-weight:700;white-space:nowrap;">RATE ${data.rateShare}%</span>
+        </div>
+        <div style="font-size:13px;color:#fff;opacity:0.9;line-height:1.55;">${interpretation}</div>
+      </div>
+    `;
+  }
+
+  // Pagination dots
+  const dots = pages.map((_, i) => `<span style="width:6px;height:6px;border-radius:50%;background:${i===page?'#fff':'rgba(255,255,255,0.25)'};"></span>`).join("");
+
+  return `
+    <div style="font-size:13.5px;color:#fff;opacity:0.85;margin-bottom:14px;">
+      <span style="color:#fff;font-weight:700;">CV · Coefficient of Variation</span> — std dev / mean. Lower = steadier. Thresholds (steady / mixed / volatile) are calibrated against league-wide distributions.
+    </div>
+    ${varianceSourceHtml}
+    <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;">
+      <!-- Carousel -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px;">
+        <button onclick="switchVolatilityPage(-1)" style="background:rgba(255,255,255,0.08);border:none;color:#fff;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;opacity:0.85;">‹</button>
+        <div style="display:flex;align-items:end;gap:3px;height:60px;padding:0 4px;">${miniBars}</div>
+        <button onclick="switchVolatilityPage(1)" style="background:rgba(255,255,255,0.08);border:none;color:#fff;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;opacity:0.85;">›</button>
+      </div>
+      <div style="display:flex;justify-content:center;gap:5px;margin-bottom:10px;">${dots}</div>
+      <div style="text-align:center;">
+        <div style="font-size:15px;font-weight:800;color:${p.color};margin-bottom:3px;">${p.title}${isCurrent ? ' <span style="color:#fff;opacity:0.55;font-weight:600;font-size:11px;letter-spacing:0.3px;">· you are here</span>' : ''}</div>
+        <div style="font-size:12.5px;color:#fff;opacity:0.75;line-height:1.4;">${p.subtitle}</div>
+        <div style="font-size:11px;color:#fff;opacity:0.45;margin-top:6px;font-family:'JetBrains Mono','Menlo',monospace;">${p.range}</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-top:14px;text-align:center;">
+      <div style="display:inline-block;background:${data.color}1a;border:1px solid ${data.color}66;color:${data.color};border-radius:6px;padding:8px 16px;font-size:13px;font-weight:800;letter-spacing:0.2px;">
+        σ ${data.stdev.toFixed(2)} · range ${data.min}–${data.max} · ${data.conf}
+      </div>
+    </div>
+  `;
+}
+
 // ── TEAM LOGOS (ESPN) ──────────────────────────────────────────────────────
 // ESPN serves WNBA team logos at a predictable URL:
 //   https://a.espncdn.com/i/teamlogos/wnba/500/{lowercase_espn_abbr}.png
@@ -3896,6 +3989,45 @@ function getPlayerSplits(playerName, statKey, opts = {}) {
     result.seasonCV = m > 0 ? +(stdev / m).toFixed(3) : 0;
     result.seasonMin = Math.min(...vals);
     result.seasonMax = Math.max(...vals);
+    // Variance source decomposition: split the player's total CV into
+    // minutes-driven (his minutes swing game to game) vs rate-driven (his
+    // per-minute output swings). Approximates Var(M·R) ≈ M̄²·Var(R) + R̄²·Var(M),
+    // letting us express each as a share of the total. Tells the bettor WHY
+    // the player is volatile — opportunity vs execution. Skip for MIN stat
+    // (would be tautological) and when minutes data is too sparse to be useful.
+    if (statKey !== "MIN") {
+      const mins = games.map(g => g.min || 0);
+      const validMinsCount = mins.filter(x => x > 0).length;
+      // Need at least half the games to have minutes data to be meaningful
+      if (validMinsCount >= Math.max(3, Math.floor(games.length * 0.5))) {
+        const minsM = avg(mins);
+        if (minsM > 0) {
+          const minsVar = mins.reduce((a, v) => a + (v - minsM) ** 2, 0) / (mins.length - 1);
+          const minsCV = Math.sqrt(minsVar) / minsM;
+          // Per-minute rates — only games where minutes were actually played
+          const rates = games.map(g => {
+            const min = g.min || 0;
+            return min > 0 ? _statFromGameRow(g, statKey) / min : null;
+          }).filter(r => r != null);
+          if (rates.length >= 2) {
+            const ratesM = avg(rates);
+            if (ratesM > 0) {
+              const ratesVar = rates.reduce((a, v) => a + (v - ratesM) ** 2, 0) / (rates.length - 1);
+              const ratesCV = Math.sqrt(ratesVar) / ratesM;
+              // Approximate share via CV² (variance components decomposition).
+              // CV_total² ≈ CV_minutes² + CV_rate², so each share = its CV² / sum.
+              const sumSq = minsCV * minsCV + ratesCV * ratesCV;
+              if (sumSq > 0) {
+                result.minutesShare = +((minsCV * minsCV / sumSq) * 100).toFixed(0);
+                result.rateShare = +((ratesCV * ratesCV / sumSq) * 100).toFixed(0);
+                result.minutesCV = +minsCV.toFixed(3);
+                result.rateCV = +ratesCV.toFixed(3);
+              }
+            }
+          }
+        }
+      }
+    }
   }
   if (opts.line != null && opts.ou) {
     const line = parseFloat(opts.line);
@@ -3988,26 +4120,50 @@ function updateSplitsInModal() {
   let volRow = "";
   if (splits.seasonStdev != null) {
     const cv = splits.seasonCV || 0;
-    let volTier, volColor;
-    if (cv < 0.25)      { volTier = "stable";   volColor = "#4ade80"; }
-    else if (cv < 0.40) { volTier = "iffy";     volColor = "#fbbf24"; }
-    else                { volTier = "volatile"; volColor = "#f87171"; }
+    let volTier, volColor, volTierKey;
+    if (cv < 0.25)      { volTier = "Steady";   volColor = "#4ade80"; volTierKey = "steady"; }
+    else if (cv < 0.40) { volTier = "Mixed";    volColor = "#fbbf24"; volTierKey = "mixed"; }
+    else                { volTier = "Volatile"; volColor = "#f87171"; volTierKey = "volatile"; }
     const volBarPct = Math.min(100, Math.round((cv / 0.6) * 100));
     const cvPct = Math.round(cv * 100);
-    // Sample-size confidence — CV from small N has wide error bars regardless
-    // of which formula you use. Surfaced in the tooltip so user knows when to
-    // trust the bar.
     const n = splits.games;
     const conf = n >= 20 ? "solid sample" : n >= 10 ? "decent sample" : `noisy (only ${n} games)`;
-    const tipText = `σ ${splits.seasonStdev.toFixed(2)} · CV ${cvPct}% · range ${splits.seasonMin}–${splits.seasonMax} · ${volTier} · ${conf}`;
-    volRow = `<div title="${tipText}" style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:6px 9px;cursor:help;">
-      <span style="white-space:nowrap;">
-        <span style="color:#fff;font-weight:700;letter-spacing:0.6px;font-size:9.5px;">VOLATILITY</span>
-        <span style="color:${volColor};font-weight:800;margin-left:6px;">${cv.toFixed(2)}</span>
-      </span>
-      <div style="height:6px;background:#1a1d22;border-radius:3px;overflow:hidden;">
-        <div style="height:100%;width:${volBarPct}%;background:linear-gradient(90deg, ${volColor} 0%, ${volColor}cc 100%);border-radius:3px;"></div>
+
+    // Build variance source breakdown row (Minutes % / Rate %) — only when we have decomposed data
+    let sourceRow = "";
+    if (splits.minutesShare != null && splits.rateShare != null) {
+      // Bar: blue (minutes) on the left, purple (rate) on the right. Proportions reflect each share.
+      sourceRow = `<div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;padding:5px 9px;margin-top:3px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);border-radius:3px;">
+        <span style="color:#7dd3fc;font-weight:700;letter-spacing:0.3px;font-size:9px;">MIN ${splits.minutesShare}%</span>
+        <div style="height:5px;background:#1a1d22;border-radius:3px;overflow:hidden;display:flex;">
+          <div style="height:100%;width:${splits.minutesShare}%;background:#7dd3fc;"></div>
+          <div style="height:100%;width:${splits.rateShare}%;background:#a78bfa;"></div>
+        </div>
+        <span style="color:#a78bfa;font-weight:700;letter-spacing:0.3px;font-size:9px;">RATE ${splits.rateShare}%</span>
+      </div>`;
+    }
+
+    // Stash explainer payload on window so the ⓘ popover can render the carousel
+    window._volatilityExplainer = {
+      cv, cvPct, tier: volTier, tierKey: volTierKey, color: volColor,
+      stdev: splits.seasonStdev, min: splits.seasonMin, max: splits.seasonMax,
+      n, conf, statLabel: stat || "",
+      minutesShare: splits.minutesShare, rateShare: splits.rateShare,
+      minutesCV: splits.minutesCV, rateCV: splits.rateCV,
+    };
+
+    volRow = `<div style="font-family:'JetBrains Mono','Menlo',monospace;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:6px 9px;">
+      <div style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:10px;line-height:1;">
+        <span style="white-space:nowrap;">
+          <span style="color:#fff;font-weight:700;letter-spacing:0.6px;font-size:9.5px;">VOLATILITY</span>
+          <span style="color:${volColor};font-weight:800;margin-left:6px;">${cv.toFixed(2)}</span>
+        </span>
+        <div style="height:6px;background:#1a1d22;border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${volBarPct}%;background:linear-gradient(90deg, ${volColor} 0%, ${volColor}cc 100%);border-radius:3px;"></div>
+        </div>
+        ${infoIconHtml("showVolatilityPopover()")}
       </div>
+      ${sourceRow}
     </div>`;
   }
 
@@ -12421,14 +12577,14 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="sub" id="modal-player-sub" style="margin-top:2px;">Add a bet</div>
       </div>
       <input type="date" id="modal-date" autocomplete="off" tabindex="-1" title="Game Date"
-        style="color-scheme:dark;background:#050507;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:6px 10px;font-size:12px;font-family:'Inter',sans-serif;outline:none;flex:0 0 auto;align-self:flex-start;"/>
+        style="color-scheme:dark;background:#050507;border:1px solid rgba(255,255,255,0.08);color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;outline:none;flex:0 0 auto;align-self:flex-start;"/>
     </div>
 
     <!-- Stat badge + shorthand input -->
     <div class="modal-row" style="align-items:flex-start;">
       <div class="modal-field" style="flex:0 0 auto;">
         <label>Stat</label>
-        <div id="modal-stat-display" style="background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:9px 14px;font-size:14px;color:#7dd3fc;font-weight:700;letter-spacing:0.5px;min-width:80px;text-align:center;">PTS</div>
+        <div id="modal-stat-display" style="background:#050507;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:11px 16px;font-size:15px;color:#7dd3fc;font-weight:800;letter-spacing:0.5px;min-width:80px;text-align:center;">PTS</div>
         <select id="modal-stat" style="display:none;" onchange="recomputeFairFromProj()">
           <option value="PTS">PTS</option>
           <option value="REB">REB</option>
@@ -12520,8 +12676,8 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
          rates at that line across each window. Populated by updateSplitsInModal. -->
     <div id="modal-splits" style="margin-top:10px;display:none;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-        <div style="font-size:10px;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;">Splits</div>
-        <div id="modal-splits-summary" style="font-size:9px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:0.3px;"></div>
+        <div style="font-size:10px;color:#fff;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Splits</div>
+        <div id="modal-splits-summary" style="font-size:10px;color:#fff;font-family:'JetBrains Mono','Menlo',monospace;font-weight:700;letter-spacing:0.3px;"></div>
       </div>
       <div id="modal-splits-grid"></div>
     </div>
