@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MLB Channel P&L Grader</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0a0e1a;
@@ -15,57 +16,58 @@
     --win: #00e676;
     --loss: #ff4444;
     --push: #ffa500;
-    --pending: #888;
     --text: #e2e8f0;
-    --muted: #64748b;
-    --head: #94a3b8;
-    --highlight: rgba(0,212,255,0.07);
+    --sub: #a8b4c8;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 13px; min-height: 100vh; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; min-height: 100vh; }
 
-  header { background: linear-gradient(135deg, #0d1b2e 0%, #0a0e1a 100%); border-bottom: 1px solid var(--border); padding: 16px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-  header h1 { font-size: 16px; font-weight: 700; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; }
-  header .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  header { background: linear-gradient(135deg, #0d1b2e 0%, #0a0e1a 100%); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header h1 { font-size: 15px; font-weight: 800; letter-spacing: 1.5px; color: var(--accent); text-transform: uppercase; }
+  header .sub { color: var(--sub); font-size: 11px; margin-top: 2px; }
 
-  .grade-btn { background: var(--accent); color: #000; border: none; padding: 8px 18px; font-family: inherit; font-size: 12px; font-weight: 700; letter-spacing: 1px; cursor: pointer; text-transform: uppercase; transition: opacity .15s; }
+  .grade-btn { background: var(--accent); color: #000; border: none; padding: 8px 16px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px; cursor: pointer; text-transform: uppercase; transition: opacity .15s; }
   .grade-btn:hover { opacity: .85; }
   .grade-btn:disabled { opacity: .4; cursor: not-allowed; }
-  .grade-btn.running { background: #ffa500; }
+  .grade-btn.running { background: var(--push); }
+  .grade-btn.dark { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .grade-btn.dark:hover { border-color: var(--accent); color: var(--accent); }
 
-  .stats-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
+  .stats-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
   .stat { padding: 12px 20px; border-right: 1px solid var(--border); min-width: 110px; }
-  .stat .label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-  .stat .val { font-size: 18px; font-weight: 700; }
+  .stat .label { font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--sub); margin-bottom: 5px; }
+  .stat .val { font-size: 18px; font-weight: 800; }
   .stat .val.pos { color: var(--win); }
   .stat .val.neg { color: var(--loss); }
-  .stat .val.neutral { color: var(--accent); }
+  .stat .val.neu { color: var(--accent); }
 
-  .filters { display: flex; gap: 8px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
-  .filter-btn { background: var(--card); border: 1px solid var(--border); color: var(--head); padding: 4px 12px; font-family: inherit; font-size: 11px; cursor: pointer; transition: all .12s; }
+  .filters { display: flex; gap: 6px; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+  .filter-btn { background: var(--card); border: 1px solid var(--border); color: var(--sub); padding: 4px 12px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; cursor: pointer; transition: all .12s; }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
   .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
-  .filters select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; font-family: inherit; font-size: 11px; }
-  .filters input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; font-family: inherit; font-size: 11px; width: 140px; }
-  .filters input::placeholder { color: var(--muted); }
+  .filters select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; font-family: 'Inter', sans-serif; font-size: 11px; }
+  .filters input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; font-family: 'Inter', sans-serif; font-size: 11px; width: 140px; }
+  .filters input::placeholder { color: var(--sub); }
+  .filters .sep { color: var(--border); margin: 0 2px; }
 
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
-  th { background: var(--panel); color: var(--head); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 10px; text-align: left; position: sticky; top: 0; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+  th { background: var(--panel); color: var(--sub); font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 8px 12px; text-align: left; position: sticky; top: 0; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
   th:hover { color: var(--accent); }
-  th.sorted { color: var(--accent); }
-  td { padding: 6px 10px; border-bottom: 1px solid rgba(30,45,69,0.5); white-space: nowrap; }
-  tr:hover td { background: var(--highlight); }
+  td { padding: 7px 12px; border-bottom: 1px solid rgba(30,45,69,0.6); white-space: nowrap; font-size: 13px; }
+  tr:not(.day-header):hover td { background: rgba(0,212,255,.04); }
 
-  .badge { display: inline-block; padding: 2px 7px; font-size: 10px; font-weight: 700; letter-spacing: .5px; }
-  .badge.win { background: rgba(0,230,118,.15); color: var(--win); border: 1px solid rgba(0,230,118,.3); }
-  .badge.loss { background: rgba(255,68,68,.15); color: var(--loss); border: 1px solid rgba(255,68,68,.3); }
-  .badge.push { background: rgba(255,165,0,.15); color: var(--push); border: 1px solid rgba(255,165,0,.3); }
-  .badge.pending { background: rgba(136,136,136,.15); color: var(--pending); border: 1px solid rgba(136,136,136,.3); }
-  .badge.auto { opacity: .7; }
+  .day-header td { background: rgba(0,212,255,.06); color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 12px; border-top: 1px solid rgba(0,212,255,.15); border-bottom: 1px solid rgba(0,212,255,.15); }
 
-  .result-cell { display: flex; gap: 4px; align-items: center; }
+  .result-pill { display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 700; min-width: 46px; text-align: center; }
+  .result-pill.win  { background: rgba(0,230,118,.15); color: var(--win);  border: 1px solid rgba(0,230,118,.4); }
+  .result-pill.loss { background: rgba(255,68,68,.15);  color: var(--loss); border: 1px solid rgba(255,68,68,.4); }
+  .result-pill.push { background: rgba(255,165,0,.12);  color: var(--push); border: 1px solid rgba(255,165,0,.4); }
+  .result-pill.pending { background: rgba(168,180,200,.1); color: var(--sub); border: 1px solid rgba(168,180,200,.3); }
+
+  .result-cell { display: flex; gap: 5px; align-items: center; }
   .manual-result { display: flex; gap: 3px; }
-  .rb { padding: 2px 5px; font-size: 10px; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; font-family: inherit; }
+  .rb { padding: 2px 6px; font-size: 10px; font-weight: 600; border: 1px solid var(--border); background: var(--card); color: var(--sub); cursor: pointer; font-family: 'Inter', sans-serif; }
   .rb:hover { border-color: var(--accent); color: var(--accent); }
   .rb.active-w { background: rgba(0,230,118,.2); border-color: var(--win); color: var(--win); }
   .rb.active-l { background: rgba(255,68,68,.2); border-color: var(--loss); color: var(--loss); }
@@ -73,24 +75,20 @@
 
   .pnl-pos { color: var(--win); font-weight: 700; }
   .pnl-neg { color: var(--loss); font-weight: 700; }
-  .pnl-zero { color: var(--muted); }
+  .pnl-push { color: var(--push); font-weight: 600; }
 
-  .f5-tag { background: rgba(0,212,255,.1); color: var(--accent); border: 1px solid rgba(0,212,255,.25); padding: 1px 5px; font-size: 9px; letter-spacing: .5px; }
-  .team-cell { font-weight: 600; }
+  .f5-tag { background: rgba(0,212,255,.1); color: var(--accent); border: 1px solid rgba(0,212,255,.3); padding: 1px 6px; font-size: 9px; font-weight: 700; letter-spacing: .5px; }
+  .team-cell { font-weight: 600; color: var(--text); }
+  .odds-pos { color: #7dd3fc; font-weight: 600; }
+  .odds-neg { color: var(--text); }
+  .api-conflict { color: var(--push); font-size: 9px; font-weight: 600; margin-left: 2px; }
+  .conflict td { background: rgba(255,165,0,.05) !important; }
 
-  .odds-pos { color: #7dd3fc; }
-  .odds-neg { color: var(--head); }
-
-  #status-bar { padding: 6px 14px; font-size: 11px; color: var(--accent); background: rgba(0,212,255,.05); border-bottom: 1px solid var(--border); min-height: 28px; }
-
-  .progress-wrap { padding: 6px 14px; }
-  .progress-bar { height: 3px; background: var(--border); }
+  #status-bar { padding: 6px 14px; font-size: 11px; color: var(--accent); background: rgba(0,212,255,.04); border-bottom: 1px solid var(--border); min-height: 26px; font-weight: 500; }
+  .progress-wrap { padding: 4px 14px; }
+  .progress-bar { height: 2px; background: var(--border); }
   .progress-fill { height: 100%; background: var(--accent); transition: width .3s; }
-
-  .day-header td { background: rgba(0,212,255,.05); color: var(--accent); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; padding: 5px 10px; border-top: 1px solid var(--border); }
-
-  .conflict { background: rgba(255,165,0,.1) !important; }
-  .conflict td { border-bottom: 1px solid rgba(255,165,0,.2) !important; }
+</style>
 </style>
 </head>
 <body>
@@ -101,8 +99,9 @@
     <div class="sub">Auto-grade via MLB Stats API · Starting: 40-35 +4.65u</div>
   </div>
   <button class="grade-btn" id="gradeBtn" onclick="gradeAll()">▶ AUTO GRADE ALL</button>
-  <button class="grade-btn" style="background:#1e2d45;color:var(--text);" onclick="resetOverrides()">↺ RESET MANUAL</button>
-  <button class="grade-btn" style="background:#1e2d45;color:var(--text);" onclick="exportSummary()">↓ EXPORT</button>
+  <button class="grade-btn dark" onclick="resetOverrides()">↺ RESET MANUAL</button>
+  <button class="grade-btn dark" onclick="exportSummary()">↓ EXPORT</button>
+  <button class="grade-btn dark" id="copyBtn" onclick="copyTable()">⧉ COPY TABLE</button>
 </header>
 
 <div id="status-bar">Ready · 312 bets loaded · Click AUTO GRADE ALL to fetch results</div>
@@ -113,7 +112,7 @@
 <div class="stats-bar" id="statsBar"></div>
 
 <div class="filters">
-  <span style="color:var(--muted);font-size:11px;margin-right:4px;">FILTER:</span>
+  <span style="color:var(--sub);font-size:11px;font-weight:600;margin-right:4px;">FILTER:</span>
   <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
   <button class="filter-btn" onclick="setFilter('win',this)">Wins</button>
   <button class="filter-btn" onclick="setFilter('loss',this)">Losses</button>
@@ -121,8 +120,8 @@
   <button class="filter-btn" onclick="setFilter('pending',this)">Pending</button>
   <button class="filter-btn" onclick="setFilter('conflict',this)">⚠ Conflicts</button>
   <button class="filter-btn" onclick="setFilter('f5',this)">F5 Only</button>
-  <button class="filter-btn" onclick="setFilter('full',this)">Full Game Only</button>
-  <span style="color:var(--border);margin:0 4px;">|</span>
+  <button class="filter-btn" onclick="setFilter('full',this)">Full Game</button>
+  <span class="sep">|</span>
   <input type="text" id="teamSearch" placeholder="Search team..." oninput="renderTable()">
   <select id="dateFilter" onchange="renderTable()">
     <option value="">All Dates</option>
@@ -135,14 +134,12 @@
     <tr>
       <th onclick="sortBy('date')">Date</th>
       <th onclick="sortBy('team')">Team</th>
-      <th onclick="sortBy('type')">Type</th>
       <th onclick="sortBy('odds')">Odds</th>
       <th onclick="sortBy('risk')">Risk</th>
       <th onclick="sortBy('toWin')">To Win</th>
-      <th>Logged</th>
-      <th>API Grade</th>
-      <th>Final</th>
-      <th onclick="sortBy('pnl')">P&L</th>
+      <th onclick="sortBy('pnl')">Result</th>
+      <th onclick="sortBy('pnl')" style="text-align:right;padding-right:14px;">P&L</th>
+      <th style="text-align:right;padding-right:14px;">Running</th>
     </tr>
   </thead>
   <tbody id="tbody"></tbody>
@@ -227,7 +224,7 @@ Red Sox -101 b105 (.50u risk) loss
 Red Sox f5 -102 b105 (.51u risk) loss
 Angels -105 bol (.51u risk) loss
 Angels f5 -110 b105 (.52u risk) win
-Astros +133 (.86u risk) ?
+Astros +133 (.86u risk) loss
 Nationals +142 nv 4.3k (.41u risk) win
 Nationals f5 +108 bm (.48u risk) win
 Rockies f5 +109 b105 (.95u risk) push
@@ -512,7 +509,8 @@ function parseBets() {
       else if (odds && odds > 0) risk = tw / (odds / 100);
       else risk = tw;
     } else {
-      const riskMatch = line.match(/\(([0-9.]+)u\s*risk\)/);
+      // match (.5u risk) OR (.5u) — the word "risk" is sometimes omitted
+      const riskMatch = line.match(/\(([0-9.]+)u(?:\s*risk)?\)/);
       if (riskMatch) risk = parseFloat(riskMatch[1]);
     }
 
@@ -615,29 +613,66 @@ function updateConflicts() {
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 function updateStats() {
+  // all bets totals
   let w=0,l=0,p=0,pend=0,pnl=0;
+  let f5w=0,f5l=0,f5p=0,f5pnl=0;
+  let fgw=0,fgl=0,fgp=0,fgpnl=0;
   bets.forEach(b => {
     const r = effectiveResult(b);
-    if (r==='win') w++;
-    else if (r==='loss') l++;
-    else if (r==='push') p++;
-    else pend++;
     const pl = calcPnl(b);
+    if (r==='win') w++; else if (r==='loss') l++; else if (r==='push') p++; else pend++;
     if (pl !== null) pnl += pl;
+    if (b.isF5) {
+      if (r==='win') f5w++; else if (r==='loss') f5l++; else if (r==='push') f5p++;
+      if (pl !== null) f5pnl += pl;
+    } else {
+      if (r==='win') fgw++; else if (r==='loss') fgl++; else if (r==='push') fgp++;
+      if (pl !== null) fgpnl += pl;
+    }
   });
   const tw = STARTING.w + w, tl = STARTING.l + l, tp = pnl + STARTING.pnl;
   const winPct = tw+tl > 0 ? (tw/(tw+tl)*100).toFixed(1) : '--';
   const bar = document.getElementById('statsBar');
   const fmt = (v,d=2) => (v>=0?'+':'')+v.toFixed(d);
-  bar.innerHTML = `
-    <div class="stat"><div class="label">Record</div><div class="val neutral">${tw}-${tl}${p>0?` (${p}p)`:''}</div></div>
-    <div class="stat"><div class="label">Win %</div><div class="val neutral">${winPct}%</div></div>
-    <div class="stat"><div class="label">Total P&L</div><div class="val ${tp>=0?'pos':'neg'}">${fmt(tp)}u</div></div>
-    <div class="stat"><div class="label">This Period</div><div class="val ${pnl>=0?'pos':'neg'}">${fmt(pnl)}u</div></div>
-    <div class="stat"><div class="label">Bets</div><div class="val neutral">${w+l+p+pend}</div></div>
-    <div class="stat"><div class="label">Pending</div><div class="val ${pend>0?'neutral':''}">${pend}</div></div>
-    <div class="stat"><div class="label">Conflicts</div><div class="val ${bets.filter(b=>b.conflict).length>0?'neg':''}">${bets.filter(b=>b.conflict).length}</div></div>
-  `;
+
+  if (filter === 'f5') {
+    const wp = f5w+f5l > 0 ? (f5w/(f5w+f5l)*100).toFixed(1) : '--';
+    bar.innerHTML = `
+      <div class="stat"><div class="label">F5 Record</div><div class="val neu">${f5w}-${f5l}${f5p>0?` (${f5p}p)`:''}</div></div>
+      <div class="stat"><div class="label">F5 Win %</div><div class="val neu">${wp}%</div></div>
+      <div class="stat"><div class="label">F5 P&L</div><div class="val ${f5pnl>=0?'pos':'neg'}">${fmt(f5pnl)}u</div></div>
+      <div class="stat"><div class="label">Total P&L</div><div class="val ${tp>=0?'pos':'neg'}">${fmt(tp)}u</div></div>
+      <div class="stat"><div class="label">F5 Bets</div><div class="val neu">${f5w+f5l+f5p}</div></div>
+    `;
+  } else if (filter === 'full') {
+    const wp = fgw+fgl > 0 ? (fgw/(fgw+fgl)*100).toFixed(1) : '--';
+    bar.innerHTML = `
+      <div class="stat"><div class="label">Full Game Rec</div><div class="val neu">${fgw}-${fgl}${fgp>0?` (${fgp}p)`:''}</div></div>
+      <div class="stat"><div class="label">Full Win %</div><div class="val neu">${wp}%</div></div>
+      <div class="stat"><div class="label">Full P&L</div><div class="val ${fgpnl>=0?'pos':'neg'}">${fmt(fgpnl)}u</div></div>
+      <div class="stat"><div class="label">Total P&L</div><div class="val ${tp>=0?'pos':'neg'}">${fmt(tp)}u</div></div>
+      <div class="stat"><div class="label">Full Bets</div><div class="val neu">${fgw+fgl+fgp}</div></div>
+    `;
+  } else {
+    const periodBets = w + l + p;
+    const totalBets = STARTING.w + STARTING.l + periodBets;
+    const roi = (w+l) > 0 ? (pnl / bets.filter(b=>b.risk).reduce((s,b)=>s+b.risk,0) * 100).toFixed(1) : '--';
+    bar.innerHTML = `
+      <div class="stat"><div class="label">Record (all-time)</div><div class="val neu">${tw}-${tl}${p>0?` (${p}p)`:''}</div></div>
+      <div class="stat"><div class="label">Win %</div><div class="val neu">${winPct}%</div></div>
+      <div class="stat"><div class="label">Total P&L</div><div class="val ${tp>=0?'pos':'neg'}">${fmt(tp)}u</div></div>
+      <div class="stat"><div class="label">This Period</div><div class="val ${pnl>=0?'pos':'neg'}">${fmt(pnl)}u</div></div>
+      <div class="stat"><div class="label">F5 P&L</div><div class="val ${f5pnl>=0?'pos':'neg'}">${fmt(f5pnl)}u</div></div>
+      <div class="stat"><div class="label">Full P&L</div><div class="val ${fgpnl>=0?'pos':'neg'}">${fmt(fgpnl)}u</div></div>
+      <div class="stat"><div class="label">ROI</div><div class="val ${roi>=0?'pos':'neg'}">${roi}%</div></div>
+      <div class="stat" title="75 prior + ${periodBets} this period">
+        <div class="label">Total Bets</div>
+        <div class="val neu">${totalBets}</div>
+        <div style="font-size:10px;color:var(--sub);margin-top:2px;">75 + ${periodBets}</div>
+      </div>
+      <div class="stat"><div class="label">Pending</div><div class="val ${pend>0?'neu':''}">${pend}</div></div>
+    `;
+  }
 }
 
 // ─── TABLE RENDER ─────────────────────────────────────────────────────────────
@@ -645,8 +680,10 @@ function setFilter(f, el) {
   filter = f;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
+  updateStats();
   renderTable();
 }
+
 
 function sortBy(col) {
   if (sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=1; }
@@ -671,7 +708,6 @@ function renderTable() {
     return true;
   });
 
-  // sort
   rows.sort((a,b) => {
     let va,vb;
     switch(sortCol) {
@@ -691,50 +727,247 @@ function renderTable() {
 
   let html = '';
   let lastDate = null;
+  let running = STARTING.pnl;
+
+  // Baseline row — only show when sorted by date and no conflicting filters
+  if (sortCol === 'date' && !['win','loss','push','pending','conflict'].includes(filter)) {
+    html += `<tr style="background:rgba(0,212,255,.06);border-bottom:2px solid rgba(0,212,255,.2);">
+      <td style="color:var(--accent);font-size:11px;font-weight:700;">BASELINE</td>
+      <td style="color:var(--accent);font-weight:700;" colspan="2">Prior to 4/13 · 40W-35L</td>
+      <td style="color:var(--sub);">—</td>
+      <td style="color:var(--sub);">—</td>
+      <td><span class="result-pill" style="background:rgba(0,212,255,.15);color:var(--accent);border:1px solid rgba(0,212,255,.4);">START</span></td>
+      <td style="text-align:right;padding-right:14px;">—</td>
+      <td style="text-align:right;padding-right:14px;"><span class="pnl-pos">+4.65u</span></td>
+    </tr>`;
+  }
+
   rows.forEach(b => {
     if (sortCol==='date' && b.date !== lastDate) {
       lastDate = b.date;
       const d = new Date(b.date);
       const label = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-      html += `<tr class="day-header"><td colspan="10">📅 ${label}</td></tr>`;
+      const dayBets = rows.filter(x=>x.date===b.date);
+      const dw = dayBets.filter(x=>effectiveResult(x)==='win').length;
+      const dl = dayBets.filter(x=>effectiveResult(x)==='loss').length;
+      const dp = dayBets.filter(x=>effectiveResult(x)==='push').length;
+      let dpnl = 0; dayBets.forEach(x=>{ const pl=calcPnl(x); if(pl!==null) dpnl+=pl; });
+      html += `<tr class="day-header"><td colspan="8">📅 ${label} &nbsp;·&nbsp; ${dw}W ${dl}L${dp?' '+dp+'P':''} &nbsp;·&nbsp; <span style="color:${dpnl>=0?'var(--win)':'var(--loss)'};">${dpnl>=0?'+':''}${dpnl.toFixed(2)}u</span></td></tr>`;
     }
     const r = effectiveResult(b);
     const pnl = calcPnl(b);
-    const pnlStr = pnl===null?'—':pnl===0?'<span class="pnl-zero">0.00</span>':`<span class="${pnl>0?'pnl-pos':'pnl-neg'}">${pnl>0?'+':''}${pnl.toFixed(2)}u</span>`;
+    if (pnl !== null) running += pnl;
+    const pnlStr = pnl===null ? '—' : pnl===0 ? '<span class="pnl-push">PUSH</span>' : `<span class="${pnl>0?'pnl-pos':'pnl-neg'}">${pnl>0?'+':''}${pnl.toFixed(2)}u</span>`;
+    const runStr = `<span class="${running>=0?'pnl-pos':'pnl-neg'}">${running>=0?'+':''}${running.toFixed(2)}u</span>`;
     const oddsStr = b.odds ? `<span class="${b.odds>0?'odds-pos':'odds-neg'}">${b.odds>0?'+':''}${b.odds}</span>` : '—';
-    const apiB = b.apiResult ? `<span class="badge auto ${b.apiResult}">${b.apiResult.toUpperCase()}</span>` : '<span style="color:var(--muted);font-size:10px;">—</span>';
-    const loggedB = b.loggedResult ? `<span class="badge ${b.loggedResult}">${b.loggedResult==='pending'?'?':b.loggedResult.toUpperCase()}</span>` : '—';
-    const finalB = r ? `<span class="badge ${r}">${r==='pending'?'?':r.toUpperCase()}</span>` : '—';
+    const resultPill = r ? `<span class="result-pill ${r}">${r==='pending'?'?':r.toUpperCase()}</span>` : '—';
     const mw = b.manualResult==='win' ? ' active-w' : '';
     const ml = b.manualResult==='loss' ? ' active-l' : '';
     const mp = b.manualResult==='push' ? ' active-p' : '';
+    const conflictIcon = b.conflict ? ' <span class="api-conflict">⚠</span>' : '';
+    const apiNote = b.apiResult && b.apiResult !== b.loggedResult && !b.manualResult
+      ? `<span class="api-conflict">api:${b.apiResult.toUpperCase()}</span>` : '';
+
     html += `<tr class="${b.conflict?'conflict':''}">
-      <td style="color:var(--muted);font-size:11px;">${b.date||'—'}</td>
-      <td class="team-cell">${b.team}${b.isF5?` <span class="f5-tag">F5</span>`:''}</td>
-      <td style="color:var(--muted)">${b.isF5?'F5':'Full'}</td>
+      <td style="color:var(--sub);font-size:12px;">${b.date||'—'}</td>
+      <td class="team-cell">${b.team}${b.isF5?' <span class="f5-tag">F5</span>':''}${conflictIcon}</td>
       <td>${oddsStr}</td>
       <td>${b.risk!==null?b.risk+'u':'—'}</td>
-      <td>${b.toWin?'+'+b.toWin+'u':'—'}</td>
-      <td>${loggedB}</td>
-      <td>${apiB}</td>
+      <td style="color:var(--accent2);font-weight:600;">${b.toWin?'+'+b.toWin+'u':'—'}</td>
       <td>
         <div class="result-cell">
-          ${finalB}
+          ${resultPill}${apiNote}
           <div class="manual-result">
-            <button class="rb${mw}" onclick="setManual(${b.id},'win')" title="Manual: Win">W</button>
-            <button class="rb${ml}" onclick="setManual(${b.id},'loss')" title="Manual: Loss">L</button>
-            <button class="rb${mp}" onclick="setManual(${b.id},'push')" title="Manual: Push">P</button>
+            <button class="rb${mw}" onclick="setManual(${b.id},'win')">W</button>
+            <button class="rb${ml}" onclick="setManual(${b.id},'loss')">L</button>
+            <button class="rb${mp}" onclick="setManual(${b.id},'push')">P</button>
           </div>
         </div>
       </td>
-      <td>${pnlStr}</td>
+      <td style="text-align:right;padding-right:14px;">${pnlStr}</td>
+      <td style="text-align:right;padding-right:14px;font-size:12px;">${runStr}</td>
     </tr>`;
   });
 
-  document.getElementById('tbody').innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">No bets match filter</td></tr>';
+  document.getElementById('tbody').innerHTML = html || '<tr><td colspan="8" style="text-align:center;color:var(--sub);padding:20px;">No bets match filter</td></tr>';
 }
 
-// ─── DATE FILTER SETUP ────────────────────────────────────────────────────────
+// ─── COPY TABLE ───────────────────────────────────────────────────────────────
+function buildSummaryStats(betList) {
+  let w=0,l=0,p=0,pnl=0,totalRisked=0;
+  let f5w=0,f5l=0,f5p=0,f5pnl=0,f5risked=0;
+  let fgw=0,fgl=0,fgp=0,fgpnl=0,fgrisked=0;
+  let dogW=0,dogL=0,dogPnl=0;
+  let favW=0,favL=0,favPnl=0;
+
+  betList.forEach(b => {
+    const r = effectiveResult(b);
+    const pl = calcPnl(b);
+    if (r==='win') w++; else if (r==='loss') l++; else if (r==='push') p++;
+    if (pl!==null) pnl+=pl;
+    if (b.risk) totalRisked += b.risk;
+
+    if (b.isF5) {
+      if (r==='win') f5w++; else if (r==='loss') f5l++; else if (r==='push') f5p++;
+      if (pl!==null) f5pnl+=pl;
+      if (b.risk) f5risked+=b.risk;
+    } else {
+      if (r==='win') fgw++; else if (r==='loss') fgl++; else if (r==='push') fgp++;
+      if (pl!==null) fgpnl+=pl;
+      if (b.risk) fgrisked+=b.risk;
+    }
+
+    if (b.odds > 0) {
+      if (r==='win') dogW++; else if (r==='loss') dogL++;
+      if (pl!==null) dogPnl+=pl;
+    } else if (b.odds < 0) {
+      if (r==='win') favW++; else if (r==='loss') favL++;
+      if (pl!==null) favPnl+=pl;
+    }
+  });
+
+  const winPct = w+l>0 ? (w/(w+l)*100).toFixed(1) : '—';
+  const roi = totalRisked>0 ? (pnl/totalRisked*100).toFixed(1) : '—';
+  const f5wp = f5w+f5l>0 ? (f5w/(f5w+f5l)*100).toFixed(1) : '—';
+  const f5roi = f5risked>0 ? (f5pnl/f5risked*100).toFixed(1) : '—';
+  const fgwp = fgw+fgl>0 ? (fgw/(fgw+fgl)*100).toFixed(1) : '—';
+  const fgroi = fgrisked>0 ? (fgpnl/fgrisked*100).toFixed(1) : '—';
+  const dogWp = dogW+dogL>0 ? (dogW/(dogW+dogL)*100).toFixed(1) : '—';
+  const favWp = favW+favL>0 ? (favW/(favW+favL)*100).toFixed(1) : '—';
+  const fmt = v => (v>=0?'+':'')+v.toFixed(2)+'u';
+
+  return { w,l,p,pnl,totalRisked,roi,winPct,
+    f5w,f5l,f5p,f5pnl,f5risked,f5wp,f5roi,
+    fgw,fgl,fgp,fgpnl,fgrisked,fgwp,fgroi,
+    dogW,dogL,dogPnl,dogWp,favW,favL,favPnl,favWp, fmt };
+}
+
+async function copyTable() {
+  const search = document.getElementById('teamSearch').value.toLowerCase();
+  const dateF = document.getElementById('dateFilter').value;
+  const visibleBets = bets.filter(b => {
+    if (search && !b.team.toLowerCase().includes(search)) return false;
+    if (dateF && b.date !== dateF) return false;
+    const r = effectiveResult(b);
+    if (filter==='win' && r!=='win') return false;
+    if (filter==='loss' && r!=='loss') return false;
+    if (filter==='push' && r!=='push') return false;
+    if (filter==='pending' && r!=='pending') return false;
+    if (filter==='conflict' && !b.conflict) return false;
+    if (filter==='f5' && !b.isF5) return false;
+    if (filter==='full' && b.isF5) return false;
+    return true;
+  });
+
+  const s = buildSummaryStats(visibleBets);
+  const tw = STARTING.w + (filter==='all'?s.w:s.w);
+  const tl = STARTING.l + (filter==='all'?s.l:s.l);
+  const totalPnl = filter==='all' ? s.pnl + STARTING.pnl : s.pnl;
+  const totalPnlAll = s.pnl + STARTING.pnl;
+  const fmt = s.fmt;
+
+  const divider = '─'.repeat(52);
+  const lines = [];
+
+  lines.push('⚾ MLB CHANNEL P&L SUMMARY');
+  lines.push(divider);
+
+  if (filter === 'all') {
+    const totalBetsCopy = STARTING.w + STARTING.l + s.w + s.l + s.p;
+    lines.push(`📊 OVERALL (incl. 40-35 +4.65u baseline)`);
+    lines.push(`   Record:     ${tw}-${tl} (${s.p} pushes)`);
+    lines.push(`   Win Rate:   ${s.winPct}%`);
+    lines.push(`   Total P&L:  ${fmt(totalPnlAll)}`);
+    lines.push(`   This Span:  ${fmt(s.pnl)}`);
+    lines.push(`   ROI:        ${s.roi}%`);
+    lines.push(`   Total Bets: ${totalBetsCopy}  (${s.w+s.l+s.p} this period)`);
+    lines.push('');
+    lines.push(`🎯 F5 BETS`);
+    lines.push(`   Record:  ${s.f5w}-${s.f5l} (${s.f5p}p)  |  Win: ${s.f5wp}%`);
+    lines.push(`   P&L:     ${fmt(s.f5pnl)}  |  ROI: ${s.f5roi}%`);
+    lines.push('');
+    lines.push(`🏁 FULL GAME BETS`);
+    lines.push(`   Record:  ${s.fgw}-${s.fgl} (${s.fgp}p)  |  Win: ${s.fgwp}%`);
+    lines.push(`   P&L:     ${fmt(s.fgpnl)}  |  ROI: ${s.fgroi}%`);
+    lines.push('');
+    lines.push(`📈 BY SIDE`);
+    lines.push(`   Dogs (+odds):  ${s.dogW}-${s.dogL}  ${fmt(s.dogPnl)}  (${s.dogWp}%)`);
+    lines.push(`   Favs (-odds):  ${s.favW}-${s.favL}  ${fmt(s.favPnl)}  (${s.favWp}%)`);
+  } else {
+    const label = filter==='f5'?'F5 ONLY':filter==='full'?'FULL GAME ONLY':filter.toUpperCase();
+    lines.push(`📊 ${label}`);
+    lines.push(`   Record:   ${s.w}-${s.l} (${s.p} pushes)`);
+    lines.push(`   Win Rate: ${s.winPct}%`);
+    lines.push(`   P&L:      ${fmt(s.pnl)}`);
+    lines.push(`   ROI:      ${s.roi}%`);
+    lines.push(`   Bets:     ${s.w+s.l+s.p} graded`);
+  }
+
+  lines.push(divider);
+  lines.push('DATE     TEAM              ODDS    RISK    TO WIN  RESULT  P&L       RUNNING');
+  lines.push(divider);
+  if (filter === 'all') {
+    lines.push(`BASELINE  Prior to 4/13 · 40W-35L                          START               +4.65u`);
+    lines.push('');
+  }
+
+  let lastDate = null;
+  let copyRunning = STARTING.pnl;
+  visibleBets.forEach(b => {
+    if (b.date !== lastDate) {
+      if (lastDate) lines.push('');
+      lastDate = b.date;
+      const d = new Date(b.date);
+      const dl = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+      // day subtotal
+      const dayBets = visibleBets.filter(x=>x.date===b.date);
+      const dw = dayBets.filter(x=>effectiveResult(x)==='win').length;
+      const dl2 = dayBets.filter(x=>effectiveResult(x)==='loss').length;
+      const dp = dayBets.filter(x=>effectiveResult(x)==='push').length;
+      let dpnl = 0; dayBets.forEach(x=>{ const pl=calcPnl(x); if(pl!==null) dpnl+=pl; });
+      lines.push(`── ${dl}  ${dw}W ${dl2}L${dp?' '+dp+'P':''}  day: ${dpnl>=0?'+':''}${dpnl.toFixed(2)}u ──`);
+    }
+    const r = effectiveResult(b);
+    const pnl = calcPnl(b);
+    if (pnl !== null) copyRunning += pnl;
+    const teamStr = (b.team + (b.isF5?' F5':'')).padEnd(18);
+    const oddsStr = (b.odds > 0 ? '+'+b.odds : ''+b.odds).padEnd(8);
+    const riskStr = (b.risk ? b.risk+'u' : '—').padEnd(8);
+    const twStr = (b.toWin ? '+'+b.toWin+'u' : '—').padEnd(8);
+    const resStr = (r ? r.toUpperCase() : '?').padEnd(8);
+    const pnlStr = (pnl===null ? '—' : pnl===0 ? 'PUSH' : (pnl>0?'+':'')+pnl.toFixed(2)+'u').padEnd(10);
+    const runStr = (copyRunning>=0?'+':'')+copyRunning.toFixed(2)+'u';
+    const dt = b.date.replace('/2025','').padEnd(7);
+    lines.push(`${dt}  ${teamStr}${oddsStr}${riskStr}${twStr}${resStr}${pnlStr}→ ${runStr}`);
+  });
+
+  lines.push(divider);
+  const totalU = filter==='all' ? s.pnl + STARTING.pnl : s.pnl;
+  lines.push(`💵 IF YOUR UNIT SIZE IS...`);
+  lines.push(`   $500/u  → ${totalU>=0?'+':'-'}$${Math.abs(totalU*500).toFixed(0)}`);
+  lines.push(`   $1000/u → ${totalU>=0?'+':'-'}$${Math.abs(totalU*1000).toFixed(0)}`);
+  lines.push(divider);
+  lines.push(`Generated: ${new Date().toLocaleString()}`);
+
+  const text = lines.join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  const btn = document.getElementById('copyBtn');
+  const orig = btn.textContent;
+  btn.textContent = '✓ COPIED';
+  btn.style.color = 'var(--win)';
+  setTimeout(() => { btn.textContent = orig; btn.style.color = 'var(--text)'; }, 1500);
+}
 function populateDateFilter() {
   const dates = [...new Set(bets.map(b=>b.date))].sort();
   const sel = document.getElementById('dateFilter');
@@ -746,88 +979,74 @@ function populateDateFilter() {
 }
 
 // ─── MLB API GRADING ─────────────────────────────────────────────────────────
-async function fetchGames(dateStr) {
-  // dateStr: "4/13/2025" → "2025-04-13"
+function normTeam(name) {
+  return name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z]/g,'');
+}
+const TEAM_NORMS = {};
+Object.keys(TEAM_IDS).forEach(k => { TEAM_NORMS[normTeam(k)] = TEAM_IDS[k]; });
+function getTeamId(name) { return TEAM_NORMS[normTeam(name)] || null; }
+
+// Step 1: fetch schedule for a date → returns array of game objects with gamePk + scores
+async function fetchSchedule(dateStr) {
   const [m,d,y] = dateStr.split('/');
   const apiDate = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${apiDate}&hydrate=linescore,team`;
   try {
-    const r = await fetch(url);
+    const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${apiDate}&hydrate=team`);
     const data = await r.json();
     const games = [];
-    for (const d of (data.dates||[])) {
-      for (const g of (d.games||[])) games.push(g);
-    }
+    for (const dd of (data.dates||[])) for (const g of (dd.games||[])) games.push(g);
     return games;
   } catch(e) { return []; }
 }
 
-function normTeam(name) {
-  return name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z]/g,'');
+// Step 2: fetch dedicated linescore for a single gamePk
+async function fetchLinescore(gamePk) {
+  try {
+    const r = await fetch(`https://statsapi.mlb.com/api/v1/game/${gamePk}/linescore`);
+    const data = await r.json();
+    return data.innings || [];
+  } catch(e) { return []; }
 }
 
-const TEAM_NORMS = {};
-Object.keys(TEAM_IDS).forEach(k => { TEAM_NORMS[normTeam(k)] = TEAM_IDS[k]; });
-
-function getTeamId(name) {
-  return TEAM_NORMS[normTeam(name)] || null;
-}
-
-function gradeGame(bet, games) {
+// Grade a full-game bet from schedule data
+function gradeFullGame(bet, games) {
   const teamId = getTeamId(bet.team);
   if (!teamId) return null;
-
-  // Find game with this team
-  const game = games.find(g => {
-    const homeId = g.teams?.home?.team?.id;
-    const awayId = g.teams?.away?.team?.id;
-    return homeId===teamId || awayId===teamId;
-  });
+  const game = games.find(g => g.teams?.home?.team?.id===teamId || g.teams?.away?.team?.id===teamId);
   if (!game) return null;
-
-  const state = game.status?.abstractGameState;
-  if (state !== 'Final') return null;
-
+  if (game.status?.abstractGameState !== 'Final') return null;
   const homeScore = game.teams?.home?.score;
   const awayScore = game.teams?.away?.score;
-  const homeId = game.teams?.home?.team?.id;
-  const awayId = game.teams?.away?.team?.id;
-  const betTeamIsHome = homeId === teamId;
+  if (homeScore == null || awayScore == null) return null;
+  const isHome = game.teams?.home?.team?.id === teamId;
+  const myScore = isHome ? homeScore : awayScore;
+  const oppScore = isHome ? awayScore : homeScore;
+  if (myScore > oppScore) return 'win';
+  if (myScore < oppScore) return 'loss';
+  return 'push';
+}
 
-  if (homeScore === undefined || awayScore === undefined) return null;
-
-  if (bet.isF5) {
-    // Use linescore to get F5 score
-    const linescore = game.linescore;
-    if (!linescore || !linescore.innings) return null;
-    const innings = linescore.innings.slice(0,5);
-    if (innings.length < 5) return null;
-    let homeF5=0, awayF5=0;
-    innings.forEach(inn => {
-      homeF5 += inn.home?.runs||0;
-      awayF5 += inn.away?.runs||0;
-    });
-    if (betTeamIsHome) {
-      if (homeF5 > awayF5) return 'win';
-      if (homeF5 < awayF5) return 'loss';
-      return 'push';
-    } else {
-      if (awayF5 > homeF5) return 'win';
-      if (awayF5 < homeF5) return 'loss';
-      return 'push';
-    }
-  } else {
-    // Full game
-    if (betTeamIsHome) {
-      if (homeScore > awayScore) return 'win';
-      if (homeScore < awayScore) return 'loss';
-      return 'push';
-    } else {
-      if (awayScore > homeScore) return 'win';
-      if (awayScore < homeScore) return 'loss';
-      return 'push';
-    }
-  }
+// Grade an F5 bet from linescore innings array
+function gradeF5(bet, games, innings) {
+  const teamId = getTeamId(bet.team);
+  if (!teamId) return null;
+  const game = games.find(g => g.teams?.home?.team?.id===teamId || g.teams?.away?.team?.id===teamId);
+  if (!game) return null;
+  if (game.status?.abstractGameState !== 'Final') return null;
+  if (!innings || innings.length < 5) return null;
+  const f5 = innings.slice(0, 5);
+  const isHome = game.teams?.home?.team?.id === teamId;
+  let myRuns = 0, oppRuns = 0;
+  f5.forEach(inn => {
+    // runs can be null if home team didn't bat in bottom of inning
+    const homeRuns = inn.home?.runs ?? 0;
+    const awayRuns = inn.away?.runs ?? 0;
+    myRuns  += isHome ? homeRuns : awayRuns;
+    oppRuns += isHome ? awayRuns : homeRuns;
+  });
+  if (myRuns > oppRuns) return 'win';
+  if (myRuns < oppRuns) return 'loss';
+  return 'push';
 }
 
 async function gradeAll() {
@@ -835,22 +1054,54 @@ async function gradeAll() {
   btn.disabled = true;
   btn.className = 'grade-btn running';
   btn.textContent = '⏳ GRADING...';
-  document.getElementById('progressWrap').style.display='block';
+  document.getElementById('progressWrap').style.display = 'block';
 
   const dates = [...new Set(bets.map(b=>b.date))].sort();
-  const gameCache = {};
+  let graded = 0;
 
-  for (let i=0; i<dates.length; i++) {
-    const d = dates[i];
-    document.getElementById('status-bar').textContent = `Fetching ${d} (${i+1}/${dates.length})...`;
+  for (let i = 0; i < dates.length; i++) {
+    const dateStr = dates[i];
+    document.getElementById('status-bar').textContent = `Fetching ${dateStr} (${i+1}/${dates.length})...`;
     document.getElementById('progressFill').style.width = ((i+1)/dates.length*100)+'%';
-    if (!gameCache[d]) {
-      gameCache[d] = await fetchGames(d);
+
+    const games = await fetchSchedule(dateStr);
+    const dateBets = bets.filter(b => b.date === dateStr);
+
+    // collect unique gamePks needed for F5 bets on this date
+    const f5Bets = dateBets.filter(b => b.isF5);
+    const gamePkMap = {}; // teamId → gamePk
+    games.forEach(g => {
+      if (g.status?.abstractGameState !== 'Final') return;
+      const homeId = g.teams?.home?.team?.id;
+      const awayId = g.teams?.away?.team?.id;
+      if (homeId) gamePkMap[homeId] = g.gamePk;
+      if (awayId) gamePkMap[awayId] = g.gamePk;
+    });
+
+    // fetch linescores only for games that have F5 bets
+    const linescoreCache = {};
+    const pkSet = new Set();
+    f5Bets.forEach(b => {
+      const tid = getTeamId(b.team);
+      if (tid && gamePkMap[tid]) pkSet.add(gamePkMap[tid]);
+    });
+    for (const pk of pkSet) {
+      document.getElementById('status-bar').textContent = `Fetching linescore ${pk} (${dateStr})...`;
+      linescoreCache[pk] = await fetchLinescore(pk);
     }
-    const games = gameCache[d];
-    bets.filter(b=>b.date===d).forEach(b => {
-      const grade = gradeGame(b, games);
-      if (grade) { b.apiResult = grade; b.apiChecked = true; }
+
+    // grade all bets for this date
+    dateBets.forEach(b => {
+      let grade = null;
+      if (b.isF5) {
+        const tid = getTeamId(b.team);
+        const pk = tid ? gamePkMap[tid] : null;
+        const innings = pk ? linescoreCache[pk] : null;
+        grade = gradeF5(b, games, innings);
+      } else {
+        grade = gradeFullGame(b, games);
+      }
+      if (grade) { b.apiResult = grade; b.apiChecked = true; graded++; }
     });
   }
 
@@ -860,8 +1111,8 @@ async function gradeAll() {
 
   const conflicts = bets.filter(b=>b.conflict).length;
   document.getElementById('status-bar').textContent =
-    `✅ Grading complete · ${bets.filter(b=>b.apiResult).length} graded · ${conflicts} conflicts found`;
-  document.getElementById('progressWrap').style.display='none';
+    `✅ Done · ${graded} graded · ${conflicts} conflicts`;
+  document.getElementById('progressWrap').style.display = 'none';
   btn.disabled = false;
   btn.className = 'grade-btn';
   btn.textContent = '▶ RE-GRADE ALL';
