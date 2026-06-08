@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLB Channel P&L Grader</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #111827;
+    --card: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --win: #00e676;
+    --loss: #ff4444;
+    --push: #ffa500;
+    --pending: #888;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --head: #94a3b8;
+    --highlight: rgba(0,212,255,0.07);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 13px; min-height: 100vh; }
+
+  header { background: linear-gradient(135deg, #0d1b2e 0%, #0a0e1a 100%); border-bottom: 1px solid var(--border); padding: 16px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; }
+  header .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  .grade-btn { background: var(--accent); color: #000; border: none; padding: 8px 18px; font-family: inherit; font-size: 12px; font-weight: 700; letter-spacing: 1px; cursor: pointer; text-transform: uppercase; transition: opacity .15s; }
+  .grade-btn:hover { opacity: .85; }
+  .grade-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .grade-btn.running { background: #ffa500; }
+
+  .stats-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
+  .stat { padding: 12px 20px; border-right: 1px solid var(--border); min-width: 110px; }
+  .stat .label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .stat .val { font-size: 18px; font-weight: 700; }
+  .stat .val.pos { color: var(--win); }
+  .stat .val.neg { color: var(--loss); }
+  .stat .val.neutral { color: var(--accent); }
+
+  .filters { display: flex; gap: 8px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+  .filter-btn { background: var(--card); border: 1px solid var(--border); color: var(--head); padding: 4px 12px; font-family: inherit; font-size: 11px; cursor: pointer; transition: all .12s; }
+  .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+  .filters select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; font-family: inherit; font-size: 11px; }
+  .filters input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; font-family: inherit; font-size: 11px; width: 140px; }
+  .filters input::placeholder { color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--panel); color: var(--head); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 10px; text-align: left; position: sticky; top: 0; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { color: var(--accent); }
+  th.sorted { color: var(--accent); }
+  td { padding: 6px 10px; border-bottom: 1px solid rgba(30,45,69,0.5); white-space: nowrap; }
+  tr:hover td { background: var(--highlight); }
+
+  .badge { display: inline-block; padding: 2px 7px; font-size: 10px; font-weight: 700; letter-spacing: .5px; }
+  .badge.win { background: rgba(0,230,118,.15); color: var(--win); border: 1px solid rgba(0,230,118,.3); }
+  .badge.loss { background: rgba(255,68,68,.15); color: var(--loss); border: 1px solid rgba(255,68,68,.3); }
+  .badge.push { background: rgba(255,165,0,.15); color: var(--push); border: 1px solid rgba(255,165,0,.3); }
+  .badge.pending { background: rgba(136,136,136,.15); color: var(--pending); border: 1px solid rgba(136,136,136,.3); }
+  .badge.auto { opacity: .7; }
+
+  .result-cell { display: flex; gap: 4px; align-items: center; }
+  .manual-result { display: flex; gap: 3px; }
+  .rb { padding: 2px 5px; font-size: 10px; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; font-family: inherit; }
+  .rb:hover { border-color: var(--accent); color: var(--accent); }
+  .rb.active-w { background: rgba(0,230,118,.2); border-color: var(--win); color: var(--win); }
+  .rb.active-l { background: rgba(255,68,68,.2); border-color: var(--loss); color: var(--loss); }
+  .rb.active-p { background: rgba(255,165,0,.2); border-color: var(--push); color: var(--push); }
+
+  .pnl-pos { color: var(--win); font-weight: 700; }
+  .pnl-neg { color: var(--loss); font-weight: 700; }
+  .pnl-zero { color: var(--muted); }
+
+  .f5-tag { background: rgba(0,212,255,.1); color: var(--accent); border: 1px solid rgba(0,212,255,.25); padding: 1px 5px; font-size: 9px; letter-spacing: .5px; }
+  .team-cell { font-weight: 600; }
+
+  .odds-pos { color: #7dd3fc; }
+  .odds-neg { color: var(--head); }
+
+  #status-bar { padding: 6px 14px; font-size: 11px; color: var(--accent); background: rgba(0,212,255,.05); border-bottom: 1px solid var(--border); min-height: 28px; }
+
+  .progress-wrap { padding: 6px 14px; }
+  .progress-bar { height: 3px; background: var(--border); }
+  .progress-fill { height: 100%; background: var(--accent); transition: width .3s; }
+
+  .day-header td { background: rgba(0,212,255,.05); color: var(--accent); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; padding: 5px 10px; border-top: 1px solid var(--border); }
+
+  .conflict { background: rgba(255,165,0,.1) !important; }
+  .conflict td { border-bottom: 1px solid rgba(255,165,0,.2) !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>⚾ MLB Channel Grader</h1>
+    <div class="sub">Auto-grade via MLB Stats API · Starting: 40-35 +4.65u</div>
+  </div>
+  <button class="grade-btn" id="gradeBtn" onclick="gradeAll()">▶ AUTO GRADE ALL</button>
+  <button class="grade-btn" style="background:#1e2d45;color:var(--text);" onclick="resetOverrides()">↺ RESET MANUAL</button>
+  <button class="grade-btn" style="background:#1e2d45;color:var(--text);" onclick="exportSummary()">↓ EXPORT</button>
+</header>
+
+<div id="status-bar">Ready · 312 bets loaded · Click AUTO GRADE ALL to fetch results</div>
+<div class="progress-wrap" id="progressWrap" style="display:none">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="filters">
+  <span style="color:var(--muted);font-size:11px;margin-right:4px;">FILTER:</span>
+  <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+  <button class="filter-btn" onclick="setFilter('win',this)">Wins</button>
+  <button class="filter-btn" onclick="setFilter('loss',this)">Losses</button>
+  <button class="filter-btn" onclick="setFilter('push',this)">Pushes</button>
+  <button class="filter-btn" onclick="setFilter('pending',this)">Pending</button>
+  <button class="filter-btn" onclick="setFilter('conflict',this)">⚠ Conflicts</button>
+  <button class="filter-btn" onclick="setFilter('f5',this)">F5 Only</button>
+  <button class="filter-btn" onclick="setFilter('full',this)">Full Game Only</button>
+  <span style="color:var(--border);margin:0 4px;">|</span>
+  <input type="text" id="teamSearch" placeholder="Search team..." oninput="renderTable()">
+  <select id="dateFilter" onchange="renderTable()">
+    <option value="">All Dates</option>
+  </select>
+</div>
+
+<div class="table-wrap">
+<table id="betTable">
+  <thead>
+    <tr>
+      <th onclick="sortBy('date')">Date</th>
+      <th onclick="sortBy('team')">Team</th>
+      <th onclick="sortBy('type')">Type</th>
+      <th onclick="sortBy('odds')">Odds</th>
+      <th onclick="sortBy('risk')">Risk</th>
+      <th onclick="sortBy('toWin')">To Win</th>
+      <th>Logged</th>
+      <th>API Grade</th>
+      <th>Final</th>
+      <th onclick="sortBy('pnl')">P&L</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+// ─── TEAM MAP ───────────────────────────────────────────────────────────────
+const TEAM_IDS = {
+  'Phillies':143,'Marlins':146,'Red Sox':111,'Mets':121,'Brewers':158,
+  'Angels':108,'Rangers':140,'Rays':139,'Royals':118,'Nationals':120,
+  'Nats':120,'Mariners':136,'Jays':141,'Toronto':141,'Orioles':110,
+  'Baltimore':110,'Pirates':134,'White Sox':145,'Cleveland':114,
+  'Atlanta':144,'Braves':144,'Tigers':116,'Detroit':116,'Athletics':133,
+  'Oakland':133,'Rockies':115,'Cubs':112,'Yankees':147,'Twins':142,
+  'Padres':135,'Reds':113,'Astros':117,'Cardinals':138,'Giants':137,
+  'Dodgers':119,'Arizona':109
+};
+
+// ─── RAW BET DATA ────────────────────────────────────────────────────────────
+const RAW = `4/13: Phillies -180 bol (.67u risk) win
+Phillies f5 -190 FD (.69u risk) win
+Marlins +125 bol (.44u risk) win
+Marlins +106 b105 f5 (.48u risk) win
+Red Sox -160 bol (1.26u risk) loss
+Mets +149 bol (.40u risk) loss
+Mets f5 +121 bol (.45u risk) loss
+4/14: Brewers -116 b105 (.53u risk) loss
+Brewers f5 -118 fd (.54u risk) win
+Angels +158 bol (.79u risk) win
+Rangers -115 bol (.53u risk) loss
+Rangers f5 -118 b105 (.54u risk) loss
+Rays f5 -127 bm (1.12u risk) win
+Royals +105 bol (.48u risk) loss
+Royals f5 +100 b105 (.5u risk) win
+Nationals +164 b105/pin (.39u risk) win
+Nationals f5 +149 bol (.40u risk) win
+Mariners -113 b105 (1.06u risk) loss
+4/15: Jays -123 bol (.55u risk) loss
+Jays f5 -135 bol (.58u risk) win
+Orioles f5 -130 bol (1.14u risk) win
+Phillies -131 nV/px ~8k combined (.57u risk) loss
+Phillies f5 -131 b105 (.57u risk) loss
+4/16: Royals f5 -119 b105 (1.09u risk) loss
+Mariners f5 -123 b105 (1.1u risk) loss
+4/17: Pirates -115 b105 (.53u risk) win
+Pirates f5 -127 bm (.56u risk) win
+White Sox +141 b105 (.42u risk) win
+White Sox f5 +130 bol (.43u risk) win
+Angels -122 bol (.55u risk) win
+Angels f5 -159 b105 (.63u risk) win
+Red Sox -118 nV ~2.7k (.54u risk) win
+Red Sox f5 -111 nV ~2k (.52u risk) push
+4/18: Cleveland -126 Fd (.56u risk) win
+Cleveland f5 -122 Fd (.55u risk) win
+Angels -104 Fd (.51u risk) loss
+Angels f5 -117 b105 (.54u risk) push
+Atlanta f5 +114 b105 (.93u risk) win
+Tigers -138 bm (.58u risk) win
+Tigers f5 -178 bm (.67u risk) win
+Toronto +134 bm (.86u risk) loss
+Athletics f5 -154 b105 (1.24u risk) loss
+4/19: Rays +107 bol (.48u risk) loss
+Rays f5 +104 fd (.49u risk) loss
+Royals +128 b105 (.44u risk) loss
+Royals f5 +120 fd (.46u risk) loss
+Rangers +127 bol/b105/pin (.44u risk) loss
+Rangers f5 +128 bol (.44u risk) loss
+White Sox +139 b105 (.84u risk) win
+4/20: Nationals +146 b105 (.41u risk) loss
+Nationals f5 +130 bol (.43u risk) win
+Athletics +138 bol (.42u risk) win
+Athletics f5 +137 (.42u risk) loss
+Phillies +103 bol (.49u risk) loss
+Phillies f5 -109 b105 (.52u risk) loss
+4/21: Brewers +106 bol (.97u risk) win
+Reds -106 bol (.51u risk) win
+Reds f5 -118 b105 (.54u risk) win
+Royals -127 bol (.56u risk) win
+Royals f5 -131 bol (.57u risk) push
+Red Sox -101 b105 (.50u risk) loss
+Red Sox f5 -102 b105 (.51u risk) loss
+Angels -105 bol (.51u risk) loss
+Angels f5 -110 b105 (.52u risk) win
+Astros +133 (.86u risk) ?
+Nationals +142 nv 4.3k (.41u risk) win
+Nationals f5 +108 bm (.48u risk) win
+Rockies f5 +109 b105 (.95u risk) push
+4/22: Angels -152 bol (.61u risk) win
+Angels f5 -166 b105 (.65u risk) win
+Mariners f5 -179 (1.34u risk) loss
+Padres -148 bol (1.22u risk) loss
+4/23: Phillies -120 (.55u risk) loss
+Rockies +136 bol (.42u risk) loss
+Rockies f5 +110 fd (.48u risk) win
+Phillies f5 -128 b105 (.57u risk) loss
+Nationals +124 b105/bm (.44u risk) loss
+Nationals f5 +108 bm (.48u risk) push
+4/24: Tigers -117 nv 8.6k liq (.54u risk) loss
+Tigers f5 -130 bol (.57u risk) win
+Phillies +128 bol (.88u risk) loss
+Pirates -113 bol (.53u risk) win
+Pirates f5 -129 nv ~4k (.57u risk) win
+Cleveland -121 bol (.55u risk) win
+Cleveland f5 -135 bol (.58u risk) win
+4/25: Red Sox f5 -110 bol (1.05u risk) win
+Phillies f5 -102 b105 (1.01u risk) win
+Marlins f5 +110 bol (.95u risk) push
+Rays f5 -128 fd (1.13u risk) win
+Padres +104 bol (.98u risk) win
+Brewers f5 -139 bol (1.18u risk) push
+White Sox -138 bol (.58u risk) loss
+White Sox f5 -150 bol (.61u risk) loss
+4/26: Rockies g2 +170 bol (.77u risk) win
+Braves -165 bol (1.28u risk) win
+Angels +107 bol (.48u risk) loss
+Angels f5 -102 bol (.50u risk) win
+Cubs f5 +100 bol (1u risk) loss
+4/27: Yankees -156 bm (.62u risk) win
+Yankees f5 -155 bol (.62u risk) win
+Twins +113 b105 (.47u risk) win
+Twins f5 -104 bm (.51u risk) win
+Cubs f5 -111 bm (1.05u risk) loss
+4/28: Tigers +111 bm (.95u risk) loss
+Phillies -165 bol (.64u risk) win
+Phillies f5 -165 bol (.64u risk) win
+Royals -110 bol (1.05u risk) win
+Mets f5 -167 bol (1.29u risk) win
+Mariners -117 b105 (1.08u risk) win
+4/29: Red Sox +116 bol (.93u risk) loss
+Angels f5 -118 b105 (1.08u risk) push
+Detroit f5 -156 b105 (to win 1u) win
+Pirates f5 -120 bol (1.1u risk) loss
+Reds f5 -120 nv ~6k (.55u risk) loss
+Reds -140 nv ~7.2k (.59u risk) loss
+Oakland f5 -111 bm (1.05u risk) win
+4/30: Tigers +109 bol (.96u risk) win
+Pirates f5 -240 b105/bol (1.55u risk) loss
+5/1: Phillies -120 bol (1.1u risk) win
+Rangers +105 b105 (.98u risk) win
+Orioles +155 b105 (.8u risk) loss
+Rockies +169 b105 (.76u risk) loss
+Cleveland +102 bol (.99u risk) win
+Arizona +144 nv 2.5k left (.83u risk) loss
+White Sox +133 nv ~4.8k (.86u risk) win
+Royals +128 nv ~4.3k (.88u risk) win
+5/2: Rangers +117 b105 (.92u risk) loss
+Athletics -126 bol (.56u risk) loss
+Athletics f5 -134 bol (.58u risk) loss
+Royals +129 bol (.88u risk) win
+Red Sox f5 -119 bol (1.09u risk) loss
+Pirates f5 -125 bm (.56u risk) win
+Pirates -127 b105 (.57u risk) win
+5/3: Twins f5 -108 (1.04u risk) win
+Royals +109 b105 (.41u risk) win
+Royals f5 +103 (.49u risk) win
+Yankees f5 -204 b105 (1.43u risk) push
+Phillies f5 -145 b105 (1.2u risk) win
+Mets f5 -121 b105 (1.1u risk) win
+White Sox +152 bm (.81u risk) loss
+5/4: Orioles +178 bol (.75u risk) loss
+Mariners -167 bol (.65u risk) win
+Mariners f5 -170 b105 (.65u risk) loss
+Giants +135 bm (.86u risk) win
+Phillies +101 nv ~5.6k (1u risk) win
+Red Sox -113 nv ~5.8k (.53u risk) win
+Red Sox f5 -115 bm (.54u risk) push
+5/5: Rangers f5 -115 bm (1.07u risk) push
+Orioles +130 bol (.87u risk) win
+Mariners -124 nv ~5.2k (1.11u risk) loss
+Astros +194 b105 (.71u risk) win
+Cleveland -107 bm (.52u risk) loss
+Cleveland f5 -120 bol (.55u risk) loss
+Pirates +122 nv 4k left (.45u risk) loss
+Pirates f5 +117 nv 4.7k left (.46u risk) loss
+5/6: Royals -132 bol (.57u risk) loss
+Royals f5 -138 fd (.59u risk) loss
+Pirates -121 nv ~6.7k liq (1.1u risk) win
+5/7: Orioles +107 bol (.96u risk) loss
+Arizona f5 -103 bol (1.01u risk) loss
+Cleveland +129 bm (.44u risk) win
+Cleveland f5 +134 fd (.43u risk) win
+Rangers +143 bm (.42u risk) loss
+Rangers f5 +112 b105 (.47u risk) win
+5/8: Braves +109 bol (.96u risk) loss
+Phillies -203 b105 (1.43u risk) loss
+White Sox +124 b105 (.45u risk) loss
+White Sox f5 +120 fd (.46u risk) loss
+Royals -132 fd (.57u risk) win
+Royals f5 -144 b105 (.6u risk) push
+5/9: Orioles -125 b105 (.56u risk) loss
+Orioles f5 -129 b105 (.57u risk) loss
+Cardinals f5 +115 bol (.94u risk) loss
+White Sox +125 b105 (.89u risk) win
+White Sox f5 +126 fd (.88u risk) win
+Mets f5 -110 b105 (1.05u risk) loss
+Rangers f5 +120 bol (.92u risk) win
+Reds f5 -163 bol (1.28u risk) win
+5/10: Red Sox -120 bol (to win 1u) loss
+Rangers f5 -130 bol (to win 1u) win
+Nationals +121 bm (.5u risk) loss
+Nationals f5 +114 bol (.5u risk) push
+Angels f5 -123 bol (to win 1u) win
+Mariners -123 b105 (to win .5u) loss
+Mariners f5 -122 b105 (to win .5u) win
+Yankees +107 b105 (.5u risk) loss
+Yankees f5 +106 b105 (.5u risk) loss
+5/12: Mariners f5 -137 bol (1.17u risk) win
+Orioles +130 bol (.43u risk) loss
+Orioles f5 +125 bol (.45u risk) loss
+Phillies f5 -148 bol (1.21u risk) win
+5/13: Reds -156 bol (.62u risk) loss
+Reds f5 -157 bol (.62u risk) push
+Arizona +107 b105 (.96u risk) loss
+Mariners -116 bol (1.08u risk) loss
+Angels +140 bol/b105 (.85u risk) loss
+5/14: Phillies +108 b105 (.96u risk) win
+5/15: Red Sox +135 b105 (.86u risk) loss
+Orioles -133 ~9k nv (.43u risk) loss
+Orioles f5 -135 bm (.44u risk) loss
+5/16: Royals +105 bol (.97u risk) loss
+Red Sox +126 b105 (.45u risk) win
+Red Sox f5 +112 b105 (.47u risk) loss
+Angels +122 bol (.45u risk) loss
+Angels f5 +106 b105 (.49u risk) loss
+Nationals f5 -117 bm (1.08u risk) win
+Cubs +100 bol (1u risk) loss
+Yankees -113 nv ~6.7k up (1.06u risk) loss
+5/17: Athletics f5 -142 b105 (1.19u risk) loss
+Brewers -131 b105 (.57u risk) loss
+Brewers f5 -119 b105 (.55u risk) loss
+5/18: Tigers -141 nv 8.4k up (.6u risk) loss
+Tigers f5 -159 b105 (.63u risk) loss
+Orioles +128 b105/bol (.88u risk) loss
+5/19: Dodgers f5 -145 bol (1.2u risk) loss
+Orioles +106 bol (.97u risk) loss
+Angels -123 bol (.55u risk) loss
+Angels f5 -133 b105 (.57u risk) loss
+5/20: Red Sox +108 b105 (.48u risk) win
+Red Sox f5 +115 bol (.47u risk) loss
+Mets -116 nv ~4k up (.53u risk) loss
+Mets f5 -117 bol (.53u risk) loss
+5/21: Angels -105 bol (.51u risk) loss
+Angels f5 -119 b105 (.54u risk) win
+Mets -101 bm (.5u risk) win
+Mets f5 +106 bm (.48u risk) win
+5/22: Yankees -150 bol (.61u risk) loss
+Yankees f5 -141 b105 (.59u risk) win
+Phillies -169 px 7.3k up (1.29u risk) loss
+Nationals +167 b105 (.77u risk) loss
+5/24: Tigers +115 bm (.46u risk) loss
+Tigers f5 +105 bol (.48u risk) win
+Yankees -131 (1.14u risk) win
+Dodgers f5 -155 nv 4.6k up (1.24u risk) win
+5/25: Phillies f5 -130 b105 (.57u risk) win
+Orioles +121 bol (.9u risk) win
+Phillies -112 bm (.52u risk) win
+Marlins +138 nv 13k up (.85u risk) win
+5/26: Rangers f5 -132 b105 (1.14u risk) win
+Orioles +103 bol (.98u risk) win
+Athletics f5 -104 bol (1.01u risk) loss
+Red Sox -101 b105/bm (.5u risk) loss
+Red Sox f5 +102 b105 (.49u risk) push
+Phillies +107 bol/b105 (.48u risk) win
+Phillies f5 +105 b105 (.48u risk) win
+5/27: Angels +109 bol (.47u risk) loss
+Angels f5 +102 b105 (.49u risk) loss
+Red Sox +105 bol (.48u risk) win
+Red Sox f5 +104 b105 (.48u risk) win
+Phillies -150 bol (.61u risk) win
+Phillies f5 -165 bol (.64u risk) push
+Orioles +113 bol (.94u risk) win
+Rangers -135 bol (.58u risk) loss
+Rangers f5 -154 b105 (.62u risk) push
+5/29: Reds +133 bol (.43u risk) loss
+Reds f5 +109 b105 (.47u risk) loss
+Angels +163 bm (.78u risk) loss
+Nationals f5 -130 bol (1.14u risk) win
+Orioles -120 b105 (.54u risk) loss
+Orioles f5 -120 bm (.54u risk) win
+5/30: Angels +136 bol (.42u risk) win
+Angels f5 +123 bol (.45u risk) win
+Phillies +114 bm (.46u risk) win
+Phillies f5 -105 bol (.51u risk) loss
+Nats f5 +105 bol (.97u risk) loss
+5/31: Reds +121 bm (.45u risk) win
+Reds f5 +104 b105 (.49u risk) win
+Padres -104 nv 6.6k left (1.02u risk) loss
+6/2: Phillies -129 b105 (.56u risk) win
+Phillies f5 -132 b105 (.57u risk) push
+Toronto +113 b105 (.47u risk) loss
+Toronto f5 +101 b105 (.49u risk) loss
+Cleveland +190 bol (.36u risk) win
+Cleveland f5 +208 bm (.34u risk) win
+Twins +111 bol (.47u risk) win
+Twins f5 +115 bm (.46u risk) win
+Giants +216 bol (.34u risk) loss
+Giants f5 +199 bm (.35u risk) loss
+6/3: Twins f5 -153 bol (1.23u risk) loss
+Tigers +133 nv 4.6k up (.43u risk) win
+Tigers f5 +125 bol (.44u risk) win
+Phillies f5 -225 bol (to win .5u) win
+Nationals +104 bol (.49u risk) loss
+Nationals f5 +106 bm (.48u risk) push
+Cleveland +130 bm (.87u risk) win
+Giants +120 nv ~4k^ (.91u risk) win
+6/4: Pirates f5 -110 bol (1.04u risk) win
+Phillies f5 -208 b105 (1.44u risk) win
+Arizona f5 +112 b105 (.94u risk) loss
+Baltimore +100 bol (.5u risk) win
+Yankees -156 bm (.62u risk) win
+Yankees f5 -170 bol (.65u risk) push
+Orioles f5 +100 bol (.5u) win
+Giants +171 b105 (.76u risk) win
+Cubs -134 nv 10k up (.57u risk) win
+Cubs f5 -130 bm (.57u risk) loss
+6/5: Phillies -181 bol (.57u risk) win
+Phillies f5 -180 bol (.57u risk) win
+Tigers +107 bol (.48u risk) win
+Tigers f5 +108 b105 (.47u risk) win
+Angels f5 +157 bol (.79u risk) push
+Mets +117 b105 (.46u risk) win
+Mets f5 +113 b105 (.47u risk) win
+6/6: Phillies -126 bol (1.12u risk) loss
+Reds +110 (.47u risk) loss
+Reds f5 +111 (.47u risk) win
+Mets f5 -123 (1.11u risk) push
+6/7: Red Sox +145 (.41u risk) loss
+Red Sox f5 +146 (.41u risk) loss
+Pirates +132 (.43u risk) loss
+Pirates f5 +120 fd (.45u risk) win
+Orioles +121 (.9u risk) loss`;
+
+// ─── PARSE BETS ──────────────────────────────────────────────────────────────
+function parseBets() {
+  const lines = RAW.trim().split('\n');
+  let currentDate = null;
+  const bets = [];
+
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+
+    const dateMatch = line.match(/^(\d+\/\d+):\s*(.*)/);
+    if (dateMatch) {
+      currentDate = dateMatch[1] + '/2025';
+      line = dateMatch[2].trim();
+      if (!line) continue;
+    }
+
+    // result
+    let loggedResult = null;
+    if (line.endsWith(' win')) { loggedResult = 'win'; line = line.slice(0,-4).trim(); }
+    else if (line.endsWith(' loss')) { loggedResult = 'loss'; line = line.slice(0,-5).trim(); }
+    else if (line.endsWith(' push')) { loggedResult = 'push'; line = line.slice(0,-5).trim(); }
+    else if (line.endsWith(' ?')) { loggedResult = 'pending'; line = line.slice(0,-2).trim(); }
+
+    // "to win" format
+    const toWinMatch = line.match(/\(to win\s+([0-9.]+)u\)/);
+    let risk = null, isToWin = false;
+    if (toWinMatch) {
+      isToWin = true;
+      const tw = parseFloat(toWinMatch[1]);
+      const oddsM = line.match(/([+-]\d+)/);
+      const odds = oddsM ? parseInt(oddsM[1]) : null;
+      if (odds && odds < 0) risk = tw * (Math.abs(odds) / 100);
+      else if (odds && odds > 0) risk = tw / (odds / 100);
+      else risk = tw;
+    } else {
+      const riskMatch = line.match(/\(([0-9.]+)u\s*risk\)/);
+      if (riskMatch) risk = parseFloat(riskMatch[1]);
+    }
+
+    const oddsMatch = line.match(/([+-]\d+)/);
+    const odds = oddsMatch ? parseInt(oddsMatch[1]) : null;
+
+    const isF5 = /\bf5\b/i.test(line);
+    const teamMatch = line.match(/^([A-Za-z\s]+?)(?:\s+(?:f5|g\d))?\s+[+-]\d+/i);
+    let team = teamMatch ? teamMatch[1].trim() : line.split(/\s+/)[0];
+    // clean up team
+    team = team.replace(/\s+$/, '');
+
+    // compute toWin
+    let toWin = 0;
+    if (risk !== null && odds !== null) {
+      if (odds > 0) toWin = risk * (odds / 100);
+      else toWin = risk * (100 / Math.abs(odds));
+    }
+
+    bets.push({
+      id: bets.length,
+      date: currentDate,
+      team,
+      isF5,
+      odds,
+      risk: risk !== null ? +risk.toFixed(2) : null,
+      toWin: +toWin.toFixed(2),
+      loggedResult,
+      apiResult: null,
+      manualResult: null,
+      raw: line,
+      apiChecked: false,
+      conflict: false
+    });
+  }
+  return bets;
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let bets = parseBets();
+let filter = 'all';
+let sortCol = 'date';
+let sortDir = 1;
+const STARTING = { w: 40, l: 35, pnl: 4.65 };
+
+// localStorage overrides
+const STORE_KEY = 'mlb_grader_overrides_v1';
+function loadOverrides() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveOverrides(overrides) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(overrides));
+}
+function applyOverrides() {
+  const ov = loadOverrides();
+  bets.forEach(b => {
+    if (ov[b.id] !== undefined) b.manualResult = ov[b.id];
+  });
+}
+function setManual(id, result) {
+  const ov = loadOverrides();
+  if (ov[id] === result) { delete ov[id]; bets[id].manualResult = null; }
+  else { ov[id] = result; bets[id].manualResult = result; }
+  saveOverrides(ov);
+  updateConflicts();
+  updateStats();
+  renderTable();
+}
+function resetOverrides() {
+  localStorage.removeItem(STORE_KEY);
+  bets.forEach(b => b.manualResult = null);
+  updateConflicts();
+  updateStats();
+  renderTable();
+}
+
+function effectiveResult(b) {
+  if (b.manualResult) return b.manualResult;
+  if (b.apiResult) return b.apiResult;
+  return b.loggedResult;
+}
+
+function calcPnl(b) {
+  const r = effectiveResult(b);
+  if (!r || r === 'pending') return null;
+  if (r === 'push') return 0;
+  if (r === 'win') return b.toWin;
+  if (r === 'loss') return -b.risk;
+  return null;
+}
+
+function updateConflicts() {
+  bets.forEach(b => {
+    b.conflict = b.apiResult && b.loggedResult &&
+      b.apiResult !== b.loggedResult &&
+      b.loggedResult !== 'pending' &&
+      !b.manualResult;
+  });
+}
+
+// ─── STATS ────────────────────────────────────────────────────────────────────
+function updateStats() {
+  let w=0,l=0,p=0,pend=0,pnl=0;
+  bets.forEach(b => {
+    const r = effectiveResult(b);
+    if (r==='win') w++;
+    else if (r==='loss') l++;
+    else if (r==='push') p++;
+    else pend++;
+    const pl = calcPnl(b);
+    if (pl !== null) pnl += pl;
+  });
+  const tw = STARTING.w + w, tl = STARTING.l + l, tp = pnl + STARTING.pnl;
+  const winPct = tw+tl > 0 ? (tw/(tw+tl)*100).toFixed(1) : '--';
+  const bar = document.getElementById('statsBar');
+  const fmt = (v,d=2) => (v>=0?'+':'')+v.toFixed(d);
+  bar.innerHTML = `
+    <div class="stat"><div class="label">Record</div><div class="val neutral">${tw}-${tl}${p>0?` (${p}p)`:''}</div></div>
+    <div class="stat"><div class="label">Win %</div><div class="val neutral">${winPct}%</div></div>
+    <div class="stat"><div class="label">Total P&L</div><div class="val ${tp>=0?'pos':'neg'}">${fmt(tp)}u</div></div>
+    <div class="stat"><div class="label">This Period</div><div class="val ${pnl>=0?'pos':'neg'}">${fmt(pnl)}u</div></div>
+    <div class="stat"><div class="label">Bets</div><div class="val neutral">${w+l+p+pend}</div></div>
+    <div class="stat"><div class="label">Pending</div><div class="val ${pend>0?'neutral':''}">${pend}</div></div>
+    <div class="stat"><div class="label">Conflicts</div><div class="val ${bets.filter(b=>b.conflict).length>0?'neg':''}">${bets.filter(b=>b.conflict).length}</div></div>
+  `;
+}
+
+// ─── TABLE RENDER ─────────────────────────────────────────────────────────────
+function setFilter(f, el) {
+  filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+
+function sortBy(col) {
+  if (sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=1; }
+  renderTable();
+}
+
+function renderTable() {
+  const search = document.getElementById('teamSearch').value.toLowerCase();
+  const dateF = document.getElementById('dateFilter').value;
+
+  let rows = bets.filter(b => {
+    if (search && !b.team.toLowerCase().includes(search)) return false;
+    if (dateF && b.date !== dateF) return false;
+    const r = effectiveResult(b);
+    if (filter==='win' && r!=='win') return false;
+    if (filter==='loss' && r!=='loss') return false;
+    if (filter==='push' && r!=='push') return false;
+    if (filter==='pending' && r!=='pending') return false;
+    if (filter==='conflict' && !b.conflict) return false;
+    if (filter==='f5' && !b.isF5) return false;
+    if (filter==='full' && b.isF5) return false;
+    return true;
+  });
+
+  // sort
+  rows.sort((a,b) => {
+    let va,vb;
+    switch(sortCol) {
+      case 'date': va=a.date; vb=b.date; break;
+      case 'team': va=a.team; vb=b.team; break;
+      case 'odds': va=a.odds||0; vb=b.odds||0; break;
+      case 'risk': va=a.risk||0; vb=b.risk||0; break;
+      case 'toWin': va=a.toWin||0; vb=b.toWin||0; break;
+      case 'pnl': va=calcPnl(a)||0; vb=calcPnl(b)||0; break;
+      case 'type': va=a.isF5?1:0; vb=b.isF5?1:0; break;
+      default: va=a.id; vb=b.id;
+    }
+    if (va<vb) return -sortDir;
+    if (va>vb) return sortDir;
+    return a.id-b.id;
+  });
+
+  let html = '';
+  let lastDate = null;
+  rows.forEach(b => {
+    if (sortCol==='date' && b.date !== lastDate) {
+      lastDate = b.date;
+      const d = new Date(b.date);
+      const label = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+      html += `<tr class="day-header"><td colspan="10">📅 ${label}</td></tr>`;
+    }
+    const r = effectiveResult(b);
+    const pnl = calcPnl(b);
+    const pnlStr = pnl===null?'—':pnl===0?'<span class="pnl-zero">0.00</span>':`<span class="${pnl>0?'pnl-pos':'pnl-neg'}">${pnl>0?'+':''}${pnl.toFixed(2)}u</span>`;
+    const oddsStr = b.odds ? `<span class="${b.odds>0?'odds-pos':'odds-neg'}">${b.odds>0?'+':''}${b.odds}</span>` : '—';
+    const apiB = b.apiResult ? `<span class="badge auto ${b.apiResult}">${b.apiResult.toUpperCase()}</span>` : '<span style="color:var(--muted);font-size:10px;">—</span>';
+    const loggedB = b.loggedResult ? `<span class="badge ${b.loggedResult}">${b.loggedResult==='pending'?'?':b.loggedResult.toUpperCase()}</span>` : '—';
+    const finalB = r ? `<span class="badge ${r}">${r==='pending'?'?':r.toUpperCase()}</span>` : '—';
+    const mw = b.manualResult==='win' ? ' active-w' : '';
+    const ml = b.manualResult==='loss' ? ' active-l' : '';
+    const mp = b.manualResult==='push' ? ' active-p' : '';
+    html += `<tr class="${b.conflict?'conflict':''}">
+      <td style="color:var(--muted);font-size:11px;">${b.date||'—'}</td>
+      <td class="team-cell">${b.team}${b.isF5?` <span class="f5-tag">F5</span>`:''}</td>
+      <td style="color:var(--muted)">${b.isF5?'F5':'Full'}</td>
+      <td>${oddsStr}</td>
+      <td>${b.risk!==null?b.risk+'u':'—'}</td>
+      <td>${b.toWin?'+'+b.toWin+'u':'—'}</td>
+      <td>${loggedB}</td>
+      <td>${apiB}</td>
+      <td>
+        <div class="result-cell">
+          ${finalB}
+          <div class="manual-result">
+            <button class="rb${mw}" onclick="setManual(${b.id},'win')" title="Manual: Win">W</button>
+            <button class="rb${ml}" onclick="setManual(${b.id},'loss')" title="Manual: Loss">L</button>
+            <button class="rb${mp}" onclick="setManual(${b.id},'push')" title="Manual: Push">P</button>
+          </div>
+        </div>
+      </td>
+      <td>${pnlStr}</td>
+    </tr>`;
+  });
+
+  document.getElementById('tbody').innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">No bets match filter</td></tr>';
+}
+
+// ─── DATE FILTER SETUP ────────────────────────────────────────────────────────
+function populateDateFilter() {
+  const dates = [...new Set(bets.map(b=>b.date))].sort();
+  const sel = document.getElementById('dateFilter');
+  dates.forEach(d => {
+    const dt = new Date(d);
+    const label = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    sel.innerHTML += `<option value="${d}">${label}</option>`;
+  });
+}
+
+// ─── MLB API GRADING ─────────────────────────────────────────────────────────
+async function fetchGames(dateStr) {
+  // dateStr: "4/13/2025" → "2025-04-13"
+  const [m,d,y] = dateStr.split('/');
+  const apiDate = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${apiDate}&hydrate=linescore,team`;
+  try {
+    const r = await fetch(url);
+    const data = await r.json();
+    const games = [];
+    for (const d of (data.dates||[])) {
+      for (const g of (d.games||[])) games.push(g);
+    }
+    return games;
+  } catch(e) { return []; }
+}
+
+function normTeam(name) {
+  return name.toLowerCase().replace(/\s+/g,'').replace(/[^a-z]/g,'');
+}
+
+const TEAM_NORMS = {};
+Object.keys(TEAM_IDS).forEach(k => { TEAM_NORMS[normTeam(k)] = TEAM_IDS[k]; });
+
+function getTeamId(name) {
+  return TEAM_NORMS[normTeam(name)] || null;
+}
+
+function gradeGame(bet, games) {
+  const teamId = getTeamId(bet.team);
+  if (!teamId) return null;
+
+  // Find game with this team
+  const game = games.find(g => {
+    const homeId = g.teams?.home?.team?.id;
+    const awayId = g.teams?.away?.team?.id;
+    return homeId===teamId || awayId===teamId;
+  });
+  if (!game) return null;
+
+  const state = game.status?.abstractGameState;
+  if (state !== 'Final') return null;
+
+  const homeScore = game.teams?.home?.score;
+  const awayScore = game.teams?.away?.score;
+  const homeId = game.teams?.home?.team?.id;
+  const awayId = game.teams?.away?.team?.id;
+  const betTeamIsHome = homeId === teamId;
+
+  if (homeScore === undefined || awayScore === undefined) return null;
+
+  if (bet.isF5) {
+    // Use linescore to get F5 score
+    const linescore = game.linescore;
+    if (!linescore || !linescore.innings) return null;
+    const innings = linescore.innings.slice(0,5);
+    if (innings.length < 5) return null;
+    let homeF5=0, awayF5=0;
+    innings.forEach(inn => {
+      homeF5 += inn.home?.runs||0;
+      awayF5 += inn.away?.runs||0;
+    });
+    if (betTeamIsHome) {
+      if (homeF5 > awayF5) return 'win';
+      if (homeF5 < awayF5) return 'loss';
+      return 'push';
+    } else {
+      if (awayF5 > homeF5) return 'win';
+      if (awayF5 < homeF5) return 'loss';
+      return 'push';
+    }
+  } else {
+    // Full game
+    if (betTeamIsHome) {
+      if (homeScore > awayScore) return 'win';
+      if (homeScore < awayScore) return 'loss';
+      return 'push';
+    } else {
+      if (awayScore > homeScore) return 'win';
+      if (awayScore < homeScore) return 'loss';
+      return 'push';
+    }
+  }
+}
+
+async function gradeAll() {
+  const btn = document.getElementById('gradeBtn');
+  btn.disabled = true;
+  btn.className = 'grade-btn running';
+  btn.textContent = '⏳ GRADING...';
+  document.getElementById('progressWrap').style.display='block';
+
+  const dates = [...new Set(bets.map(b=>b.date))].sort();
+  const gameCache = {};
+
+  for (let i=0; i<dates.length; i++) {
+    const d = dates[i];
+    document.getElementById('status-bar').textContent = `Fetching ${d} (${i+1}/${dates.length})...`;
+    document.getElementById('progressFill').style.width = ((i+1)/dates.length*100)+'%';
+    if (!gameCache[d]) {
+      gameCache[d] = await fetchGames(d);
+    }
+    const games = gameCache[d];
+    bets.filter(b=>b.date===d).forEach(b => {
+      const grade = gradeGame(b, games);
+      if (grade) { b.apiResult = grade; b.apiChecked = true; }
+    });
+  }
+
+  updateConflicts();
+  updateStats();
+  renderTable();
+
+  const conflicts = bets.filter(b=>b.conflict).length;
+  document.getElementById('status-bar').textContent =
+    `✅ Grading complete · ${bets.filter(b=>b.apiResult).length} graded · ${conflicts} conflicts found`;
+  document.getElementById('progressWrap').style.display='none';
+  btn.disabled = false;
+  btn.className = 'grade-btn';
+  btn.textContent = '▶ RE-GRADE ALL';
+}
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+function exportSummary() {
+  let w=0,l=0,p=0,pnl=0;
+  bets.forEach(b => {
+    const r=effectiveResult(b); const pl=calcPnl(b);
+    if(r==='win')w++; else if(r==='loss')l++; else if(r==='push')p++;
+    if(pl!==null)pnl+=pl;
+  });
+  const tw=STARTING.w+w, tl=STARTING.l+l, tp=pnl+STARTING.pnl;
+  let txt = `MLB Channel P&L Grader Export\n${new Date().toLocaleDateString()}\n\n`;
+  txt += `=== TOTALS (incl. 40-35 +4.65u starting) ===\n`;
+  txt += `Record: ${tw}-${tl} (${p} pushes)\n`;
+  txt += `Win%: ${(tw/(tw+tl)*100).toFixed(1)}%\n`;
+  txt += `Total P&L: ${tp>=0?'+':''}${tp.toFixed(2)}u\n`;
+  txt += `This Period: ${pnl>=0?'+':''}${pnl.toFixed(2)}u\n\n`;
+  txt += `=== BETS ===\n`;
+  bets.forEach(b => {
+    const r=effectiveResult(b); const pl=calcPnl(b);
+    txt += `${b.date} | ${b.team}${b.isF5?' F5':''} ${b.odds>0?'+':''}${b.odds} | ${b.risk}u risk | ${r||'?'} | ${pl!==null?(pl>=0?'+':'')+pl.toFixed(2)+'u':'—'}\n`;
+  });
+  const blob = new Blob([txt], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mlb_channel_pnl.txt';
+  a.click();
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+applyOverrides();
+populateDateFilter();
+updateStats();
+renderTable();
+</script>
+</body>
+</html>
