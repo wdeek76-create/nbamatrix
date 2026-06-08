@@ -193,6 +193,7 @@
     <option value="">All Dates</option>
   </select>
 </div>
+<div id="teamSearchStats" style="display:none;padding:8px 14px;background:rgba(0,212,255,.05);border-bottom:1px solid var(--border);display:none;align-items:center;gap:20px;flex-wrap:wrap;"></div>
 <div class="table-wrap">
 <table id="betTable">
   <thead>
@@ -203,6 +204,7 @@
       <th onclick="sortBy('risk')">Risk</th>
       <th onclick="sortBy('toWin')">To Win</th>
       <th onclick="sortBy('pnl')">Result</th>
+      <th style="color:var(--sub);">Score</th>
       <th onclick="sortBy('pnl')" style="text-align:right;padding-right:14px;">P&L</th>
       <th style="text-align:right;padding-right:14px;">Running</th>
     </tr>
@@ -240,20 +242,34 @@
         <h3>All-Time Stats</h3>
         <div id="allTimeStats"></div>
       </div>
+      <div class="chart-side-card">
+        <h3>Flat 1u Simulation</h3>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:8px;">Dogs: risk 1u · Favs: risk |odds|/100u to win 1u · vs your actual stake</div>
+        <div id="flatStakeStats"></div>
+      </div>
     </div>
   </div>
   <!-- BREAKDOWN GRIDS BELOW CHART -->
-  <div style="padding:0 20px 10px;display:flex;justify-content:flex-end;">
-    <button class="grade-btn dark" id="copyChartBtn" onclick="copyChartImage()">📷 COPY IMAGE</button>
-  </div>
   <div style="padding:0 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="breakdownSection">
     <div class="chart-side-card">
-      <h3>🏆 Teams — Best to Worst</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3 style="margin-bottom:0;">🏆 Teams — Best to Worst</h3>
+        <button class="grade-btn dark" style="font-size:10px;padding:4px 10px;" id="copyTeamsBtn" onclick="copyPanelImage('team')">📷 COPY</button>
+      </div>
       <div id="teamBreakdown"></div>
     </div>
     <div class="chart-side-card">
-      <h3>🎯 Odds Buckets — Best to Worst</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3 style="margin-bottom:0;">🎯 Odds Buckets — Best to Worst</h3>
+        <button class="grade-btn dark" style="font-size:10px;padding:4px 10px;" id="copyOddsBtn" onclick="copyPanelImage('odds')">📷 COPY</button>
+      </div>
       <div id="oddsBreakdown"></div>
+    </div>
+  </div>
+  <div style="padding:0 20px 20px;">
+    <div class="chart-side-card">
+      <h3>💀 Worst Opponents — Teams We Lose To Most</h3>
+      <div id="worstTeams"></div>
     </div>
   </div>
 </div>
@@ -268,9 +284,11 @@
         <input class="date-input" type="text" id="addDate" placeholder="e.g. 6/8" />
         <span style="font-size:10px;color:var(--sub);">/26 appended automatically</span>
       </div>
-      <textarea id="addPaste" placeholder="Phillies -164 b105/bol (1.28u risk)
-Angels f5 +105 bol (.97u risk)
-Orioles f5 +110 fd (.95u risk)"></textarea>
+      <textarea id="addPaste" placeholder="Phillies -164 1.28
+Angels f5 +105 0.97
+Orioles f5 +110 0.95
+
+Format: Team [F5] Odds Stake"></textarea>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="parse-btn" onclick="parsePaste()">▶ PARSE</button>
         <button class="parse-btn" style="background:var(--card);color:var(--text);border:1px solid var(--border);" onclick="clearParse()">✕ CLEAR</button>
@@ -279,10 +297,10 @@ Orioles f5 +110 fd (.95u risk)"></textarea>
     </div>
     <div class="add-panel">
       <h3>✅ Confirm & Add</h3>
-      <div style="font-size:11px;color:var(--sub);margin-bottom:12px;">Review parsed bets below, then click Add All to append to the log and auto-grade.</div>
+      <div style="font-size:11px;color:var(--sub);margin-bottom:12px;">Review parsed bets, then click Add to append to the log. Grade separately via the header.</div>
       <div id="confirmList" style="max-height:260px;overflow-y:auto;"></div>
       <div style="margin-top:12px;display:flex;gap:8px;">
-        <button class="parse-btn" id="addAllBtn" onclick="addAllParsed()" style="display:none;">➕ ADD ALL + GRADE</button>
+        <button class="parse-btn" id="addAllBtn" onclick="addAllParsed()" style="display:none;">➕ ADD BETS</button>
       </div>
       <div id="addStatus" style="margin-top:10px;font-size:12px;color:var(--accent);"></div>
     </div>
@@ -851,8 +869,43 @@ function sortBy(col) {
 }
 
 function renderTable() {
-  const search = document.getElementById('teamSearch').value.toLowerCase();
+  const search = document.getElementById('teamSearch').value.toLowerCase().trim();
   const dateF = document.getElementById('dateFilter').value;
+
+  // ── team search stats bar ──
+  const statsEl = document.getElementById('teamSearchStats');
+  if (search && search.length >= 2) {
+    const teamBets = bets.filter(b => b.team.toLowerCase().includes(search));
+    let w=0,l=0,p=0,pnl=0,risked=0;
+    teamBets.forEach(b => {
+      const r=effectiveResult(b); const pl=calcPnl(b);
+      if(r==='win')w++; else if(r==='loss')l++; else if(r==='push')p++;
+      if(pl!==null)pnl+=pl;
+      if(b.risk)risked+=b.risk;
+    });
+    const wp = w+l>0?(w/(w+l)*100).toFixed(1)+'%':'—';
+    const roi = risked>0?(pnl/risked*100).toFixed(1)+'%':'—';
+    const pnlColor = pnl>=0?'var(--win)':'var(--loss)';
+    const matchedTeam = teamBets[0]?.team || search;
+    statsEl.innerHTML = `
+      ${teamLogo(matchedTeam, 20)}
+      <span style="font-weight:700;font-size:13px;color:var(--text);">${matchedTeam}</span>
+      <span style="color:var(--sub);font-size:11px;margin:0 4px;">·</span>
+      <span style="font-size:12px;color:var(--accent);font-weight:700;">${w}-${l}${p?' ('+p+'p)':''}</span>
+      <span style="color:var(--sub);font-size:11px;margin:0 4px;">·</span>
+      <span style="font-size:12px;font-weight:700;color:var(--sub);">Win%</span>
+      <span style="font-size:12px;font-weight:700;color:var(--accent);">${wp}</span>
+      <span style="color:var(--sub);font-size:11px;margin:0 4px;">·</span>
+      <span style="font-size:12px;font-weight:700;color:var(--sub);">P&L</span>
+      <span style="font-size:12px;font-weight:700;color:${pnlColor};">${pnl>=0?'+':''}${pnl.toFixed(2)}u</span>
+      <span style="color:var(--sub);font-size:11px;margin:0 4px;">·</span>
+      <span style="font-size:12px;font-weight:700;color:var(--sub);">ROI</span>
+      <span style="font-size:12px;font-weight:700;color:${pnlColor};">${roi}</span>
+    `;
+    statsEl.style.display = 'flex';
+  } else {
+    statsEl.style.display = 'none';
+  }
 
   let rows = bets.filter(b => {
     if (search && !b.team.toLowerCase().includes(search)) return false;
@@ -912,7 +965,7 @@ function renderTable() {
       const dl = dayBets.filter(x=>effectiveResult(x)==='loss').length;
       const dp = dayBets.filter(x=>effectiveResult(x)==='push').length;
       let dpnl = 0; dayBets.forEach(x=>{ const pl=calcPnl(x); if(pl!==null) dpnl+=pl; });
-      html += `<tr class="day-header"><td colspan="8">📅 ${label} &nbsp;·&nbsp; ${dw}W ${dl}L${dp?' '+dp+'P':''} &nbsp;·&nbsp; <span style="color:${dpnl>=0?'var(--win)':'var(--loss)'};">${dpnl>=0?'+':''}${dpnl.toFixed(2)}u</span></td></tr>`;
+      html += `<tr class="day-header"><td colspan="9">📅 ${label} &nbsp;·&nbsp; ${dw}W ${dl}L${dp?' '+dp+'P':''} &nbsp;·&nbsp; <span style="color:${dpnl>=0?'var(--win)':'var(--loss)'};">${dpnl>=0?'+':''}${dpnl.toFixed(2)}u</span></td></tr>`;
     }
     const r = effectiveResult(b);
     const pnl = calcPnl(b);
@@ -944,12 +997,13 @@ function renderTable() {
           </div>
         </div>
       </td>
+      <td style="font-size:11px;color:var(--sub);">${b.score ? `<span style="font-weight:600;color:${effectiveResult(b)==='win'?'var(--win)':effectiveResult(b)==='loss'?'var(--loss)':'var(--push)'};">${b.score}</span>` : '—'}</td>
       <td style="text-align:right;padding-right:14px;">${pnlStr}</td>
       <td style="text-align:right;padding-right:14px;font-size:12px;">${runStr}</td>
     </tr>`;
   });
 
-  document.getElementById('tbody').innerHTML = html || '<tr><td colspan="8" style="text-align:center;color:var(--sub);padding:20px;">No bets match filter</td></tr>';
+  document.getElementById('tbody').innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:var(--sub);padding:20px;">No bets match filter</td></tr>';
 }
 
 // ─── COPY TABLE ───────────────────────────────────────────────────────────────
@@ -1196,6 +1250,8 @@ function gradeFullGame(bet, games) {
   const isHome = game.teams?.home?.team?.id === teamId;
   const myScore = isHome ? homeScore : awayScore;
   const oppScore = isHome ? awayScore : homeScore;
+  bet.opponent = isHome ? game.teams?.away?.team?.name : game.teams?.home?.team?.name;
+  bet.score = `${myScore}-${oppScore}`;
   if (myScore > oppScore) return 'win';
   if (myScore < oppScore) return 'loss';
   return 'push';
@@ -1217,6 +1273,8 @@ function gradeF5(bet, games, linescoreCache) {
     myRuns  += isHome ? homeRuns : awayRuns;
     oppRuns += isHome ? awayRuns : homeRuns;
   });
+  bet.opponent = isHome ? game.teams?.away?.team?.name : game.teams?.home?.team?.name;
+  bet.score = `${myRuns}-${oppRuns} F5`;
   if (myRuns > oppRuns) return 'win';
   if (myRuns < oppRuns) return 'loss';
   return 'push';
@@ -1245,6 +1303,7 @@ async function gradeByDate() {
   document.getElementById('progressFill').style.width = '90%';
   let graded = 0;
   dateBets.forEach(b => {
+    if (!b.loggedResult || b.loggedResult === 'pending') return;
     const grade = b.isF5 ? gradeF5(b, games, linescoreCache) : gradeFullGame(b, games);
     if (grade) { b.apiResult = grade; b.apiChecked = true; graded++; }
   });
@@ -1288,8 +1347,10 @@ async function gradeAll() {
       linescoreCache[pk] = await fetchLinescore(pk);
     }
 
-    // grade all bets for this date
+    // grade bets for this date — skip pending, always re-fetch score+opponent
     dateBets.forEach(b => {
+      // never touch bets with no logged result (pending/unresolved)
+      if (!b.loggedResult || b.loggedResult === 'pending') return;
       let grade = null;
       if (b.isF5) {
         grade = gradeF5(b, games, linescoreCache);
@@ -1600,6 +1661,77 @@ function renderChart() {
     <div class="stat-row"><span class="k">ROI</span><span style="color:${roi>=0?'var(--win)':'var(--loss)'}">${roi}%</span></div>
     <div class="stat-row"><span class="k">Total Bets</span><span>${tw+tl} graded</span></div>
   `;
+
+  // ── FLAT STAKE SIMULATION ──
+  const gradedOnly = bets.filter(b => { const r=effectiveResult(b); return (r==='win'||r==='loss'||r==='push') && b.odds; });
+
+  function calcFlat(betList) {
+    let pnl=0, risked=0, w=0, l=0, p=0;
+    betList.forEach(b => {
+      const r = effectiveResult(b);
+      const o = b.odds;
+      let risk, toWin;
+      if (o > 0) { risk=1; toWin=o/100; }
+      else { toWin=1; risk=Math.abs(o)/100; }
+      risked += risk;
+      if (r==='win') { pnl+=toWin; w++; }
+      else if (r==='loss') { pnl-=risk; l++; }
+      else if (r==='push') p++;
+    });
+    const roi = risked>0?(pnl/risked*100).toFixed(1):'—';
+    const wp = w+l>0?(w/(w+l)*100).toFixed(1):'—';
+    return {pnl, risked, w, l, p, roi, wp};
+  }
+
+  function calcActual(betList) {
+    let pnl=0, risked=0, w=0, l=0, p=0;
+    betList.forEach(b => {
+      const r=effectiveResult(b); const pl=calcPnl(b);
+      if(r==='win')w++; else if(r==='loss')l++; else if(r==='push')p++;
+      if(pl!==null)pnl+=pl;
+      if(b.risk)risked+=b.risk;
+    });
+    const roi = risked>0?(pnl/risked*100).toFixed(1):'—';
+    const wp = w+l>0?(w/(w+l)*100).toFixed(1):'—';
+    return {pnl, risked, w, l, p, roi, wp};
+  }
+
+  const fAll = calcFlat(gradedOnly);
+  const fF5  = calcFlat(gradedOnly.filter(b=>b.isF5));
+  const fFG  = calcFlat(gradedOnly.filter(b=>!b.isF5));
+  const aAll = calcActual(gradedOnly);
+  const aF5  = calcActual(gradedOnly.filter(b=>b.isF5));
+  const aFG  = calcActual(gradedOnly.filter(b=>!b.isF5));
+
+  function vsRow(label, actual, flat) {
+    const ac = actual.pnl>=0?'var(--win)':'var(--loss)';
+    const fc = flat.pnl>=0?'var(--win)':'var(--loss)';
+    const diff = flat.pnl - actual.pnl;
+    const dc = diff>=0?'var(--win)':'var(--loss)';
+    return `<div style="padding:7px 0;border-bottom:1px solid rgba(30,45,69,.5);">
+      <div style="font-size:10px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:5px;text-transform:uppercase;">${label}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div style="background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);padding:6px 8px;border-radius:2px;">
+          <div style="font-size:9px;font-weight:700;color:var(--accent);letter-spacing:.5px;margin-bottom:3px;">YOUR STAKE</div>
+          <div style="font-size:13px;font-weight:800;color:${ac};">${actual.pnl>=0?'+':''}${actual.pnl.toFixed(2)}u</div>
+          <div style="font-size:10px;color:var(--sub);">ROI ${actual.roi}%</div>
+        </div>
+        <div style="background:rgba(168,180,200,.04);border:1px solid rgba(168,180,200,.1);padding:6px 8px;border-radius:2px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:3px;">FLAT 1u</div>
+          <div style="font-size:13px;font-weight:800;color:${fc};">${flat.pnl>=0?'+':''}${flat.pnl.toFixed(2)}u</div>
+          <div style="font-size:10px;color:var(--sub);">ROI ${flat.roi}%</div>
+        </div>
+      </div>
+      <div style="margin-top:5px;font-size:10px;color:var(--sub);">
+        Flat 1u vs yours: <span style="font-weight:700;color:${dc};">${diff>=0?'+':''}${diff.toFixed(2)}u</span>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('flatStakeStats').innerHTML =
+    vsRow('All Bets', aAll, fAll) +
+    vsRow('F5 Only', aF5, fF5) +
+    vsRow('Full Game', aFG, fFG);
 }
 
 function renderBreakdowns() {
@@ -1678,157 +1810,156 @@ function renderBreakdowns() {
   // store data for image export
   window._teamsData = teams;
   window._bucketsData = bucketData;
+
+  // ── WORST OPPONENTS (teams we lose to most) ──
+  const oppMap = {};
+  gradedBets.filter(b => b.opponent).forEach(b => {
+    const opp = b.opponent;
+    if (!oppMap[opp]) oppMap[opp] = {w:0,l:0,p:0,pnl:0,risked:0};
+    const r=effectiveResult(b); const pl=calcPnl(b);
+    if(r==='win')oppMap[opp].w++; else if(r==='loss')oppMap[opp].l++; else if(r==='push')oppMap[opp].p++;
+    if(pl!==null)oppMap[opp].pnl+=pl;
+    if(b.risk)oppMap[opp].risked+=b.risk;
+  });
+
+  const worstOpps = Object.entries(oppMap)
+    .filter(([,v]) => v.w+v.l >= 2)
+    .sort((a,b) => a[1].pnl - b[1].pnl)
+    .slice(0, 10);
+
+  if (!worstOpps.length) {
+    document.getElementById('worstTeams').innerHTML = '<div style="color:var(--sub);font-size:12px;padding:8px;">Grade bets first to populate opponent data</div>';
+    return;
+  }
+
+  const cols = 'grid-template-columns:140px 80px 1fr 56px 60px';
+  let wh = `<div class="breakdown-row" style="font-size:10px;font-weight:700;color:var(--sub);letter-spacing:.5px;padding-bottom:6px;${cols};">
+    <span>OPPONENT</span><span>W-L vs them</span><span></span><span style="text-align:right;">ROI</span><span style="text-align:right;">P&L</span></div>`;
+  const maxLoss = Math.max(...worstOpps.map(([,v])=>Math.abs(v.pnl)), 0.01);
+  worstOpps.forEach(([name, v]) => {
+    const wp = v.w+v.l>0?(v.w/(v.w+v.l)*100).toFixed(0)+'%':'—';
+    const roi = v.risked>0?(v.pnl/v.risked*100).toFixed(0)+'%':'—';
+    const barColor = v.pnl>=0?'#00e676':'#ff4444';
+    const pnlColor = v.pnl>=0?'var(--win)':'var(--loss)';
+    // try to match opponent short name for logo
+    const shortName = Object.keys(TEAM_LOGOS).find(k => name.toLowerCase().includes(k.toLowerCase())) || '';
+    wh += `<div class="breakdown-row" style="${cols};">
+      <span style="font-weight:600;display:flex;align-items:center;">${teamLogo(shortName,15)}${shortName||name}</span>
+      <span style="color:var(--sub);font-size:11px;">${v.w}-${v.l}${v.p?' '+v.p+'p':''} (${wp})</span>
+      <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="width:${Math.abs(v.pnl)/maxLoss*100}%;background:${barColor};"></div></div>
+      <span style="text-align:right;font-weight:700;color:${pnlColor};font-size:11px;">${roi}%</span>
+      <span style="text-align:right;font-weight:700;color:${pnlColor};font-size:11px;">${fmt(v.pnl)}</span>
+    </div>`;
+  });
+  document.getElementById('worstTeams').innerHTML = wh;
 }
 
 // ── IMAGE EXPORT ──────────────────────────────────────────────────────────────
-function drawPanel(ctx, x, y, w, rows, title, colW, isTeam) {
-  const rowH = 28, headerH = 36, pad = 14, barH = 6;
-  const totalH = headerH + rows.length * rowH + pad;
-  const bg = '#111827', border = '#1e2d45', accent = '#00d4ff';
 
-  ctx.fillStyle = bg;
-  ctx.strokeStyle = border;
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.roundRect(x, y, w, totalH, 6); ctx.fill(); ctx.stroke();
 
-  // header
-  ctx.fillStyle = accent;
-  ctx.font = 'bold 12px Inter';
-  ctx.textAlign = 'left';
-  ctx.fillText(title, x + pad, y + 22);
+
+async function copyPanelImage(type) {
+  const btnId = type === 'team' ? 'copyTeamsBtn' : 'copyOddsBtn';
+  const btn = document.getElementById(btnId);
+  btn.textContent = '⏳'; btn.disabled = true;
+
+  const rows = type === 'team' ? (window._teamsData || []) : (window._bucketsData || []);
+  const title = type === 'team' ? '🏆 Teams — Best to Worst' : '🎯 Odds Buckets — Best to Worst';
+  const colW = type === 'team' ? [130, 90, 0, 56] : [140, 90, 0, 56];
+
+  const W = 560;
+  const rowH = 28, headerH = 44, topPad = 16, botPad = 16;
+  const H = topPad + headerH + rows.length * rowH + botPad + 32; // +32 footer
+  const barAreaW = W - 16*2 - colW[0] - colW[1] - colW[3] - 56 - 8; // space for bar
+
+  const c = document.createElement('canvas');
+  c.width = W * 2; c.height = H * 2; // 2x for retina
+  const ctx = c.getContext('2d');
+  ctx.scale(2, 2);
+
+  // bg
+  ctx.fillStyle = '#0d1320';
+  ctx.fillRect(0, 0, W, H);
+
+  // title bar
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(0, 0, W, topPad + 28);
+  ctx.fillStyle = '#00d4ff'; ctx.font = 'bold 13px Inter'; ctx.textAlign = 'left';
+  ctx.fillText(title.replace(/[^\x00-\x7F]/g,'').trim(), 16, topPad + 18);
+
+  // stats summary top right
+  let tw=STARTING.w,tl=STARTING.l,tp=STARTING.pnl;
+  bets.forEach(b=>{const r=effectiveResult(b);const pl=calcPnl(b);if(r==='win')tw++;else if(r==='loss')tl++;if(pl!==null)tp+=pl;});
+  ctx.fillStyle='#a8b4c8'; ctx.font='10px Inter'; ctx.textAlign='right';
+  ctx.fillText(`DANMLB2026 · ${tw}-${tl} · ${tp>=0?'+':''}${tp.toFixed(2)}u`, W-16, topPad+18);
 
   // col headers
-  const colX = x + pad;
-  ctx.fillStyle = '#a8b4c8'; ctx.font = 'bold 9px Inter';
-  ctx.fillText(isTeam ? 'TEAM' : 'RANGE', colX, y + headerH - 4);
-  ctx.fillText('W-L', colX + colW[0], y + headerH - 4);
-  ctx.textAlign = 'right';
-  ctx.fillText('ROI', x + w - colW[1] - pad, y + headerH - 4);
-  ctx.fillText('P&L', x + w - pad, y + headerH - 4);
+  const hy = topPad + headerH - 6;
+  ctx.fillStyle='#a8b4c8'; ctx.font='bold 9px Inter'; ctx.textAlign='left';
+  ctx.fillText(type==='team'?'TEAM':'RANGE', 16, hy);
+  ctx.fillText('W-L (WIN%)', 16+colW[0], hy);
+  ctx.textAlign='right';
+  ctx.fillText('ROI', W - 16 - 56, hy);
+  ctx.fillText('P&L', W - 16, hy);
 
-  const maxPnl = Math.max(...rows.map(r=>Math.abs(r[1].pnl||r[1].pnl)), 0.01);
+  // divider
+  ctx.strokeStyle='#1e2d45'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(16, topPad+headerH); ctx.lineTo(W-16, topPad+headerH); ctx.stroke();
+
+  const maxPnl = Math.max(...rows.map(([,v])=>Math.abs(v.pnl)), 0.01);
+  const barX = 16 + colW[0] + colW[1] + 4;
+  const barMaxW = W - 16*2 - colW[0] - colW[1] - 56 - 56 - 12;
 
   rows.forEach(([name, v], i) => {
-    const ry = y + headerH + i * rowH;
+    const ry = topPad + headerH + i * rowH;
     const pnl = v.pnl;
-    const risked = v.risked||0;
-    const w2 = v.w||0, l2 = v.l||0, p2 = v.p||0;
-    const wp = w2+l2>0 ? (w2/(w2+l2)*100).toFixed(0)+'%' : '—';
-    const roi = risked>0 ? (pnl/risked*100).toFixed(0)+'%' : '—';
-    const barColor = pnl>=0 ? '#00e676' : '#ff4444';
+    const risked = v.risked || 0;
+    const w2=v.w||0, l2=v.l||0, p2=v.p||0;
+    const wp = w2+l2>0?(w2/(w2+l2)*100).toFixed(0)+'%':'—';
+    const roi = risked>0?(pnl/risked*100).toFixed(0)+'%':'—';
+    const barColor = pnl>=0?'#00e676':'#ff4444';
     const pnlStr = (pnl>=0?'+':'')+pnl.toFixed(2)+'u';
     const recStr = `${w2}-${l2}${p2?' '+p2+'p':''} (${wp})`;
 
-    // row bg alt
-    if (i % 2 === 0) {
-      ctx.fillStyle = 'rgba(255,255,255,.02)';
-      ctx.fillRect(x+1, ry, w-2, rowH);
-    }
+    if (i%2===0) { ctx.fillStyle='rgba(255,255,255,.025)'; ctx.fillRect(0, ry, W, rowH); }
 
-    // name
-    ctx.textAlign = 'left'; ctx.font = 'bold 11px Inter'; ctx.fillStyle = '#e2e8f0';
-    ctx.fillText(name, colX, ry + 18);
+    ctx.textAlign='left'; ctx.font='bold 11px Inter'; ctx.fillStyle='#e2e8f0';
+    ctx.fillText(name, 16, ry+18);
 
-    // record
-    ctx.font = '10px Inter'; ctx.fillStyle = '#a8b4c8';
-    ctx.fillText(recStr, colX + colW[0], ry + 18);
+    ctx.font='10px Inter'; ctx.fillStyle='#a8b4c8';
+    ctx.fillText(recStr, 16+colW[0], ry+18);
 
     // bar
-    const barX = colX + colW[0] + colW[1] + 4;
-    const barW2 = w - pad*2 - colW[0] - colW[1] - colW[2] - colW[3] - 8;
-    const filledW = Math.abs(pnl) / maxPnl * barW2;
-    ctx.fillStyle = 'rgba(255,255,255,.06)';
-    ctx.beginPath(); ctx.roundRect(barX, ry+10, barW2, barH, 3); ctx.fill();
-    ctx.fillStyle = barColor;
-    ctx.beginPath(); ctx.roundRect(barX, ry+10, Math.max(filledW,2), barH, 3); ctx.fill();
+    const filledW = Math.abs(pnl)/maxPnl * barMaxW;
+    ctx.fillStyle='rgba(255,255,255,.06)';
+    ctx.beginPath(); ctx.roundRect(barX, ry+11, barMaxW, 6, 3); ctx.fill();
+    ctx.fillStyle=barColor;
+    ctx.beginPath(); ctx.roundRect(barX, ry+11, Math.max(filledW,2), 6, 3); ctx.fill();
 
-    // ROI
-    ctx.textAlign = 'right'; ctx.font = 'bold 11px Inter';
-    ctx.fillStyle = pnl>=0 ? '#00e676' : '#ff4444';
-    ctx.fillText(roi, x + w - colW[3] - pad, ry + 18);
-
-    // P&L
-    ctx.fillText(pnlStr, x + w - pad, ry + 18);
+    ctx.textAlign='right'; ctx.font='bold 11px Inter'; ctx.fillStyle=barColor;
+    ctx.fillText(roi, W-16-56, ry+18);
+    ctx.fillText(pnlStr, W-16, ry+18);
   });
 
-  return totalH;
-}
-
-async function copyChartImage() {
-  const btn = document.getElementById('copyChartBtn');
-  btn.textContent = '⏳ Building...'; btn.disabled = true;
-
-  // grab the main chart canvas
-  const chartCanvas = document.getElementById('chartCanvas');
-  const CW = chartCanvas.width, CH = chartCanvas.height;
-
-  // figure out panel data
-  const teams = window._teamsData || [];
-  const buckets = window._bucketsData || [];
-
-  const panelW = 560;
-  const teamH = 36 + teams.length * 28 + 14;
-  const bucketH = 36 + buckets.length * 28 + 14;
-  const panelGap = 16;
-  const totalPanelH = Math.max(teamH, bucketH);
-
-  // header + chart + gap + panels + footer
-  const headerH = 48;
-  const totalH = headerH + CH + panelGap + totalPanelH + 36;
-  const totalW = Math.max(CW, panelW * 2 + panelGap + 40);
-
-  const out = document.createElement('canvas');
-  out.width = totalW; out.height = totalH;
-  const ctx = out.getContext('2d');
-
-  // background
-  ctx.fillStyle = '#0a0e1a';
-  ctx.fillRect(0, 0, totalW, totalH);
-
-  // header
-  ctx.fillStyle = '#00d4ff'; ctx.font = 'bold 18px Inter'; ctx.textAlign = 'left';
-  ctx.fillText('⚾ DANMLB2026', 20, 32);
-  ctx.fillStyle = '#a8b4c8'; ctx.font = '11px Inter';
-  const now = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-  ctx.textAlign = 'right';
-
-  // get overall stats
-  let tw=STARTING.w,tl=STARTING.l,tp=STARTING.pnl;
-  bets.forEach(b=>{const r=effectiveResult(b);const pl=calcPnl(b);if(r==='win')tw++;else if(r==='loss')tl++;if(pl!==null)tp+=pl;});
-  const wp2 = (tw/(tw+tl)*100).toFixed(1);
-  const totalRisked = bets.filter(b=>b.risk).reduce((s,b)=>s+b.risk,0);
-  const roi2 = totalRisked>0?((tp-STARTING.pnl)/totalRisked*100).toFixed(1):'—';
-  ctx.fillText(`${tw}-${tl} · ${wp2}% · ${tp>=0?'+':''}${tp.toFixed(2)}u · ROI ${roi2}% · ${now}`, totalW - 20, 32);
-
-  // chart (offset to center)
-  const chartOffX = Math.floor((totalW - CW) / 2);
-  ctx.drawImage(chartCanvas, chartOffX, headerH);
-
-  // panels
-  const panelY = headerH + CH + panelGap;
-  const leftX = Math.floor((totalW - panelW * 2 - panelGap) / 2);
-  drawPanel(ctx, leftX, panelY, panelW, teams, '🏆 Teams — Best to Worst', [120, 90, 0, 52], true);
-  drawPanel(ctx, leftX + panelW + panelGap, panelY, panelW, buckets, '🎯 Odds Buckets — Best to Worst', [130, 90, 0, 52], false);
-
   // footer
-  ctx.fillStyle = '#1e2d45';
-  ctx.fillRect(0, totalH - 24, totalW, 24);
-  ctx.fillStyle = '#a8b4c8'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
-  ctx.fillText('DANMLB2026 · wdeek76-create.github.io/nbamatrix', totalW/2, totalH - 8);
+  const fy = topPad + headerH + rows.length * rowH + 8;
+  ctx.strokeStyle='#1e2d45'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(16, fy); ctx.lineTo(W-16, fy); ctx.stroke();
+  ctx.fillStyle='#a8b4c8'; ctx.font='9px Inter'; ctx.textAlign='center';
+  ctx.fillText(`wdeek76-create.github.io/nbamatrix · ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`, W/2, fy+14);
 
-  // copy to clipboard
-  out.toBlob(async blob => {
+  c.toBlob(async blob => {
     try {
       await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
-      btn.textContent = '✓ IMAGE COPIED';
+      btn.textContent = '✓ COPIED';
       btn.style.color = 'var(--win)';
     } catch(e) {
-      // fallback: open in new tab
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      btn.textContent = '↗ OPENED IN TAB';
+      const a = document.createElement('a');
+      a.href = url; a.download = `danmlb2026-${type}.png`; a.click();
+      btn.textContent = '↓ SAVED';
     }
-    setTimeout(() => { btn.textContent = '📷 COPY IMAGE'; btn.style.color=''; btn.disabled=false; }, 2000);
+    setTimeout(() => { btn.textContent='📷 COPY'; btn.style.color=''; btn.disabled=false; }, 2000);
   }, 'image/png');
 }
 
@@ -1864,23 +1995,41 @@ function renderWeekly(dates) {
 let parsedBets = [];
 
 function parseSingleBetLine(line, dateStr) {
-  const oddsM = line.match(/([+-]\d+)/);
+  // Simple format: "Phillies -164 1.28" or "Angels f5 +105 0.97"
+  // Also handles legacy full format with (Xu risk) brackets
+  const isF5 = /\bf5\b/i.test(line);
+
+  const oddsM = line.match(/([+-]\d{2,3})/);
   if (!oddsM) return null;
   const odds = parseInt(oddsM[1]);
+
+  // try legacy bracket format first
   const toWinM = line.match(/\(to win\s+([0-9.]+)u\)/i);
-  const riskM = line.match(/\(([0-9.]+)u(?:\s*risk)?\)/);
+  const riskBracketM = line.match(/\(([0-9.]+)u(?:\s*risk)?\)/);
   let risk = null;
   if (toWinM) {
     const tw = parseFloat(toWinM[1]);
     risk = odds < 0 ? +(tw * Math.abs(odds) / 100).toFixed(2) : +(tw / (odds/100)).toFixed(2);
-  } else if (riskM) {
-    risk = parseFloat(riskM[1]);
+  } else if (riskBracketM) {
+    risk = parseFloat(riskBracketM[1]);
+  } else {
+    // simple format: last number after odds is the stake
+    const afterOdds = line.slice(line.indexOf(oddsM[0]) + oddsM[0].length).trim();
+    const stakeM = afterOdds.match(/^[\s\S]*?([0-9]+\.?[0-9]*)/);
+    if (stakeM) risk = parseFloat(stakeM[1]);
   }
-  const isF5 = /\bf5\b/i.test(line);
+
+  if (risk === null) return null;
+
   const teamM = line.match(/^([A-Za-z\s]+?)(?:\s+(?:f5|g\d))?\s+[+-]\d+/i);
   const team = teamM ? teamM[1].trim() : line.split(/\s+/)[0];
-  const toWin = risk !== null ? (odds > 0 ? +(risk*odds/100).toFixed(2) : +(risk*100/Math.abs(odds)).toFixed(2)) : 0;
-  return { date: dateStr+'/2026', team, isF5, odds, risk, toWin, loggedResult: null, apiResult: null, manualResult: null, raw: line, apiChecked: false, conflict: false };
+
+  // calc toWin: dogs risk full stake to win stake*(odds/100), favs risk stake to win stake*(100/|odds|)
+  const toWin = odds > 0 ? +(risk * odds / 100).toFixed(2) : +(risk * 100 / Math.abs(odds)).toFixed(2);
+
+  return { date: dateStr+'/2026', team, isF5, odds, risk, toWin,
+    loggedResult: null, apiResult: null, manualResult: null,
+    raw: line, apiChecked: false, conflict: false };
 }
 
 function parsePaste() {
@@ -1923,38 +2072,22 @@ function clearParse() {
   document.getElementById('addStatus').textContent = '';
 }
 
-async function addAllParsed() {
+function addAllParsed() {
   if (!parsedBets.length) return;
   parsedBets.forEach(b => {
     b.id = bets.length;
     bets.push(b);
   });
-  // repopulate date filter
   populateDateFilter();
   updateStats();
   renderTable();
-  document.getElementById('addStatus').textContent = `✅ ${parsedBets.length} bets added — grading...`;
-  // auto-grade the new bets
-  const newDates = [...new Set(parsedBets.map(b=>b.date))];
-  for (const dateStr of newDates) {
-    const games = await fetchSchedule(dateStr);
-    const dateBets = bets.filter(b=>b.date===dateStr && !b.apiChecked);
-    const f5Bets = dateBets.filter(b=>b.isF5);
-    const linescoreCache = {};
-    const pkSet = new Set();
-    f5Bets.forEach(b=>{ const g=findGame(b,games); if(g) pkSet.add(g.gamePk); });
-    for (const pk of pkSet) linescoreCache[pk] = await fetchLinescore(pk);
-    dateBets.forEach(b=>{
-      const grade = b.isF5 ? gradeF5(b,games,linescoreCache) : gradeFullGame(b,games);
-      if (grade) { b.apiResult=grade; b.apiChecked=true; }
-    });
-  }
-  updateConflicts();
-  updateStats();
-  renderTable();
-  document.getElementById('addStatus').textContent = `✅ ${parsedBets.length} bets added and graded`;
+  const count = parsedBets.length;
+  const date = parsedBets[0].date.replace('/2026','/26');
+  document.getElementById('addStatus').textContent = `✅ ${count} bet${count>1?'s':''} added for ${date} — use Grade Date to grade`;
   parsedBets = [];
   document.getElementById('addAllBtn').style.display = 'none';
+  // auto-set the grade date input to match
+  document.getElementById('gradeDateInput').value = document.getElementById('addDate').value;
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
