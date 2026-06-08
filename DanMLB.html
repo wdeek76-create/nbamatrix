@@ -7,17 +7,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0e1a;
-    --panel: #111827;
-    --card: #1a2235;
-    --border: #1e2d45;
+    --bg: #0f1117;
+    --panel: #16181f;
+    --card: #1c1e26;
+    --border: #2a2d38;
     --accent: #00d4ff;
     --accent2: #00ff9d;
-    --win: #00e676;
-    --loss: #ff4444;
-    --push: #ffa500;
-    --text: #e2e8f0;
-    --sub: #a8b4c8;
+    --win: #22c55e;
+    --loss: #ef4444;
+    --push: #f59e0b;
+    --text: #ffffff;
+    --sub: #6b7280;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; min-height: 100vh; }
@@ -26,7 +26,7 @@
   header h1 { font-size: 15px; font-weight: 800; letter-spacing: 1.5px; color: var(--accent); text-transform: uppercase; }
   header .sub { color: var(--sub); font-size: 11px; margin-top: 2px; }
 
-  .grade-btn { background: var(--accent); color: #000; border: none; padding: 8px 16px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px; cursor: pointer; text-transform: uppercase; transition: opacity .15s; }
+  .grade-btn { background: var(--accent); color: #000; border: none; padding: 8px 16px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px; cursor: pointer; text-transform: uppercase; transition: opacity .15s; border-radius: 6px; }
   .grade-btn:hover { opacity: .85; }
   .grade-btn:disabled { opacity: .4; cursor: not-allowed; }
   .grade-btn.running { background: var(--push); }
@@ -42,24 +42,24 @@
   .stat .val.neu { color: var(--accent); }
 
   .filters { display: flex; gap: 6px; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
-  .filter-btn { background: var(--card); border: 1px solid var(--border); color: var(--sub); padding: 4px 12px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; cursor: pointer; transition: all .12s; }
+  .filter-btn { background: var(--card); border: 1px solid var(--border); color: var(--sub); padding: 4px 12px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; cursor: pointer; transition: all .12s; border-radius: 20px; }
   .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
   .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
-  .filters select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; font-family: 'Inter', sans-serif; font-size: 11px; }
-  .filters input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; font-family: 'Inter', sans-serif; font-size: 11px; width: 140px; }
+  .filters select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; font-family: 'Inter', sans-serif; font-size: 11px; border-radius: 6px; }
+  .filters input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; font-family: 'Inter', sans-serif; font-size: 11px; width: 140px; border-radius: 6px; }
   .filters input::placeholder { color: var(--sub); }
   .filters .sep { color: var(--border); margin: 0 2px; }
 
   .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; }
+  table { width: 100%; border-collapse: collapse; background: var(--bg); }
   th { background: var(--panel); color: var(--sub); font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 8px 12px; text-align: left; position: sticky; top: 0; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
   th:hover { color: var(--accent); }
-  td { padding: 7px 12px; border-bottom: 1px solid rgba(30,45,69,0.6); white-space: nowrap; font-size: 13px; }
+  td { padding: 8px 12px; border-bottom: 1px solid rgba(30,45,69,0.5); white-space: nowrap; font-size: 13px; background: var(--bg); }
   tr:not(.day-header):hover td { background: rgba(0,212,255,.04); }
 
-  .day-header td { background: rgba(0,212,255,.06); color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 12px; border-top: 1px solid rgba(0,212,255,.15); border-bottom: 1px solid rgba(0,212,255,.15); }
+  .day-header td { background: rgba(0,212,255,.05); color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 12px; border-top: 1px solid rgba(0,212,255,.12); border-bottom: 1px solid rgba(0,212,255,.12); }
 
-  .result-pill { display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 700; min-width: 46px; text-align: center; }
+  .result-pill { display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 700; min-width: 46px; text-align: center; border-radius: 20px; }
   .result-pill.win  { background: rgba(0,230,118,.15); color: var(--win);  border: 1px solid rgba(0,230,118,.4); }
   .result-pill.loss { background: rgba(255,68,68,.15);  color: var(--loss); border: 1px solid rgba(255,68,68,.4); }
   .result-pill.push { background: rgba(255,165,0,.12);  color: var(--push); border: 1px solid rgba(255,165,0,.4); }
@@ -67,7 +67,7 @@
 
   .result-cell { display: flex; gap: 5px; align-items: center; }
   .manual-result { display: flex; gap: 3px; }
-  .rb { padding: 2px 6px; font-size: 10px; font-weight: 600; border: 1px solid var(--border); background: var(--card); color: var(--sub); cursor: pointer; font-family: 'Inter', sans-serif; }
+  .rb { padding: 2px 7px; font-size: 10px; font-weight: 600; border: 1px solid var(--border); background: var(--card); color: var(--sub); cursor: pointer; font-family: 'Inter', sans-serif; border-radius: 4px; }
   .rb:hover { border-color: var(--accent); color: var(--accent); }
   .rb.active-w { background: rgba(0,230,118,.2); border-color: var(--win); color: var(--win); }
   .rb.active-l { background: rgba(255,68,68,.2); border-color: var(--loss); color: var(--loss); }
@@ -77,17 +77,20 @@
   .pnl-neg { color: var(--loss); font-weight: 700; }
   .pnl-push { color: var(--push); font-weight: 600; }
 
-  .f5-tag { background: rgba(0,212,255,.1); color: var(--accent); border: 1px solid rgba(0,212,255,.3); padding: 1px 6px; font-size: 9px; font-weight: 700; letter-spacing: .5px; }
+  .f5-tag { background: rgba(0,212,255,.1); color: var(--accent); border: 1px solid rgba(0,212,255,.3); padding: 1px 6px; font-size: 9px; font-weight: 700; letter-spacing: .5px; border-radius: 4px; }
   .team-cell { font-weight: 600; color: var(--text); }
   .odds-pos { color: #7dd3fc; font-weight: 600; }
   .odds-neg { color: var(--text); }
   .api-conflict { color: var(--push); font-size: 9px; font-weight: 600; margin-left: 2px; }
   .conflict td { background: rgba(255,165,0,.05) !important; }
+  .odds-edit { cursor: pointer; border-bottom: 1px dashed rgba(168,180,200,.3); }
+  .odds-edit:hover { border-bottom-color: var(--accent); color: var(--accent); }
+  .odds-input { width: 60px; background: var(--card); border: 1px solid var(--accent); color: var(--text); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; padding: 1px 4px; text-align: center; outline: none; border-radius: 4px; }
 
   #status-bar { padding: 6px 14px; font-size: 11px; color: var(--accent); background: rgba(0,212,255,.04); border-bottom: 1px solid var(--border); min-height: 26px; font-weight: 500; }
   .progress-wrap { padding: 4px 14px; }
-  .progress-bar { height: 2px; background: var(--border); }
-  .progress-fill { height: 100%; background: var(--accent); transition: width .3s; }
+  .progress-bar { height: 2px; background: var(--border); border-radius: 2px; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width .3s; border-radius: 2px; }
 
   /* ── TABS ── */
   .tab-nav { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); }
@@ -117,7 +120,7 @@
   .stat-row .k { color: var(--sub); }
   .breakdown-row { display:grid; grid-template-columns:130px 70px 1fr 60px; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid rgba(30,45,69,.4); font-size:12px; }
   .breakdown-row:last-child { border-bottom:none; }
-  .breakdown-bar-wrap { background:rgba(255,255,255,.06); height:6px; border-radius:3px; overflow:hidden; }
+  .breakdown-bar-wrap { background:rgba(255,255,255,.12); height:7px; border-radius:3px; overflow:hidden; }
   .breakdown-bar { height:100%; border-radius:3px; }
 
   /* ── ADD BETS TAB ── */
@@ -204,7 +207,7 @@
       <th onclick="sortBy('risk')">Risk</th>
       <th onclick="sortBy('toWin')">To Win</th>
       <th onclick="sortBy('pnl')">Result</th>
-      <th style="color:var(--sub);">Score</th>
+      <th>Score</th>
       <th onclick="sortBy('pnl')" style="text-align:right;padding-right:14px;">P&L</th>
       <th style="text-align:right;padding-right:14px;">Running</th>
     </tr>
@@ -942,14 +945,14 @@ function renderTable() {
   let lastDate = null;
   let running = STARTING.pnl;
 
-  // Baseline row — only show when sorted by date and no conflicting filters
   if (sortCol === 'date' && !['win','loss','push','pending','conflict'].includes(filter)) {
-    html += `<tr style="background:rgba(0,212,255,.06);border-bottom:2px solid rgba(0,212,255,.2);">
+    html += `<tr style="background:rgba(0,212,255,.05);">
       <td style="color:var(--accent);font-size:11px;font-weight:700;">BASELINE</td>
       <td style="color:var(--accent);font-weight:700;" colspan="2">Prior to 4/13 · 40W-35L</td>
       <td style="color:var(--sub);">—</td>
       <td style="color:var(--sub);">—</td>
       <td><span class="result-pill" style="background:rgba(0,212,255,.15);color:var(--accent);border:1px solid rgba(0,212,255,.4);">START</span></td>
+      <td>—</td>
       <td style="text-align:right;padding-right:14px;">—</td>
       <td style="text-align:right;padding-right:14px;"><span class="pnl-pos">+4.65u</span></td>
     </tr>`;
@@ -972,7 +975,6 @@ function renderTable() {
     if (pnl !== null) running += pnl;
     const pnlStr = pnl===null ? '—' : pnl===0 ? '<span class="pnl-push">PUSH</span>' : `<span class="${pnl>0?'pnl-pos':'pnl-neg'}">${pnl>0?'+':''}${pnl.toFixed(2)}u</span>`;
     const runStr = `<span class="${running>=0?'pnl-pos':'pnl-neg'}">${running>=0?'+':''}${running.toFixed(2)}u</span>`;
-    const oddsStr = b.odds ? `<span class="${b.odds>0?'odds-pos':'odds-neg'}">${b.odds>0?'+':''}${b.odds}</span>` : '—';
     const resultPill = r ? `<span class="result-pill ${r}">${r==='pending'?'?':r.toUpperCase()}</span>` : '—';
     const mw = b.manualResult==='win' ? ' active-w' : '';
     const ml = b.manualResult==='loss' ? ' active-l' : '';
@@ -980,12 +982,13 @@ function renderTable() {
     const conflictIcon = b.conflict ? ' <span class="api-conflict">⚠</span>' : '';
     const apiNote = b.apiResult && b.apiResult !== b.loggedResult && !b.manualResult
       ? `<span class="api-conflict">api:${b.apiResult.toUpperCase()}</span>` : '';
+    const scoreDisp = b.score ? `<span style="font-weight:600;color:${r==='win'?'var(--win)':r==='loss'?'var(--loss)':'var(--push)'};">${b.score}</span>` : '—';
 
     html += `<tr class="${b.conflict?'conflict':''}">
       <td style="color:var(--sub);font-size:12px;">${(b.date||'—').replace('/2026','/26')}</td>
       <td class="team-cell">${teamLogo(b.team)}${b.team}${b.isF5?' <span class="f5-tag">F5</span>':''}${conflictIcon}</td>
       <td><span class="odds-edit ${b.odds>0?'odds-pos':'odds-neg'}" onclick="editOdds(${b.id},this)">${b.odds>0?'+':''}${b.odds}</span></td>
-      <td>${b.risk!==null?b.risk+'u':'—'}</td>
+      <td style="color:var(--sub);">${b.risk!==null?b.risk+'u':'—'}</td>
       <td style="color:var(--accent2);font-weight:600;">${b.toWin?'+'+b.toWin+'u':'—'}</td>
       <td>
         <div class="result-cell">
@@ -997,7 +1000,7 @@ function renderTable() {
           </div>
         </div>
       </td>
-      <td style="font-size:11px;color:var(--sub);">${b.score ? `<span style="font-weight:600;color:${effectiveResult(b)==='win'?'var(--win)':effectiveResult(b)==='loss'?'var(--loss)':'var(--push)'};">${b.score}</span>` : '—'}</td>
+      <td>${scoreDisp}</td>
       <td style="text-align:right;padding-right:14px;">${pnlStr}</td>
       <td style="text-align:right;padding-right:14px;font-size:12px;">${runStr}</td>
     </tr>`;
@@ -1759,7 +1762,7 @@ function renderBreakdowns() {
     const roi = v.risked>0?(v.pnl/v.risked*100).toFixed(0)+'%':'—';
     const roiColor = v.pnl>=0?'var(--win)':'var(--loss)';
     const barW = Math.abs(v.pnl)/maxAbsPnl*100;
-    const barColor = v.pnl>=0?'#00e676':'#ff4444';
+    const barColor = v.pnl>=0?'#22c55e':'#ef4444';
     th += `<div class="breakdown-row" style="grid-template-columns:120px 80px 1fr 52px 52px;">
       <span style="font-weight:600;display:flex;align-items:center;">${teamLogo(name,15)}${name}</span>
       <span style="color:var(--sub);font-size:11px;">${v.w}-${v.l}${v.p?' '+v.p+'p':''} (${wp})</span>
@@ -1795,7 +1798,7 @@ function renderBreakdowns() {
     const roi = bk.risked>0?(bk.pnl/bk.risked*100).toFixed(0)+'%':'—';
     const roiColor = bk.pnl>=0?'var(--win)':'var(--loss)';
     const barW = Math.abs(bk.pnl)/maxBucketPnl*100;
-    const barColor = bk.pnl>=0?'#00e676':'#ff4444';
+    const barColor = bk.pnl>=0?'#22c55e':'#ef4444';
     oh += `<div class="breakdown-row" style="grid-template-columns:130px 80px 1fr 52px 52px;">
       <span style="font-weight:600;">${bk.label}</span>
       <span style="color:var(--sub);font-size:11px;">${bk.w}-${bk.l}${bk.p?' '+bk.p+'p':''} (${wp})</span>
@@ -1838,7 +1841,7 @@ function renderBreakdowns() {
   worstOpps.forEach(([name, v]) => {
     const wp = v.w+v.l>0?(v.w/(v.w+v.l)*100).toFixed(0)+'%':'—';
     const roi = v.risked>0?(v.pnl/v.risked*100).toFixed(0)+'%':'—';
-    const barColor = v.pnl>=0?'#00e676':'#ff4444';
+    const barColor = v.pnl>=0?'#22c55e':'#ef4444';
     const pnlColor = v.pnl>=0?'var(--win)':'var(--loss)';
     // try to match opponent short name for logo
     const shortName = Object.keys(TEAM_LOGOS).find(k => name.toLowerCase().includes(k.toLowerCase())) || '';
@@ -1916,7 +1919,7 @@ async function copyPanelImage(type) {
     const w2=v.w||0, l2=v.l||0, p2=v.p||0;
     const wp = w2+l2>0?(w2/(w2+l2)*100).toFixed(0)+'%':'—';
     const roi = risked>0?(pnl/risked*100).toFixed(0)+'%':'—';
-    const barColor = pnl>=0?'#00e676':'#ff4444';
+    const barColor = pnl>=0?'#22c55e':'#ef4444';
     const pnlStr = (pnl>=0?'+':'')+pnl.toFixed(2)+'u';
     const recStr = `${w2}-${l2}${p2?' '+p2+'p':''} (${wp})`;
 
