@@ -974,11 +974,23 @@ function updateStats() {
     const periodBets = w + l + p;
     const totalBets = periodBets + pend;
     const roi = (w+l) > 0 ? (pnl / bets.filter(b=>b.risk).reduce((s,b)=>s+b.risk,0) * 100).toFixed(1) : '--';
+
+    // split early vs main
+    let ew=0,el=0,ep=0,epnl=0, mw2=0,ml2=0,mp2=0,mpnl=0;
+    bets.forEach(b=>{
+      const r=effectiveResult(b); const pl=calcPnl(b);
+      const isEarly = new Date(b.date) < new Date('4/13/2026');
+      if(r==='win') isEarly?ew++:mw2++;
+      else if(r==='loss') isEarly?el++:ml2++;
+      else if(r==='push') isEarly?ep++:mp2++;
+      if(pl!==null) isEarly?epnl+=pl:mpnl+=pl;
+    });
     bar.innerHTML = `
-      <div class="stat"><div class="label">Record (all-time)</div><div class="val neu">${tw}-${tl}${p>0?` (${p}p)`:''}</div></div>
+      <div class="stat"><div class="label">Record (all)</div><div class="val neu">${tw}-${tl}${p>0?` (${p}p)`:''}</div></div>
       <div class="stat"><div class="label">Win %</div><div class="val neu">${winPct}%</div></div>
-      <div class="stat"><div class="label">All-Time P&L</div><div class="val ${tp>=0?'pos':'neg'}">${fmt(tp)}u</div></div>
-      <div class="stat"><div class="label">Since 4/13 (312 bets)</div><div class="val ${pnl>=0?'pos':'neg'}">${fmt(pnl)}u</div></div>
+      <div class="stat"><div class="label">Total P&L</div><div class="val ${tp>=0?'pos':'neg'}">${fmt(tp)}u</div></div>
+      <div class="stat"><div class="label">Pre-season (3/26–4/12)</div><div class="val ${epnl>=0?'pos':'neg'}">${fmt(epnl)}u</div><div style="font-size:10px;color:var(--sub);margin-top:2px;">${ew}-${el}${ep?' '+ep+'p':''}</div></div>
+      <div class="stat"><div class="label">Main (4/13–6/7)</div><div class="val ${mpnl>=0?'pos':'neg'}">${fmt(mpnl)}u</div><div style="font-size:10px;color:var(--sub);margin-top:2px;">${mw2}-${ml2}${mp2?' '+mp2+'p':''}</div></div>
       <div class="stat"><div class="label">F5 P&L</div><div class="val ${f5pnl>=0?'pos':'neg'}">${fmt(f5pnl)}u</div></div>
       <div class="stat"><div class="label">Full Game P&L</div><div class="val ${fgpnl>=0?'pos':'neg'}">${fmt(fgpnl)}u</div></div>
       <div class="stat"><div class="label">ROI (this period)</div><div class="val ${roi>=0?'pos':'neg'}">${roi}%</div></div>
@@ -1063,7 +1075,7 @@ function renderTable() {
   rows.sort((a,b) => {
     let va,vb;
     switch(sortCol) {
-      case 'date': va=a.date; vb=b.date; break;
+      case 'date': va=new Date(a.date); vb=new Date(b.date); break;
       case 'team': va=a.team; vb=b.team; break;
       case 'odds': va=a.odds||0; vb=b.odds||0; break;
       case 'risk': va=a.risk||0; vb=b.risk||0; break;
@@ -1092,6 +1104,44 @@ function renderTable() {
       const dp = dayBets.filter(x=>effectiveResult(x)==='push').length;
       let dpnl = 0; dayBets.forEach(x=>{ const pl=calcPnl(x); if(pl!==null) dpnl+=pl; });
       html += `<tr class="day-header"><td colspan="9">📅 ${label} &nbsp;·&nbsp; ${dw}W ${dl}L${dp?' '+dp+'P':''} &nbsp;·&nbsp; <span style="color:${dpnl>=0?'var(--win)':'var(--loss)'};">${dpnl>=0?'+':''}${dpnl.toFixed(2)}u</span></td></tr>`;
+
+      // separator between pre-4/13 and main period
+      if (b.date === '4/13/2026' && sortDir === -1) {
+        // we're going newest-first so 4/13 comes after the main period — skip
+      } else if (b.date === '4/13/2026' && sortDir === 1) {
+        // oldest-first: insert separator before 4/13
+        let earlyW=0,earlyL=0,earlyP=0,earlyPnl=0;
+        bets.filter(x=>x.date<'4/13/2026').forEach(x=>{
+          const r=effectiveResult(x);const pl=calcPnl(x);
+          if(r==='win')earlyW++;else if(r==='loss')earlyL++;else if(r==='push')earlyP++;
+          if(pl!==null)earlyPnl+=pl;
+        });
+        html += `<tr style="background:rgba(0,212,255,.08);border-top:2px solid rgba(0,212,255,.3);border-bottom:2px solid rgba(0,212,255,.3);">
+          <td colspan="7" style="color:var(--accent);font-size:11px;font-weight:700;padding:8px 12px;">
+            ── PRE-SEASON (3/26–4/12): ${earlyW}W-${earlyL}L${earlyP?' '+earlyP+'P':''} &nbsp;·&nbsp;
+            <span style="color:${earlyPnl>=0?'var(--win)':'var(--loss)'};">${earlyPnl>=0?'+':''}${earlyPnl.toFixed(2)}u</span>
+            &nbsp;·&nbsp; MAIN PERIOD STARTS ──
+          </td>
+          <td colspan="2" style="text-align:right;padding-right:14px;color:var(--accent);font-weight:700;font-size:12px;">${running>=0?'+':''}${running.toFixed(2)}u running</td>
+        </tr>`;
+      }
+    }
+
+    // separator when viewing newest-first — insert after last pre-4/13 date
+    if (sortDir === -1 && new Date(b.date) < new Date('4/13/2026') && new Date(lastDate) >= new Date('4/13/2026')) {
+      let earlyW=0,earlyL=0,earlyP=0,earlyPnl=0;
+      bets.filter(x=>x.date<'4/13/2026').forEach(x=>{
+        const r=effectiveResult(x);const pl=calcPnl(x);
+        if(r==='win')earlyW++;else if(r==='loss')earlyL++;else if(r==='push')earlyP++;
+        if(pl!==null)earlyPnl+=pl;
+      });
+      html += `<tr style="background:rgba(0,212,255,.08);border-top:2px solid rgba(0,212,255,.3);border-bottom:2px solid rgba(0,212,255,.3);">
+        <td colspan="7" style="color:var(--accent);font-size:11px;font-weight:700;padding:8px 12px;">
+          ── PRE-SEASON (3/26–4/12): ${earlyW}W-${earlyL}L${earlyP?' '+earlyP+'P':''} &nbsp;·&nbsp;
+          <span style="color:${earlyPnl>=0?'var(--win)':'var(--loss)'};">${earlyPnl>=0?'+':''}${earlyPnl.toFixed(2)}u</span> ──
+        </td>
+        <td colspan="2" style="text-align:right;padding-right:14px;"></td>
+      </tr>`;
     }
     const r = effectiveResult(b);
     const pnl = calcPnl(b);
