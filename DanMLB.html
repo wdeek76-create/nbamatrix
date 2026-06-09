@@ -301,6 +301,7 @@
       <div id="psResults" style="max-height:500px;overflow-y:auto;"></div>
       <div style="margin-top:10px;display:flex;gap:8px;">
         <button class="parse-btn" id="psApplyBtn" onclick="psApplyToMain()" style="display:none;">✅ APPLY TO MAIN LOG</button>
+        <button class="parse-btn" id="psCopyBtn" onclick="psCopyResults()" style="display:none;background:var(--card);color:var(--text);border:1px solid var(--border);">⧉ COPY RESULTS</button>
       </div>
     </div>
   </div>
@@ -2414,6 +2415,7 @@ async function psParseAndGrade() {
 
   document.getElementById('psStatus').textContent = `✅ Done — ${graded}/${psBets.length} graded`;
   document.getElementById('psApplyBtn').style.display = 'block';
+  document.getElementById('psCopyBtn').style.display = 'block';
 }
 
 function psRenderResults() {
@@ -2498,7 +2500,58 @@ function psApplyToMain() {
   document.getElementById('psStatus').textContent = `✅ Applied ${applied} results to main log`;
 }
 
-function psClear() {
+async function psCopyResults() {
+  if (!psBets.length) return;
+  const year = document.getElementById('psYear').value || '2026';
+  const shortYear = year.slice(-2);
+
+  let w=0,l=0,p=0,pnl=0;
+  psBets.forEach(b => {
+    const r = b.manualResult || b.apiResult;
+    if(r==='win'){w++;pnl+=b.toWin;}
+    else if(r==='loss'){l++;pnl-=b.risk;}
+    else if(r==='push')p++;
+  });
+
+  const lines = [];
+  lines.push(`⚾ PRE-SEASON RESULTS (3/26–4/12/${shortYear})`);
+  lines.push(`Record: ${w}-${l}${p?' ('+p+'p)':''} | P&L: ${pnl>=0?'+':''}${pnl.toFixed(2)}u`);
+  lines.push('─'.repeat(50));
+  lines.push(`${'DATE'.padEnd(9)}${'TEAM'.padEnd(18)}${'ODDS'.padEnd(8)}${'RISK'.padEnd(8)}RESULT`);
+  lines.push('─'.repeat(50));
+
+  let lastDate = null;
+  psBets.forEach(b => {
+    const r = b.manualResult || b.apiResult || '?';
+    const dt = b.date.replace('/'+year, '/'+shortYear);
+    if (dt !== lastDate) { if (lastDate) lines.push(''); lastDate = dt; }
+    const team = (b.team + (b.isF5?' F5':'') + (b.isTotal?' u'+b.totalLine:'')).padEnd(18);
+    const odds = (b.odds>0?'+':'')+b.odds;
+    const pnlBet = r==='win'?'+'+b.toWin+'u':r==='loss'?'-'+b.risk+'u':r==='push'?'PUSH':'?';
+    lines.push(`${dt.padEnd(9)}${team}${odds.padEnd(8)}${(b.risk+'u').padEnd(8)}${r.toUpperCase().padEnd(8)}${pnlBet}`);
+  });
+
+  lines.push('─'.repeat(50));
+  lines.push(`Total: ${w}W-${l}L${p?' '+p+'P':''} | ${pnl>=0?'+':''}${pnl.toFixed(2)}u`);
+
+  const text = lines.join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
+  const btn = document.getElementById('psCopyBtn');
+  btn.textContent = '✓ COPIED';
+  btn.style.color = 'var(--win)';
+  setTimeout(() => { btn.textContent = '⧉ COPY RESULTS'; btn.style.color = ''; }, 1500);
+}
   psBets = [];
   document.getElementById('psPaste').value = '';
   document.getElementById('psResults').innerHTML = '';
