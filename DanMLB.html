@@ -739,11 +739,58 @@ const STARTING = { w: 40, l: 35, pnl: 4.65 };
 
 // localStorage overrides
 const STORE_KEY = 'mlb_grader_overrides_v1';
+const ADDED_KEY = 'mlb_grader_added_v1';
+const GRADE_KEY = 'mlb_grader_grades_v1';
+
 function loadOverrides() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch(e) { return {}; }
 }
 function saveOverrides(overrides) {
   localStorage.setItem(STORE_KEY, JSON.stringify(overrides));
+}
+
+// Save added bets
+function saveAddedBets() {
+  const added = bets.filter(b => b._added);
+  localStorage.setItem(ADDED_KEY, JSON.stringify(added));
+}
+
+// Save grade data (apiResult, score, opponent) for all bets by id
+function saveGradeData() {
+  const data = {};
+  bets.forEach(b => {
+    if (b.apiResult || b.score || b.opponent) {
+      data[b.id] = { apiResult: b.apiResult, score: b.score||null, opponent: b.opponent||null, apiChecked: b.apiChecked };
+    }
+  });
+  localStorage.setItem(GRADE_KEY, JSON.stringify(data));
+}
+
+// Restore added bets from localStorage
+function restoreAddedBets() {
+  try {
+    const added = JSON.parse(localStorage.getItem(ADDED_KEY) || '[]');
+    added.forEach(b => {
+      b.id = bets.length;
+      b._added = true;
+      bets.push(b);
+    });
+  } catch(e) {}
+}
+
+// Restore grade data
+function restoreGradeData() {
+  try {
+    const data = JSON.parse(localStorage.getItem(GRADE_KEY) || '{}');
+    bets.forEach(b => {
+      if (data[b.id]) {
+        b.apiResult = data[b.id].apiResult || null;
+        b.score = data[b.id].score || null;
+        b.opponent = data[b.id].opponent || null;
+        b.apiChecked = data[b.id].apiChecked || false;
+      }
+    });
+  } catch(e) {}
 }
 function applyOverrides() {
   const ov = loadOverrides();
@@ -1311,6 +1358,7 @@ async function gradeByDate() {
   });
 
   updateConflicts();
+  saveGradeData();
   updateStats();
   renderTable();
   document.getElementById('progressFill').style.width = '100%';
@@ -1364,6 +1412,7 @@ async function gradeAll() {
   }
 
   updateConflicts();
+  saveGradeData();
   updateStats();
   renderTable();
 
@@ -2078,8 +2127,10 @@ function addAllParsed() {
   if (!parsedBets.length) return;
   parsedBets.forEach(b => {
     b.id = bets.length;
+    b._added = true;
     bets.push(b);
   });
+  saveAddedBets();
   populateDateFilter();
   updateStats();
   renderTable();
@@ -2088,13 +2139,15 @@ function addAllParsed() {
   document.getElementById('addStatus').textContent = `✅ ${count} bet${count>1?'s':''} added for ${date} — use Grade Date to grade`;
   parsedBets = [];
   document.getElementById('addAllBtn').style.display = 'none';
-  // auto-set the grade date input to match
   document.getElementById('gradeDateInput').value = document.getElementById('addDate').value;
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
+restoreAddedBets();
 applyOverrides();
 applyOddsOverrides();
+restoreGradeData();
+updateConflicts();
 populateDateFilter();
 updateStats();
 renderTable();
