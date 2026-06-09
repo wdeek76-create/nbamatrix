@@ -6559,10 +6559,37 @@ function renderSrcAnalytics() {
 // Tracker period filter for the performance chart. Persisted on window so it
 // survives re-renders without forcing a full state object.
 window._trackerPeriod = window._trackerPeriod || "all";
+// When set to a Monday-ms timestamp, the chart filters to JUST that week's
+// data. Takes precedence over the 7D/30D/All Time period filter. Cleared
+// when user picks a period pill or hits the "back to all" button.
+window._trackerSelectedWeek = window._trackerSelectedWeek || null;
 
 function setTrackerPeriod(p) {
   window._trackerPeriod = p;
+  window._trackerSelectedWeek = null;  // changing period resets week drill-down
   if (typeof renderTracker === "function") renderTracker();
+}
+function setTrackerWeek(mondayMs) {
+  window._trackerSelectedWeek = mondayMs;
+  if (typeof renderTracker === "function") renderTracker();
+}
+function clearTrackerWeek() {
+  window._trackerSelectedWeek = null;
+  if (typeof renderTracker === "function") renderTracker();
+}
+// Parse a date string as LOCAL time, not UTC. Fixes the issue where
+// "2026-06-09" parsed via `new Date()` becomes June 8 in Eastern Time,
+// pushing today's bets into last week's bucket on the performance chart.
+function _parseLocalDate(dateStr) {
+  if (!dateStr) return null;
+  if (typeof dateStr === "number") return new Date(dateStr);
+  if (typeof dateStr === "string") {
+    // Match YYYY-MM-DD (date-only ISO strings) — parse as local midnight
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  }
+  // Anything else (full ISO with time, ms timestamp, etc.) — pass through
+  return new Date(dateStr);
 }
 
 // Per-bet override toggle — exposes the manual HIT/MISS/VOID buttons on a
@@ -6661,8 +6688,8 @@ function buildPerformancePanel(scopedBets) {
     .map(b => {
       const dateStr = b.gameDate || b.date || b.timestamp;
       if (!dateStr) return null;
-      const dt = new Date(dateStr);
-      if (isNaN(dt.getTime())) return null;
+      const dt = _parseLocalDate(dateStr);
+      if (!dt || isNaN(dt.getTime())) return null;
       const stake = b.stake != null ? Number(b.stake) : 1;
       const odds = Number(b.odds || 0);
       let pl;
@@ -6698,14 +6725,40 @@ function buildPerformancePanel(scopedBets) {
   cumByDate.forEach(v => fullSeries.push(v));
   const allTimeTotal = runningSum;
 
-  // 3. Apply period filter (7D / 30D / All)
+  // 3. Apply period filter (7D / 30D / All) — OR, if a specific week is
+  // selected, filter to just that Mon–Sun window. Selected week takes priority.
   const period = window._trackerPeriod || "all";
+  const selectedWeekMs = window._trackerSelectedWeek;
   const now = Date.now();
   let cutoff = 0;
   if (period === "7d") cutoff = now - 7 * 86400000;
   else if (period === "30d") cutoff = now - 30 * 86400000;
-  // For period-scoped chart: keep the running cum from start so trend is preserved
-  let periodSeries = cutoff > 0 ? fullSeries.filter(p => p.date.getTime() >= cutoff) : fullSeries;
+  let periodSeries;
+  let isWeekView = false;
+  let weekViewLabel = "";
+  let weekViewStartMs = 0;
+  let weekViewEndMs = 0;
+  if (selectedWeekMs != null) {
+    // Week drill-down view: filter to just that Mon–Sun window AND rebuild a
+    // fresh in-week cumulative curve (starts at 0 on Monday of that week).
+    isWeekView = true;
+    weekViewStartMs = selectedWeekMs;
+    weekViewEndMs = selectedWeekMs + 7 * 86400000;
+    const weekDays = fullSeries.filter(p => p.date.getTime() >= weekViewStartMs && p.date.getTime() < weekViewEndMs);
+    let inWeekRunning = 0;
+    periodSeries = weekDays.map(p => {
+      inWeekRunning += p.dayPL;
+      return { ...p, cum: +inWeekRunning.toFixed(2) };
+    });
+    // Build the label
+    const ws = new Date(weekViewStartMs);
+    const we = new Date(weekViewStartMs + 6 * 86400000);
+    const monthNamesShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    weekViewLabel = `${monthNamesShort[ws.getMonth()]} ${ws.getDate()}–${ws.getMonth() === we.getMonth() ? we.getDate() : monthNamesShort[we.getMonth()] + " " + we.getDate()}`;
+  } else {
+    // Standard period filter (preserves running cumulative from full history)
+    periodSeries = cutoff > 0 ? fullSeries.filter(p => p.date.getTime() >= cutoff) : fullSeries;
+  }
 
   // For "All Time", visually anchor the chart to where actual continuous
   // activity begins. Strategy: find the LAST gap > 14 days in the series, then
@@ -6713,7 +6766,7 @@ function buildPerformancePanel(scopedBets) {
   // bets — the chart anchors to the start of your current active cluster, not
   // the first stray bet from months ago. The earlier bets still count toward
   // cumulative (their P/L is in the running sum at the visual start point).
-  if (period === "all" && periodSeries.length >= 2) {
+  if (period === "all" && !isWeekView && periodSeries.length >= 2) {
     let visualStartIdx = 0;
     for (let i = 0; i < periodSeries.length - 1; i++) {
       const dayGap = (periodSeries[i + 1].date.getTime() - periodSeries[i].date.getTime()) / 86400000;
@@ -6727,14 +6780,20 @@ function buildPerformancePanel(scopedBets) {
   //   - 30D   → sum of P/L in the last 30 days
   //   - 7D    → sum of P/L in the last 7 days
   let displayedPL;
-  if (period === "all") {
+  if (isWeekView) {
+    // Week drill: headline = that week's total
+    displayedPL = periodSeries.length ? periodSeries[periodSeries.length - 1].cum : 0;
+  } else if (period === "all") {
     displayedPL = allTimeTotal;
   } else {
     displayedPL = fullSeries
       .filter(p => p.date.getTime() >= cutoff)
       .reduce((sum, p) => sum + p.dayPL, 0);
   }
-  const periodSubLabel = period === "all" ? "cumulative · all time" : period === "30d" ? "last 30 days" : "last 7 days";
+  const periodSubLabel = isWeekView
+    ? `week of ${weekViewLabel}`
+    : period === "all" ? "cumulative · all time"
+    : period === "30d" ? "last 30 days" : "last 7 days";
 
   // 4. Min/max markers — use the active period's series
   let minPoint = null, maxPoint = null;
@@ -6788,7 +6847,7 @@ function buildPerformancePanel(scopedBets) {
     const ws = new Date(wMon);
     const we = new Date(wMon + 6 * 86400000);
     const label = `${monthNames[ws.getMonth()]} ${ws.getDate()} – ${ws.getMonth() === we.getMonth() ? we.getDate() : monthNames[we.getMonth()] + " " + we.getDate()}`;
-    weekly.push({ label, total: wTotal, hits: wHits, misses: wMisses });
+    weekly.push({ label, total: wTotal, hits: wHits, misses: wMisses, mondayMs: wMon });
   }
 
   // 8. SVG chart construction
@@ -6925,9 +6984,9 @@ function buildPerformancePanel(scopedBets) {
     chartHtml = `<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#525a64;font-size:12px;">Not enough graded bets yet — grade a few to populate the curve.</div>`;
   }
 
-  // 9. Period toggle buttons
+  // 9. Period toggle buttons (rendered inactive when a week is drilled into)
   const periodBtn = (val, label) => {
-    const active = period === val;
+    const active = !isWeekView && period === val;
     return `<button onclick="setTrackerPeriod('${val}')" style="background:${active ? '#0c0d10' : 'transparent'};border:1px solid ${active ? '#1e40af' : '#1a1d22'};color:${active ? '#fff' : '#a8b0bb'};border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.5px;">${label}</button>`;
   };
 
@@ -6957,8 +7016,11 @@ function buildPerformancePanel(scopedBets) {
   // 12. Weekly history rows
   const historyRows = weekly.map(w => {
     const c = w.total >= 0 ? "#4ade80" : "#f87171";
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1a1d22;">
-      <div style="font-size:12px;color:#d4dae3;">${w.label}</div>
+    const isSelected = selectedWeekMs != null && w.mondayMs === selectedWeekMs;
+    const bg = isSelected ? "rgba(125,211,252,0.08)" : "transparent";
+    const border = isSelected ? "1px solid rgba(125,211,252,0.4)" : "1px solid transparent";
+    return `<div onclick="setTrackerWeek(${w.mondayMs})" style="display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-bottom:1px solid #1a1d22;background:${bg};border-radius:6px;border-top:${border};border-left:${border};border-right:${border};cursor:pointer;transition:background 0.12s;">
+      <div style="font-size:12px;color:${isSelected ? '#7dd3fc' : '#d4dae3'};font-weight:${isSelected ? '700' : '500'};">${w.label}</div>
       <div style="display:flex;align-items:center;gap:14px;">
         <div style="font-size:11px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;">${w.hits}W–${w.misses}L</div>
         <div style="font-size:13px;color:${c};font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;min-width:48px;text-align:right;">${w.total >= 0 ? "+" : ""}${w.total.toFixed(1)}u</div>
@@ -6997,7 +7059,8 @@ function buildPerformancePanel(scopedBets) {
             </div>
             ${period !== "7d" && Math.abs(last7PL) > 0.01 ? `<div style="background:rgba(74,222,128,0.08);border:1px solid ${last7Color}55;color:${last7Color};border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">⚡ ${last7Str}</div>` : ""}
           </div>
-          <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+            ${isWeekView ? `<button onclick="clearTrackerWeek()" style="background:rgba(125,211,252,0.12);border:1px solid rgba(125,211,252,0.5);color:#7dd3fc;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">← Back · ${weekViewLabel}</button>` : ""}
             ${periodBtn("7d", "7D")}
             ${periodBtn("30d", "30D")}
             ${periodBtn("all", "All Time")}
@@ -7010,9 +7073,9 @@ function buildPerformancePanel(scopedBets) {
             <div style="font-size:14px;font-weight:700;color:#fff;letter-spacing:0.3px;">This Week</div>
             <div style="font-size:11px;color:#a8b0bb;margin-top:2px;">Rolling weekly performance</div>
           </div>
-          <div style="background:#050507;border:1px solid #1a1d22;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+          <div style="background:#050507;border:1px solid ${selectedWeekMs === thisMonday ? 'rgba(125,211,252,0.4)' : '#1a1d22'};border-radius:8px;padding:12px 14px;margin-bottom:14px;cursor:pointer;transition:border-color 0.12s;" onclick="setTrackerWeek(${thisMonday})">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <div style="font-size:12px;color:#d4dae3;font-weight:600;">This Week</div>
+              <div style="font-size:12px;color:${selectedWeekMs === thisMonday ? '#7dd3fc' : '#d4dae3'};font-weight:${selectedWeekMs === thisMonday ? '700' : '600'};">This Week</div>
               <div style="font-size:10px;color:#a8b0bb;">${weekLabel}</div>
             </div>
             <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;">
