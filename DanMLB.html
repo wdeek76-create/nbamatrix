@@ -152,7 +152,7 @@
 <header>
   <div>
     <h1>⚾ DANMLB2026</h1>
-    <div class="sub">Auto-grade via MLB Stats API · Starting: 40-35 +4.65u</div>
+    <div class="sub">Auto-grade via MLB Stats API · 387 total bets (3/26–6/7)</div>
   </div>
   <button class="grade-btn" id="gradeBtn" onclick="gradeAll()">▶ GRADE ALL</button>
   <div style="display:flex;align-items:center;gap:6px;">
@@ -341,7 +341,82 @@ function teamLogo(name, size=18) {
 }
 
 // ─── RAW BET DATA ────────────────────────────────────────────────────────────
-const RAW = `4/13: Phillies -180 bol (.67u risk) win
+const RAW = `3/26: Pirates f5 -113 BOL (1.02u risk) pending
+Nationals/Cubs u8 -102 BM (1.01u risk) pending
+Phillies -147 PX (1.21u risk) pending
+3/28: Toronto -164 BOL (1.28u risk) pending
+White Sox +180 BOL (.74u risk) pending
+3/29: Cardinals +107 b105 (.96u risk) pending
+Rangers/Phillies u8 -112 b105 (to win .5u) pending
+3/30: Yankees +100 bol/b105 (1u risk) pending
+Rangers +113 PM (.94u risk) pending
+Nationals f5 +136 Pinnie (.86u risk) pending
+3/31: Rays +122 PM (.45u risk) pending
+Rays f5 +111 Pinnie/105 (.47u risk) pending
+Angels +133 PM (.43u risk) pending
+Angels f5 +121 Pinnie/105 (.45u risk) pending
+Rangers f5 -133 bol (1.15u risk) pending
+4/2: Twins/Royals u9.5 -102 BOL (to win .5u) pending
+4/3: Marlins f5 +132 BOL (.87u risk) pending
+Padres +113 PM (.94u risk) pending
+4/4: Orioles +108 PM (.96u risk) pending
+Brewers +112 nv (.94u risk) pending
+4/5: Pirates f5 -124 FD (.56u risk) pending
+Pirates -119 PX/nv (.54u risk) pending
+White Sox +153 nv (.40u risk) pending
+White Sox f5 +127 px (.44u risk) pending
+Angels f5 +140 pinnie/105 (.5u risk) pending
+4/6: Pirates -124 Pin/105 (.55u risk) pending
+Pirates f5 -145 Pin (.60u risk) pending
+Rays -105 bol (.51u risk) pending
+Rays f5 -133 bm (.57u risk) pending
+Angels/Braves f5 u4 -123 BOL (to win .5u) pending
+Mariners/Rangers f5 u4 -115 bol (to win .5u) pending
+Red Sox +113 bm (.47u risk) pending
+Red Sox f5 +135 bm (.43u risk) pending
+4/7: Pirates f5 -168 bol/pin (1.3u risk) pending
+Phillies -147 bm (1.21u risk) pending
+4/8: Blue Jays +138 bol (.42u risk) pending
+Blue Jays f5 +135 bm (.43u risk) pending
+Rangers +115 bol (.46u risk) pending
+Rangers f5 +111 pin (.47u risk) pending
+Marlins f5 -136 b105 (1.16u risk) pending
+Rays -106 bol (.51u risk) pending
+Rays f5 -110 pin (.52u risk) pending
+4/9: Marlins f5 -120 bm (1.09u risk) pending
+White Sox +162 b105 (.78u risk) pending
+4/10: Orioles f5 -115 bm (1.09u risk) pending
+Nationals +180 b105 (.37u risk) pending
+Nationals f5 +162 Pin (.39u risk) pending
+Phillies -168 PM (1.28u risk) pending
+Marlins +127 PM (.44u risk) pending
+Marlins f5 +123 Pin (.45u risk) pending
+Twins f5 +115 bol (.46u risk) pending
+Twins +139 b105 (.42u risk) pending
+4/11: Twins f5 -109 pin/b105 (1.04u risk) pending
+Pirates +127 nv (.88u risk) pending
+Guardians +111 nv (.47u risk) pending
+Guardians f5 -104 pin (.51u risk) pending
+Yankees -163 bm (.63u risk) pending
+Yankees f5 -171 bm (.65u risk) pending
+Red Sox -125 nv (.55u risk) pending
+Red Sox f5 -122 bm (.55u risk) pending
+Nationals +156 nv (.4u risk) pending
+Nationals f5 +141 bm (.42u risk) pending
+4/12: Angels -102 bol (.5u risk) pending
+Angels f5 -107 bol (.52u risk) pending
+Phillies -143 bol (1.19u risk) pending
+Pirates/Cubs u12.5 -103 bm (to win .5u) pending
+Twins +124 nv (.45u risk) pending
+Twins f5 -102 bm (.5u risk) pending
+Tigers f5 -182 bm (1.34u risk) pending
+Orioles f5 -108 bm (1.03u risk) pending
+Nationals +193 nv (.35u risk) pending
+Nationals f5 +179 nv (.37u risk) pending
+Mariners f5 -194 bm/bol (1.39u risk) pending
+Braves -176 nv (.66u risk) pending
+Braves f5 -178 bm (.67u risk) pending
+4/13: Phillies -180 bol (.67u risk) win
 Phillies f5 -190 FD (.69u risk) win
 Marlins +125 bol (.44u risk) win
 Marlins +106 b105 f5 (.48u risk) win
@@ -677,12 +752,21 @@ function parseBets() {
     else if (line.endsWith(' loss')) { loggedResult = 'loss'; line = line.slice(0,-5).trim(); }
     else if (line.endsWith(' push')) { loggedResult = 'push'; line = line.slice(0,-5).trim(); }
     else if (line.endsWith(' ?')) { loggedResult = 'pending'; line = line.slice(0,-2).trim(); }
+    else if (line.endsWith(' pending')) { loggedResult = 'pending'; line = line.slice(0,-8).trim(); }
+
+    // detect total bet: "Team1/Team2 uX" or "Team1/Team2 f5 uX"
+    const totalMatch = line.match(/^([A-Za-z\s]+)\/([A-Za-z\s]+?)\s+(?:f5\s+)?u([0-9.]+)/i);
+    let isTotal = false, totalLine = null, team1 = null;
+    if (totalMatch) {
+      isTotal = true;
+      team1 = totalMatch[1].trim();
+      totalLine = parseFloat(totalMatch[3]);
+    }
 
     // "to win" format
     const toWinMatch = line.match(/\(to win\s+([0-9.]+)u\)/);
-    let risk = null, isToWin = false;
+    let risk = null;
     if (toWinMatch) {
-      isToWin = true;
       const tw = parseFloat(toWinMatch[1]);
       const oddsM = line.match(/([+-]\d+)/);
       const odds = oddsM ? parseInt(oddsM[1]) : null;
@@ -690,7 +774,6 @@ function parseBets() {
       else if (odds && odds > 0) risk = tw / (odds / 100);
       else risk = tw;
     } else {
-      // match (.5u risk) OR (.5u) — the word "risk" is sometimes omitted
       const riskMatch = line.match(/\(([0-9.]+)u(?:\s*risk)?\)/);
       if (riskMatch) risk = parseFloat(riskMatch[1]);
     }
@@ -699,12 +782,16 @@ function parseBets() {
     const odds = oddsMatch ? parseInt(oddsMatch[1]) : null;
 
     const isF5 = /\bf5\b/i.test(line);
-    const teamMatch = line.match(/^([A-Za-z\s]+?)(?:\s+(?:f5|g\d))?\s+[+-]\d+/i);
-    let team = teamMatch ? teamMatch[1].trim() : line.split(/\s+/)[0];
-    // clean up team
+
+    let team;
+    if (isTotal) {
+      team = team1; // use first team to find the game
+    } else {
+      const teamMatch = line.match(/^([A-Za-z\s]+?)(?:\s+(?:f5|g\d))?\s+[+-]\d+/i);
+      team = teamMatch ? teamMatch[1].trim() : line.split(/\s+/)[0];
+    }
     team = team.replace(/\s+$/, '');
 
-    // compute toWin
     let toWin = 0;
     if (risk !== null && odds !== null) {
       if (odds > 0) toWin = risk * (odds / 100);
@@ -716,6 +803,8 @@ function parseBets() {
       date: currentDate,
       team,
       isF5,
+      isTotal: isTotal || false,
+      totalLine: totalLine || null,
       odds,
       risk: risk !== null ? +risk.toFixed(2) : null,
       toWin: +toWin.toFixed(2),
@@ -734,8 +823,8 @@ function parseBets() {
 let bets = parseBets();
 let filter = 'all';
 let sortCol = 'date';
-let sortDir = 1;
-const STARTING = { w: 40, l: 35, pnl: 4.65 };
+let sortDir = -1;
+const STARTING = { w: 0, l: 0, pnl: 0 };
 
 // localStorage overrides
 const STORE_KEY = 'mlb_grader_overrides_v1';
@@ -883,7 +972,7 @@ function updateStats() {
     `;
   } else {
     const periodBets = w + l + p;
-    const totalBets = STARTING.w + STARTING.l + periodBets;
+    const totalBets = periodBets + pend;
     const roi = (w+l) > 0 ? (pnl / bets.filter(b=>b.risk).reduce((s,b)=>s+b.risk,0) * 100).toFixed(1) : '--';
     bar.innerHTML = `
       <div class="stat"><div class="label">Record (all-time)</div><div class="val neu">${tw}-${tl}${p>0?` (${p}p)`:''}</div></div>
@@ -893,10 +982,10 @@ function updateStats() {
       <div class="stat"><div class="label">F5 P&L</div><div class="val ${f5pnl>=0?'pos':'neg'}">${fmt(f5pnl)}u</div></div>
       <div class="stat"><div class="label">Full Game P&L</div><div class="val ${fgpnl>=0?'pos':'neg'}">${fmt(fgpnl)}u</div></div>
       <div class="stat"><div class="label">ROI (this period)</div><div class="val ${roi>=0?'pos':'neg'}">${roi}%</div></div>
-      <div class="stat" title="75 prior + ${periodBets} this period">
+      <div class="stat" title="${totalBets} total bets">
         <div class="label">Total Bets</div>
         <div class="val neu">${totalBets}</div>
-        <div style="font-size:10px;color:var(--sub);margin-top:2px;">75 + ${periodBets}</div>
+        <div style="font-size:10px;color:var(--sub);margin-top:2px;">${w+l+p} graded · ${pend} pending</div>
       </div>
       <div class="stat"><div class="label">Pending</div><div class="val ${pend>0?'neu':''}">${pend}</div></div>
     `;
@@ -990,20 +1079,7 @@ function renderTable() {
 
   let html = '';
   let lastDate = null;
-  let running = STARTING.pnl;
-
-  if (sortCol === 'date' && !['win','loss','push','pending','conflict'].includes(filter)) {
-    html += `<tr style="background:rgba(0,212,255,.05);">
-      <td style="color:var(--accent);font-size:11px;font-weight:700;">BASELINE</td>
-      <td style="color:var(--accent);font-weight:700;" colspan="2">Prior to 4/13 · 40W-35L</td>
-      <td style="color:var(--sub);">—</td>
-      <td style="color:var(--sub);">—</td>
-      <td><span class="result-pill" style="background:rgba(0,212,255,.15);color:var(--accent);border:1px solid rgba(0,212,255,.4);">START</span></td>
-      <td>—</td>
-      <td style="text-align:right;padding-right:14px;">—</td>
-      <td style="text-align:right;padding-right:14px;"><span class="pnl-pos">+4.65u</span></td>
-    </tr>`;
-  }
+  let running = 0;
 
   rows.forEach(b => {
     if (sortCol==='date' && b.date !== lastDate) {
@@ -1137,14 +1213,13 @@ async function copyTable() {
   lines.push(divider);
 
   if (filter === 'all') {
-    const totalBetsCopy = STARTING.w + STARTING.l + s.w + s.l + s.p;
-    lines.push(`📊 OVERALL (incl. 40-35 +4.65u baseline)`);
-    lines.push(`   Record:     ${tw}-${tl} (${s.p} pushes)`);
+    const totalBetsCopy = s.w + s.l + s.p;
+    lines.push(`📊 OVERALL`);
+    lines.push(`   Record:     ${s.w}-${s.l} (${s.p} pushes)`);
     lines.push(`   Win Rate:   ${s.winPct}%`);
-    lines.push(`   Total P&L:  ${fmt(totalPnlAll)}`);
-    lines.push(`   This Span:  ${fmt(s.pnl)}`);
+    lines.push(`   Total P&L:  ${fmt(s.pnl)}`);
     lines.push(`   ROI:        ${s.roi}%`);
-    lines.push(`   Total Bets: ${totalBetsCopy}  (${s.w+s.l+s.p} this period)`);
+    lines.push(`   Total Bets: ${totalBetsCopy} graded`);
     lines.push('');
     lines.push(`🎯 F5 BETS`);
     lines.push(`   Record:  ${s.f5w}-${s.f5l} (${s.f5p}p)  |  Win: ${s.f5wp}%`);
@@ -1298,9 +1373,18 @@ function gradeFullGame(bet, games) {
   if (homeScore == null || awayScore == null) return null;
   const teamId = getTeamId(bet.team);
   const isHome = game.teams?.home?.team?.id === teamId;
+  bet.opponent = isHome ? game.teams?.away?.team?.name : game.teams?.home?.team?.name;
+
+  if (bet.isTotal && bet.totalLine) {
+    const total = homeScore + awayScore;
+    bet.score = `${awayScore}+${homeScore}=${total} (u${bet.totalLine})`;
+    if (total < bet.totalLine) return 'win';   // under hit
+    if (total > bet.totalLine) return 'loss';
+    return 'push';
+  }
+
   const myScore = isHome ? homeScore : awayScore;
   const oppScore = isHome ? awayScore : homeScore;
-  bet.opponent = isHome ? game.teams?.away?.team?.name : game.teams?.home?.team?.name;
   bet.score = `${myScore}-${oppScore}`;
   if (myScore > oppScore) return 'win';
   if (myScore < oppScore) return 'loss';
@@ -1324,6 +1408,15 @@ function gradeF5(bet, games, linescoreCache) {
     oppRuns += isHome ? awayRuns : homeRuns;
   });
   bet.opponent = isHome ? game.teams?.away?.team?.name : game.teams?.home?.team?.name;
+
+  if (bet.isTotal && bet.totalLine) {
+    const total = myRuns + oppRuns;
+    bet.score = `${oppRuns}+${myRuns}=${total} F5 (u${bet.totalLine})`;
+    if (total < bet.totalLine) return 'win';
+    if (total > bet.totalLine) return 'loss';
+    return 'push';
+  }
+
   bet.score = `${myRuns}-${oppRuns} F5`;
   if (myRuns > oppRuns) return 'win';
   if (myRuns < oppRuns) return 'loss';
