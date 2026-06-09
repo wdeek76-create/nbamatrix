@@ -235,6 +235,10 @@
         <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Max Drawdown</div><div id="chartDip" style="font-size:16px;font-weight:800;color:var(--loss);">—</div></div>
         <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Best Day</div><div id="chartBestDay" style="font-size:16px;font-weight:800;color:var(--win);">—</div></div>
         <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Worst Day</div><div id="chartWorstDay" style="font-size:16px;font-weight:800;color:var(--loss);">—</div></div>
+        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Best Win</div><div id="chartBestWin" style="font-size:16px;font-weight:800;color:var(--win);">—</div></div>
+        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Worst Loss</div><div id="chartWorstLoss" style="font-size:16px;font-weight:800;color:var(--loss);">—</div></div>
+        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Longest Win Streak</div><div id="chartWinStreak" style="font-size:16px;font-weight:800;color:var(--win);">—</div></div>
+        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Longest Loss Streak</div><div id="chartLossStreak" style="font-size:16px;font-weight:800;color:var(--loss);">—</div></div>
       </div>
     </div>
     <div class="chart-side">
@@ -1259,7 +1263,8 @@ async function copyTable() {
 
   let lastDate = null;
   let copyRunning = STARTING.pnl;
-  visibleBets.forEach(b => {
+  const sortedVisible = [...visibleBets].sort((a,b)=>new Date(a.date)-new Date(b.date)||(a.id-b.id));
+  sortedVisible.forEach(b => {
     if (b.date !== lastDate) {
       if (lastDate) lines.push('');
       lastDate = b.date;
@@ -1663,6 +1668,29 @@ function renderChart() {
   document.getElementById('chartDip').textContent = fmt(dip);
   document.getElementById('chartBestDay').textContent = `${fmt(bestDayPnl)} (${bestDayLabel})`;
   document.getElementById('chartWorstDay').textContent = `${fmt(worstDayPnl)} (${worstDayLabel})`;
+
+  // best single win and worst single loss
+  const gradedBets = bets.filter(b => effectiveResult(b)==='win'||effectiveResult(b)==='loss');
+  let bestWin = {pnl:0,label:''}, worstLoss = {pnl:0,label:''};
+  gradedBets.forEach(b => {
+    const pl = calcPnl(b);
+    if (pl===null) return;
+    const label = `${b.team}${b.isF5?' F5':''} (${b.date.replace('/2026','/26')})`;
+    if (pl > bestWin.pnl) bestWin = {pnl:pl, label};
+    if (pl < worstLoss.pnl) worstLoss = {pnl:pl, label};
+  });
+  document.getElementById('chartBestWin').textContent = bestWin.pnl ? `+${bestWin.pnl.toFixed(2)}u — ${bestWin.label}` : '—';
+  document.getElementById('chartWorstLoss').textContent = worstLoss.pnl ? `${worstLoss.pnl.toFixed(2)}u — ${worstLoss.label}` : '—';
+
+  // win/loss streaks
+  const results = gradedBets.sort((a,b)=>new Date(a.date)-new Date(b.date)).map(b=>effectiveResult(b));
+  let curW=0,maxW=0,curL=0,maxL=0;
+  results.forEach(r => {
+    if(r==='win'){curW++;maxW=Math.max(maxW,curW);curL=0;}
+    else if(r==='loss'){curL++;maxL=Math.max(maxL,curL);curW=0;}
+  });
+  document.getElementById('chartWinStreak').textContent = maxW + ' in a row';
+  document.getElementById('chartLossStreak').textContent = maxL + ' in a row';
 
   const canvas = document.getElementById('chartCanvas');
   const ctx = canvas.getContext('2d');
