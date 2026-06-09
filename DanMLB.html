@@ -824,7 +824,7 @@ let bets = parseBets();
 let filter = 'all';
 let sortCol = 'date';
 let sortDir = -1;
-const STARTING = { w: 0, l: 0, pnl: 0 };
+const STARTING = { w: 0, l: 0, p: 0, pnl: 0 };
 
 // localStorage overrides
 const STORE_KEY = 'mlb_grader_overrides_v1';
@@ -1091,7 +1091,7 @@ function renderTable() {
 
   let html = '';
   let lastDate = null;
-  let running = 0;
+  let running = STARTING.pnl;
 
   rows.forEach(b => {
     if (sortCol==='date' && b.date !== lastDate) {
