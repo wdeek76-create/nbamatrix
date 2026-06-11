@@ -1123,7 +1123,7 @@ function renderTable() {
       <td style="color:var(--sub);font-size:12px;">${(b.date||'—').replace('/2026','/26')}</td>
       <td class="team-cell">${teamLogo(b.team)}${b.team}${b.isF5?' <span class="f5-tag">F5</span>':''}${b.isTotal?` <span class="f5-tag" style="background:rgba(255,165,0,.1);color:var(--push);border-color:rgba(255,165,0,.3);">u${b.totalLine}</span>`:''}${conflictIcon}</td>
       <td><span class="odds-edit ${b.odds>0?'odds-pos':'odds-neg'}" onclick="editOdds(${b.id},this)">${b.odds>0?'+':''}${b.odds}</span></td>
-      <td style="color:var(--sub);">${b.risk!==null?b.risk+'u':'—'}</td>
+      <td><span class="odds-edit" style="color:var(--sub);" onclick="editRisk(${b.id},this)">${b.risk!==null?b.risk+'u':'—'}</span></td>
       <td style="color:var(--accent2);font-weight:600;">${b.toWin?'+'+b.toWin+'u':'—'}</td>
       <td>
         <div class="result-cell">
@@ -1579,11 +1579,9 @@ function editOdds(id, el) {
     const val = parseInt(inp.value.replace(/[^-+0-9]/g,''));
     if (!isNaN(val) && val !== 0) {
       b.odds = val;
-      // recalc toWin
       if (b.risk !== null) {
         b.toWin = val > 0 ? +(b.risk * val / 100).toFixed(2) : +(b.risk * 100 / Math.abs(val)).toFixed(2);
       }
-      // save to overrides
       const ov = loadOverrides();
       if (!ov._odds) ov._odds = {};
       ov._odds[id] = val;
@@ -1596,18 +1594,57 @@ function editOdds(id, el) {
   inp.addEventListener('keydown', e => { if(e.key==='Enter') inp.blur(); if(e.key==='Escape') { inp.value=cur; inp.blur(); } });
 }
 
+function editRisk(id, el) {
+  const b = bets[id];
+  const cur = b.risk;
+  const inp = document.createElement('input');
+  inp.className = 'odds-input';
+  inp.style.width = '54px';
+  inp.value = cur !== null ? cur : '';
+  el.replaceWith(inp);
+  inp.focus(); inp.select();
+  function save() {
+    const val = parseFloat(inp.value.replace(/[^0-9.]/g,''));
+    if (!isNaN(val) && val > 0) {
+      b.risk = +val.toFixed(2);
+      if (b.odds !== null) {
+        b.toWin = b.odds > 0 ? +(b.risk * b.odds / 100).toFixed(2) : +(b.risk * 100 / Math.abs(b.odds)).toFixed(2);
+      }
+      const ov = loadOverrides();
+      if (!ov._risk) ov._risk = {};
+      ov._risk[id] = b.risk;
+      saveOverrides(ov);
+    }
+    updateStats();
+    renderTable();
+  }
+  inp.addEventListener('blur', save);
+  inp.addEventListener('keydown', e => { if(e.key==='Enter') inp.blur(); if(e.key==='Escape') { inp.value=cur; inp.blur(); } });
+}
+
 // restore odds overrides on load
 function applyOddsOverrides() {
   const ov = loadOverrides();
-  if (!ov._odds) return;
-  Object.entries(ov._odds).forEach(([id, val]) => {
-    const b = bets[+id];
-    if (!b) return;
-    b.odds = val;
-    if (b.risk !== null) {
-      b.toWin = val > 0 ? +(b.risk * val / 100).toFixed(2) : +(b.risk * 100 / Math.abs(val)).toFixed(2);
-    }
-  });
+  if (ov._odds) {
+    Object.entries(ov._odds).forEach(([id, val]) => {
+      const b = bets[+id];
+      if (!b) return;
+      b.odds = val;
+      if (b.risk !== null) {
+        b.toWin = val > 0 ? +(b.risk * val / 100).toFixed(2) : +(b.risk * 100 / Math.abs(val)).toFixed(2);
+      }
+    });
+  }
+  if (ov._risk) {
+    Object.entries(ov._risk).forEach(([id, val]) => {
+      const b = bets[+id];
+      if (!b) return;
+      b.risk = val;
+      if (b.odds !== null) {
+        b.toWin = b.odds > 0 ? +(b.risk * b.odds / 100).toFixed(2) : +(b.risk * 100 / Math.abs(b.odds)).toFixed(2);
+      }
+    });
+  }
 }
 
 // ─── CHART ────────────────────────────────────────────────────────────────────
