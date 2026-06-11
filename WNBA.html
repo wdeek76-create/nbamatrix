@@ -1325,10 +1325,17 @@ function renderTable() {
       : "";
 
     // ✓ TRACKED pill — session-only, shows when this player+stat was already tracked
-    // since page load. Helps you avoid re-tracking the same bet. Clears on refresh.
+    // since page load. Helps you avoid re-tracking the same bet. Shows the exact
+    // line + direction (e.g. "✓ TRACKED u17.5") so you remember what you took.
+    // Clears on refresh.
     const tracked = _isTrackedProp(r.rawName, STAT_LABEL[sortBy]);
     const trackedPill = tracked
-      ? `<span style="background:#22c55e1a;border:1px solid #22c55e66;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;white-space:nowrap;">✓ TRACKED</span>`
+      ? (() => {
+          const dirLine = (tracked.ou && tracked.line != null)
+            ? `${tracked.ou === "under" ? "u" : "o"}${tracked.line}`
+            : "";
+          return `<span style="background:#22c55e1a;border:1px solid #22c55e66;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;white-space:nowrap;">✓ TRACKED${dirLine ? " " + dirLine : ""}</span>`;
+        })()
       : "";
 
     return `<tr class="${i%2===0?'even':'odd'}">
@@ -1874,15 +1881,17 @@ function trackRow(i) {
   openTrackModal(r.player, r.pos, r.stat, r.proj, r.team);
 }
 
-// Session-only set of "player|stat" combos tracked this page-load. Used to badge
-// Results rows as ✓ TRACKED so you don't re-track. Clears on refresh.
-const sessionTrackedProps = new Set();
-function _markTrackedProp(player, stat) {
+// Session-only map of "player|stat" → {ou, line} for bets tracked this
+// page-load. Used to badge Results rows as ✓ TRACKED u17.5 so you don't
+// re-track the same bet AND so you can see exactly what you tracked at a
+// glance. Clears on refresh.
+const sessionTrackedProps = new Map();
+function _markTrackedProp(player, stat, ou, line) {
   if (!player || !stat) return;
-  sessionTrackedProps.add(`${player}|${(stat||"").toUpperCase()}`);
+  sessionTrackedProps.set(`${player}|${(stat||"").toUpperCase()}`, { ou: ou || null, line: line != null ? line : null });
 }
 function _isTrackedProp(player, stat) {
-  return sessionTrackedProps.has(`${player}|${(stat||"").toUpperCase()}`);
+  return sessionTrackedProps.get(`${player}|${(stat||"").toUpperCase()}`) || null;
 }
 
 function trackTotal(payload, ...legacyArgs) {
@@ -2188,6 +2197,7 @@ function openTrackModal(player, pos, stat, proj, team, presetDate) {
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
   if (typeof updateMatchupInModal === "function") updateMatchupInModal();
   if (typeof updateTeammateRiskInModal === "function") updateTeammateRiskInModal();
+  if (typeof updateInjuryCtxInModal === "function") updateInjuryCtxInModal();
   const shorthand = document.getElementById("modal-shorthand");
   if (shorthand) { shorthand.value = ""; shorthand.style.borderColor = "#1a1d22"; }
   const sp = document.getElementById("shorthand-preview");
@@ -2250,6 +2260,7 @@ function parseShorthand(el) {
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
   if (typeof updateMatchupInModal === "function") updateMatchupInModal();
   if (typeof updateTeammateRiskInModal === "function") updateTeammateRiskInModal();
+  if (typeof updateInjuryCtxInModal === "function") updateInjuryCtxInModal();
   if (!raw) {
     el.style.borderColor = "#1a1d22";
     if (preview) preview.textContent = "";
@@ -3233,7 +3244,7 @@ function saveBet() {
   }
   // Mark this player+stat as tracked in the current session so Results shows ✓ TRACKED.
   // Player props only — GAME_TOTAL is handled by the totals tab's own indicator.
-  if (stat !== "GAME_TOTAL") _markTrackedProp(bet.player, stat);
+  if (stat !== "GAME_TOTAL") _markTrackedProp(bet.player, stat, ou, line);
   saveBets();
   closeTrackModal();
   if (currentTab === "tracker") renderTracker();
@@ -4182,6 +4193,121 @@ function updateSplitsInModal() {
 // (already loaded from ESPN feed). Skips OUT (binary, already priced in by
 // books) and PROBABLE (low impact). Excludes the bet's own player from the
 // teammate list via normalized-name comparison.
+// Render the injury-context panel — surfaces TWO high-impact signals:
+//
+// 1. CEILING ↑ : This player benefits from a teammate's absence (OUT or
+//    long-term/ongoing). The beneficiary detector already runs daily —
+//    we just expose its result loudly when you're about to bet. Risky for
+//    UNDERS (player likely outperforms baseline) and a tailwind for OVERS.
+//
+// 2. FLOOR ↓ : This player herself is Q/DTD/GTD. Even if not OUT, role/min
+//    risk is real — soft tissue, foul management, late scratches. Risky
+//    for OVERS, mild tailwind for UNDERS.
+//
+// Both can fire simultaneously (the player is hurt AND a teammate is hurt
+// in a way that boosts her usage). Renders combined panel in that case.
+function updateInjuryCtxInModal() {
+  const container = document.getElementById("modal-injury-ctx");
+  if (!container) return;
+  const player = (document.getElementById("modal-player-name") || {}).textContent || window._modalPlayer || "";
+  const team = window._modalTeam || "";
+  if (!player || !team) { container.style.display = "none"; return; }
+
+  // Detect direction from shorthand
+  let ou = "over";
+  const shorthandEl = document.getElementById("modal-shorthand");
+  if (shorthandEl && shorthandEl.value) {
+    const tok = shorthandEl.value.trim().toLowerCase().split(/\s+/)[0] || "";
+    if (tok.startsWith("u")) ou = "under";
+  }
+
+  // Look up: is THIS player a beneficiary (ceiling)?
+  let beneficiary = null;
+  if (typeof getBeneficiaryForPlayer === "function") {
+    beneficiary = getBeneficiaryForPlayer(player);
+  }
+  // Look up: is THIS player herself injured?
+  let ownInjury = null;
+  if (typeof getInjuryForPlayer === "function") {
+    ownInjury = getInjuryForPlayer(player, team);
+    // Filter to risky statuses only — OUT means the bet shouldn't exist at all
+    // (you wouldn't bet on a player who's OUT), but we keep it as a hard alert.
+    if (ownInjury) {
+      const s = (ownInjury.status || "").toLowerCase();
+      if (!s.includes("out") && !s.includes("question") && !s.includes("day") && !s.includes("game time")) {
+        ownInjury = null;  // probable / other — too minor to flag
+      }
+    }
+  }
+
+  if (!beneficiary && !ownInjury) { container.style.display = "none"; return; }
+
+  // Build the panel — header banner color & label depend on which signals fire
+  // and the bet direction. CEILING is favorable for OVERS, FLOOR for UNDERS.
+  let sections = [];
+
+  if (beneficiary) {
+    const causingStatus = (beneficiary.causedByStatus || "").toLowerCase();
+    const causingLabel = _injuryStatusLabel(beneficiary.causedByStatus);
+    const causingColor = _injuryStatusColor(beneficiary.causedByStatus);
+    // For OVERS this is a tailwind (green). For UNDERS this is a trap warning (amber).
+    const ceilingColor = ou === "over" ? "#22c55e" : "#f59e0b";
+    const ceilingVerb = ou === "over"
+      ? `<span style="font-weight:800;">supports the OVER</span> — ${player.split(" ").slice(-1)[0]} likely sees increased minutes/usage`
+      : `<span style="font-weight:800;">risky for the UNDER</span> — ${player.split(" ").slice(-1)[0]} likely absorbs minutes/usage`;
+    sections.push(`
+      <div style="background:rgba(34,197,94,0.05);border:1px solid ${ceilingColor}66;border-radius:8px;padding:11px 13px;${sections.length ? 'margin-top:8px;' : ''}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:14px;">↑</span>
+          <div style="font-size:11px;font-weight:800;color:${ceilingColor};letter-spacing:0.7px;text-transform:uppercase;">Ceiling · ${ou === "over" ? "tailwind" : "trap risk"}</div>
+        </div>
+        <div style="font-size:11.5px;color:#fff;line-height:1.5;opacity:0.92;margin-bottom:7px;">${ceilingVerb}.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;font-family:'JetBrains Mono','Menlo',monospace;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            <span style="background:${causingColor}22;border:1px solid ${causingColor}66;color:${causingColor};border-radius:4px;padding:3px 7px;font-size:9.5px;font-weight:800;letter-spacing:0.5px;">${causingLabel}</span>
+            <span style="color:#fff;font-weight:700;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${beneficiary.causedBy}</span>
+          </div>
+          <span style="color:#fff;opacity:0.6;font-size:10px;text-align:right;max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${beneficiary.reason}</span>
+        </div>
+      </div>
+    `);
+  }
+
+  if (ownInjury) {
+    const ownLabel = _injuryStatusLabel(ownInjury.status);
+    const ownColor = _injuryStatusColor(ownInjury.status);
+    const isOut = (ownInjury.status || "").toLowerCase() === "out";
+    // OUT = critical red. Q/DTD/GTD = amber floor warning.
+    const panelColor = isOut ? "#f87171" : "#f59e0b";
+    const panelHeader = isOut ? "PLAYER IS OUT" : `Floor · ${ou === "over" ? "trap risk" : "tailwind"}`;
+    const panelVerb = isOut
+      ? `<span style="font-weight:800;">${player.split(" ").slice(-1)[0]} is listed OUT.</span> Verify before tracking — bet likely needs to be voided.`
+      : (ou === "over"
+        ? `<span style="font-weight:800;">risky for the OVER</span> — ${player.split(" ").slice(-1)[0]} could see reduced minutes or be a late scratch`
+        : `<span style="font-weight:800;">mild tailwind for the UNDER</span> — minutes risk caps her output`);
+    const detail = (ownInjury.detail || ownInjury.type || "").trim();
+    sections.push(`
+      <div style="background:rgba(${isOut ? "248,113,113" : "245,158,11"},0.07);border:1px solid ${panelColor}66;border-radius:8px;padding:11px 13px;${sections.length ? 'margin-top:8px;' : ''}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:14px;">${isOut ? "🚫" : "↓"}</span>
+          <div style="font-size:11px;font-weight:800;color:${panelColor};letter-spacing:0.7px;text-transform:uppercase;">${panelHeader}</div>
+        </div>
+        <div style="font-size:11.5px;color:#fff;line-height:1.5;opacity:0.92;margin-bottom:7px;">${panelVerb}.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;font-family:'JetBrains Mono','Menlo',monospace;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            <span style="background:${ownColor}22;border:1px solid ${ownColor}66;color:${ownColor};border-radius:4px;padding:3px 7px;font-size:9.5px;font-weight:800;letter-spacing:0.5px;">${ownLabel}</span>
+            <span style="color:#fff;font-weight:700;font-size:11.5px;">${player}</span>
+          </div>
+          ${detail ? `<span style="color:#fff;opacity:0.6;font-size:10px;text-align:right;max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${detail}</span>` : ""}
+        </div>
+      </div>
+    `);
+  }
+
+  container.innerHTML = sections.join("");
+  container.style.display = "block";
+}
+
 function updateTeammateRiskInModal() {
   const container = document.getElementById("modal-teammate-risk");
   if (!container) return;
@@ -8049,6 +8175,7 @@ function pasteTrends() {
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
   if (typeof updateMatchupInModal === "function") updateMatchupInModal();
   if (typeof updateTeammateRiskInModal === "function") updateTeammateRiskInModal();
+  if (typeof updateInjuryCtxInModal === "function") updateInjuryCtxInModal();
 }
 
 function clearTrendsAndRender() {
@@ -8061,6 +8188,7 @@ function clearTrendsAndRender() {
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
   if (typeof updateMatchupInModal === "function") updateMatchupInModal();
   if (typeof updateTeammateRiskInModal === "function") updateTeammateRiskInModal();
+  if (typeof updateInjuryCtxInModal === "function") updateInjuryCtxInModal();
 }
 
 // Load on boot so saved trends survive page reloads
@@ -12706,15 +12834,21 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 </script>
 <!-- TRACK MODAL -->
-<div id="track-modal">
-  <div id="track-modal-box">
+<div id="track-modal" onclick="if(event.target===this)closeTrackModal()">
+  <div id="track-modal-box" onclick="event.stopPropagation()">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
       <div style="flex:1;min-width:0;">
         <h3 id="modal-player-name" style="margin:0;">Player Name</h3>
         <div class="sub" id="modal-player-sub" style="margin-top:2px;">Add a bet</div>
       </div>
-      <input type="date" id="modal-date" autocomplete="off" tabindex="-1" title="Game Date"
-        style="color-scheme:dark;background:#050507;border:1px solid rgba(255,255,255,0.08);color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;outline:none;flex:0 0 auto;align-self:flex-start;"/>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="date" id="modal-date" autocomplete="off" tabindex="-1" title="Game Date"
+            style="color-scheme:dark;background:#050507;border:1px solid rgba(255,255,255,0.08);color:#fff;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;outline:none;"/>
+          <button onclick="closeTrackModal()" aria-label="Close" style="background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;line-height:1;opacity:0.85;flex:0 0 auto;">×</button>
+        </div>
+        <button id="modal-save-btn-top" onclick="saveBet()" style="background:#1e40af;border:none;color:#fff;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;box-shadow:0 2px 8px rgba(30,64,175,0.4);white-space:nowrap;">Track Bet ↗</button>
+      </div>
     </div>
 
     <!-- Stat badge + shorthand input -->
@@ -12801,6 +12935,12 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
     <!-- Matchup adjustment — pulls from uploaded opp-avg CSV (Rotowire defensive
          averages) and shows how favorable tonight's opponent is for this stat.
          Same visual treatment as the Volatility bar in Splits. -->
+    <!-- Injury context (CEILING ↑ and FLOOR ↓) — high-visibility flag when:
+         · the bet's player benefits from a teammate's absence (CEILING — risky for UNDERS, supports OVERS)
+         · the bet's player is herself Q/DTD/GTD (FLOOR — risky for OVERS)
+         Surfaced prominently above all other panels because it's the kind of
+         signal you can't accidentally ignore. -->
+    <div id="modal-injury-ctx" style="margin-top:10px;display:none;"></div>
     <!-- Teammate risk warning — fires for UNDER bets when a teammate is
          questionable / day-to-day / game-time-decision. Surfaces the risk
          that this player absorbs minutes/usage if the teammate sits or
