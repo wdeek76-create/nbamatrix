@@ -435,7 +435,7 @@ table colgroup col.avg-col{width:16%;}
               <span style="color:#525a64;font-size:10px;letter-spacing:0.1px;">paste</span>
             </summary>
             <div style="padding:8px 14px 14px 14px;">
-              <div style="font-size:10px;color:#8b93a0;margin-bottom:8px;line-height:1.5;letter-spacing:0.1px;">Copy from <span style="color:#7dd3fc;font-family:'JetBrains Mono','Menlo',monospace;">rotowire.com/wnba/news.php?view=injuries</span> → paste below → Parse. Adds GTD/probable entries + full analysis blurbs ESPN's feed misses.</div>
+              <div style="font-size:10px;color:#8b93a0;margin-bottom:8px;line-height:1.5;letter-spacing:0.1px;">Copy from <span style="color:#7dd3fc;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">rotowire.com/wnba/news.php?view=injuries</span> → paste below → Parse. Adds GTD/probable entries + full analysis blurbs ESPN's feed misses.</div>
               <textarea id="rw-injury-paste" placeholder="Paste the full RotoWire injury news page here..." spellcheck="false"
                 style="width:100%;min-height:80px;background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;outline:none;resize:vertical;"></textarea>
               <div style="display:flex;gap:6px;margin-top:6px;">
@@ -2037,7 +2037,7 @@ function updateTrendsInModal() {
       bg = "rgba(255,255,255,0.025)";
       border = "1px solid rgba(255,255,255,0.06)";
     }
-    return `<div style="display:grid;grid-template-columns:26px 68px 1fr 56px;gap:8px;align-items:center;opacity:${opacity};font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;background:${bg};border:${border};border-radius:3px;padding:3px 4px;transition:all 0.15s;">
+    return `<div style="display:grid;grid-template-columns:26px 68px 1fr 56px;gap:8px;align-items:center;opacity:${opacity};font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;font-size:11px;line-height:1;background:${bg};border:${border};border-radius:3px;padding:4px 5px;transition:all 0.15s;">
       <span style="color:${statLabelColor};font-weight:700;letter-spacing:0.3px;">${t.stat}</span>
       <span style="color:#fff;font-weight:800;font-size:9.5px;letter-spacing:0.3px;">${dirLabel} ${fmt(t.line)}</span>
       <div style="height:5px;background:#1a1d22;border-radius:3px;overflow:hidden;">
@@ -2066,7 +2066,7 @@ function populateSourceAgreement() {
     const label = s.key === "rotowire" ? "RW" : s.key === "roto" ? "RG" : s.key === "saber" ? "SAB" : s.key === "dimers" ? "DMR" : s.label;
     return `<span class="modal-src-pill" data-src="${s.key}" style="display:inline-flex;align-items:center;gap:5px;background:#0c0d10;border:1px solid #1a1d22;border-radius:5px;padding:2px 7px;font-size:10px;">
       <span class="src-label" style="color:#8b93a0;font-weight:500;font-size:9px;letter-spacing:0.3px;">${label}</span>
-      <span class="src-val" style="color:#d4dae3;font-weight:500;font-family:'JetBrains Mono','Menlo',monospace;">${v.toFixed(2)}</span>
+      <span class="src-val" style="color:#d4dae3;font-weight:500;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${v.toFixed(2)}</span>
       <span class="src-edge" style="font-size:9px;font-weight:600;font-family:'JetBrains Mono','Menlo',monospace;opacity:0.85;"></span>
       <span class="src-check" style="font-size:9px;opacity:0.9;"></span>
     </span>`;
@@ -2798,7 +2798,7 @@ function _renderVolatilityPopoverContent() {
       <div style="text-align:center;">
         <div style="font-size:15px;font-weight:800;color:${p.color};margin-bottom:3px;">${p.title}${isCurrent ? ' <span style="color:#fff;opacity:0.55;font-weight:600;font-size:11px;letter-spacing:0.3px;">· you are here</span>' : ''}</div>
         <div style="font-size:12.5px;color:#fff;opacity:0.75;line-height:1.4;">${p.subtitle}</div>
-        <div style="font-size:11px;color:#fff;opacity:0.45;margin-top:6px;font-family:'JetBrains Mono','Menlo',monospace;">${p.range}</div>
+        <div style="font-size:11px;color:#fff;opacity:0.45;margin-top:6px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${p.range}</div>
       </div>
     </div>
     <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-top:14px;text-align:center;">
@@ -4109,7 +4109,7 @@ function updateSplitsInModal() {
       // Bar color reflects hit rate strength (independent of direction-match
       // since this IS the user's chosen direction by definition)
       const color = rate >= 60 ? "#4ade80" : rate >= 40 ? "#fbbf24" : "#f87171";
-      return `<div style="display:grid;grid-template-columns:50px 72px 1fr 60px;gap:8px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:4px 5px;">
+      return `<div style="display:grid;grid-template-columns:50px 72px 1fr 60px;gap:8px;align-items:center;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;font-size:11px;line-height:1;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:5px 6px;">
         <span style="color:#fff;font-weight:700;letter-spacing:0.3px;">${r.label}</span>
         <span style="color:#fff;font-weight:800;font-size:9.5px;letter-spacing:0.3px;">${dirLabel} ${splits.line}</span>
         <div style="height:5px;background:#1a1d22;border-radius:3px;overflow:hidden;">
@@ -4119,7 +4119,7 @@ function updateSplitsInModal() {
       </div>`;
     } else {
       // No line — clean averages row, no bar
-      return `<div style="display:grid;grid-template-columns:50px 72px 1fr 60px;gap:8px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;padding:4px 5px;">
+      return `<div style="display:grid;grid-template-columns:50px 72px 1fr 60px;gap:8px;align-items:center;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;font-size:11px;line-height:1;padding:5px 6px;">
         <span style="color:#fff;font-weight:700;letter-spacing:0.3px;">${r.label}</span>
         <span style="color:#525a64;font-weight:600;font-size:9.5px;letter-spacing:0.3px;">AVG</span>
         <span style="color:#525a64;font-size:9px;">${r.games}g</span>
@@ -4150,7 +4150,7 @@ function updateSplitsInModal() {
     let sourceRow = "";
     if (splits.minutesShare != null && splits.rateShare != null) {
       // Bar: blue (minutes) on the left, purple (rate) on the right. Proportions reflect each share.
-      sourceRow = `<div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;line-height:1;padding:5px 9px;margin-top:3px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);border-radius:3px;">
+      sourceRow = `<div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;font-size:11px;line-height:1;padding:5px 9px;margin-top:3px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);border-radius:3px;">
         <span style="color:#7dd3fc;font-weight:700;letter-spacing:0.3px;font-size:9px;">MIN ${splits.minutesShare}%</span>
         <div style="height:5px;background:#1a1d22;border-radius:3px;overflow:hidden;display:flex;">
           <div style="height:100%;width:${splits.minutesShare}%;background:#7dd3fc;"></div>
@@ -4169,7 +4169,7 @@ function updateSplitsInModal() {
       minutesCV: splits.minutesCV, rateCV: splits.rateCV,
     };
 
-    volRow = `<div style="font-family:'JetBrains Mono','Menlo',monospace;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:6px 9px;">
+    volRow = `<div style="font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:7px 10px;">
       <div style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:10px;line-height:1;">
         <span style="white-space:nowrap;">
           <span style="color:#fff;font-weight:700;letter-spacing:0.6px;font-size:9.5px;">VOLATILITY</span>
@@ -4266,7 +4266,7 @@ function updateInjuryCtxInModal() {
           <div style="font-size:11px;font-weight:800;color:${ceilingColor};letter-spacing:0.7px;text-transform:uppercase;">Ceiling · ${ou === "over" ? "tailwind" : "trap risk"}</div>
         </div>
         <div style="font-size:11.5px;color:#fff;line-height:1.5;opacity:0.92;margin-bottom:7px;">${ceilingVerb}.</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;font-family:'JetBrains Mono','Menlo',monospace;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;">
             <span style="background:${causingColor}22;border:1px solid ${causingColor}66;color:${causingColor};border-radius:4px;padding:3px 7px;font-size:9.5px;font-weight:800;letter-spacing:0.5px;">${causingLabel}</span>
             <span style="color:#fff;font-weight:700;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${beneficiary.causedBy}</span>
@@ -4297,7 +4297,7 @@ function updateInjuryCtxInModal() {
           <div style="font-size:11px;font-weight:800;color:${panelColor};letter-spacing:0.7px;text-transform:uppercase;">${panelHeader}</div>
         </div>
         <div style="font-size:11.5px;color:#fff;line-height:1.5;opacity:0.92;margin-bottom:7px;">${panelVerb}.</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;font-family:'JetBrains Mono','Menlo',monospace;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;">
             <span style="background:${ownColor}22;border:1px solid ${ownColor}66;color:${ownColor};border-radius:4px;padding:3px 7px;font-size:9.5px;font-weight:800;letter-spacing:0.5px;">${ownLabel}</span>
             <span style="color:#fff;font-weight:700;font-size:11.5px;">${player}</span>
@@ -4354,7 +4354,7 @@ function updateTeammateRiskInModal() {
     const label = _injuryStatusLabel(r.status);
     const color = _injuryStatusColor(r.status);
     const detail = (r.detail || r.type || "").trim();
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;margin-top:6px;font-family:'JetBrains Mono','Menlo',monospace;">
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;margin-top:6px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">
       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
         <span style="background:${color}22;border:1px solid ${color}66;color:${color};border-radius:4px;padding:3px 7px;font-size:9.5px;font-weight:800;letter-spacing:0.5px;">${label}</span>
         <span style="color:#fff;font-weight:700;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.name}</span>
@@ -4417,7 +4417,7 @@ function updateMatchupInModal() {
     // Opponent's matchup data not loaded — show a discreet "no data" state
     container.style.display = "block";
     if (summary) summary.textContent = `vs ${oppTeam} · no data`;
-    row.innerHTML = `<div style="font-family:'JetBrains Mono','Menlo',monospace;font-size:10px;color:#525a64;padding:6px 9px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;">Upload opp-avg CSV on the upload page to enable matchup adjustments.</div>`;
+    row.innerHTML = `<div style="font-family:'Inter',sans-serif;font-size:11px;color:#525a64;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;">Upload opp-avg CSV on the upload page to enable matchup adjustments.</div>`;
     return;
   }
 
@@ -4448,7 +4448,7 @@ function updateMatchupInModal() {
   // Get team count behind the league avg so user knows the baseline's sample size
   const data = getMatchupData();
   const teamCount = data && data.teams ? Object.keys(data.teams).length : 0;
-  row.innerHTML = `<div style="font-family:'JetBrains Mono','Menlo',monospace;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:8px 10px;">
+  row.innerHTML = `<div style="font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:8px 10px;">
     <!-- Top row: matches the volatility bar layout (label + value + bar) -->
     <div style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;font-size:10px;line-height:1;">
       <span style="white-space:nowrap;">
@@ -4960,7 +4960,7 @@ function renderPace() {
             <button onclick="paceDebugOutput='';renderPace();" style="background:transparent;border:1px solid #1a1d22;color:#d4dae3;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">CLEAR</button>
           </div>
         </div>
-        <pre style="background:#050507;border:1px solid #1a1d22;border-radius:4px;padding:10px;font-size:10px;color:#d4dae3;overflow-x:auto;max-height:400px;white-space:pre-wrap;word-break:break-word;font-family:'JetBrains Mono','Menlo',monospace;">${paceDebugOutput.replace(/</g,"&lt;")}</pre>
+        <pre style="background:#050507;border:1px solid #1a1d22;border-radius:4px;padding:10px;font-size:10px;color:#d4dae3;overflow-x:auto;max-height:400px;white-space:pre-wrap;word-break:break-word;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${paceDebugOutput.replace(/</g,"&lt;")}</pre>
       </div>`
     : "";
 
@@ -5010,7 +5010,7 @@ function renderAutoGrade() {
   };
   let logHtml;
   if (gradeLog.length === 0) {
-    logHtml = `<div style="color:#525a64;font-size:13px;padding:24px;font-family:'JetBrains Mono','Menlo',monospace;">Grade log will appear here...</div>`;
+    logHtml = `<div style="color:#525a64;font-size:13px;padding:24px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">Grade log will appear here...</div>`;
   } else {
     // Build ordered clusters: walk the log, batch runs of player-lines grouped by player,
     // emit info lines as their own block in position.
@@ -7204,14 +7204,14 @@ function buildPerformancePanel(scopedBets) {
     if (v == null) {
       return `<div style="background:transparent;border:1px solid #1a1d22;border-radius:6px;padding:8px 4px;text-align:center;min-width:0;">
         <div style="font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.6px;">${k}</div>
-        <div style="font-size:13px;color:#525a64;font-weight:700;margin-top:2px;font-family:'JetBrains Mono','Menlo',monospace;">—</div>
+        <div style="font-size:13px;color:#525a64;font-weight:700;margin-top:2px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">—</div>
       </div>`;
     }
     const c = v > 0 ? "#4ade80" : v < 0 ? "#f87171" : "#a8b0bb";
     const bgC = v > 0 ? "rgba(74,222,128,0.06)" : v < 0 ? "rgba(248,113,113,0.06)" : "transparent";
     return `<div style="background:${bgC};border:1px solid #1a1d22;border-radius:6px;padding:8px 4px;text-align:center;min-width:0;">
       <div style="font-size:9px;color:#a8b0bb;font-weight:700;letter-spacing:0.6px;">${k}</div>
-      <div style="font-size:13px;color:${c};font-weight:700;margin-top:2px;font-family:'JetBrains Mono','Menlo',monospace;">${v > 0 ? "+" : ""}${v.toFixed(1)}</div>
+      <div style="font-size:13px;color:${c};font-weight:700;margin-top:2px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${v > 0 ? "+" : ""}${v.toFixed(1)}</div>
     </div>`;
   }).join("");
 
@@ -7224,7 +7224,7 @@ function buildPerformancePanel(scopedBets) {
     return `<div onclick="setTrackerWeek(${w.mondayMs})" style="display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-bottom:1px solid #1a1d22;background:${bg};border-radius:6px;border-top:${border};border-left:${border};border-right:${border};cursor:pointer;transition:background 0.12s;">
       <div style="font-size:12px;color:${isSelected ? '#7dd3fc' : '#d4dae3'};font-weight:${isSelected ? '700' : '500'};">${w.label}</div>
       <div style="display:flex;align-items:center;gap:14px;">
-        <div style="font-size:11px;color:#525a64;font-family:'JetBrains Mono','Menlo',monospace;">${w.hits}W–${w.misses}L</div>
+        <div style="font-size:11px;color:#525a64;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${w.hits}W–${w.misses}L</div>
         <div style="font-size:13px;color:${c};font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;min-width:48px;text-align:right;">${w.total >= 0 ? "+" : ""}${w.total.toFixed(1)}u</div>
       </div>
     </div>`;
@@ -7259,7 +7259,7 @@ function buildPerformancePanel(scopedBets) {
               <div style="font-size:34px;font-weight:800;color:${headColor};font-family:'JetBrains Mono','Menlo',monospace;letter-spacing:-0.5px;line-height:1;">${displayedPL >= 0 ? "+" : ""}${displayedPL.toFixed(2)}u</div>
               <div style="font-size:10px;color:#a8b0bb;margin-top:4px;letter-spacing:0.4px;">${periodSubLabel}</div>
             </div>
-            ${period !== "7d" && Math.abs(last7PL) > 0.01 ? `<div style="background:rgba(74,222,128,0.08);border:1px solid ${last7Color}55;color:${last7Color};border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">⚡ ${last7Str}</div>` : ""}
+            ${period !== "7d" && Math.abs(last7PL) > 0.01 ? `<div style="background:rgba(74,222,128,0.08);border:1px solid ${last7Color}55;color:${last7Color};border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">⚡ ${last7Str}</div>` : ""}
           </div>
           <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
             ${isWeekView ? `<button onclick="clearTrackerWeek()" style="background:rgba(125,211,252,0.12);border:1px solid rgba(125,211,252,0.5);color:#7dd3fc;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">← Back · ${weekViewLabel}</button>` : ""}
@@ -7282,9 +7282,9 @@ function buildPerformancePanel(scopedBets) {
             </div>
             <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;">
               <div style="font-size:24px;font-weight:800;color:${weekColor};font-family:'JetBrains Mono','Menlo',monospace;line-height:1;">${weekTotal >= 0 ? "+" : ""}${weekTotal.toFixed(1)}u</div>
-              <div style="font-size:11px;color:#a8b0bb;font-family:'JetBrains Mono','Menlo',monospace;">${weekHits}W–${weekMisses}L</div>
+              <div style="font-size:11px;color:#a8b0bb;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${weekHits}W–${weekMisses}L</div>
             </div>
-            <div style="font-size:11px;color:#a8b0bb;margin-bottom:10px;">Season: <span style="color:${headColor};font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">${allTimeTotal >= 0 ? "+" : ""}${allTimeTotal.toFixed(2)}u</span></div>
+            <div style="font-size:11px;color:#a8b0bb;margin-bottom:10px;">Season: <span style="color:${headColor};font-weight:700;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${allTimeTotal >= 0 ? "+" : ""}${allTimeTotal.toFixed(2)}u</span></div>
             <div style="display:grid;grid-template-columns:repeat(7, 1fr);gap:4px;">${dayCells}</div>
           </div>
           <div style="font-size:11px;color:#a8b0bb;margin-bottom:8px;letter-spacing:0.3px;">
@@ -7550,11 +7550,11 @@ function renderTracker() {
           if (agreed) { color = "#4ade80"; bg = "rgba(34,197,94,0.10)"; border = "rgba(34,197,94,0.35)"; }
           else { color = "#f87171"; bg = "rgba(248,113,113,0.10)"; border = "rgba(248,113,113,0.35)"; }
         }
-        pills.push(`<span style="display:inline-flex;align-items:center;gap:3px;background:${bg};border:1px solid ${border};border-radius:4px;padding:1px 6px;font-size:9px;"><span style="color:#8b93a0;font-weight:600;letter-spacing:0.3px;">${SRC_LABELS[key]}</span><span style="color:${color};font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">${v.toFixed(2)}</span></span>`);
+        pills.push(`<span style="display:inline-flex;align-items:center;gap:3px;background:${bg};border:1px solid ${border};border-radius:4px;padding:1px 6px;font-size:9px;"><span style="color:#8b93a0;font-weight:600;letter-spacing:0.3px;">${SRC_LABELS[key]}</span><span style="color:${color};font-weight:700;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${v.toFixed(2)}</span></span>`);
       });
       if (vals.length >= 2) {
         const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-        pills.push(`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.3);border-radius:4px;padding:1px 6px;font-size:9px;"><span style="color:#7dd3fc;font-weight:700;letter-spacing:0.3px;">AVG</span><span style="color:#7dd3fc;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;">${avg.toFixed(2)}</span></span>`);
+        pills.push(`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.3);border-radius:4px;padding:1px 6px;font-size:9px;"><span style="color:#7dd3fc;font-weight:700;letter-spacing:0.3px;">AVG</span><span style="color:#7dd3fc;font-weight:700;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">${avg.toFixed(2)}</span></span>`);
       }
       if (pills.length) {
         srcProjsRow = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;">${pills.join("")}</div>`;
@@ -7776,7 +7776,7 @@ function renderTracker() {
       <span style="font-size:10px;color:#525a64;letter-spacing:1px;text-transform:uppercase;font-weight:700;">Season Logs</span>
       <button id="seasonLogsSyncBtn" onclick="handleSyncSeasonLogs(false)" title="Pull new game logs from ESPN" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:5px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">🔄 Sync</button>
       <button onclick="if(confirm('Re-fetch the entire season? Existing logs will be replaced.')) handleSyncSeasonLogs(true);" title="Wipe and re-fetch the entire season" style="background:transparent;border:1px solid #1a1d22;color:#525a64;border-radius:5px;padding:5px 9px;font-size:10px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Force Re-sync</button>
-      <span id="seasonLogsStatus" style="font-size:11px;color:#8b93a0;font-family:'JetBrains Mono','Menlo',monospace;">never synced</span>
+      <span id="seasonLogsStatus" style="font-size:11px;color:#8b93a0;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">never synced</span>
     </div>
 
     <details id="autograde-details" ${agOpen ? "open" : ""} style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;margin-bottom:14px;">
