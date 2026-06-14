@@ -253,49 +253,21 @@ table.bd tr:not(.stat-header):hover td { background: rgba(255,255,255,.025); }
         </label>
         <span class="parse-status" id="xlsxStatus"></span>
       </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--sub);line-height:1.7;">
-        Reads the <strong style="color:var(--text);">NBA TRACKING</strong> sheet automatically. Expects columns:
-        <span style="color:var(--accent);">DAY · BET NAME · ODDS · GRADE</span> — same format as your existing tracker.
-        Parlays and blank rows are excluded automatically.
+    </div>
+
+    <!-- Manual paste toggle -->
+    <div style="border-top:1px solid var(--border);padding-top:16px;">
+      <button onclick="togglePaste()" class="btn btn-ghost" style="font-size:12px;" id="paste-toggle-btn">+ Manual Paste</button>
+      <div id="paste-section" style="display:none;margin-top:16px;">
+        <textarea id="pasteInput" placeholder="Paste bets here..."></textarea>
+        <div class="paste-actions" style="margin-top:10px;">
+          <button class="btn btn-primary" onclick="parseBets()">Parse Bets</button>
+          <button class="btn btn-ghost" onclick="clearAll()">Clear All</button>
+          <span class="parse-status" id="parseStatus"></span>
+        </div>
       </div>
     </div>
 
-    <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:12px;">
-      <div class="paste-label">Or Paste Manually</div>
-    </div>
-
-    <textarea id="pasteInput" placeholder="Paste bets here. Accepts most formats from Discord/Telegram/Excel.
-
-Examples:
-  J Hart U 4.5 ast  +122  WIN
-  T Jones O 3.5 ast  -136  WIN
-  K Leonard O 27.5 pts  -106  LOSS
-  2/19/2026  NBA  P Williams U 2.5 reb  $226  +132  LOSS
-
-Tip: Date columns are optional. Odds must include + or - sign.
-Parlays are automatically excluded."></textarea>
-
-    <div class="paste-actions">
-      <button class="btn btn-primary" onclick="parseBets()">Parse Bets</button>
-      <button class="btn btn-ghost" onclick="clearAll()">Clear All</button>
-      <span class="parse-status" id="parseStatus"></span>
-    </div>
-
-    <div class="format-hint" style="margin-top:20px;">
-      <h3>Paste Format Guide</h3>
-      <pre>
-<span class="hl">Tab/space separated (from Excel or Discord):</span>
-  J Hart U 4.5 ast    +122    WIN
-  T Jones O 3.5 ast   -136    WIN
-
-<span class="hl">With date prefix:</span>
-  2/19/2026   NBA   K Leonard O 27.5 pts   $530   -106   LOSS
-
-<span class="hl">Odds formats accepted:</span>  +132  -136  132  -136
-
-<span class="hl">Auto-excluded:</span>  Parlay, PUSH rows, blank rows
-      </pre>
-    </div>
   </div>
 </div>
 
@@ -313,6 +285,7 @@ Parlays are automatically excluded."></textarea>
       <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--sub);margin-right:4px;">Period</span>
       <button class="filter-btn active" onclick="setSeason('all')">All</button>
       <button class="filter-btn" onclick="setSeason('reg')">Reg Season</button>
+      <button class="filter-btn" onclick="setSeason('playin')">Play-In</button>
       <button class="filter-btn" onclick="setSeason('playoffs')">Playoffs</button>
       <span class="filter-sep">|</span>
       <button class="filter-btn active" onclick="setOUFilter('all')">All Directions</button>
@@ -356,7 +329,7 @@ Parlays are automatically excluded."></textarea>
           <table class="bd">
             <thead><tr>
               <th>Category</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
-              <th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+              <th class="r">Avg Odds</th><th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
             </tr></thead>
             <tbody id="uf-table"></tbody>
           </table>
@@ -370,7 +343,7 @@ Parlays are automatically excluded."></textarea>
           <table class="bd">
             <thead><tr>
               <th>Stat</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
-              <th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+              <th class="r">Avg Odds</th><th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
             </tr></thead>
             <tbody id="stat-table"></tbody>
           </table>
@@ -384,7 +357,7 @@ Parlays are automatically excluded."></textarea>
           <table class="bd">
             <thead><tr>
               <th>Direction</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
-              <th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+              <th class="r">Avg Odds</th><th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
             </tr></thead>
             <tbody id="ou-table"></tbody>
           </table>
@@ -399,9 +372,37 @@ Parlays are automatically excluded."></textarea>
             <thead><tr>
               <th>Stat / Direction</th>
               <th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
-              <th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+              <th class="r">Avg Odds</th><th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
             </tr></thead>
             <tbody id="matrix-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Avg Odds by Category -->
+      <div class="section">
+        <div class="section-title"><span class="section-title-dot"></span>Avg Odds by Category</div>
+        <div class="bd-table-wrap">
+          <table class="bd">
+            <thead><tr>
+              <th>Category</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
+              <th class="r">Avg Odds</th><th class="r">Profit</th><th class="r">ROI</th>
+            </tr></thead>
+            <tbody id="avgodds-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Odds Buckets -->
+      <div class="section">
+        <div class="section-title"><span class="section-title-dot"></span>Performance by Odds Range</div>
+        <div class="bd-table-wrap">
+          <table class="bd">
+            <thead><tr>
+              <th>Odds Range</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
+              <th class="r">Avg Odds</th><th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+            </tr></thead>
+            <tbody id="buckets-table"></tbody>
           </table>
         </div>
       </div>
@@ -550,7 +551,9 @@ let allBets = [];
 let seasonFilter = 'all';
 let ouFilter = 'all';
 const PLAYOFFS_START = new Date('2026-04-18');
-const SEASON_START = new Date('2025-10-01');
+const PLAYIN_START   = new Date('2026-04-13');
+const PLAYIN_END     = new Date('2026-04-17');
+const SEASON_START   = new Date('2025-10-01');
 
 // ─── TABS ─────────────────────────────────────────────────────────
 function switchTab(id) {
@@ -1236,10 +1239,33 @@ function getLine(name) {
 }
 
 function getPlayer(name) {
+  const n = name.trim();
+  // Normalize Sandro variants
+  if (/mamukelashvil|mamuk|^sandro\b/i.test(n)) return 'Sandro Mamukelashvili';
+  // Normalize Wemby variants
+  if (/^wemby|^v wemby|^v\.wemby/i.test(n)) return 'V Wemby';
+  // Normalize Giannis
+  if (/^giannis/i.test(n)) return 'Giannis';
+  // Normalize KAT/Kat
+  if (/^kat\b/i.test(n)) return 'KAT';
+  // Normalize Shai
+  if (/^shai/i.test(n)) return 'Shai';
+  // Normalize Luka
+  if (/^luka/i.test(n)) return 'Luka';
+  // Normalize Bam
+  if (/^bam/i.test(n)) return 'B Adebayo';
+  // Normalize Paolo
+  if (/^paolo/i.test(n)) return 'P Banchero';
+  // Normalize Yabu/Yabusele
+  if (/^yabu/i.test(n)) return 'Yabu';
+  // Normalize Deni
+  if (/^deni\b/i.test(n)) return 'Deni';
+  // Normalize Naji
+  if (/^naji/i.test(n)) return 'Naji';
   // Everything before the O/U marker
-  const m = name.match(/^(.*?)\s+[oOuU]\s*[\d.]/);
+  const m = n.match(/^(.*?)\s+[oOuU]\s*[\d.]/);
   if (m) return m[1].trim();
-  return name.trim();
+  return n;
 }
 
 // ─── CALC ─────────────────────────────────────────────────────────
@@ -1267,7 +1293,8 @@ function enrichBets(bets) {
       win: b.grade === 'WIN' ? 1 : 0,
       isDog: b.odds > 0,
       isPlayoff: b.date && b.date >= PLAYOFFS_START,
-      isRegSeason: b.date ? (b.date >= SEASON_START && b.date < PLAYOFFS_START) : null,
+      isPlayIn: b.date && b.date >= PLAYIN_START && b.date <= PLAYIN_END,
+      isRegSeason: b.date ? (b.date >= SEASON_START && b.date < PLAYIN_START) : null,
     });
   }
   return result;
@@ -1286,8 +1313,8 @@ function groupStats(bets) {
 function setSeason(v) {
   seasonFilter = v;
   document.querySelectorAll('#season-filters .filter-btn').forEach(b => {
-    const map = {all:'all',reg:'reg',playoffs:'playoffs'};
-    b.classList.toggle('active', b.textContent.toLowerCase().includes(v) || (v==='all' && b.textContent==='All'));
+    const map = {'all':'All','reg':'Reg Season','playin':'Play-In','playoffs':'Playoffs'};
+    b.classList.toggle('active', b.textContent === map[v]);
   });
   renderBreakdown();
 }
@@ -1300,6 +1327,7 @@ function setOUFilter(v) {
 function getFilteredBets() {
   let bets = enrichBets(allBets);
   if (seasonFilter === 'reg') bets = bets.filter(b => b.isRegSeason);
+  else if (seasonFilter === 'playin') bets = bets.filter(b => b.isPlayIn);
   else if (seasonFilter === 'playoffs') bets = bets.filter(b => b.isPlayoff);
   if (ouFilter === 'over') bets = bets.filter(b => b.ou === 'Over');
   else if (ouFilter === 'under') bets = bets.filter(b => b.ou === 'Under');
@@ -1324,14 +1352,22 @@ function pillOU(ou) {
   return '<span class="pill pill-gold">'+ou+'</span>';
 }
 
-function statRow(label, stats, labelClass='td-name') {
+function statRow(label, stats, labelClass='td-name', betList=null) {
   if (!stats) return '';
   const { n, wins, losses, winPct, staked, profit, roi } = stats;
+  const toProb = o => o > 0 ? 100/(o+100) : Math.abs(o)/(Math.abs(o)+100);
+  let ao = '—';
+  if (betList && betList.length) {
+    const avgP = betList.reduce((s,b) => s + toProb(b.odds), 0) / betList.length;
+    const r = avgP >= 0.5 ? -Math.round((avgP/(1-avgP))*100) : Math.round(((1-avgP)/avgP)*100);
+    ao = (r > 0 ? '+' : '') + r;
+  }
   return `<tr>
     <td class="${labelClass}">${label}</td>
     <td class="r td-acc">${n}</td>
     <td class="r td-sub">${wins}-${losses}</td>
     <td class="r">${fmtWinPct(winPct)}</td>
+    <td class="r td-sub">${ao}</td>
     <td class="r td-sub">${staked.toFixed(2)}u</td>
     <td class="r">${fmtProfit(profit)}</td>
     <td class="r">${fmtROI(roi)}</td>
@@ -1387,8 +1423,8 @@ function renderBreakdown() {
   const dogs = groupStats(bets.filter(b=>b.isDog));
   const favs = groupStats(bets.filter(b=>!b.isDog));
   document.getElementById('uf-table').innerHTML =
-    statRow('🐕 Underdog (+odds)', dogs) +
-    statRow('⭐ Favorite (-odds)', favs);
+    statRow('🐕 Underdog (+odds)', dogs, 'td-name', bets.filter(b=>b.isDog)) +
+    statRow('⭐ Favorite (-odds)', favs, 'td-name', bets.filter(b=>!b.isDog));
 
   // Stat Table
   const stats = ['Points','Rebounds','Assists','3-Pointers','PRA','Blocks','Steals','Other'];
@@ -1396,14 +1432,15 @@ function renderBreakdown() {
   const statGroups = stats.map(s => ({ s, g: groupStats(bets.filter(b=>b.stat===s)) }))
     .filter(x => x.g && x.g.n > 0)
     .sort((a,b) => b.g.profit - a.g.profit);
-  for (const { s, g } of statGroups) statHtml += statRow(s, g);
+  for (const { s, g } of statGroups) statHtml += statRow(s, g, 'td-name', bets.filter(b=>b.stat===s));
   document.getElementById('stat-table').innerHTML = statHtml;
 
   // O/U Table
   const overs = groupStats(bets.filter(b=>b.ou==='Over'));
   const unders = groupStats(bets.filter(b=>b.ou==='Under'));
   document.getElementById('ou-table').innerHTML =
-    statRow('⬆️ Over', overs) + statRow('⬇️ Under', unders);
+    statRow('⬆️ Over', overs, 'td-name', bets.filter(b=>b.ou==='Over')) +
+    statRow('⬇️ Under', unders, 'td-name', bets.filter(b=>b.ou==='Under'));
 
   // Matrix — each stat gets a header row, then Over and Under as sub-rows
   const mainStats = ['Points','Rebounds','Assists','3-Pointers','PRA'];
@@ -1411,13 +1448,17 @@ function renderBreakdown() {
   for (const stat of mainStats) {
     const sb = bets.filter(b=>b.stat===stat);
     if (!sb.length) continue;
-    const og = groupStats(sb.filter(b=>b.ou==='Over'));
-    const ug = groupStats(sb.filter(b=>b.ou==='Under'));
+    const oSub = sb.filter(b=>b.ou==='Over');
+    const uSub = sb.filter(b=>b.ou==='Under');
+    const og = groupStats(oSub);
+    const ug = groupStats(uSub);
     const tg = groupStats(sb);
+    const toProb = o => o > 0 ? 100/(o+100) : Math.abs(o)/(Math.abs(o)+100);
+    const ao = list => { if(!list.length) return '—'; const p=list.reduce((s,b)=>s+toProb(b.odds),0)/list.length; const r=p>=0.5?-Math.round((p/(1-p))*100):Math.round(((1-p)/p)*100); return (r>0?'+':'')+r; };
 
     // Stat header row
-    mHtml += `<tr style="background:rgba(0,180,216,.06);">
-      <td colspan="7" style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);padding:8px 14px;">${stat}</td>
+    mHtml += `<tr style="background:rgba(61,214,140,.04);">
+      <td colspan="8" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);padding:8px 16px;">${stat}</td>
     </tr>`;
 
     // Over row
@@ -1426,6 +1467,7 @@ function renderBreakdown() {
       <td class="r td-acc">${og.n}</td>
       <td class="r td-sub">${og.wins}-${og.losses}</td>
       <td class="r">${fmtWinPct(og.winPct)}</td>
+      <td class="r td-sub">${ao(oSub)}</td>
       <td class="r td-sub">${og.staked.toFixed(2)}u</td>
       <td class="r">${fmtProfit(og.profit)}</td>
       <td class="r">${fmtROI(og.roi)}</td>
@@ -1437,6 +1479,7 @@ function renderBreakdown() {
       <td class="r td-acc">${ug.n}</td>
       <td class="r td-sub">${ug.wins}-${ug.losses}</td>
       <td class="r">${fmtWinPct(ug.winPct)}</td>
+      <td class="r td-sub">${ao(uSub)}</td>
       <td class="r td-sub">${ug.staked.toFixed(2)}u</td>
       <td class="r">${fmtProfit(ug.profit)}</td>
       <td class="r">${fmtROI(ug.roi)}</td>
@@ -1448,12 +1491,69 @@ function renderBreakdown() {
       <td class="r td-acc">${tg.n}</td>
       <td class="r td-sub">${tg.wins}-${tg.losses}</td>
       <td class="r">${fmtWinPct(tg.winPct)}</td>
+      <td class="r td-sub">${ao(sb)}</td>
       <td class="r td-sub">${tg.staked.toFixed(2)}u</td>
       <td class="r">${fmtProfit(tg.profit)}</td>
       <td class="r">${fmtROI(tg.roi)}</td>
     </tr>`;
   }
   document.getElementById('matrix-body').innerHTML = mHtml;
+
+  // ── Avg Odds by Category ──
+  function avgOdds(betList) {
+    if (!betList.length) return null;
+    const toProb = o => o > 0 ? 100/(o+100) : Math.abs(o)/(Math.abs(o)+100);
+    const avgP = betList.reduce((s,b) => s + toProb(b.odds), 0) / betList.length;
+    const r = avgP >= 0.5 ? -Math.round((avgP/(1-avgP))*100) : Math.round(((1-avgP)/avgP)*100);
+    return (r > 0 ? '+' : '') + r;
+  }
+
+  const aoRows = [
+    { label: '🐕 Underdog (+odds)', sub: bets.filter(b=>b.isDog) },
+    { label: '⭐ Favorite (-odds)', sub: bets.filter(b=>!b.isDog) },
+    { label: 'Over', sub: bets.filter(b=>b.ou==='Over') },
+    { label: 'Under', sub: bets.filter(b=>b.ou==='Under') },
+    ...['Points','Rebounds','Assists','3-Pointers','PRA'].map(s => ({ label: s, sub: bets.filter(b=>b.stat===s) })),
+  ].filter(r => r.sub.length > 0);
+
+  document.getElementById('avgodds-table').innerHTML = aoRows.map(r => {
+    const g = groupStats(r.sub);
+    return `<tr>
+      <td class="td-name">${r.label}</td>
+      <td class="r td-acc">${g.n}</td>
+      <td class="r td-sub">${g.wins}-${g.losses}</td>
+      <td class="r">${fmtWinPct(g.winPct)}</td>
+      <td class="r td-name">${avgOdds(r.sub)}</td>
+      <td class="r">${fmtProfit(g.profit)}</td>
+      <td class="r">${fmtROI(g.roi)}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Odds Buckets ──
+  const buckets = [
+    { label: '-200 to -151', fn: b => b.odds <= -151 },
+    { label: '-150 to -101', fn: b => b.odds >= -150 && b.odds <= -101 },
+    { label: '-100 to +100', fn: b => b.odds >= -100 && b.odds <= 100 },
+    { label: '+101 to +150', fn: b => b.odds >= 101 && b.odds <= 150 },
+    { label: '+151 to +200', fn: b => b.odds >= 151 && b.odds <= 200 },
+    { label: '+201 and up',  fn: b => b.odds >= 201 },
+  ];
+
+  document.getElementById('buckets-table').innerHTML = buckets.map(bk => {
+    const sub = bets.filter(bk.fn);
+    if (!sub.length) return '';
+    const g = groupStats(sub);
+    return `<tr>
+      <td class="td-name">${bk.label}</td>
+      <td class="r td-acc">${g.n}</td>
+      <td class="r td-sub">${g.wins}-${g.losses}</td>
+      <td class="r">${fmtWinPct(g.winPct)}</td>
+      <td class="r td-name">${avgOdds(sub)}</td>
+      <td class="r td-sub">${g.staked.toFixed(2)}u</td>
+      <td class="r">${fmtProfit(g.profit)}</td>
+      <td class="r">${fmtROI(g.roi)}</td>
+    </tr>`;
+  }).join('');
 
   document.getElementById('breakdown-empty').style.display = 'none';
   document.getElementById('breakdown-content').style.display = '';
@@ -1529,24 +1629,87 @@ const PLAYER_IDS = {
   'V Edgecombe':1642362,'V Krejci':1641774,'V Wemby':1641705,'V Williams':1629631,
   'W Carter':1629154,'W Clayton':1631489,'W Richard':1630571,'W Riley':1641776,
   'Wemby':1641705,'Yabu':1641744,
-  'Z Risacher':1641708,'Z Williamson':1629627,
+  'L Doncic':1629029,'L Markkanen':1628384,'N Alexander Walker':1630170,
+  'R Barrett':1629628,'S Curry':201939,'G Trent':1629054,'N Richards':1629637,
+  'D Divincenzo':1629011,'A Horford':203524,'L Doncic':1629029,
 };
 
 function getHeadshotUrl(playerName) {
-  const id = PLAYER_IDS[playerName];
-  if (!id) return null;
-  return `https://cdn.nba.com/headshots/nba/latest/260x190/${id}.png`;
+  // Direct lookup first
+  if (PLAYER_IDS[playerName]) return `https://cdn.nba.com/headshots/nba/latest/260x190/${PLAYER_IDS[playerName]}.png`;
+
+  // Nickname / alias normalization
+  const aliases = {
+    'Wemby': 'V Wemby', 'V Wemby': 'V Wemby',
+    'Giannis': 'Giannis',
+    'Bam': 'B Adebayo',
+    'Paolo': 'P Banchero',
+    'Shai': 'Shai',
+    'Luka': 'L Doncic',
+    'KAT': 'KAT', 'Kat': 'KAT',
+    'Sandro': 'Sandro Mamukelashvili',
+    'Sandro M': 'Sandro Mamukelashvili',
+    'S Mamuk': 'Sandro Mamukelashvili',
+    'Naji': 'N Marshall',
+    'Yabu': 'Yabu',
+    'Deni': 'Deni',
+    'Lauri M': 'L Markkanen',
+    'Harden': 'J Harden',
+    'Kawhi': 'K Leonard',
+    'Rui': 'R Hachimura',
+    'Aaron Gordon': 'A Gordon',
+    'Bronny James': 'B Williams',
+    'Cooper Flagg': 'C Flagg',
+    'Jabari Smith': 'J Smith',
+    'Josh Hart': 'J Hart',
+    'Donte D': 'D Divincenzo',
+    'Dort': 'L Dort',
+    'Ayo D': 'A Dosunmu',
+    'Ayo': 'A Dosunmu',
+    'Chet': 'C Holmgren',
+    'OG': 'OG Anunoby',
+    'SGA': 'Shai',
+    'Gary Trent': 'G Trent',
+    'Seth Curry': 'S Curry',
+    'Ty Jerome': 'T Jerome',
+    'TJ McConnell': 'T McConnell',
+    'TJ Mcconnell': 'T McConnell',
+    'Max Christie': 'M Christie',
+    'Al Horford': 'A Horford',
+    'Luka': 'L Doncic',
+    'Nick Richards': 'N Richards',
+    'Nich Richards': 'N Richards',
+    'Onyeka': 'O Okongwu',
+    'Onyekea': 'O Okongwu',
+    'Oso Ighodaro': 'O Ighodaro',
+    'Sion James': 'S James',
+    'Ajay Mitchell': 'A Mitchell',
+    'NWA': 'N Alexander Walker',
+    'NAW': 'N Alexander Walker',
+    'RJ Barrett': 'R Barrett',
+  };
+
+  const canonical = aliases[playerName] || aliases[playerName.trim()];
+  if (canonical && PLAYER_IDS[canonical]) {
+    return `https://cdn.nba.com/headshots/nba/latest/260x190/${PLAYER_IDS[canonical]}.png`;
+  }
+
+  // Last resort: try trimmed name directly
+  const trimmed = playerName.trim();
+  if (PLAYER_IDS[trimmed]) return `https://cdn.nba.com/headshots/nba/latest/260x190/${PLAYER_IDS[trimmed]}.png`;
+
+  return null;
 }
 
 function playerCellHtml(name) {
   const url = getHeadshotUrl(name);
   if (url) {
     return `<div class="player-cell">
-      <img class="headshot" src="${url}" alt="${name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-      <div class="headshot-sil" style="display:none;">👤</div>
+      <img class="headshot" src="${url}" alt="${name}" onerror="this.outerHTML='<div class=\\'headshot-sil\\'>👤</div>';">
       <span>${name}</span>
     </div>`;
   }
+  // No ID known — just show silhouette, no broken image attempt
   return `<div class="player-cell"><div class="headshot-sil">👤</div><span>${name}</span></div>`;
 }
 
