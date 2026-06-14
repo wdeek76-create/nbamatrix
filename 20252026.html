@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NBA Props 2025–26</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+  const k='bb_auth', pw='cosanostra';
+  if(sessionStorage.getItem(k)===pw) return;
+  window.addEventListener('DOMContentLoaded',function(){
+    document.body.innerHTML=`
+      <div style="min-height:100vh;background:#141518;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;">
+        <div style="background:#1f2023;border:1px solid #333438;border-radius:14px;padding:40px 48px;text-align:center;width:340px;">
+          <div style="width:44px;height:44px;background:#3dd68c;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#141518;margin:0 auto 20px;">B</div>
+          <div style="font-size:18px;font-weight:700;color:#e8e9ec;margin-bottom:6px;">NBA Props 2025–26</div>
+          <div style="font-size:13px;color:#6b6e7a;margin-bottom:28px;">Enter password to continue</div>
+          <input id="pw" type="password" placeholder="Password"
+            style="width:100%;background:#252629;border:1px solid #333438;color:#e8e9ec;font-family:'Inter',sans-serif;font-size:14px;padding:11px 14px;border-radius:8px;outline:none;margin-bottom:12px;box-sizing:border-box;"
+            onkeydown="if(event.key==='Enter')chk()">
+          <button onclick="chk()"
+            style="width:100%;background:#3dd68c;color:#141518;border:none;padding:11px;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
+            Enter
+          </button>
+          <div id="pw-err" style="color:#f25757;font-size:12px;margin-top:10px;min-height:16px;"></div>
+        </div>
+      </div>`;
+    document.getElementById('pw').focus();
+  });
+  window.chk=function(){
+    if(document.getElementById('pw').value===pw){
+      sessionStorage.setItem(k,pw); location.reload();
+    } else {
+      document.getElementById('pw-err').textContent='Incorrect password';
+      document.getElementById('pw').value='';
+      document.getElementById('pw').focus();
+    }
+  };
+})();
+</script>
+<style>
+:root {
+  --bg: #141518;
+  --sidebar: #1a1b1e;
+  --panel: #1f2023;
+  --card: #252629;
+  --card2: #2a2b2f;
+  --border: #333438;
+  --border2: #3d3e43;
+  --green: #3dd68c;
+  --green-dim: rgba(61,214,140,.12);
+  --red: #f25757;
+  --red-dim: rgba(242,87,87,.1);
+  --gold: #f5a623;
+  --gold-dim: rgba(245,166,35,.1);
+  --text: #e8e9ec;
+  --text2: #b0b2b8;
+  --sub: #6b6e7a;
+  --sub2: #4a4c55;
+  --accent: #3dd68c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; min-height: 100vh; }
+
+/* ── HEADER (Pikkit-style top bar) ── */
+header {
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-logo { display: flex; align-items: center; gap: 10px; }
+.header-logo-icon { width: 28px; height: 28px; background: var(--green); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #141518; }
+header h1 { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.header-badge { background: var(--card); border: 1px solid var(--border); color: var(--text2); padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; }
+.header-badge span { color: var(--green); font-weight: 700; margin-left: 4px; }
+
+/* ── TABS (Pikkit-style underline tabs) ── */
+.tab-nav { display: flex; background: var(--sidebar); border-bottom: 1px solid var(--border); overflow-x: auto; padding: 0 20px; gap: 4px; }
+.tab-btn { padding: 14px 16px; font-size: 13px; font-weight: 500; border: none; background: none; color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; font-family: 'Inter', sans-serif; white-space: nowrap; letter-spacing: -.1px; }
+.tab-btn:hover { color: var(--text2); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--green); font-weight: 600; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── BUTTONS ── */
+.btn { padding: 8px 16px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all .15s; border: none; }
+.btn-primary { background: var(--green); color: #141518; }
+.btn-primary:hover { opacity: .9; }
+.btn-ghost { background: var(--card); border: 1px solid var(--border); color: var(--text2); }
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+.parse-status { font-size: 12px; color: var(--sub); }
+.parse-status.ok { color: var(--green); }
+.parse-status.err { color: var(--red); }
+
+/* ── PASTE TAB ── */
+.paste-wrap { padding: 28px; max-width: 860px; }
+.paste-label { font-size: 11px; font-weight: 600; color: var(--sub); margin-bottom: 8px; letter-spacing: .2px; }
+textarea {
+  width: 100%; height: 300px; background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); font-family: 'Inter', sans-serif; font-size: 12.5px; padding: 14px 16px;
+  resize: vertical; outline: none; border-radius: 10px; line-height: 1.7; transition: border-color .15s;
+}
+textarea:focus { border-color: var(--green); }
+textarea::placeholder { color: var(--sub2); }
+.paste-actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+.format-hint { margin-top: 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.format-hint h3 { font-size: 11px; font-weight: 600; color: var(--sub); margin-bottom: 10px; }
+.format-hint pre { font-size: 11.5px; color: var(--sub); line-height: 1.9; font-family: 'Inter', monospace; }
+.format-hint .hl { color: var(--green); }
+
+/* ── BREAKDOWN ── */
+.breakdown-wrap { padding: 20px 24px; }
+
+/* Pikkit-style profit hero */
+.pnl-hero {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 20px;
+}
+.pnl-hero-left {}
+.pnl-main-label { font-size: 12px; font-weight: 500; color: var(--sub); margin-bottom: 4px; }
+.pnl-main-val { font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: -1.5px; }
+.pnl-main-val.pos { color: var(--green); }
+.pnl-main-val.neg { color: var(--red); }
+.pnl-main-val.zero { color: var(--sub); }
+.pnl-roi { font-size: 13px; font-weight: 600; margin-top: 6px; }
+.pnl-roi.pos { color: var(--green); }
+.pnl-roi.neg { color: var(--red); }
+.pnl-meta { display: flex; gap: 28px; flex-wrap: wrap; }
+.pnl-meta-item {}
+.pnl-meta-item .lbl { font-size: 11px; font-weight: 500; color: var(--sub); margin-bottom: 3px; }
+.pnl-meta-item .val { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -.5px; }
+.pnl-meta-item .val.pos { color: var(--green); }
+.pnl-meta-item .val.neg { color: var(--red); }
+.pnl-meta-item .val.acc { color: var(--text); }
+
+/* Pikkit section card */
+.section { margin-bottom: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.section-title { font-size: 13px; font-weight: 600; color: var(--text); padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.section-title-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+/* ── TABLES ── */
+.bd-table-wrap { overflow-x: auto; }
+table.bd { width: 100%; border-collapse: collapse; }
+table.bd th { background: var(--card); color: var(--sub); font-size: 11px; font-weight: 600; padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; letter-spacing: .1px; }
+table.bd th.r { text-align: right; }
+table.bd td { padding: 11px 16px; border-bottom: 1px solid rgba(51,52,56,.5); font-size: 13px; white-space: nowrap; }
+table.bd td.r { text-align: right; }
+table.bd tr:last-child td { border-bottom: none; }
+table.bd tr:not(.stat-header):hover td { background: rgba(255,255,255,.025); }
+.stat-header td { background: rgba(61,214,140,.04) !important; }
+.td-name { font-weight: 600; color: var(--text); }
+.td-pos { color: var(--green); font-weight: 600; }
+.td-neg { color: var(--red); font-weight: 600; }
+.td-acc { color: var(--text2); font-weight: 500; }
+.td-sub { color: var(--sub); }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.pill-green { background: var(--green-dim); color: var(--green); }
+.pill-red { background: var(--red-dim); color: var(--red); }
+.pill-blue { background: rgba(100,140,255,.12); color: #7ea8ff; }
+.pill-gold { background: var(--gold-dim); color: var(--gold); }
+
+/* ── FILTERS ── */
+.filters { display: flex; gap: 6px; padding: 12px 20px; background: var(--sidebar); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+.filter-btn { background: transparent; border: 1px solid var(--border); color: var(--sub); padding: 5px 14px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; border-radius: 8px; transition: all .12s; }
+.filter-btn:hover { border-color: var(--border2); color: var(--text2); }
+.filter-btn.active { background: var(--card2); border-color: var(--border2); color: var(--text); font-weight: 600; }
+.filter-sep { color: var(--border2); margin: 0 4px; }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 80px 20px; color: var(--sub); }
+.empty-state .icon { font-size: 36px; margin-bottom: 16px; opacity: .5; }
+.empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+.empty-state p { font-size: 13px; line-height: 1.7; color: var(--sub); max-width: 320px; margin: 0 auto; }
+
+/* ── PLAYERS ── */
+.players-wrap { padding: 20px 24px; }
+.players-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:700px) { .players-grid { grid-template-columns: 1fr; } }
+.players-section-title { font-size: 12px; font-weight: 600; padding: 12px 16px; border-radius: 10px 10px 0 0; }
+.players-section-title.best { background: rgba(61,214,140,.1); color: var(--green); border: 1px solid rgba(61,214,140,.2); border-bottom: none; }
+.players-section-title.worst { background: rgba(242,87,87,.08); color: var(--red); border: 1px solid rgba(242,87,87,.2); border-bottom: none; }
+
+/* ── LINES ── */
+.lines-wrap { padding: 20px 24px; }
+.lines-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.lines-block { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.lines-block-title { background: var(--card); padding: 11px 16px; font-size: 12px; font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border); }
+
+/* ── DNB ── */
+.dnb-wrap { padding: 20px 24px; }
+.dnb-section { margin-bottom: 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.dnb-section-title { font-size: 12px; font-weight: 600; color: var(--red); padding: 12px 16px; border-bottom: 1px solid rgba(242,87,87,.15); display: flex; align-items: center; gap: 8px; background: rgba(242,87,87,.05); }
+
+/* ── HEADSHOTS ── */
+.player-cell { display: flex; align-items: center; gap: 10px; }
+.headshot { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; object-position: top; background: var(--card2); border: 1px solid var(--border); flex-shrink: 0; }
+.headshot-sil { width: 32px; height: 32px; border-radius: 50%; background: var(--card2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 13px; flex-shrink: 0; }
+
+/* ── CHARTS ── */
+.chart-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+.chart-label { font-size: 11px; font-weight: 500; color: var(--sub); margin-bottom: 4px; }
+.chart-big { font-size: 32px; font-weight: 700; letter-spacing: -1px; margin-bottom: 16px; }
+.chart-big.pos { color: var(--green); }
+.chart-big.neg { color: var(--red); }
+
+@media(max-width:600px) {
+  .pnl-main-val { font-size: 34px; }
+  .players-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">
+    <div class="header-logo-icon">B</div>
+    <h1>NBA Props 2025–26</h1>
+  </div>
+  <div class="header-right">
+    <div class="header-badge">Bets loaded: <span id="betCount">0</span></div>
+  </div>
+</header>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('paste')">Paste Log</button>
+  <button class="tab-btn" onclick="switchTab('breakdown')">Breakdown</button>
+  <button class="tab-btn" onclick="switchTab('charts')">Charts</button>
+  <button class="tab-btn" onclick="switchTab('players')">Players</button>
+  <button class="tab-btn" onclick="switchTab('lines')">Best Lines</button>
+  <button class="tab-btn" onclick="switchTab('dnb')">⛔ DNB List</button>
+</div>
+
+<!-- PASTE TAB -->
+<div class="tab-panel active" id="tab-paste">
+  <div class="paste-wrap">
+
+    <!-- Excel Import -->
+    <div style="margin-bottom:24px;">
+      <div class="paste-label">Import Excel File</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <label class="btn btn-primary" style="cursor:pointer;">
+          📂 Import .xlsx
+          <input type="file" id="xlsxInput" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this)">
+        </label>
+        <span class="parse-status" id="xlsxStatus"></span>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--sub);line-height:1.7;">
+        Reads the <strong style="color:var(--text);">NBA TRACKING</strong> sheet automatically. Expects columns:
+        <span style="color:var(--accent);">DAY · BET NAME · ODDS · GRADE</span> — same format as your existing tracker.
+        Parlays and blank rows are excluded automatically.
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:12px;">
+      <div class="paste-label">Or Paste Manually</div>
+    </div>
+
+    <textarea id="pasteInput" placeholder="Paste bets here. Accepts most formats from Discord/Telegram/Excel.
+
+Examples:
+  J Hart U 4.5 ast  +122  WIN
+  T Jones O 3.5 ast  -136  WIN
+  K Leonard O 27.5 pts  -106  LOSS
+  2/19/2026  NBA  P Williams U 2.5 reb  $226  +132  LOSS
+
+Tip: Date columns are optional. Odds must include + or - sign.
+Parlays are automatically excluded."></textarea>
+
+    <div class="paste-actions">
+      <button class="btn btn-primary" onclick="parseBets()">Parse Bets</button>
+      <button class="btn btn-ghost" onclick="clearAll()">Clear All</button>
+      <span class="parse-status" id="parseStatus"></span>
+    </div>
+
+    <div class="format-hint" style="margin-top:20px;">
+      <h3>Paste Format Guide</h3>
+      <pre>
+<span class="hl">Tab/space separated (from Excel or Discord):</span>
+  J Hart U 4.5 ast    +122    WIN
+  T Jones O 3.5 ast   -136    WIN
+
+<span class="hl">With date prefix:</span>
+  2/19/2026   NBA   K Leonard O 27.5 pts   $530   -106   LOSS
+
+<span class="hl">Odds formats accepted:</span>  +132  -136  132  -136
+
+<span class="hl">Auto-excluded:</span>  Parlay, PUSH rows, blank rows
+      </pre>
+    </div>
+  </div>
+</div>
+
+<!-- BREAKDOWN TAB -->
+<div class="tab-panel" id="tab-breakdown">
+  <div id="breakdown-empty" class="empty-state">
+    <div class="icon">📊</div>
+    <h3>No data yet</h3>
+    <p>Paste your bet log in the <strong>Paste Log</strong> tab and hit Parse.</p>
+  </div>
+  <div id="breakdown-content" style="display:none;">
+
+    <!-- Season filter -->
+    <div class="filters" id="season-filters">
+      <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--sub);margin-right:4px;">Period</span>
+      <button class="filter-btn active" onclick="setSeason('all')">All</button>
+      <button class="filter-btn" onclick="setSeason('reg')">Reg Season</button>
+      <button class="filter-btn" onclick="setSeason('playoffs')">Playoffs</button>
+      <span class="filter-sep">|</span>
+      <button class="filter-btn active" onclick="setOUFilter('all')">All Directions</button>
+      <button class="filter-btn" onclick="setOUFilter('over')">Overs Only</button>
+      <button class="filter-btn" onclick="setOUFilter('under')">Unders Only</button>
+    </div>
+
+    <div class="breakdown-wrap">
+
+      <!-- P&L Hero -->
+      <div class="pnl-hero">
+        <div class="pnl-hero-left">
+          <div class="pnl-main-label">Total Profit</div>
+          <div class="pnl-main-val" id="hero-profit">+0.00u</div>
+          <div class="pnl-roi pos" id="hero-roi">0.0% ROI</div>
+        </div>
+        <div class="pnl-meta">
+          <div class="pnl-meta-item">
+            <div class="lbl">Record</div>
+            <div class="val acc" id="hero-record">0-0</div>
+          </div>
+          <div class="pnl-meta-item">
+            <div class="lbl">Win %</div>
+            <div class="val acc" id="hero-winpct">0.0%</div>
+          </div>
+          <div class="pnl-meta-item">
+            <div class="lbl">Staked</div>
+            <div class="val acc" id="hero-staked">0.00u</div>
+          </div>
+          <div class="pnl-meta-item">
+            <div class="lbl">Bets</div>
+            <div class="val acc" id="hero-bets">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dog vs Fav -->
+      <div class="section">
+        <div class="section-title"><span class="section-title-dot"></span>Underdog vs Favorite</div>
+        <div class="bd-table-wrap">
+          <table class="bd">
+            <thead><tr>
+              <th>Category</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
+              <th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+            </tr></thead>
+            <tbody id="uf-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- By Stat -->
+      <div class="section">
+        <div class="section-title"><span class="section-title-dot"></span>By Stat Category</div>
+        <div class="bd-table-wrap">
+          <table class="bd">
+            <thead><tr>
+              <th>Stat</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
+              <th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+            </tr></thead>
+            <tbody id="stat-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Over vs Under -->
+      <div class="section">
+        <div class="section-title"><span class="section-title-dot"></span>Over vs Under</div>
+        <div class="bd-table-wrap">
+          <table class="bd">
+            <thead><tr>
+              <th>Direction</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
+              <th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+            </tr></thead>
+            <tbody id="ou-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Stat x O/U Matrix -->
+      <div class="section">
+        <div class="section-title"><span class="section-title-dot"></span>Stat × Over/Under Breakdown</div>
+        <div class="bd-table-wrap">
+          <table class="bd" id="matrix-table">
+            <thead><tr>
+              <th>Stat / Direction</th>
+              <th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
+              <th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th>
+            </tr></thead>
+            <tbody id="matrix-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /breakdown-wrap -->
+  </div><!-- /breakdown-content -->
+</div>
+
+<!-- CHARTS TAB -->
+<div class="tab-panel" id="tab-charts">
+  <div id="charts-empty" class="empty-state">
+    <div class="icon">📈</div>
+    <h3>No data yet</h3>
+    <p>Parse your bet log first.</p>
+  </div>
+  <div id="charts-content" style="display:none;">
+    <div style="padding:20px;">
+
+      <!-- Month filter pills -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin-bottom:8px;">Filter by Month</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="month-filters">
+          <button class="filter-btn active" onclick="setChartMonth('all')">All</button>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px;" id="chart-stats-row"></div>
+
+      <!-- Cumulative P&L chart -->
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin-bottom:4px;">Cumulative P&L</div>
+            <div style="font-size:28px;font-weight:900;letter-spacing:-1px;" id="chart-cum-total">+0.00u</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="filter-btn" id="smooth-btn" onclick="toggleSmooth()" style="font-size:10px;">Smooth</button>
+          </div>
+        </div>
+        <canvas id="cumChart" style="width:100%;height:220px;"></canvas>
+      </div>
+
+      <!-- Daily P&L bar chart -->
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin-bottom:12px;">Daily P&L</div>
+        <canvas id="dailyChart" style="width:100%;height:160px;"></canvas>
+      </div>
+
+      <!-- Monthly breakdown table -->
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <div style="background:var(--panel);padding:12px 16px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);">Monthly Breakdown</div>
+        <div class="bd-table-wrap">
+          <table class="bd">
+            <thead><tr>
+              <th>Month</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th>
+              <th class="r">Profit</th><th class="r">ROI</th><th class="r">Peak</th><th class="r">Valley</th>
+            </tr></thead>
+            <tbody id="monthly-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- PLAYERS TAB -->
+<div class="tab-panel" id="tab-players">
+  <div id="players-empty" class="empty-state">
+    <div class="icon">👤</div>
+    <h3>No data yet</h3>
+    <p>Parse your bet log first.</p>
+  </div>
+  <div id="players-content" style="display:none;" class="players-wrap">
+    <div class="players-grid">
+      <div>
+        <div class="players-section-title best">🏆 Top 15 Best Players</div>
+        <div class="bd-table-wrap" style="border-radius:0 0 8px 8px; border:1px solid rgba(34,197,94,.3);">
+          <table class="bd">
+            <thead><tr><th>#</th><th>Player</th><th>Top Stat</th><th class="r">Bets</th><th class="r">Win%</th><th class="r">Profit</th><th class="r">ROI</th></tr></thead>
+            <tbody id="best-players"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="players-section-title worst">💀 Top 15 Worst Players</div>
+        <div class="bd-table-wrap" style="border-radius:0 0 8px 8px; border:1px solid rgba(239,68,68,.3);">
+          <table class="bd">
+            <thead><tr><th>#</th><th>Player</th><th>Top Stat</th><th class="r">Bets</th><th class="r">Win%</th><th class="r">Profit</th><th class="r">ROI</th></tr></thead>
+            <tbody id="worst-players"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LINES TAB -->
+<div class="tab-panel" id="tab-lines">
+  <div id="lines-empty" class="empty-state">
+    <div class="icon">📈</div>
+    <h3>No data yet</h3>
+    <p>Parse your bet log first.</p>
+  </div>
+  <div id="lines-content" style="display:none;" class="lines-wrap">
+    <div class="lines-grid" id="lines-grid"></div>
+  </div>
+</div>
+
+<!-- DNB TAB -->
+<div class="tab-panel" id="tab-dnb">
+  <div id="dnb-empty" class="empty-state">
+    <div class="icon">⛔</div>
+    <h3>No data yet</h3>
+    <p>Parse your bet log first.</p>
+  </div>
+  <div id="dnb-content" style="display:none;" class="dnb-wrap">
+    <div class="dnb-section">
+      <div class="dnb-section-title">Avoid These Players Entirely (min 8 bets, ROI &lt; -25%)</div>
+      <div class="bd-table-wrap">
+        <table class="bd"><thead><tr><th>Player</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th><th class="r">Staked</th><th class="r">Profit</th><th class="r">ROI</th></tr></thead>
+        <tbody id="dnb-players"></tbody></table>
+      </div>
+    </div>
+    <div class="dnb-section">
+      <div class="dnb-section-title">Avoid These Player + Stat Combos (min 5 bets, ROI &lt; -30%)</div>
+      <div class="bd-table-wrap">
+        <table class="bd"><thead><tr><th>Player</th><th>Stat</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th><th class="r">Profit</th><th class="r">ROI</th></tr></thead>
+        <tbody id="dnb-combos"></tbody></table>
+      </div>
+    </div>
+    <div class="dnb-section">
+      <div class="dnb-section-title">Avoid These Specific Lines (min 8 bets, ROI &lt; -20%)</div>
+      <div class="bd-table-wrap">
+        <table class="bd"><thead><tr><th>Stat</th><th>Line</th><th>Direction</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th><th class="r">ROI</th></tr></thead>
+        <tbody id="dnb-lines"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────
+let allBets = [];
+let seasonFilter = 'all';
+let ouFilter = 'all';
+const PLAYOFFS_START = new Date('2026-04-18');
+const SEASON_START = new Date('2025-10-01');
+
+// ─── TABS ─────────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    const tabs = ['paste','breakdown','players','lines','dnb'];
+    b.classList.toggle('active', tabs[i] === id);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    const tabs = ['paste','breakdown','charts','players','lines','dnb'];
+    b.classList.toggle('active', tabs[i] === id);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if (id === 'charts' && allBets.length) renderCharts();
+}
+
+// ─── CHARTS ───────────────────────────────────────────────────────
+let chartMonthFilter = 'all';
+let smoothMode = false;
+let cumChartInst = null;
+let dailyChartInst = null;
+
+function setChartMonth(m) {
+  chartMonthFilter = m;
+  document.querySelectorAll('#month-filters .filter-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === m || (m==='all' && b.textContent==='All'));
+  });
+  renderCharts();
+}
+
+function toggleSmooth() {
+  smoothMode = !smoothMode;
+  document.getElementById('smooth-btn').classList.toggle('active', smoothMode);
+  renderCharts();
+}
+
+function renderCharts() {
+  const bets = enrichBets(allBets).filter(b => b.date);
+  if (!bets.length) return;
+
+  // Build month list
+  const monthMap = {};
+  for (const b of bets) {
+    const key = b.date.toLocaleString('default', {month:'short', year:'2-digit'});
+    if (!monthMap[key]) monthMap[key] = { key, date: new Date(b.date.getFullYear(), b.date.getMonth(), 1), bets: [] };
+    monthMap[key].bets.push(b);
+  }
+  const months = Object.values(monthMap).sort((a,b) => a.date - b.date);
+
+  // Rebuild month filter pills
+  const mf = document.getElementById('month-filters');
+  mf.innerHTML = `<button class="filter-btn ${chartMonthFilter==='all'?'active':''}" onclick="setChartMonth('all')">All</button>`;
+  for (const m of months) {
+    mf.innerHTML += `<button class="filter-btn ${chartMonthFilter===m.key?'active':''}" onclick="setChartMonth('${m.key}')">${m.key}</button>`;
+  }
+
+  // Filter bets
+  let filtered = bets;
+  if (chartMonthFilter !== 'all') {
+    filtered = bets.filter(b => {
+      const key = b.date.toLocaleString('default', {month:'short', year:'2-digit'});
+      return key === chartMonthFilter;
+    });
+  }
+  if (!filtered.length) return;
+
+  // Sort by date
+  filtered.sort((a,b) => a.date - b.date);
+
+  // Group by day
+  const dayMap = {};
+  for (const b of filtered) {
+    const key = b.date.toISOString().slice(0,10);
+    if (!dayMap[key]) dayMap[key] = { date: b.date, bets: [], profit: 0, wins: 0 };
+    dayMap[key].bets.push(b);
+    dayMap[key].profit += b.profit;
+    dayMap[key].wins += b.win;
+  }
+  const days = Object.values(dayMap).sort((a,b) => a.date - b.date);
+
+  // Cumulative curve
+  let cum = 0;
+  const cumData = days.map(d => { cum += d.profit; return { x: d.date, y: parseFloat(cum.toFixed(2)) }; });
+  const totalProfit = cum;
+
+  // Peak / valley
+  let peak = -Infinity, valley = Infinity, peakDate = '', valleyDate = '';
+  let running = 0;
+  for (const d of days) {
+    running += d.profit;
+    if (running > peak) { peak = running; peakDate = d.date.toLocaleDateString('default',{month:'short',day:'numeric'}); }
+    if (running < valley) { valley = running; valleyDate = d.date.toLocaleDateString('default',{month:'short',day:'numeric'}); }
+  }
+
+  // Stats row
+  const wins = filtered.reduce((s,b)=>s+b.win,0);
+  const n = filtered.length;
+  const staked = filtered.reduce((s,b)=>s+b.stake,0);
+  document.getElementById('chart-stats-row').innerHTML = [
+    { lbl:'Bets', val: n, cls:'acc' },
+    { lbl:'Record', val: `${wins}-${n-wins}`, cls:'acc' },
+    { lbl:'Win %', val: (wins/n*100).toFixed(1)+'%', cls: wins/n >= 0.55 ? 'pos' : wins/n >= 0.50 ? 'acc' : 'neg' },
+    { lbl:'Peak', val: (peak>=0?'+':'')+peak.toFixed(2)+'u', cls:'pos' },
+    { lbl:'Valley', val: valley.toFixed(2)+'u', cls:'neg' },
+    { lbl:'ROI', val: (totalProfit>=0?'+':'')+(totalProfit/staked*100).toFixed(1)+'%', cls: totalProfit>=0?'pos':'neg' },
+  ].map(s=>`<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+    <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin-bottom:5px;">${s.lbl}</div>
+    <div style="font-size:19px;font-weight:800;color:var(--${s.cls})">${s.val}</div>
+  </div>`).join('');
+
+  // Update hero
+  const heroEl = document.getElementById('chart-cum-total');
+  heroEl.textContent = (totalProfit>=0?'+':'')+totalProfit.toFixed(2)+'u';
+  heroEl.style.color = totalProfit >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // Draw charts using Canvas API (no external lib needed)
+  drawCumChart(cumData, peak, valley);
+  drawDailyChart(days);
+
+  // Monthly table
+  let runningCum = 0;
+  const monthRows = months.map(m => {
+    const mb = filtered.filter(b => {
+      const key = b.date.toLocaleString('default',{month:'short',year:'2-digit'});
+      return key === m.key;
+    });
+    if (!mb.length) return '';
+    const mw = mb.reduce((s,b)=>s+b.win,0);
+    const mp = mb.reduce((s,b)=>s+b.profit,0);
+    const ms = mb.reduce((s,b)=>s+b.stake,0);
+    // peak/valley within month
+    let mpeak=-Infinity, mvalley=Infinity, mr=0;
+    const mdays = {};
+    for (const b of mb) {
+      const dk = b.date.toISOString().slice(0,10);
+      if (!mdays[dk]) mdays[dk]=0;
+      mdays[dk]+=b.profit;
+    }
+    for (const dp of Object.values(mdays)) {
+      mr+=dp;
+      if (mr>mpeak) mpeak=mr;
+      if (mr<mvalley) mvalley=mr;
+    }
+    return `<tr>
+      <td class="td-name" style="font-weight:700;">${m.key}</td>
+      <td class="r td-acc">${mb.length}</td>
+      <td class="r td-sub">${mw}-${mb.length-mw}</td>
+      <td class="r">${(mw/mb.length*100).toFixed(1)}%</td>
+      <td class="r">${fmtProfit(mp)}</td>
+      <td class="r">${fmtROI(mp/ms)}</td>
+      <td class="r" style="color:var(--green);font-weight:600;">${mpeak>-Infinity?(mpeak>=0?'+':'')+mpeak.toFixed(2)+'u':'—'}</td>
+      <td class="r" style="color:var(--red);font-weight:600;">${mvalley<Infinity?mvalley.toFixed(2)+'u':'—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('monthly-table').innerHTML = monthRows || '<tr><td colspan="8" style="color:var(--sub);padding:14px;">No data for selected period.</td></tr>';
+}
+
+function drawCumChart(data, peak, valley) {
+  const canvas = document.getElementById('cumChart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 40;
+  const H = 220;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 20, right: 20, bottom: 30, left: 52 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  const vals = data.map(d => d.y);
+  const minV = Math.min(0, ...vals);
+  const maxV = Math.max(0, ...vals);
+  const range = maxV - minV || 1;
+
+  const xScale = i => pad.left + (i / (data.length - 1 || 1)) * cw;
+  const yScale = v => pad.top + ch - ((v - minV) / range) * ch;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(37,40,54,0.8)';
+  ctx.lineWidth = 1;
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const v = minV + (range / steps) * i;
+    const y = yScale(v);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '10px Inter';
+    ctx.textAlign = 'right';
+    ctx.fillText((v >= 0 ? '+' : '') + v.toFixed(1) + 'u', pad.left - 6, y + 3);
+  }
+
+  // Zero line
+  const zeroY = yScale(0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left + cw, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Smooth or straight
+  const pts = data.map((d, i) => ({ x: xScale(i), y: yScale(d.y) }));
+
+  // Gradient fill
+  const lastY = pts[pts.length - 1]?.y ?? zeroY;
+  const isPos = data[data.length-1]?.y >= 0;
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+  if (isPos) {
+    grad.addColorStop(0, 'rgba(34,197,94,0.25)');
+    grad.addColorStop(1, 'rgba(34,197,94,0.02)');
+  } else {
+    grad.addColorStop(0, 'rgba(239,68,68,0.02)');
+    grad.addColorStop(1, 'rgba(239,68,68,0.25)');
+  }
+
+  // Fill area
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, zeroY);
+  if (smoothMode && pts.length > 2) {
+    ctx.lineTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const cpx = (pts[i].x + pts[i+1].x) / 2;
+      const cpy = (pts[i].y + pts[i+1].y) / 2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, cpx, cpy);
+    }
+    ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+  } else {
+    for (const p of pts) ctx.lineTo(p.x, p.y);
+  }
+  ctx.lineTo(pts[pts.length-1].x, zeroY);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = isPos ? '#22c55e' : '#ef4444';
+  ctx.lineWidth = 2;
+  if (smoothMode && pts.length > 2) {
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const cpx = (pts[i].x + pts[i+1].x) / 2;
+      const cpy = (pts[i].y + pts[i+1].y) / 2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, cpx, cpy);
+    }
+    ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+  } else {
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (const p of pts.slice(1)) ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+
+  // Peak dot
+  let peakIdx = 0, valleyIdx = 0, peakVal = -Infinity, valleyVal = Infinity;
+  data.forEach((d, i) => {
+    if (d.y > peakVal) { peakVal = d.y; peakIdx = i; }
+    if (d.y < valleyVal) { valleyVal = d.y; valleyIdx = i; }
+  });
+
+  // Peak label
+  const px = xScale(peakIdx), py = yScale(peakVal);
+  ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2);
+  ctx.fillStyle = '#22c55e'; ctx.fill();
+  ctx.fillStyle = '#22c55e'; ctx.font = 'bold 10px Inter'; ctx.textAlign = 'center';
+  ctx.fillText('▲ +'+ peakVal.toFixed(1)+'u', px, py - 10);
+
+  // Valley label
+  if (valleyVal < 0) {
+    const vx = xScale(valleyIdx), vy = yScale(valleyVal);
+    ctx.beginPath(); ctx.arc(vx, vy, 5, 0, Math.PI*2);
+    ctx.fillStyle = '#ef4444'; ctx.fill();
+    ctx.fillStyle = '#ef4444'; ctx.font = 'bold 10px Inter'; ctx.textAlign = 'center';
+    ctx.fillText('▼ '+ valleyVal.toFixed(1)+'u', vx, vy + 18);
+  }
+
+  // X axis date labels — show ~6 labels
+  const labelEvery = Math.max(1, Math.floor(data.length / 6));
+  ctx.fillStyle = '#6b7280'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+  data.forEach((d, i) => {
+    if (i % labelEvery === 0 || i === data.length - 1) {
+      const lbl = d.x.toLocaleDateString('default', {month:'short',day:'numeric'});
+      ctx.fillText(lbl, xScale(i), H - 8);
+    }
+  });
+}
+
+function drawDailyChart(days) {
+  const canvas = document.getElementById('dailyChart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 40;
+  const H = 160;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 16, right: 12, bottom: 28, left: 52 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  const vals = days.map(d => d.profit);
+  const maxV = Math.max(0, ...vals);
+  const minV = Math.min(0, ...vals);
+  const range = (maxV - minV) || 1;
+
+  const barW = Math.max(2, cw / days.length - 2);
+  const xScale = i => pad.left + (i + 0.5) * (cw / days.length);
+  const yZero = pad.top + ch * (maxV / range);
+  const yScale = v => {
+    if (v >= 0) return yZero - (v / range) * ch;
+    return yZero + (Math.abs(v) / range) * ch;
+  };
+
+  // Zero line
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.left, yZero); ctx.lineTo(pad.left+cw, yZero); ctx.stroke();
+
+  // Y labels
+  ctx.fillStyle = '#6b7280'; ctx.font = '10px Inter'; ctx.textAlign = 'right';
+  [[maxV, pad.top+4],[0, yZero+4],[minV, H-pad.bottom+4]].forEach(([v,y]) => {
+    ctx.fillText((v>=0?'+':'')+v.toFixed(1), pad.left-5, y);
+  });
+
+  // Bars
+  days.forEach((d, i) => {
+    const x = xScale(i) - barW/2;
+    const isPos = d.profit >= 0;
+    const barH = Math.abs((d.profit / range) * ch);
+    const y = isPos ? yZero - barH : yZero;
+    ctx.fillStyle = isPos ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, y, barW, Math.max(1, barH), 2) : ctx.rect(x, y, barW, Math.max(1, barH));
+    ctx.fill();
+  });
+
+  // X labels
+  const labelEvery = Math.max(1, Math.floor(days.length / 6));
+  ctx.fillStyle = '#6b7280'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+  days.forEach((d, i) => {
+    if (i % labelEvery === 0 || i === days.length-1) {
+      const lbl = d.date.toLocaleDateString('default', {month:'short',day:'numeric'});
+      ctx.fillText(lbl, xScale(i), H - 8);
+    }
+  });
+}
+function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('xlsxStatus');
+  status.textContent = 'Reading...';
+  status.className = 'parse-status';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array', cellDates: true });
+
+      // Find NBA TRACKING sheet
+      const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('nba tracking')) || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      // Find header row — look for row containing 'BET NAME' or 'BET TYPE'
+      let headerRow = -1;
+      for (let i = 0; i < Math.min(raw.length, 20); i++) {
+        const row = raw[i];
+        if (row && row.some(c => String(c||'').toUpperCase().includes('BET NAME'))) {
+          headerRow = i;
+          break;
+        }
+      }
+      if (headerRow === -1) headerRow = 7; // fallback to known row
+
+      // Map column indices from header
+      const hdr = raw[headerRow] || [];
+      const colIdx = {};
+      hdr.forEach((h, i) => {
+        const k = String(h||'').toUpperCase().trim();
+        if (k.includes('DAY') || k === 'DATE') colIdx.day = i;
+        else if (k.includes('BET NAME') || k === 'BET') colIdx.name = i;
+        else if (k === 'ODDS') colIdx.odds = i;
+        else if (k === 'GRADE') colIdx.grade = i;
+      });
+
+      // Fallback to known positions if headers not found
+      if (colIdx.day === undefined) colIdx.day = 8;
+      if (colIdx.name === undefined) colIdx.name = 10;
+      if (colIdx.odds === undefined) colIdx.odds = 12;
+      if (colIdx.grade === undefined) colIdx.grade = 14;
+
+      const bets = [];
+      let lastDate = null;
+
+      for (let i = headerRow + 1; i < raw.length; i++) {
+        const row = raw[i];
+        if (!row) continue;
+
+        const nameVal = row[colIdx.name];
+        const oddsVal = row[colIdx.odds];
+        const gradeVal = row[colIdx.grade];
+        const dayVal  = row[colIdx.day];
+
+        if (!nameVal || !oddsVal || !gradeVal) continue;
+
+        const name = String(nameVal).trim();
+        const grade = String(gradeVal).trim().toUpperCase();
+
+        if (!name || name === 'BET NAME') continue;
+        // Check drop list (junk rows)
+        if (DROP_NAMES && DROP_NAMES.has(name.toLowerCase())) continue;
+        if (/parlay/i.test(name)) continue;
+        if (name.toLowerCase().includes('fixed it')) continue;
+        if (!['WIN','LOSS'].includes(grade)) continue;
+
+        const odds = parseFloat(String(oddsVal).replace('+',''));
+        if (isNaN(odds) || Math.abs(odds) < 100) continue;
+
+        // Date handling — ffill
+        let date = null;
+        if (dayVal) {
+          if (dayVal instanceof Date) { date = dayVal; lastDate = dayVal; }
+          else {
+            const d = new Date(dayVal);
+            if (!isNaN(d)) { date = d; lastDate = d; }
+          }
+        } else if (lastDate) {
+          date = lastDate;
+        }
+
+        bets.push({ name, odds, grade, date });
+      }
+
+      if (!bets.length) {
+        status.textContent = 'No valid bets found in file.';
+        status.className = 'parse-status err';
+        return;
+      }
+
+      allBets = bets;
+      document.getElementById('betCount').textContent = bets.length;
+      status.textContent = `✓ Imported ${bets.length} bets from "${sheetName}"`;
+      status.className = 'parse-status ok';
+      renderAll();
+      switchTab('breakdown');
+
+    } catch(err) {
+      document.getElementById('xlsxStatus').textContent = 'Error reading file: ' + err.message;
+      document.getElementById('xlsxStatus').className = 'parse-status err';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = ''; // reset so same file can be re-imported
+}
+
+// ─── PARSE (manual paste) ────────────────────────────────────────
+function parseBets() {
+  const raw = document.getElementById('pasteInput').value.trim();
+  if (!raw) { setStatus('Nothing to parse.', 'err'); return; }
+
+  const lines = raw.split('\n');
+  const bets = [];
+
+  for (const line of lines) {
+    const l = line.trim();
+    if (!l) continue;
+
+    // Skip parlays
+    if (/parlay/i.test(l)) continue;
+
+    // Extract grade (WIN/LOSS/PUSH) — must be present
+    const gradeMatch = l.match(/\b(WIN|LOSS|PUSH)\b/i);
+    if (!gradeMatch) continue;
+    const grade = gradeMatch[1].toUpperCase();
+    if (grade === 'PUSH') continue;
+
+    // Extract odds — look for +NNN or -NNN pattern
+    // Could be like +132, -136, +100
+    const oddsMatches = [...l.matchAll(/([+-]\d{2,4})/g)];
+    if (!oddsMatches.length) continue;
+    // Pick the odds-looking one (not a date fragment)
+    let odds = null;
+    for (const m of oddsMatches) {
+      const n = parseInt(m[1]);
+      if (Math.abs(n) >= 100 && Math.abs(n) <= 2500) { odds = n; break; }
+    }
+    if (odds === null) continue;
+
+    // Try to find a date
+    const dateMatch = l.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+    let date = null;
+    if (dateMatch) {
+      date = new Date(dateMatch[1]);
+      if (isNaN(date)) date = null;
+    }
+
+    // Extract bet name — everything before the odds pattern, strip date/NBA/$ prefixes
+    let name = l;
+    // Remove date
+    name = name.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}/g, '');
+    // Remove NBA/sport label
+    name = name.replace(/\bNBA\b/gi, '');
+    // Remove dollar amounts
+    name = name.replace(/\$[\d,]+\.?\d*/g, '');
+    // Remove decimal odds (1.xx format)
+    name = name.replace(/\b[12]\.\d{2,4}\b/g, '');
+    // Remove the odds value itself
+    name = name.replace(/[+-]\d{2,4}/g, '');
+    // Remove WIN/LOSS
+    name = name.replace(/\b(WIN|LOSS|PUSH)\b/gi, '');
+    // Clean up tabs/multiple spaces
+    name = name.replace(/[\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    // Remove leading/trailing punctuation
+    name = name.replace(/^[\s\-|]+|[\s\-|]+$/g, '').trim();
+
+    if (!name || name.length < 3) continue;
+
+    bets.push({ name, odds, grade, date });
+  }
+
+  if (!bets.length) { setStatus('No valid bets found. Check format.', 'err'); return; }
+
+  allBets = bets;
+  document.getElementById('betCount').textContent = bets.length;
+  setStatus(`✓ Parsed ${bets.length} bets`, 'ok');
+  renderAll();
+}
+
+function clearAll() {
+  allBets = [];
+  document.getElementById('pasteInput').value = '';
+  document.getElementById('betCount').textContent = '0 BETS LOADED';
+  document.getElementById('parseStatus').textContent = '';
+  showEmpty();
+}
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('parseStatus');
+  el.textContent = msg;
+  el.className = 'parse-status ' + (cls||'');
+}
+
+// ─── STAT / OU DETECTION ──────────────────────────────────────────
+
+// Manual stat overrides for ambiguous/malformed bet names
+const MANUAL_STATS = {
+  'n reid u 13.5': 'PRA',
+  'j brunson u 26.5': 'Points',
+  'r sheppard o 2.5': 'Points',
+  'og anunoby u 5.5': 'Rebounds',
+  'c white o 13.5': 'Points',
+  'pj washington o 2.5': 'Rebounds',
+  'r sheppard u 15.5': 'PRA',
+  'j valanciunas u 16.5': 'PRA',
+  'z williamson o 5.5 eb': 'Rebounds',
+  'j clarkson u 1.5': 'Assists',
+  'd fox u 2.5': '3-Pointers',
+  'k durant o 25.5': 'Points',
+  'd finney-smith u 7.5': 'Points',
+  'v edgecombe o 1.5': '3-Pointers',
+  'm christie o 2.5': '3-Pointers',
+  'c holmgren u 2.5': 'Assists',
+  'n traore u 3.5': 'Rebounds',
+  's fontecchio o 12.5': 'Points',
+  'k leonard u 36.5': 'PRA',
+  's mamukelashville u 5.5': 'Rebounds',
+  'p banchero u 8.5': 'Assists',
+  'j clarkson 11.5 pra': 'PRA',
+  'j johnson 6.5 ast': 'Assists',
+  'c cunningham 27.5 pts': 'Points',
+  "s merrill 2.5 3's": '3-Pointers',
+  'cj mccollum 3.5 reb': 'Rebounds',
+  'i okoro 3.5 reb': 'Rebounds',
+  'p siakamu 23.5 pts': 'Points',
+  "a nembhard 1.5 3's": '3-Pointers',
+};
+
+// Manual O/U overrides for bets missing the O/U marker
+const MANUAL_OU = {
+  'j clarkson 11.5 pra': 'Over',
+  'j johnson 6.5 ast': 'Over',
+  'c cunningham 27.5 pts': 'Under',
+  "s merrill 2.5 3's": 'Under',
+  'cj mccollum 3.5 reb': 'Under',
+  'i okoro 3.5 reb': 'Over',
+  'p siakamu 23.5 pts': 'Under',
+  "a nembhard 1.5 3's": 'Under',
+};
+
+// Names to completely drop
+const DROP_NAMES = new Set([
+  'x (deleted)', 'fixed it  srry 😘', 'fixed it srry 😘',
+  's mamukelashvili', 's mamukelashvii',
+]);
+
+function getStat(name) {
+  const ns = name.trim().toLowerCase();
+
+  // Check drop list
+  if (DROP_NAMES.has(ns)) return null;
+
+  // Check manual overrides first
+  if (MANUAL_STATS[ns]) return MANUAL_STATS[ns];
+
+  const n = ns;
+
+  // Sandro variants
+  if (/mamukelashvil|mamuk|^sandro\b/.test(n)) {
+    if (/\breb\b|rebound/.test(n)) return 'Rebounds';
+    if (/\bast\b|assist/.test(n)) return 'Assists';
+    if (/\bpts\b|point/.test(n)) return 'Points';
+    if (/3['s]|3pm|3s\b|1\.5\s*3/.test(n)) return '3-Pointers';
+    if (/\bpra\b/.test(n)) return 'PRA';
+    return '3-Pointers'; // default for bare Sandro lines
+  }
+
+  // PRA must come before pts/reb/ast to avoid false matches
+  if (/\bpra\b/.test(n)) return 'PRA';
+
+  // Points — pts, point, points
+  if (/\bpts\b|points?\b/.test(n)) return 'Points';
+
+  // Assists — ast, assist, assists
+  if (/\bast\b|assists?\b/.test(n)) return 'Assists';
+
+  // Rebounds — reb, rebound, rebounds, 'eb' typo
+  if (/\breb\b|rebounds?\b|\beb\b/.test(n)) return 'Rebounds';
+
+  // 3-Pointers — many formats: 3's, 3s, 3pm, 3pt, 3., 3 (bare), O/U 1.5 3
+  if (/3['']s|3pm\b|3pt\b|\b3s\b|(?:o|u)\s*\.?\d+\.?\d*\s+3['']?s?$|(?:o|u)\s*\.?\d+\.?\d*\s+3$|\s3['']?\s*$/.test(n)) return '3-Pointers';
+
+  // Blocks, steals
+  if (/\bblk\b|blocks?\b/.test(n)) return 'Blocks';
+  if (/\bstl\b|steals?\b/.test(n)) return 'Steals';
+
+  // Catch 'D Clingan U 26.5pra' style (no space)
+  if (/\d+\.?\d*pra/.test(n)) return 'PRA';
+
+  return 'Other';
+}
+
+function getOU(name) {
+  const ns = name.trim().toLowerCase();
+
+  // Drop names
+  if (DROP_NAMES.has(ns)) return null;
+
+  // Manual overrides
+  if (MANUAL_OU[ns]) return MANUAL_OU[ns];
+
+  const n = ns;
+
+  // Standard: O/over or U/under followed by optional space and number
+  if (/\b(o|over)\s*\.?\d/.test(n)) return 'Over';
+  if (/\b(u|under)\s*\.?\d/.test(n)) return 'Under';
+
+  // Catch things like 'J Hart over 18.5 pra' or 'J Hart U18.5 pra'
+  if (/\bover\b/.test(n)) return 'Over';
+  if (/\bunder\b/.test(n)) return 'Under';
+
+  return 'Other';
+}
+
+function getLine(name) {
+  const n = name.toLowerCase();
+  const m = n.match(/\b[ou]\s*(\.?\d+\.?\d*)/);
+  if (m) return parseFloat(m[1]);
+  const m2 = n.match(/(?:over|under)\s*(\.?\d+\.?\d*)/);
+  if (m2) return parseFloat(m2[1]);
+  return null;
+}
+
+function getPlayer(name) {
+  // Everything before the O/U marker
+  const m = name.match(/^(.*?)\s+[oOuU]\s*[\d.]/);
+  if (m) return m[1].trim();
+  return name.trim();
+}
+
+// ─── CALC ─────────────────────────────────────────────────────────
+function calcStake(odds) { return odds > 0 ? 1.0 : Math.abs(odds)/100; }
+function calcProfit(odds, grade) {
+  if (grade === 'WIN') return odds > 0 ? odds/100 : 1.0;
+  return odds > 0 ? -1.0 : -Math.abs(odds)/100;
+}
+
+function enrichBets(bets) {
+  const result = [];
+  for (const b of bets) {
+    const stat = getStat(b.name);
+    const ou = getOU(b.name);
+    // Drop null returns (junk rows)
+    if (stat === null || ou === null) continue;
+    result.push({
+      ...b,
+      stat,
+      ou,
+      line: getLine(b.name),
+      player: getPlayer(b.name),
+      stake: calcStake(b.odds),
+      profit: calcProfit(b.odds, b.grade),
+      win: b.grade === 'WIN' ? 1 : 0,
+      isDog: b.odds > 0,
+      isPlayoff: b.date && b.date >= PLAYOFFS_START,
+      isRegSeason: b.date ? (b.date >= SEASON_START && b.date < PLAYOFFS_START) : null,
+    });
+  }
+  return result;
+}
+
+function groupStats(bets) {
+  const n = bets.length;
+  if (!n) return null;
+  const wins = bets.reduce((s,b)=>s+b.win,0);
+  const staked = bets.reduce((s,b)=>s+b.stake,0);
+  const profit = bets.reduce((s,b)=>s+b.profit,0);
+  return { n, wins, losses: n-wins, winPct: wins/n, staked, profit, roi: profit/staked };
+}
+
+// ─── FILTERS ──────────────────────────────────────────────────────
+function setSeason(v) {
+  seasonFilter = v;
+  document.querySelectorAll('#season-filters .filter-btn').forEach(b => {
+    const map = {all:'all',reg:'reg',playoffs:'playoffs'};
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(v) || (v==='all' && b.textContent==='All'));
+  });
+  renderBreakdown();
+}
+
+function setOUFilter(v) {
+  ouFilter = v;
+  renderBreakdown();
+}
+
+function getFilteredBets() {
+  let bets = enrichBets(allBets);
+  if (seasonFilter === 'reg') bets = bets.filter(b => b.isRegSeason);
+  else if (seasonFilter === 'playoffs') bets = bets.filter(b => b.isPlayoff);
+  if (ouFilter === 'over') bets = bets.filter(b => b.ou === 'Over');
+  else if (ouFilter === 'under') bets = bets.filter(b => b.ou === 'Under');
+  return bets;
+}
+
+// ─── RENDER HELPERS ───────────────────────────────────────────────
+function fmtProfit(v) {
+  const s = (v>=0?'+':'')+v.toFixed(2)+'u';
+  const cls = v > 0 ? 'td-pos' : v < 0 ? 'td-neg' : 'td-sub';
+  return `<span class="${cls}">${s}</span>`;
+}
+function fmtROI(v) {
+  const s = (v>=0?'+':'')+( v*100).toFixed(1)+'%';
+  const cls = v > 0 ? 'td-pos' : v < 0 ? 'td-neg' : 'td-sub';
+  return `<span class="${cls}">${s}</span>`;
+}
+function fmtWinPct(v) { return (v*100).toFixed(1)+'%'; }
+function pillOU(ou) {
+  if (ou==='Over') return '<span class="pill pill-green">Over</span>';
+  if (ou==='Under') return '<span class="pill pill-blue">Under</span>';
+  return '<span class="pill pill-gold">'+ou+'</span>';
+}
+
+function statRow(label, stats, labelClass='td-name') {
+  if (!stats) return '';
+  const { n, wins, losses, winPct, staked, profit, roi } = stats;
+  return `<tr>
+    <td class="${labelClass}">${label}</td>
+    <td class="r td-acc">${n}</td>
+    <td class="r td-sub">${wins}-${losses}</td>
+    <td class="r">${fmtWinPct(winPct)}</td>
+    <td class="r td-sub">${staked.toFixed(2)}u</td>
+    <td class="r">${fmtProfit(profit)}</td>
+    <td class="r">${fmtROI(roi)}</td>
+  </tr>`;
+}
+
+// ─── RENDER ALL ───────────────────────────────────────────────────
+function renderAll() {
+  renderBreakdown();
+  renderPlayers();
+  renderLines();
+  renderDNB();
+  ['breakdown','charts','players','lines','dnb'].forEach(t => {
+    const empty = document.getElementById(t+'-empty');
+    const content = document.getElementById(t+'-content');
+    if (empty) empty.style.display = 'none';
+    if (content) content.style.display = '';
+  });
+}
+
+function showEmpty() {
+  ['breakdown','charts','players','lines','dnb'].forEach(t => {
+    const empty = document.getElementById(t+'-empty');
+    const content = document.getElementById(t+'-content');
+    if (empty) empty.style.display = '';
+    if (content) content.style.display = 'none';
+  });
+  document.getElementById('breakdown-content').style.display = 'none';
+  document.getElementById('breakdown-empty').style.display = '';
+}
+
+// ─── BREAKDOWN ────────────────────────────────────────────────────
+function renderBreakdown() {
+  if (!allBets.length) return;
+  const bets = getFilteredBets();
+  const overall = groupStats(bets);
+  if (!overall) return;
+
+  // Hero
+  const p = overall.profit;
+  const heroEl = document.getElementById('hero-profit');
+  heroEl.textContent = (p>=0?'+':'')+p.toFixed(2)+'u';
+  heroEl.className = 'pnl-main-val ' + (p>0?'pos':p<0?'neg':'zero');
+  document.getElementById('hero-record').textContent = overall.wins+'-'+overall.losses;
+  document.getElementById('hero-winpct').textContent = fmtWinPct(overall.winPct);
+  document.getElementById('hero-staked').textContent = overall.staked.toFixed(2)+'u';
+  const roiEl = document.getElementById('hero-roi');
+  roiEl.textContent = (overall.roi>=0?'+':'')+(overall.roi*100).toFixed(1)+'% ROI';
+  roiEl.className = 'pnl-roi '+(overall.roi>0?'pos':'neg');
+  document.getElementById('hero-bets').textContent = overall.n;
+
+  // UF Table
+  const dogs = groupStats(bets.filter(b=>b.isDog));
+  const favs = groupStats(bets.filter(b=>!b.isDog));
+  document.getElementById('uf-table').innerHTML =
+    statRow('🐕 Underdog (+odds)', dogs) +
+    statRow('⭐ Favorite (-odds)', favs);
+
+  // Stat Table
+  const stats = ['Points','Rebounds','Assists','3-Pointers','PRA','Blocks','Steals','Other'];
+  let statHtml = '';
+  const statGroups = stats.map(s => ({ s, g: groupStats(bets.filter(b=>b.stat===s)) }))
+    .filter(x => x.g && x.g.n > 0)
+    .sort((a,b) => b.g.profit - a.g.profit);
+  for (const { s, g } of statGroups) statHtml += statRow(s, g);
+  document.getElementById('stat-table').innerHTML = statHtml;
+
+  // O/U Table
+  const overs = groupStats(bets.filter(b=>b.ou==='Over'));
+  const unders = groupStats(bets.filter(b=>b.ou==='Under'));
+  document.getElementById('ou-table').innerHTML =
+    statRow('⬆️ Over', overs) + statRow('⬇️ Under', unders);
+
+  // Matrix — each stat gets a header row, then Over and Under as sub-rows
+  const mainStats = ['Points','Rebounds','Assists','3-Pointers','PRA'];
+  let mHtml = '';
+  for (const stat of mainStats) {
+    const sb = bets.filter(b=>b.stat===stat);
+    if (!sb.length) continue;
+    const og = groupStats(sb.filter(b=>b.ou==='Over'));
+    const ug = groupStats(sb.filter(b=>b.ou==='Under'));
+    const tg = groupStats(sb);
+
+    // Stat header row
+    mHtml += `<tr style="background:rgba(0,180,216,.06);">
+      <td colspan="7" style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);padding:8px 14px;">${stat}</td>
+    </tr>`;
+
+    // Over row
+    if (og) mHtml += `<tr>
+      <td style="padding-left:24px;">${pillOU('Over')}</td>
+      <td class="r td-acc">${og.n}</td>
+      <td class="r td-sub">${og.wins}-${og.losses}</td>
+      <td class="r">${fmtWinPct(og.winPct)}</td>
+      <td class="r td-sub">${og.staked.toFixed(2)}u</td>
+      <td class="r">${fmtProfit(og.profit)}</td>
+      <td class="r">${fmtROI(og.roi)}</td>
+    </tr>`;
+
+    // Under row
+    if (ug) mHtml += `<tr>
+      <td style="padding-left:24px;">${pillOU('Under')}</td>
+      <td class="r td-acc">${ug.n}</td>
+      <td class="r td-sub">${ug.wins}-${ug.losses}</td>
+      <td class="r">${fmtWinPct(ug.winPct)}</td>
+      <td class="r td-sub">${ug.staked.toFixed(2)}u</td>
+      <td class="r">${fmtProfit(ug.profit)}</td>
+      <td class="r">${fmtROI(ug.roi)}</td>
+    </tr>`;
+
+    // Total row
+    mHtml += `<tr style="background:rgba(245,158,11,.04);border-top:1px solid var(--border);">
+      <td style="padding-left:24px;font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.5px;">TOTAL</td>
+      <td class="r td-acc">${tg.n}</td>
+      <td class="r td-sub">${tg.wins}-${tg.losses}</td>
+      <td class="r">${fmtWinPct(tg.winPct)}</td>
+      <td class="r td-sub">${tg.staked.toFixed(2)}u</td>
+      <td class="r">${fmtProfit(tg.profit)}</td>
+      <td class="r">${fmtROI(tg.roi)}</td>
+    </tr>`;
+  }
+  document.getElementById('matrix-body').innerHTML = mHtml;
+
+  document.getElementById('breakdown-empty').style.display = 'none';
+  document.getElementById('breakdown-content').style.display = '';
+}
+
+// ─── PLAYER ID MAP ───────────────────────────────────────────────
+const PLAYER_IDS = {
+  'A Caruso':1628964,'A Dosunmu':1630166,'A Drummond':203585,'A Edwards':1630162,
+  'A Gordon':203932,'A Mitchell':1630228,'A Nembhard':1630560,'A Nesmith':1630174,
+  'A Reaves':1629750,'A Sarr':1641706,'A Sengun':1630578,'A Simons':1628991,
+  'A Thompson':203537,'A Wiggins':203952,'AJ Green':1631260,'Aj Green':1631260,
+  'B Adebayo':1628389,'B Brown':1628971,'B Coulibaly':1641784,'B Hield':1627741,
+  'B Hyland':1630538,'B Ingram':1627742,'B Mathurin':1631100,'B McGowens':1631483,
+  'B Miller':1631114,'B Portis':1626172,'B Scheierman':1641756,'B Sensabaugh':1641756,
+  'B Sheppard':1641754,'B Williams':1629057,
+  'C Braun':1631136,'C Carrington':1631213,'C Cunningham':1630595,'C Flagg':1642355,
+  'C Gillespie':1629786,'C Holmgren':1631096,'C Johnson':1628995,'C Kispert':1630197,
+  'C Levert':1627747,'C Murray Boyles':1642370,'C Payne':203126,'C Porter':1629008,
+  'C Sexton':1629012,'C Spencer':1628401,'C Thomas':1629006,'C Wallace':1630227,
+  'C White':1629632,'C Williams':1641792,
+  'D Ayton':1629028,'D Bane':1630175,'D Booker':1626164,'D Brooks':1628415,
+  'D Clingan':1642354,'D Daniels':1641724,'D Fox':1628368,'D Garland':1629636,
+  'D Green':203110,'D Harper':1629744,'D Hunter':1629631,'D Jenkins':1642394,
+  'D Mitchell':1628378,'D Queen':1641786,'D Robinson':1629130,'D Russell':1626156,
+  'D Sabonis':1627734,'D Schroder':203471,'D Sharpe':1631175,'D Vassell':1630170,
+  'D White':1629684,'Deni':1630532,'Donte D':1629011,
+  'E Demin':1642356,'E Mobley':1630596,
+  'F Wagner':1630532,
+  'G Allen':1628960,'G Dick':1641722,'GG Jackson':1641734,'G Payton':1627780,
+  'G Santos':1631217,'G Williams':1629140,'G Yabusele':1641744,'Giannis':203507,
+  'H Barnes':203148,'H Jones':1628995,
+  'I Collier':1642396,'I Jackson':1628960,'I Joe':1630198,'I Okoro':1630168,
+  'I Quickley':1630193,'I Stewart':1630191,'I Zubac':1628425,
+  'J Allen':1628386,'J Alvarado':1630600,'J Brown':1627759,'J Brunson':1628973,
+  'J Champagnie':1630549,'J Clarkson':203903,'J Duren':1631094,'J Edwards':1630224,
+  'J Embiid':203954,'J Fears':1642398,'J Furphy':1641726,'J Giddey':1630581,
+  'J Goodwin':1631174,'J Grant':1627749,'J Green':1630224,'J Harden':201935,
+  'J Hart':1628398,'J Hayes':1629637,'J Holiday':203200,'J Jaquez':1641712,
+  'J Johnson':1630166,'J Kuminga':1630228,'J Landale':1629331,'J Laravia':1631108,
+  'J McCain':1642382,'J Mccain':1642382,'J Mcdaniels':1630190,'J Murray':1627750,
+  'J Nurkic':203994,'J Poeltl':1627751,'J Poole':1629673,'J Randle':203944,
+  'J Shead':1642388,'J Sims':1631483,'J Smith':1629611,'J Strawther':1641730,
+  'J Suggs':1630591,'J Tatum':1628369,'J Tyson':1641742,'J Valanciunas':202685,
+  'J Vanderbilt':1629006,'J Walker':1629750,'J Walter':1641776,'J Wells':1631487,
+  'J Williams':1631114,
+  'K Dunn':1641788,'K Durant':201142,'K Filipowski':1641720,'K George':1630214,
+  'K Johnson':1642390,'K Knueppel':1642360,'K Kuzma':1628398,'K Leonard':202695,
+  'K Middleton':203114,'K Murray':1631099,'K Oubre':1626162,'K Porter':1629673,
+  'K Thompson':202691,'K Towns':1626157,'K Ware':1642402,'KAT':1626157,
+  'L Ball':1630163,'L Dort':1629598,'L Garza':1630557,'L James':2544,
+  'L Kennard':1628379,'L Kornet':1628436,'L Shamet':1629013,
+  'M Bagley':1629000,'M Bridges':1628969,'M Christie':1641748,'M Conley':201144,
+  'M Diabate':1631483,'M Monk':1628380,'M Moody':1630539,'M Porter':1629008,
+  'M Raynaud':1641760,'M Sasser':1631232,'M Smart':203935,'M Strus':1629622,
+  'N Claxton':1629651,'N Jokic':203999,'N Marshall':1630172,'N Powell':1626181,
+  'N Queta':1630558,'N Reid':1629675,'N Traore':1642406,'N Vucevic':202696,
+  'O Dieng':1629018,'O Ighodaro':1642414,'O Okongwu':1630168,'O Toppin':1630167,
+  'OG Anunoby':1628384,
+  'P Achiuwa':1630173,'P Banchero':1631094,'P George':202331,'P Larsson':1641744,
+  'P Pritchard':1630202,'P Siakam':1627783,'P Watson':1631503,'P Williams':1630180,
+  'PJ Washington':1629023,
+  'Q Dieng':1627731,'Q Grimes':1630193,'Q Post':1641766,
+  'R Dunn':1641768,'R Hachimura':1629060,'R Holland':1642418,'R Kalkbrenner':1641728,
+  'R O Neal':1630559,'R Rollins':1641770,'R Sheppard':1641754,'R Westbrook':201566,
+  'S Aldama':1630567,'S Alexander':1641772,'S Barnes':1630596,'S Bey':1629631,
+  'S Castle':1642358,'S Hauser':1629636,'S Henderson':1641716,'S James':1630217,
+  'S Merrill':1629726,'S Pippen':1630190,'S Sharpe':1631214,
+  'Sandro Mamukelashvili':1630216,'Shai':1628983,
+  'T Camara':1641714,'T Da Silva':1629660,'T Hardaway':203552,'T Harris':202699,
+  'T Hendricks':1641752,'T Herro':1629029,'T Jerome':1629738,'T Jones':1629035,
+  'T Kolek':1641758,'T Mann':1629663,'T Maxey':1630178,'T Murphy':1630530,
+  'T Shannon':1630600,'T Watford':1629740,
+  'V Edgecombe':1642362,'V Krejci':1641774,'V Wemby':1641705,'V Williams':1629631,
+  'W Carter':1629154,'W Clayton':1631489,'W Richard':1630571,'W Riley':1641776,
+  'Wemby':1641705,'Yabu':1641744,
+  'Z Risacher':1641708,'Z Williamson':1629627,
+};
+
+function getHeadshotUrl(playerName) {
+  const id = PLAYER_IDS[playerName];
+  if (!id) return null;
+  return `https://cdn.nba.com/headshots/nba/latest/260x190/${id}.png`;
+}
+
+function playerCellHtml(name) {
+  const url = getHeadshotUrl(name);
+  if (url) {
+    return `<div class="player-cell">
+      <img class="headshot" src="${url}" alt="${name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div class="headshot-sil" style="display:none;">👤</div>
+      <span>${name}</span>
+    </div>`;
+  }
+  return `<div class="player-cell"><div class="headshot-sil">👤</div><span>${name}</span></div>`;
+}
+
+// ─── PLAYERS ──────────────────────────────────────────────────────
+function renderPlayers() {
+  const bets = enrichBets(allBets);
+  const playerMap = {};
+  for (const b of bets) {
+    if (!playerMap[b.player]) playerMap[b.player] = [];
+    playerMap[b.player].push(b);
+  }
+
+  const players = Object.entries(playerMap)
+    .filter(([,bs]) => bs.length >= 5)
+    .map(([name, bs]) => {
+      const g = groupStats(bs);
+      const statCounts = {};
+      bs.forEach(b => { statCounts[b.stat] = (statCounts[b.stat]||0)+1; });
+      const topStat = Object.entries(statCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+      return { name, topStat, ...g };
+    });
+
+  const best = [...players].sort((a,b)=>b.profit-a.profit).slice(0,15);
+  const worst = [...players].sort((a,b)=>a.profit-b.profit).slice(0,15);
+
+  function playerRows(list) {
+    return list.map((p,i) => `<tr>
+      <td class="td-sub" style="width:28px;">${i+1}</td>
+      <td class="td-name">${playerCellHtml(p.name)}</td>
+      <td><span class="pill pill-blue">${p.topStat}</span></td>
+      <td class="r td-acc">${p.n}</td>
+      <td class="r">${fmtWinPct(p.winPct)}</td>
+      <td class="r">${fmtProfit(p.profit)}</td>
+      <td class="r">${fmtROI(p.roi)}</td>
+    </tr>`).join('');
+  }
+
+  document.getElementById('best-players').innerHTML = playerRows(best);
+  document.getElementById('worst-players').innerHTML = playerRows(worst);
+}
+
+// ─── LINES ────────────────────────────────────────────────────────
+function americanToProb(odds) {
+  return odds > 0 ? 100/(odds+100) : Math.abs(odds)/(Math.abs(odds)+100);
+}
+function avgAmericanOdds(oddsList) {
+  const avgProb = oddsList.reduce((s,o)=>s+americanToProb(o),0)/oddsList.length;
+  const result = avgProb >= 0.5 ? -Math.round((avgProb/(1-avgProb))*100) : Math.round(((1-avgProb)/avgProb)*100);
+  return (result > 0 ? '+' : '') + result;
+}
+
+function renderLines() {
+  const bets = enrichBets(allBets);
+  const stats = ['Points','Rebounds','Assists','3-Pointers','PRA'];
+  const dirs = ['Over','Under'];
+  let html = '';
+
+  for (const stat of stats) {
+    for (const ou of dirs) {
+      const sub = bets.filter(b=>b.stat===stat && b.ou===ou && b.line!==null);
+      if (!sub.length) continue;
+
+      const lineMap = {};
+      for (const b of sub) {
+        if (!lineMap[b.line]) lineMap[b.line] = [];
+        lineMap[b.line].push(b);
+      }
+
+      const rows = Object.entries(lineMap)
+        .filter(([,bs])=>bs.length>=5)
+        .map(([line, bs]) => {
+          const g = groupStats(bs);
+          const avgOdds = avgAmericanOdds(bs.map(b=>b.odds));
+          return { line: parseFloat(line), avgOdds, ...g };
+        })
+        .sort((a,b)=>b.roi-a.roi);
+
+      if (!rows.length) continue;
+
+      const tableRows = rows.map(r => `<tr>
+        <td class="td-name">${ou==='Over'?'O':'U'} ${r.line}</td>
+        <td class="r td-acc">${r.n}</td>
+        <td class="r td-sub">${r.wins}-${r.losses}</td>
+        <td class="r">${fmtWinPct(r.winPct)}</td>
+        <td class="r">${fmtProfit(r.profit)}</td>
+        <td class="r">${fmtROI(r.roi)}</td>
+        <td class="r td-sub">${r.avgOdds}</td>
+      </tr>`).join('');
+
+      html += `<div class="lines-block">
+        <div class="lines-block-title">${stat} — ${ou}</div>
+        <table class="bd">
+          <thead><tr><th>Line</th><th class="r">Bets</th><th class="r">W-L</th><th class="r">Win%</th><th class="r">Profit</th><th class="r">ROI</th><th class="r">Avg Odds</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>`;
+    }
+  }
+
+  document.getElementById('lines-grid').innerHTML = html || '<p style="color:var(--sub);padding:20px;">Need more data (min 5 bets per line).</p>';
+}
+
+// ─── DNB ──────────────────────────────────────────────────────────
+function renderDNB() {
+  const bets = enrichBets(allBets);
+
+  // Build player stats
+  const playerMap = {};
+  for (const b of bets) {
+    if (!playerMap[b.player]) playerMap[b.player] = [];
+    playerMap[b.player].push(b);
+  }
+  const players = Object.entries(playerMap).map(([name,bs]) => ({ name, ...groupStats(bs) }));
+
+  // DNB Players
+  const dnbPlayers = players.filter(p => p.n>=8 && p.roi<-0.25 && (p.losses-p.wins)>=3).sort((a,b)=>a.roi-b.roi);
+  document.getElementById('dnb-players').innerHTML = dnbPlayers.length
+    ? dnbPlayers.map(p=>`<tr>
+        <td class="td-name">${playerCellHtml(p.name)}</td>
+        <td class="r td-acc">${p.n}</td>
+        <td class="r td-sub">${p.wins}-${p.losses}</td>
+        <td class="r">${fmtWinPct(p.winPct)}</td>
+        <td class="r td-sub">${p.staked.toFixed(2)}u</td>
+        <td class="r">${fmtProfit(p.profit)}</td>
+        <td class="r">${fmtROI(p.roi)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="7" style="color:var(--sub);padding:14px;">No players meet criteria yet.</td></tr>';
+
+  // DNB Combos (player + stat)
+  const comboMap = {};
+  for (const b of bets) {
+    const k = b.player+'||'+b.stat;
+    if (!comboMap[k]) comboMap[k] = [];
+    comboMap[k].push(b);
+  }
+  const dnbCombos = Object.entries(comboMap)
+    .map(([k,bs]) => { const [player,stat]=k.split('||'); return {player,stat,...groupStats(bs)}; })
+    .filter(c=>c.n>=5&&c.roi<-0.30&&c.losses>c.wins)
+    .sort((a,b)=>a.roi-b.roi);
+  document.getElementById('dnb-combos').innerHTML = dnbCombos.length
+    ? dnbCombos.map(c=>`<tr>
+        <td class="td-name">${playerCellHtml(c.player)}</td>
+        <td><span class="pill pill-blue">${c.stat}</span></td>
+        <td class="r td-acc">${c.n}</td>
+        <td class="r td-sub">${c.wins}-${c.losses}</td>
+        <td class="r">${fmtWinPct(c.winPct)}</td>
+        <td class="r">${fmtProfit(c.profit)}</td>
+        <td class="r">${fmtROI(c.roi)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="7" style="color:var(--sub);padding:14px;">No combos meet criteria yet.</td></tr>';
+
+  // DNB Lines
+  const lineMap2 = {};
+  for (const b of bets) {
+    if (b.line===null||!['Over','Under'].includes(b.ou)) continue;
+    const k = b.stat+'||'+b.line+'||'+b.ou;
+    if (!lineMap2[k]) lineMap2[k] = [];
+    lineMap2[k].push(b);
+  }
+  const dnbLines = Object.entries(lineMap2)
+    .map(([k,bs]) => { const [stat,line,ou]=k.split('||'); return {stat,line,ou,...groupStats(bs)}; })
+    .filter(l=>l.n>=8&&l.roi<-0.20&&l.losses>l.wins)
+    .sort((a,b)=>a.roi-b.roi);
+  document.getElementById('dnb-lines').innerHTML = dnbLines.length
+    ? dnbLines.map(l=>`<tr>
+        <td class="td-name">${l.stat}</td>
+        <td>${l.ou==='Over'?'O':'U'} ${l.line}</td>
+        <td>${pillOU(l.ou)}</td>
+        <td class="r td-acc">${l.n}</td>
+        <td class="r td-sub">${l.wins}-${l.losses}</td>
+        <td class="r">${fmtWinPct(l.winPct)}</td>
+        <td class="r">${fmtROI(l.roi)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="7" style="color:var(--sub);padding:14px;">No lines meet criteria yet.</td></tr>';
+}
+
+// Init
+showEmpty();
+</script>
+</body>
+</html>
