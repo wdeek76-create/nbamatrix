@@ -7434,7 +7434,10 @@ const STAT_FULL_NAMES = {
 function copyStatBreakdown() {
   // Recompute the same statBreak that renderTracker uses so we don't depend on
   // anything cached on window.
-  const kind = window._trackerKind || "all";
+  // Use the SAME filter variable the on-screen panel uses (betKindFilter).
+  // Reading window._trackerKind was wrong — it was never set, so copy always
+  // defaulted to "all" even when the user had props selected on screen.
+  const kind = (typeof betKindFilter !== "undefined") ? betKindFilter : "all";
   const scopedBets = bets.filter(b => {
     if (!b || !b.result || b.result === "pending") return false;
     if (kind === "props")  return (b.stat || "").toUpperCase() !== "GAME_TOTAL";
