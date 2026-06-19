@@ -335,6 +335,7 @@ table colgroup col.avg-col{width:16%;}
   <button class="tab-btn" onclick="switchTab('tracker')">TRACKER</button>
   <button class="tab-btn" onclick="switchTab('totals')">TOTALS</button>
   <button class="tab-btn" onclick="switchTab('srcanalytics')">SOURCE ANALYTICS</button>
+  <button class="tab-btn" onclick="switchTab('playeranalytics')">PLAYER ANALYTICS</button>
   <button class="tab-btn" onclick="switchTab('captool')">CAP TOOL</button>
   <button class="tab-btn" onclick="switchTab('autograde')" style="display:none;">AUTO GRADE</button>
   <button class="tab-btn" onclick="switchTab('pace')" style="display:none;">PACE</button>
@@ -416,6 +417,7 @@ table colgroup col.avg-col{width:16%;}
   <div id="tracker-tab" style="display:none;"></div>
 
   <div id="srcanalytics-tab" style="display:none;"></div>
+  <div id="playeranalytics-tab" style="display:none;"></div>
 
   <div id="autograde-tab" style="display:none;"></div>
 
@@ -1168,11 +1170,13 @@ function switchTab(tab) {
   document.getElementById("totals-tab").style.display = tab==="totals"?"block":"none";
   document.getElementById("tracker-tab").style.display = tab==="tracker"?"block":"none";
   document.getElementById("srcanalytics-tab").style.display = tab==="srcanalytics"?"block":"none";
+  document.getElementById("playeranalytics-tab").style.display = tab==="playeranalytics"?"block":"none";
   document.getElementById("autograde-tab").style.display = tab==="autograde"?"block":"none";
   document.getElementById("cap-tool-tab").style.display = tab==="captool"?"block":"none";
   document.getElementById("pace-tab").style.display = tab==="pace"?"block":"none";
   if (tab==="tracker") renderTracker();
   if (tab==="srcanalytics") renderSrcAnalytics();
+  if (tab==="playeranalytics") renderPlayerAnalytics();
   if (tab==="autograde") renderAutoGrade();
   if (tab==="totals") renderTotals();
   if (tab==="results" && typeof updateInjuryPanel === "function") updateInjuryPanel();
@@ -1426,37 +1430,62 @@ function renderTable() {
             const tipAttr = encodeURIComponent(JSON.stringify(tipData));
             return `<span data-tip="${tipAttr}" style="background:${ceilingColor}22;border:1px solid ${ceilingColor}77;color:${ceilingColor};font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;cursor:help;">${ceilingLabel}</span>`;
           })()}${(() => {
-            // TEAM-STATE pill — a binary pre-click triage:
-            //   CLEAR        — no relevant teammate or own-status concerns
-            //   CONDITIONAL  — team has at least one Q/GTD/DTD/OUT player that
-            //                  could shift usage or minutes for this matchup
-            //   SKIP         — the bet's player herself is listed OUT
-            // Overs into clean teams are usually fine to bet; injuries are the
-            // case that needs second-look judgment.
+            // TEAM-STATE pill — pre-click triage:
+            //   CLEAR        — no GTD teammates affecting tonight's matchup
+            //   CONDITIONAL  — team has a GTD player; usage assumptions may shift
+            //   SKIP         — this player herself is listed OUT
+            //
+            // Lineup data ALWAYS overrides ESPN injury cache for status. ESPN
+            // sometimes labels GTD players as "Out" (stale feed lag), so when
+            // Rotowire lineups says GTD, we trust that and don't fire SKIP.
             const ownInj2 = getInjuryForPlayer(r.rawName, r.team);
-            const ownStat2 = (ownInj2?.status || "").toLowerCase();
             const lineupRow2 = (typeof getLineupStatusForPlayer === "function") ? getLineupStatusForPlayer(r.rawName) : null;
-            const isOut2 = (ownStat2 === "out") || (lineupRow2 && lineupRow2.status === "OUT");
-            if (isOut2) {
+            // Compute effective player status — lineups wins if present
+            let effOwnStatus = null;
+            if (lineupRow2) effOwnStatus = lineupRow2.status;       // STARTING / OUT / GTD / DTD
+            else if (ownInj2) effOwnStatus = (ownInj2.status || "").toUpperCase().includes("OUT") ? "OUT"
+                            : (ownInj2.status || "").toUpperCase().includes("GAME TIME") ? "GTD"
+                            : (ownInj2.status || "").toUpperCase();
+            if (effOwnStatus === "OUT") {
               return `<span style="background:#f8717122;border:1px solid #f87171cc;color:#f87171;font-size:9px;font-weight:800;letter-spacing:0.5px;border-radius:4px;padding:1px 6px;">🚫 SKIP</span>`;
             }
-            // Survey the team for any concerning statuses (Q/GTD/DTD/OUT)
-            // Pulls from injuriesByTeam (ESPN cache) and lineups data when present.
-            let teamHasConcerns = false;
+            // Survey the team for GTD or Q specifically — those are the cases
+            // where usage/minutes are most uncertain. OUT players are knowns
+            // (already priced in); DTD is typically a managed recurring issue.
+            // GTD + Q are the late-news / start-of-game uncertainty signals.
+            let teamHasGTD = false;
             try {
               if (typeof injuriesByTeam !== "undefined" && injuriesByTeam?.get && r.team) {
                 const espn = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[r.team]) || r.team;
                 const teamList = injuriesByTeam.get(r.team) || injuriesByTeam.get(espn) || [];
-                teamHasConcerns = teamList.some(rec => {
+                teamHasGTD = teamList.some(rec => {
                   const s = (rec?.status || "").toLowerCase();
-                  return s.includes("out") || s.includes("question") || s.includes("day") || s.includes("game time");
+                  return s.includes("game time") || s.includes("question");
                 });
               }
+              // Also check lineups data — Rotowire's GTD/Q list is often fresher
+              // than ESPN's feed. Filter to players on THIS team (lineup parser
+              // now stores team abbr per player), with a normalization helper
+              // that handles aliases like PHO ↔ PHX.
+              if (!teamHasGTD && typeof getLineupsData === "function") {
+                const ldata = getLineupsData();
+                if (ldata && ldata.players) {
+                  const teamNorm = (a) => {
+                    if (!a) return null;
+                    const u = a.toUpperCase();
+                    return INTERNAL_TO_ESPN_ABBR[u] || u;
+                  };
+                  const myTeamKey = teamNorm(r.team);
+                  teamHasGTD = Object.values(ldata.players).some(p =>
+                    (p.status === "GTD" || p.status === "QUESTIONABLE") && teamNorm(p.team) === myTeamKey
+                  );
+                }
+              }
             } catch(e) {}
-            if (!teamHasConcerns) {
-              return `<span style="background:#22c55e15;border:1px solid #22c55e55;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.5px;border-radius:4px;padding:1px 6px;" title="No teammate injuries affecting this matchup">✓ CLEAR</span>`;
+            if (!teamHasGTD) {
+              return `<span style="background:#22c55e15;border:1px solid #22c55e55;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.5px;border-radius:4px;padding:1px 6px;" title="No GTD or Q teammates affecting this matchup">✓ CLEAR</span>`;
             }
-            return `<span style="background:#fbbf2422;border:1px solid #fbbf2477;color:#fbbf24;font-size:9px;font-weight:800;letter-spacing:0.5px;border-radius:4px;padding:1px 6px;" title="Team has Q/GTD/OUT players — check usage assumptions">⚠ CONDITIONAL</span>`;
+            return `<span style="background:#fbbf2422;border:1px solid #fbbf2477;color:#fbbf24;font-size:9px;font-weight:800;letter-spacing:0.5px;border-radius:4px;padding:1px 6px;" title="A teammate is GTD or Q — usage assumptions could shift">⚠ CONDITIONAL</span>`;
           })()}${trackedPill}</span>
           ${minChip}
         </div>
@@ -1965,6 +1994,19 @@ function trackTotal(payload, ...legacyArgs) {
     presetDate = gameDate;
   } else {
     try { presetDate = localStorage.getItem("wnba_last_total_date") || null; } catch(e) {}
+  }
+  // ── Duplicate check ──
+  // Key: gameDate + "AWAY/HOME". If the user already tracked any bet on this
+  // game/date pair, warn before opening the modal. They can still proceed
+  // (alt-books / different sides are legitimate), but won't accidentally
+  // re-track the same play.
+  const dupKey = `${presetDate || ""}|${awayAbbr}/${homeAbbr}`;
+  const existingMap = window._trackedTotalsByGame;
+  const existing = existingMap?.get?.(dupKey) || [];
+  if (existing.length > 0) {
+    const summary = existing.map(b => `  • ${(b.ou||"").toUpperCase()} ${b.line}${b.book ? " @ " + b.book : ""}${b.result && b.result !== "pending" ? ` [${b.result.toUpperCase()}]` : ""}`).join("\n");
+    const proceed = confirm(`This game already has ${existing.length} tracked bet${existing.length>1?"s":""} for ${presetDate || "this date"}:\n\n${summary}\n\nTrack another bet on the same game?`);
+    if (!proceed) return;
   }
   openTrackModal(label, "TOT", "GAME_TOTAL", projTotal, `${awayAbbr}/${homeAbbr}`, presetDate);
   // Stash which projection model produced this bet + the all-models snapshot + pace data
@@ -2782,8 +2824,9 @@ function _slugToName(url) {
 }
 
 // Parse the pasted Rotowire lineups text. Returns:
-//   { fetchedAt, players: { [normName]: {name, status, starter, position} }, gameCount }
+//   { fetchedAt, players: { [normName]: {name, status, starter, position, team} }, gameCount }
 // Status values: "STARTING" | "OUT" | "GTD" | "DTD" | "PROBABLE" | "QUESTIONABLE"
+// `team` is the team abbr from the Rotowire page (LVA, DAL, IND, etc.)
 function parseLineupsText(text) {
   if (!text) return null;
   const lines = text.split(/\r?\n/);
@@ -2792,15 +2835,27 @@ function parseLineupsText(text) {
   // We scan for "Expected Lineup" and "MAY NOT PLAY" markers, then capture
   // the bullet-position + bracketed-player-link entries that follow.
   let mode = null;  // "starting" | "mnp" | null
+  let currentTeam = null;
+  const pendingTeamAbbrs = [];
   for (let i = 0; i < lines.length; i++) {
     const ln = lines[i].trim();
+    // Detect team abbreviation lines: `[LVA](...depth-chart...)` — these come
+    // in pairs before each game's two "Expected Lineup" sub-blocks. Queue them
+    // up; shift one each time we hit "Expected Lineup".
+    const teamAbbrMatch = /^\[([A-Z]{2,4})\]\([^)]*depth-chart/.exec(ln);
+    if (teamAbbrMatch) {
+      pendingTeamAbbrs.push(teamAbbrMatch[1]);
+      continue;
+    }
     if (/^\*\s*Expected Lineup\b/i.test(ln)) {
       mode = "starting";
+      currentTeam = pendingTeamAbbrs.shift() || currentTeam;
       gameCount++;  // Each "Expected Lineup" marker = a team's lineup
       continue;
     }
     if (/^\*\s*MAY NOT PLAY\b/i.test(ln)) {
       mode = "mnp";
+      // Keep currentTeam — MNP players are from the same team as the prior Expected Lineup
       continue;
     }
     // Sections of the page outside lineups (e.g. promos, footer) won't have
@@ -2831,7 +2886,7 @@ function parseLineupsText(text) {
     }
     // Latest entry per player wins (a player listed both in starting and MNP
     // shouldn't happen, but if it does the second mention is more relevant)
-    players[norm] = { name: fullName, displayedName, status, url };
+    players[norm] = { name: fullName, displayedName, status, url, team: currentTeam };
   }
   return {
     fetchedAt: Date.now(),
@@ -6548,6 +6603,289 @@ function setSrcAnalyticsMode(mode) {
   renderSrcAnalytics();
 }
 
+// ── PLAYER ANALYTICS ─────────────────────────────────────────────────────
+// Performance breakdowns by player, player+stat, line bucket, and odds bucket.
+// Same compact-table aesthetic as Source Analytics. Uses the kind filter
+// (betKindFilter) consistent with the tracker.
+function renderPlayerAnalytics() {
+  const root = document.getElementById("playeranalytics-tab");
+  if (!root) return;
+
+  // Filter to settled bets within the active kind filter
+  const kind = (typeof betKindFilter !== "undefined") ? betKindFilter : "all";
+  const settled = bets.filter(b => {
+    if (!b || (b.result !== "hit" && b.result !== "miss")) return false;
+    const isTot = (b.stat || "").toUpperCase() === "GAME_TOTAL";
+    if (kind === "props") return !isTot;
+    if (kind === "totals") return isTot;
+    return true;
+  });
+
+  if (!settled.length) {
+    root.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#8b93a0;font-family:'Inter',sans-serif;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px;">No settled bets yet</div>
+      <div style="font-size:12px;opacity:0.7;">Grade some bets in the Tracker to unlock player analytics.</div>
+    </div>`;
+    return;
+  }
+
+  // ── Helpers ──
+  const empty = () => ({ hits: 0, total: 0, staked: 0, pl: 0 });
+  const finalize = (s, label) => ({
+    label,
+    hits: s.hits,
+    total: s.total,
+    losses: s.total - s.hits,
+    pl: s.pl,
+    roi: s.staked > 0 ? (s.pl / s.staked) * 100 : null,
+    winRate: s.total > 0 ? (s.hits / s.total) * 100 : null,
+  });
+  const accum = (b, s) => {
+    s.total++; s.staked += b.stake;
+    if (b.result === "hit") { s.hits++; s.pl += b.toWin; }
+    else                    { s.pl -= b.stake; }
+  };
+
+  // Row builder — compact like Source Analytics
+  const row = (s, opts = {}) => {
+    const featured = opts.featured;
+    const dim = opts.dim;
+    const plColor = s.pl >= 0 ? "#4ade80" : "#f87171";
+    const wrColor = s.winRate >= 60 ? "#4ade80" : s.winRate >= 50 ? "#fbbf24" : "#f87171";
+    const plStr = `${s.pl >= 0 ? "+" : ""}${s.pl.toFixed(2)}u`;
+    const roiStr = s.roi != null ? `${s.roi >= 0 ? "+" : ""}${s.roi.toFixed(1)}%` : "—";
+    const wrStr = s.winRate != null ? `${s.winRate.toFixed(1)}%` : "—";
+    const bg = featured ? "rgba(74,222,128,0.06)" : dim ? "transparent" : "transparent";
+    const border = featured ? "1px solid rgba(74,222,128,0.3)" : "1px solid #1a1d22";
+    const op = dim ? 0.6 : 1;
+    return `<tr style="background:${bg};opacity:${op};">
+      <td style="padding:8px 12px;border-bottom:${border};font-size:12px;color:#fff;font-weight:600;font-family:'Inter',sans-serif;">${s.label}</td>
+      <td style="padding:8px 12px;border-bottom:${border};font-size:11px;color:#d4dae3;text-align:right;font-family:'JetBrains Mono','Menlo',monospace;font-variant-numeric:tabular-nums;">${s.hits}-${s.losses}</td>
+      <td style="padding:8px 12px;border-bottom:${border};font-size:11px;color:${wrColor};text-align:right;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;font-variant-numeric:tabular-nums;">${wrStr}</td>
+      <td style="padding:8px 12px;border-bottom:${border};font-size:11px;color:${plColor};text-align:right;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;font-variant-numeric:tabular-nums;">${plStr}</td>
+      <td style="padding:8px 12px;border-bottom:${border};font-size:11px;color:${plColor};text-align:right;font-weight:700;font-family:'JetBrains Mono','Menlo',monospace;font-variant-numeric:tabular-nums;">${roiStr}</td>
+    </tr>`;
+  };
+
+  const tableShell = (rowsHtml) => `<table style="width:100%;border-collapse:collapse;">
+    <thead><tr>
+      <th style="padding:6px 12px;font-size:9px;color:#8b93a0;letter-spacing:0.8px;text-transform:uppercase;font-weight:700;text-align:left;border-bottom:1px solid #1a1d22;font-family:'Inter',sans-serif;">Bucket</th>
+      <th style="padding:6px 12px;font-size:9px;color:#8b93a0;letter-spacing:0.8px;text-transform:uppercase;font-weight:700;text-align:right;border-bottom:1px solid #1a1d22;font-family:'Inter',sans-serif;">W-L</th>
+      <th style="padding:6px 12px;font-size:9px;color:#8b93a0;letter-spacing:0.8px;text-transform:uppercase;font-weight:700;text-align:right;border-bottom:1px solid #1a1d22;font-family:'Inter',sans-serif;">Win %</th>
+      <th style="padding:6px 12px;font-size:9px;color:#8b93a0;letter-spacing:0.8px;text-transform:uppercase;font-weight:700;text-align:right;border-bottom:1px solid #1a1d22;font-family:'Inter',sans-serif;">P&L</th>
+      <th style="padding:6px 12px;font-size:9px;color:#8b93a0;letter-spacing:0.8px;text-transform:uppercase;font-weight:700;text-align:right;border-bottom:1px solid #1a1d22;font-family:'Inter',sans-serif;">ROI</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`;
+
+  const section = (title, subtitle, content) => `<div style="margin-bottom:22px;">
+    <div style="margin-bottom:6px;">
+      <div style="font-size:13px;color:#d4dae3;letter-spacing:0.5px;font-weight:800;font-family:'Inter',sans-serif;">${title}</div>
+      ${subtitle ? `<div style="font-size:10px;color:#8b93a0;margin-top:2px;font-family:'Inter',sans-serif;">${subtitle}</div>` : ""}
+    </div>
+    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;overflow:hidden;">${content}</div>
+  </div>`;
+
+  // ── 1. By Player ──
+  const byPlayer = {};
+  settled.forEach(b => {
+    const key = b.player || "—";
+    if (!byPlayer[key]) byPlayer[key] = empty();
+    accum(b, byPlayer[key]);
+  });
+  // Min 5 bets for player rankings — under that the sample is meaningless
+  const MIN_PLAYER_BETS = 5;
+  const playerStats = Object.entries(byPlayer)
+    .map(([name, s]) => finalize(s, name))
+    .filter(s => s.total >= MIN_PLAYER_BETS);
+
+  const topPlayers = [...playerStats].sort((a, b) => b.pl - a.pl).slice(0, 10);
+  const worstPlayers = [...playerStats].sort((a, b) => a.pl - b.pl).slice(0, 10);
+
+  // ── 2. By Player + Stat ──
+  const byPlayerStat = {};
+  settled.forEach(b => {
+    const key = `${b.player || "—"}|${(b.stat || "—").toUpperCase()}`;
+    if (!byPlayerStat[key]) byPlayerStat[key] = empty();
+    accum(b, byPlayerStat[key]);
+  });
+  const MIN_COMBO_BETS = 4;
+  const comboStats = Object.entries(byPlayerStat)
+    .map(([key, s]) => {
+      const [player, stat] = key.split("|");
+      return finalize(s, `${player} · ${stat}`);
+    })
+    .filter(s => s.total >= MIN_COMBO_BETS);
+
+  const topCombos = [...comboStats].sort((a, b) => b.pl - a.pl).slice(0, 10);
+  const worstCombos = [...comboStats].sort((a, b) => a.pl - b.pl).slice(0, 10);
+
+  // ── 3. By Line Bucket (stat-relative buckets) ──
+  // PTS lines: 0-10, 10-15, 15-20, 20-25, 25+
+  // REB/AST: 0-3, 3-5, 5-7, 7-10, 10+
+  // 3PM: 0-1.5, 1.5-2.5, 2.5+
+  // Game totals: 150-160, 160-170, 170-180, 180+
+  const lineBucketFor = (b) => {
+    const stat = (b.stat || "").toUpperCase();
+    const line = +b.line;
+    if (isNaN(line)) return null;
+    if (stat === "GAME_TOTAL") {
+      if (line < 150) return "Totals < 150";
+      if (line < 160) return "Totals 150–160";
+      if (line < 170) return "Totals 160–170";
+      if (line < 180) return "Totals 170–180";
+      return "Totals 180+";
+    }
+    if (stat === "PTS") {
+      if (line < 10) return "PTS < 10";
+      if (line < 15) return "PTS 10–15";
+      if (line < 20) return "PTS 15–20";
+      if (line < 25) return "PTS 20–25";
+      return "PTS 25+";
+    }
+    if (stat === "REB" || stat === "AST") {
+      if (line < 3) return `${stat} < 3`;
+      if (line < 5) return `${stat} 3–5`;
+      if (line < 7) return `${stat} 5–7`;
+      if (line < 10) return `${stat} 7–10`;
+      return `${stat} 10+`;
+    }
+    if (stat === "THREES" || stat === "3PM") {
+      if (line < 1.5) return "3PM < 1.5";
+      if (line < 2.5) return "3PM 1.5–2.5";
+      return "3PM 2.5+";
+    }
+    if (stat === "PRA") {
+      if (line < 20) return "PRA < 20";
+      if (line < 30) return "PRA 20–30";
+      if (line < 40) return "PRA 30–40";
+      return "PRA 40+";
+    }
+    return `${stat} other`;
+  };
+  // Track total + over + under per bucket so we can render direction sub-rows
+  const byLine = {};
+  settled.forEach(b => {
+    const bucket = lineBucketFor(b);
+    if (!bucket) return;
+    if (!byLine[bucket]) byLine[bucket] = { total: empty(), over: empty(), under: empty() };
+    accum(b, byLine[bucket].total);
+    if (b.ou === "over") accum(b, byLine[bucket].over);
+    else if (b.ou === "under") accum(b, byLine[bucket].under);
+  });
+  const lineRows = Object.entries(byLine)
+    .map(([k, v]) => ({
+      label: k,
+      total: finalize(v.total, k),
+      over: finalize(v.over, "Over"),
+      under: finalize(v.under, "Under"),
+    }))
+    .filter(x => x.total.total >= 3)  // skip super-sparse buckets
+    .sort((a, b) => b.total.pl - a.total.pl);
+
+  // Sub-row builder for Over/Under direction lines under each bucket
+  const subRow = (s, isLast) => {
+    if (s.total === 0) return "";
+    const plColor = s.pl >= 0 ? "#4ade80" : "#f87171";
+    const wrColor = s.winRate >= 60 ? "#4ade80" : s.winRate >= 50 ? "#fbbf24" : "#f87171";
+    const plStr = `${s.pl >= 0 ? "+" : ""}${s.pl.toFixed(2)}u`;
+    const roiStr = s.roi != null ? `${s.roi >= 0 ? "+" : ""}${s.roi.toFixed(1)}%` : "—";
+    const wrStr = s.winRate != null ? `${s.winRate.toFixed(1)}%` : "—";
+    const bd = isLast ? "1px solid #1a1d22" : "1px solid rgba(255,255,255,0.04)";
+    const arrow = s.label === "Over" ? "↑" : "↓";
+    const arrowColor = s.label === "Over" ? "#4ade80" : "#f87171";
+    return `<tr style="background:rgba(255,255,255,0.015);">
+      <td style="padding:5px 12px 5px 24px;border-bottom:${bd};font-size:10.5px;color:#a8b0bb;font-weight:600;font-family:'Inter',sans-serif;">
+        <span style="color:${arrowColor};font-weight:800;margin-right:5px;">${arrow}</span>${s.label}
+      </td>
+      <td style="padding:5px 12px;border-bottom:${bd};font-size:10px;color:#a8b0bb;text-align:right;font-family:'JetBrains Mono','Menlo',monospace;font-variant-numeric:tabular-nums;">${s.hits}-${s.losses}</td>
+      <td style="padding:5px 12px;border-bottom:${bd};font-size:10px;color:${wrColor};text-align:right;font-weight:600;opacity:0.85;font-family:'JetBrains Mono','Menlo',monospace;font-variant-numeric:tabular-nums;">${wrStr}</td>
+      <td style="padding:5px 12px;border-bottom:${bd};font-size:10px;color:${plColor};text-align:right;font-weight:600;opacity:0.85;font-family:'JetBrains Mono','Menlo',monospace;font-variant-numeric:tabular-nums;">${plStr}</td>
+      <td style="padding:5px 12px;border-bottom:${bd};font-size:10px;color:${plColor};text-align:right;font-weight:600;opacity:0.85;font-family:'JetBrains Mono','Menlo',monospace;font-variant-numeric:tabular-nums;">${roiStr}</td>
+    </tr>`;
+  };
+
+  const buildLineRows = (arr) => {
+    if (!arr.length) return `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;">No bets to bucket.</td></tr>`;
+    return arr.map(x => {
+      const mainRow = row(x.total, { featured: x.total.pl >= 5, dim: x.total.pl <= -3 });
+      const hasOver = x.over.total > 0;
+      const hasUnder = x.under.total > 0;
+      const overRow = hasOver ? subRow(x.over, !hasUnder) : "";
+      const underRow = hasUnder ? subRow(x.under, true) : "";
+      return mainRow + overRow + underRow;
+    }).join("");
+  };
+
+  // ── 4. By Odds Bucket ──
+  // -300+ heavy fav, -200 to -300 strong fav, -150 to -200 fav, -110 to -150 slight fav,
+  // -110 to +100 pickem, +100 to +130 slight dog, +130 to +200 dog, +200+ longshot
+  const oddsBucketFor = (odds) => {
+    const o = +odds;
+    if (isNaN(o)) return null;
+    if (o <= -300) return "Heavy fav (≤ −300)";
+    if (o <= -200) return "Strong fav (−200 to −300)";
+    if (o <= -150) return "Favorite (−150 to −200)";
+    if (o <= -110) return "Slight fav (−110 to −150)";
+    if (o <= 100)  return "Pick'em (−110 to +100)";
+    if (o <= 130)  return "Slight dog (+100 to +130)";
+    if (o <= 200)  return "Dog (+130 to +200)";
+    return "Longshot (+200+)";
+  };
+  const byOdds = {};
+  settled.forEach(b => {
+    const bucket = oddsBucketFor(b.odds);
+    if (!bucket) return;
+    if (!byOdds[bucket]) byOdds[bucket] = empty();
+    accum(b, byOdds[bucket]);
+  });
+  // Preserve a logical odds order for display rather than P&L sort
+  const oddsOrder = [
+    "Heavy fav (≤ −300)", "Strong fav (−200 to −300)", "Favorite (−150 to −200)",
+    "Slight fav (−110 to −150)", "Pick'em (−110 to +100)", "Slight dog (+100 to +130)",
+    "Dog (+130 to +200)", "Longshot (+200+)"
+  ];
+  const oddsRows = oddsOrder
+    .filter(k => byOdds[k] && byOdds[k].total >= 3)
+    .map(k => finalize(byOdds[k], k));
+
+  // ── 5. By Stat Type (worst-first since user explicitly wants worst stat highlighted) ──
+  const byStat = {};
+  settled.forEach(b => {
+    const s = (b.stat || "—").toUpperCase();
+    if (!byStat[s]) byStat[s] = empty();
+    accum(b, byStat[s]);
+  });
+  const statRows = Object.entries(byStat)
+    .map(([k, s]) => finalize(s, k))
+    .filter(s => s.total >= 3)
+    .sort((a, b) => a.pl - b.pl);
+
+  // ── Render ──
+  const playerCount = Object.keys(byPlayer).length;
+  const eligible = playerStats.length;
+
+  // Build all sections
+  const buildRows = (arr) => arr.length ? arr.map(s => row(s, { featured: s.pl >= 5, dim: s.pl <= -3 })).join("") : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;font-family:'Inter',sans-serif;">Not enough data (need ≥${MIN_PLAYER_BETS} settled bets per player).</td></tr>`;
+  const buildComboRows = (arr) => arr.length ? arr.map(s => row(s, { featured: s.pl >= 3, dim: s.pl <= -2 })).join("") : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;font-family:'Inter',sans-serif;">Not enough data (need ≥${MIN_COMBO_BETS} bets per player+stat combo).</td></tr>`;
+
+  root.innerHTML = `
+    <div style="padding:18px 16px;max-width:920px;margin:0 auto;font-family:'Inter',sans-serif;">
+      <div style="margin-bottom:18px;">
+        <div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.2px;">Player Analytics</div>
+        <div style="font-size:11px;color:#8b93a0;margin-top:2px;">${settled.length} settled bets · ${playerCount} unique players · ${eligible} with ≥${MIN_PLAYER_BETS} bets · kind: ${kind}</div>
+      </div>
+      ${section("Best Players", `Top by P&L · min ${MIN_PLAYER_BETS} settled bets`, tableShell(buildRows(topPlayers)))}
+      ${section("Worst Players", `Bottom by P&L · min ${MIN_PLAYER_BETS} settled bets · fade-or-skip candidates`, tableShell(buildRows(worstPlayers)))}
+      ${section("Best Player + Stat Combos", `Top by P&L · min ${MIN_COMBO_BETS} bets per combo`, tableShell(buildComboRows(topCombos)))}
+      ${section("Worst Player + Stat Combos", `Bottom by P&L · min ${MIN_COMBO_BETS} bets per combo`, tableShell(buildComboRows(worstCombos)))}
+      ${section("By Line Bucket", "Stat-relative groupings with Over/Under split — finds which line ranges you nail vs. miss and which direction", tableShell(buildLineRows(lineRows)))}
+      ${section("By Odds Bucket", "How you perform across pricing tiers — are you better at favorites or dogs?", tableShell(oddsRows.length ? oddsRows.map(s => row(s, { featured: s.pl >= 5, dim: s.pl <= -3 })).join("") : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;">No buckets with ≥3 bets.</td></tr>`))}
+      ${section("By Stat Type", "Worst stats first — where your edge is weakest", tableShell(statRows.length ? statRows.map(s => row(s, { featured: s.pl >= 8, dim: s.pl <= -3 })).join("") : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;">No stat buckets with ≥3 bets.</td></tr>`))}
+    </div>
+  `;
+}
+
 function renderSrcAnalytics() {
   const root = document.getElementById("srcanalytics-tab");
   if (!root) return;
@@ -7426,19 +7764,43 @@ function buildPerformancePanel(scopedBets) {
     if (minPoint && maxPoint && periodSeries.length >= 3 && minPoint !== maxPoint) {
       const minX = xScale(minPoint.date.getTime()), minY = yScale(minPoint.cum);
       const maxX = xScale(maxPoint.date.getTime()), maxY = yScale(maxPoint.cum);
+      // Edge-aware label positioning so the text never clips. Anchor flips
+      // (middle / start / end) keep the label within horizontal bounds; vertical
+      // flip keeps it inside the chart area when the dot is near top/bottom.
+      const labelPos = (cx, cy, prefersAbove) => {
+        // Horizontal anchor — middle is default, flip to start/end near edges
+        const SAFE_HORIZ = 30;  // characters' worth of margin
+        let anchor = "middle", textX = cx;
+        if (cx < SAFE_HORIZ) { anchor = "start"; textX = cx + 4; }
+        else if (cx > CHART_W - SAFE_HORIZ) { anchor = "end"; textX = cx - 4; }
+        // Vertical position — try preferred side first, flip if too close to edge
+        const SAFE_TOP = 14;       // label needs ~12px above text + breathing room
+        const SAFE_BOTTOM = 16;    // similar buffer above date axis
+        let textY;
+        if (prefersAbove) {
+          textY = cy - 10;
+          if (textY < SAFE_TOP) textY = cy + 16;  // flip below if would clip top
+        } else {
+          textY = cy + 16;
+          if (textY > CHART_H - SAFE_BOTTOM) textY = cy - 10;  // flip above if would clip bottom
+        }
+        return { textX, textY, anchor };
+      };
       // LOW only if cum actually went negative — position label BELOW the dot
       // since LOW sits at the chart's bottom and there's more breathing room
       // toward the date axis than upward where the curve sits.
       if (minPoint.cum < 0) {
+        const lp = labelPos(minX, minY, false);
         minMarker = `
           <circle cx="${minX.toFixed(1)}" cy="${minY.toFixed(1)}" r="4" fill="#f87171" stroke="#0c0d10" stroke-width="2" filter="url(#trkDotGlow)"/>
-          <text x="${minX.toFixed(1)}" y="${(minY + 16).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="800" fill="#f87171" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3" stroke="#0c0d10" stroke-width="3" paint-order="stroke fill" filter="url(#trkGlow)">${minPoint.cum.toFixed(2)}u</text>`;
+          <text x="${lp.textX.toFixed(1)}" y="${lp.textY.toFixed(1)}" text-anchor="${lp.anchor}" font-size="10" font-weight="800" fill="#f87171" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3" stroke="#0c0d10" stroke-width="3" paint-order="stroke fill" filter="url(#trkGlow)">${minPoint.cum.toFixed(2)}u</text>`;
       }
       // HIGH only if cum actually went positive — position label ABOVE the dot
       if (maxPoint.cum > 0) {
+        const lp = labelPos(maxX, maxY, true);
         maxMarker = `
           <circle cx="${maxX.toFixed(1)}" cy="${maxY.toFixed(1)}" r="4" fill="#4ade80" stroke="#0c0d10" stroke-width="2" filter="url(#trkDotGlow)"/>
-          <text x="${maxX.toFixed(1)}" y="${(maxY - 10).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="800" fill="#4ade80" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3" stroke="#0c0d10" stroke-width="3" paint-order="stroke fill" filter="url(#trkGlow)">+${maxPoint.cum.toFixed(2)}u</text>`;
+          <text x="${lp.textX.toFixed(1)}" y="${lp.textY.toFixed(1)}" text-anchor="${lp.anchor}" font-size="10" font-weight="800" fill="#4ade80" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="0.3" stroke="#0c0d10" stroke-width="3" paint-order="stroke fill" filter="url(#trkGlow)">+${maxPoint.cum.toFixed(2)}u</text>`;
       }
     }
 
@@ -9715,23 +10077,34 @@ function buildTeamProjection(teamAbbr) {
 // falls back to the slots[2] data (the Upload tab's props RW). Keeps the two
 // uses independent — you can have one RW file for props and a different one
 // for totals without them stepping on each other.
+// Get per-team RW player-sum projection. Searches BOTH the totals-page RW
+// upload (window._totalsPageRwSlot) AND the main Upload tab's RW (slots[2]).
+// This way you can hold TWO days of player projections at once:
+//   - main slate today  → upload on the Upload tab → goes to slots[2]
+//   - tomorrow's slate → upload on the Totals page → goes to _totalsPageRwSlot
+// Each totals card gets its projection from whichever slot has its team.
+// If both slots have the same team (same-day overlap), totals-page wins
+// (treat the page-specific upload as more recent/intentional).
 function getTotalsPageRwTeamSum(teamAbbr) {
-  const override = window._totalsPageRwSlot;
-  if (override && override.players && override.players.length) {
-    const target = normTeamAbbr(teamAbbr);
+  const target = normTeamAbbr(teamAbbr);
+  // 1. Try the totals-page slot first
+  const slot = window._totalsPageRwSlot;
+  if (slot && slot.players && slot.players.length) {
     let sum = 0, count = 0;
-    override.players.forEach(p => {
+    slot.players.forEach(p => {
       if (!p) return;
       if (normTeamAbbr(p.team) === target && p.pts != null) {
         sum += Number(p.pts) || 0;
         count++;
       }
     });
-    return count > 0 ? { sum, count } : null;
+    if (count > 0) return { sum, count, source: "totals-page" };
   }
-  // Fallback: use whatever's in the merged blend (slots[2] when only Upload-tab RW is loaded)
+  // 2. Fall back to the main Upload tab's RW (slots[2]) via the merged blend
   const proj = buildTeamProjection(teamAbbr);
-  return proj?.sourceTotals?.["rotowire"] || null;
+  const rw = proj?.sourceTotals?.["rotowire"];
+  if (rw) return { ...rw, source: "upload-tab" };
+  return null;
 }
 
 // ── BETSTAMP "BEST AVAILABLE" PARSER (plain-text format from app) ──────────
@@ -10452,6 +10825,22 @@ function _briefLineForGame(g) {
 //   - upload one RW file on the Upload tab → used for props projections
 //   - upload a DIFFERENT RW file on Totals page → used for totals model only
 // Without each replacing the other.
+// LocalStorage key for the totals-page RW slot (so the upload survives refresh)
+const TOTALS_RW_STORAGE_KEY = "wnba_totals_page_rw_v1";
+
+// Restore on page load
+function _restoreTotalsPageRwSlot() {
+  try {
+    const raw = localStorage.getItem(TOTALS_RW_STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data && Array.isArray(data.players) && data.players.length > 0) {
+      window._totalsPageRwSlot = data;
+    }
+  } catch(e) {}
+}
+_restoreTotalsPageRwSlot();
+
 function totalsHandleRwUpload(input) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
@@ -10467,9 +10856,12 @@ function totalsHandleRwUpload(input) {
   const reader = new FileReader();
   reader.onload = e => {
     const players = parseSource(e.target.result);
-    window._totalsPageRwSlot = { label: file.name, players };
+    const payload = { label: file.name, players, uploadedAt: Date.now() };
+    window._totalsPageRwSlot = payload;
+    // Persist so refresh doesn't drop the upload — the bug user reported as "broken"
+    try { localStorage.setItem(TOTALS_RW_STORAGE_KEY, JSON.stringify(payload)); } catch(e) {}
     renderTotals();
-    showToast(`Totals RW loaded · ${players.length} players (Upload-tab RW unchanged)`);
+    showToast(`Totals RW loaded · ${players.length} players (saved, survives refresh)`);
   };
   reader.readAsText(file);
   input.value = "";  // reset so re-picking same file fires onchange
@@ -10481,6 +10873,7 @@ function totalsClearRw() {
   const n = window._totalsPageRwSlot.players?.length || 0;
   if (!confirm(`Clear Totals-page RW (${n} players)? Upload-tab RW will stay intact.`)) return;
   window._totalsPageRwSlot = null;
+  try { localStorage.removeItem(TOTALS_RW_STORAGE_KEY); } catch(e) {}
   renderTotals();
   showToast("Totals RW cleared");
 }
@@ -10506,14 +10899,105 @@ function copyAllTotalsProjections() {
 function copyTotalsByDate() {
   const games = betstampGames || [];
   if (!games.length) { showToast("No games loaded"); return; }
-  // Group by date — Map preserves insertion order, but we sort dates explicitly below
+  // Collect all unique dates available in the slate
+  const allDates = new Set();
+  games.forEach(g => {
+    let isoDate = g.gameDate || null;
+    if (!isoDate && typeof g.time === "string") {
+      const dayMatch = g.time.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+      if (dayMatch) {
+        const targetDay = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(dayMatch[1]);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        for (let off = 0; off < 7; off++) {
+          const probe = new Date(today.getTime() + off * 86400000);
+          if (probe.getDay() === targetDay) {
+            const y = probe.getFullYear();
+            const mo = String(probe.getMonth() + 1).padStart(2, "0");
+            const dy = String(probe.getDate()).padStart(2, "0");
+            isoDate = `${y}-${mo}-${dy}`;
+            break;
+          }
+        }
+      }
+    }
+    allDates.add(isoDate || "unknown");
+  });
+  const sortedDates = [...allDates].sort((a, b) => {
+    if (a === "unknown") return 1;
+    if (b === "unknown") return -1;
+    return a.localeCompare(b);
+  });
+  // If only one date, skip the picker and copy everything
+  if (sortedDates.length <= 1) {
+    _executeCopyTotalsByDate(null);
+    return;
+  }
+  // Show the date-picker overlay — user checks which dates to include
+  _showTotalsDatePicker(sortedDates);
+}
+
+// Render the date-picker overlay used by Copy By Date
+function _showTotalsDatePicker(dates) {
+  let overlay = document.getElementById("totals-date-picker-overlay");
+  if (overlay) overlay.remove();
+  overlay = document.createElement("div");
+  overlay.id = "totals-date-picker-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;";
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  // Build the date checkbox list — pre-checked by default so the most common case (copy all) needs zero taps
+  const dateRows = dates.map(d => {
+    const labelText = d === "unknown" ? "(no date)" : (() => {
+      const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return d;
+      const date = new Date(+m[1], +m[2]-1, +m[3]);
+      const dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][date.getDay()];
+      return `${dow} ${parseInt(m[2])}/${parseInt(m[3])}`;
+    })();
+    return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;">
+      <input type="checkbox" value="${d}" checked style="width:16px;height:16px;cursor:pointer;accent-color:#22c55e;"/>
+      <span style="color:#fff;font-size:13px;font-weight:600;">${labelText}</span>
+    </label>`;
+  }).join("");
+  overlay.innerHTML = `
+    <div style="background:#0c0d10;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px;width:340px;max-width:95vw;max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:0.3px;">Copy By Date</div>
+        <button onclick="document.getElementById('totals-date-picker-overlay').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div style="font-size:11px;color:#a8b0bb;margin-bottom:12px;">Pick which dates to include in the copy:</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;" id="totals-date-picker-list">${dateRows}</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="_totalsDatePickerToggle(true)" style="flex:1;background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:6px;padding:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Select All</button>
+        <button onclick="_totalsDatePickerToggle(false)" style="flex:1;background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:6px;padding:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Clear</button>
+      </div>
+      <button onclick="_totalsDatePickerCopy()" style="width:100%;background:#1e40af;border:none;color:#fff;border-radius:8px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;margin-top:12px;">📋 Copy Selected</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function _totalsDatePickerToggle(check) {
+  document.querySelectorAll("#totals-date-picker-list input[type=checkbox]").forEach(cb => { cb.checked = check; });
+}
+
+function _totalsDatePickerCopy() {
+  const selected = Array.from(document.querySelectorAll("#totals-date-picker-list input[type=checkbox]:checked")).map(cb => cb.value);
+  if (!selected.length) { showToast("No dates selected"); return; }
+  document.getElementById("totals-date-picker-overlay")?.remove();
+  _executeCopyTotalsByDate(new Set(selected));
+}
+
+// Execute the actual copy. If `dateFilter` is a Set, only include games whose
+// resolved date is in the set. If null, include everything (no filter).
+function _executeCopyTotalsByDate(dateFilter) {
+  const games = betstampGames || [];
   const byDate = new Map();
   games.forEach(g => {
     // Force 50/50 PaceEff regardless of card's active model
     const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
     const projTotal = indep?.total;
     if (projTotal == null) return;
-    // Resolve date — same logic as _briefLineForGame
     let isoDate = g.gameDate || null;
     if (!isoDate && typeof g.time === "string") {
       const dayMatch = g.time.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
@@ -10534,13 +11018,14 @@ function copyTotalsByDate() {
       }
     }
     const dateKey = isoDate || "unknown";
+    if (dateFilter && !dateFilter.has(dateKey)) return;
     const dateStr = (() => {
       if (!isoDate) return "";
       const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
       if (!m) return "";
       return `${parseInt(m[2])}/${parseInt(m[3])}`;
     })();
-    // Find consensus book line (mode of all books' lines for this game)
+    // Find consensus book line
     let line = null;
     if (Array.isArray(g.books) && g.books.length) {
       const lines = g.books.map(b => b.line).filter(l => l != null);
@@ -10559,19 +11044,17 @@ function copyTotalsByDate() {
     if (!byDate.has(dateKey)) byDate.set(dateKey, []);
     byDate.get(dateKey).push(rowLine);
   });
-  if (byDate.size === 0) { showToast("No projections available"); return; }
-  // Sort dates: known ISO dates ascending, "unknown" last
+  if (byDate.size === 0) { showToast("No projections in selected dates"); return; }
   const sortedKeys = [...byDate.keys()].sort((a, b) => {
     if (a === "unknown") return 1;
     if (b === "unknown") return -1;
     return a.localeCompare(b);
   });
-  // Join: blank line between date groups for readability
   const sections = sortedKeys.map(k => byDate.get(k).join("\n"));
   const text = sections.join("\n\n");
   const totalCount = [...byDate.values()].reduce((s, arr) => s + arr.length, 0);
   copyTextToClipboard(text,
-    () => showToast(`Copied ${totalCount} total${totalCount === 1 ? "" : "s"} (50/50)`),
+    () => showToast(`Copied ${totalCount} total${totalCount === 1 ? "" : "s"} across ${byDate.size} date${byDate.size === 1 ? "" : "s"}`),
     () => showToast("Copy blocked — text in console")
   );
 }
@@ -10603,12 +11086,22 @@ function renderTotals() {
   // Includes ALL tracked totals regardless of grading status — once tracked,
   // stays marked so you never accidentally re-track the same play.
   const trackedTotalsSig = new Set();
+  // Game-level tracking — keyed by "DATE|AWAY|HOME" so we can show a duplicate
+  // warning when the user opens a track modal for a game that already has any
+  // tracked bet on the same date. Value = array of existing bets for context.
+  const trackedTotalsByGame = new Map();
   bets.forEach(b => {
     if (b.stat !== "GAME_TOTAL") return;
     // b.team was stored as "AWAY/HOME" by trackTotal()
     const sig = `${b.team}|${b.ou}|${b.line}|${b.book}`;
     trackedTotalsSig.add(sig);
+    // Game-level dedup key — date + team pair
+    const gameKey = `${b.date || ""}|${b.team || ""}`;
+    if (!trackedTotalsByGame.has(gameKey)) trackedTotalsByGame.set(gameKey, []);
+    trackedTotalsByGame.get(gameKey).push(b);
   });
+  // Make game-level map accessible to trackTotal() for the duplicate warning
+  window._trackedTotalsByGame = trackedTotalsByGame;
 
   // ── Date filter ──
   // Collect unique game dates (ISO format from ESPN parse) sorted chronologically.
@@ -11054,11 +11547,33 @@ function renderTotals() {
 
     return `
       <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:10px;padding:18px 20px;margin-bottom:14px;">
+        ${(() => {
+          // Game-level "already tracked" banner — fires when this game+date has
+          // any existing tracked bets. Saves user from re-tracking the same game.
+          const gameKey = `${g.gameDate || ""}|${g.awayAbbr}/${g.homeAbbr}`;
+          const existing = trackedTotalsByGame.get(gameKey) || [];
+          if (!existing.length) return "";
+          const summary = existing.map(b =>
+            `${(b.ou || "").toUpperCase()} ${b.line}${b.book ? " @ " + b.book : ""}`
+          ).join(" · ");
+          return `<div style="background:#22c55e1a;border:1px solid #22c55e88;border-radius:6px;padding:7px 11px;margin-bottom:12px;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;">
+            <span style="color:#22c55e;font-weight:800;font-size:11px;letter-spacing:0.6px;text-transform:uppercase;">✓ Already Tracked</span>
+            <span style="color:#fff;opacity:0.85;font-size:11px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${summary}</span>
+          </div>`;
+        })()}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:12px;">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <div>
-              <div style="font-size:16px;font-weight:800;color:#fff;">${g.awayName || g.awayAbbr} <span style="color:#d4dae3;font-weight:500">@</span> ${g.homeName || g.homeAbbr}</div>
-              <div style="font-size:12px;color:#d4dae3;margin-top:2px">${g.awayAbbr} @ ${g.homeAbbr} · ${g.time}</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;color:#fff;flex-wrap:wrap;">
+                ${teamLogoImg(g.awayAbbr, 22)}
+                <span style="font-family:'Inter',sans-serif;letter-spacing:0.5px;color:#7dd3fc;">${g.awayAbbr}</span>
+                <span style="font-family:'Inter',sans-serif;font-weight:700;color:#fff;">${g.awayName || g.awayAbbr}</span>
+                <span style="color:#d4dae3;font-weight:500;margin:0 4px;">@</span>
+                ${teamLogoImg(g.homeAbbr, 22)}
+                <span style="font-family:'Inter',sans-serif;letter-spacing:0.5px;color:#7dd3fc;">${g.homeAbbr}</span>
+                <span style="font-family:'Inter',sans-serif;font-weight:700;color:#fff;">${g.homeName || g.homeAbbr}</span>
+              </div>
+              <div style="font-size:11px;color:#a8b0bb;margin-top:4px;letter-spacing:0.4px;">${g.time || ""}</div>
             </div>
             <button onclick="copyOneTotalProjection('${g.awayAbbr}','${g.homeAbbr}')" title="Copy this game's brief projection" style="background:#1e40af30;border:1px solid #1e40af77;color:#7dd3fc;border-radius:4px;padding:4px 9px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY</button>
           </div>
@@ -11469,14 +11984,23 @@ loadBets();
   window.addEventListener("scroll", hide, { passive: true });
 })();
 
-// Kick off injury fetch on load (non-blocking). Once it returns, re-render
-// Results so the badges appear without requiring user interaction.
-fetchInjuries().then(res => {
-  if (res && (res.count > 0 || res.cached)) {
-    if (typeof renderTable === "function" && merged) renderTable();
-    if (typeof updateInjuryPanel === "function") updateInjuryPanel();
+// Seed the injury cache from localStorage on page load. We DON'T auto-fetch
+// from ESPN anymore — the user pastes Rotowire injury news as the source of
+// truth. Auto-fetch would overwrite the paste every 15 min. The manual
+// "↻ Refresh" button on the injuries panel still triggers ESPN fetch if the
+// user explicitly wants it.
+try {
+  const raw = localStorage.getItem("wnba_injuries_cache");
+  if (raw) {
+    const data = JSON.parse(raw);
+    if (data && data.records && Array.isArray(data.records)) {
+      _ingestInjuryRecords(data.records);
+      injuriesLastFetched = data.fetchedAt || Date.now();
+      if (typeof renderTable === "function" && merged) renderTable();
+      if (typeof updateInjuryPanel === "function") updateInjuryPanel();
+    }
   }
-});
+} catch(e) { /* non-critical */ }
 // ═══════════════════════════════════════════════════════════════════════════════
 // WNBA SCOREBOARD TICKER — sportsbook-style live game strip
 // Pulls today's games from ESPN's WNBA scoreboard endpoint and renders a
