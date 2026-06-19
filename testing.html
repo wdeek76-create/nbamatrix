@@ -302,7 +302,7 @@ function parsePaste() {
   const trimmed = truncIdx > -1 ? raw.slice(0, truncIdx) : raw;
   const lines = trimmed.split('\n').map(l => l.trim());
 
-  const NOISE = /^(tag icon|compass star icon|compare \(\d+\)|hide|using your sportsbooks|see bets from other sportsbooks|see other bets|manage|fanduelnovic|fanduel|novig|betmgm|caesars|draftkings|bet365|betrivers|fanatics|thescore bet|hard rock bet|kalshi|polymarket|download the|search for a|filter|sort|last update|•|wnba sport icon|mlb sport icon|nba sport icon|nfl sport icon|nhl sport icon|tennis sport icon|mma sport icon|golf sport icon|sports|tools|dimers pro|betting|more|\+\d+$|betmgmcaesars|$)/i;
+  const NOISE = /^(tag icon|compass star icon|compare \(\d+\)|hide|using your sportsbooks|see bets from other sportsbooks|see other bets|manage|fanduelnovic|betmgm|caesars|draftkings|bet365|betrivers|fanatics|thescore bet|hard rock bet|kalshi|polymarket|download the|search for a|filter|sort|last update|•|wnba sport icon|mlb sport icon|nba sport icon|nfl sport icon|nhl sport icon|tennis sport icon|mma sport icon|golf sport icon|sports|tools|dimers pro|betting|more|\+\d+$|betmgmcaesars|$)/i;
   const BOOK_RE = /^(FanDuel|DraftKings|BetMGM|Caesars|Novig|Polymarket|BetOnline|Pinnacle|Bookmaker|ProphetX|Fliff|bet365|BetRivers|Fanatics|Hard Rock Bet|Hard Rock|Kalshi|theScore Bet|theScore)$/i;
   const ODDS_RE = /^[+-]\d+$/;
   const GAME_RE = /^.+\s+vs\.?\s+.+$/i;
@@ -363,6 +363,19 @@ function parsePaste() {
         if (/^(over|under)\s+[\d.]+$/i.test(l)) { bet.pick=l; continue; }
         if (/^.+\s+[+-][\d.]+$/.test(l)) { bet.pick=l; continue; }
         if (/^.+\s+win$/i.test(l)) { bet.pick=l; continue; }
+        // Bare word (team label line like "Sun" before "Sun win") — peek ahead
+        // Only grab it if the next meaningful line is NOT a qualified pick
+        if (/^\w[\w\s.'-]+$/.test(l) && !BOOK_RE.test(l) && !DATE_RE.test(l)) {
+          const nextPick = fwd.slice(j+1).find(x => x && !NOISE.test(x));
+          const isQualified = nextPick && (
+            /^(over|under)\s+[\d.]+$/i.test(nextPick) ||
+            /^.+\s+[+-][\d.]+$/.test(nextPick) ||
+            /^.+\s+win$/i.test(nextPick)
+          );
+          if (!isQualified) bet.pick = l;
+          // if next line IS a qualified pick, skip this bare label — it'll be grabbed next iteration
+          continue;
+        }
       }
     }
 
@@ -570,8 +583,16 @@ function betCardHTML(b, withControls) {
       </div>
     </div>
     <div class="bet-right">
-      <span class="odds-pill">${b.odds||'—'}</span>
-      ${stakeStr ? `<span class="stake-label">${stakeStr}</span>` : ''}
+      ${withControls
+        ? `<div style="display:flex;align-items:center;gap:6px;">
+             <input class="unit-input" style="width:64px;text-align:center;" type="text" value="${b.odds||''}" placeholder="odds"
+               onchange="editOdds('${b.id}',this.value)"
+               onblur="editOdds('${b.id}',this.value)">
+           </div>
+           <span class="stake-label">${b.odds ? stakeDisplay(b.odds) : ''}</span>`
+        : `<span class="odds-pill">${b.odds||'—'}</span>
+           ${stakeStr ? `<span class="stake-label">${stakeStr}</span>` : ''}`
+      }
       ${ctrl}
     </div>
   </div>`;
@@ -619,6 +640,17 @@ function clearGrade(id) {
 function clearAllBets() {
   if(!confirm('Clear all bets?')) return;
   bets=[]; save(); renderBetLog(); renderResults(); toast('Cleared');
+}
+function editOdds(id, val) {
+  const b=bets.find(x=>x.id==id); if(!b) return;
+  const cleaned=val.trim().replace(/\s/g,'');
+  if(!cleaned) return;
+  const n=cleaned.match(/^([+-]?\d+)$/);
+  if(!n) return;
+  const num=parseInt(n[1]);
+  b.odds=num>0?'+'+num:''+num;
+  save();
+  renderBetLog();
 }
 
 // ─── ESPN AUTO-GRADE ──────────────────────────────────────────────────────────
