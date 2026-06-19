@@ -52,6 +52,9 @@
   .sport-nba{background:rgba(39,192,113,.15);color:var(--accent);}
   .sport-nfl{background:rgba(232,64,64,.15);color:var(--red);}
   .sport-nhl{background:rgba(74,158,255,.15);color:var(--blue);}
+  .sport-tennis{background:rgba(240,160,32,.15);color:var(--amber);}
+  .sport-mma{background:rgba(232,64,64,.15);color:var(--red);}
+  .sport-golf{background:rgba(39,192,113,.15);color:var(--accent);}
   .bet-game{font-size:13px;font-weight:600;color:var(--text);}
   .bet-pick{font-size:14px;font-weight:700;color:var(--accent);margin:6px 0;}
   .bet-stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;}
@@ -158,6 +161,7 @@
     <select id="filter-sport" onchange="renderBetLog()">
       <option value="">All Sports</option>
       <option>WNBA</option><option>MLB</option><option>NBA</option>
+      <option>Tennis</option><option>MMA</option><option>Golf</option>
     </select>
     <select id="filter-result" onchange="renderBetLog()">
       <option value="">All Results</option>
@@ -180,33 +184,16 @@
 
 <!-- RESULTS TAB -->
 <div class="pane" id="pane-results">
-  <div class="stats-row" id="summary-stats"></div>
-
-  <div class="results-tabs">
-    <div class="rtab active" data-rt="breakdown">Breakdown</div>
-    <div class="rtab" data-rt="log">Bet Log</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div class="stats-row" id="summary-stats" style="flex:1;margin-bottom:0;"></div>
+    <select class="results-filter" id="breakdown-sport-filter" onchange="renderResults()" style="margin-left:16px;flex-shrink:0;">
+      <option value="">All Sports</option>
+      <option>WNBA</option><option>MLB</option><option>NBA</option>
+      <option>Tennis</option><option>MMA</option><option>Golf</option>
+    </select>
   </div>
-
-  <div class="rpane active" id="rpane-breakdown">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-      <select class="results-filter" id="breakdown-sport-filter" onchange="renderResults()">
-        <option value="">All Sports</option>
-        <option>WNBA</option><option>MLB</option><option>NBA</option>
-      </select>
-    </div>
-    <div id="breakdown-grid"></div>
-  </div>
-  <div class="rpane" id="rpane-log">
-    <div class="section-header" style="margin-bottom:12px;">
-      <span></span>
-      <select class="results-filter" id="results-sport-filter" onchange="renderResults()">
-        <option value="">All Sports</option>
-        <option>WNBA</option><option>MLB</option><option>NBA</option>
-      </select>
-    </div>
-    <div id="results-table-container">
-      <div class="empty-state"><div class="es-icon">◈</div><p>No graded bets yet.</p></div>
-    </div>
+  <div id="breakdown-grid">
+    <div class="empty-state"><div class="es-icon">◈</div><p>No graded bets yet.</p></div>
   </div>
 </div>
 
@@ -236,7 +223,14 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.querySelectorAll('.pane').forEach(x => x.classList.remove('active'));
   t.classList.add('active');
   document.getElementById('pane-'+t.dataset.tab).classList.add('active');
-  if (t.dataset.tab==='bets') { populateDateFilter(); renderBetLog(); }
+  if (t.dataset.tab==='bets') {
+    populateDateFilter();
+    // Default to today if we have bets for today
+    const today = new Date().toISOString().split('T')[0];
+    const df = document.getElementById('filter-date');
+    if ([...df.options].some(o => o.value === today)) df.value = today;
+    renderBetLog();
+  }
   if (t.dataset.tab==='results') renderResults();
 }));
 
@@ -295,21 +289,25 @@ function parsePaste() {
   const raw = document.getElementById('paste-area').value;
   if (!raw.trim()) { toast('Paste some text first'); return; }
 
-  // Auto-detect sport
-  const sd = raw.match(/^(WNBA|MLB|NBA|NFL|NHL)\s+sport icon/im);
-  detectedSport = sd ? sd[1].toUpperCase() : 'WNBA';
+  // Auto-detect sport from page header
+  const sd = raw.match(/^(WNBA|MLB|NBA|NFL|NHL|Tennis|MMA|Golf)\s+sport icon/im);
+  detectedSport = sd ? sd[1].charAt(0).toUpperCase() + sd[1].slice(1).toLowerCase() === sd[1] ? sd[1] : sd[1].toUpperCase() : 'WNBA';
+  // Normalize casing
+  const SPORT_NORM = {wnba:'WNBA',mlb:'MLB',nba:'NBA',nfl:'NFL',nhl:'NHL',tennis:'Tennis',mma:'MMA',golf:'Golf'};
+  detectedSport = SPORT_NORM[detectedSport.toLowerCase()] || detectedSport;
 
-  // Truncate at "From other sportsbooks"
-  const truncIdx = raw.search(/from other sportsbooks/i);
+  // Truncate at "From other sportsbooks: N of N bets" section header only
+  // NOT "See bets from other sportsbooks" which is a UI link before the bets
+  const truncIdx = raw.search(/from other sportsbooks:\s*\d/i);
   const trimmed = truncIdx > -1 ? raw.slice(0, truncIdx) : raw;
   const lines = trimmed.split('\n').map(l => l.trim());
 
-  const NOISE = /^(tag icon|compass star icon|compare \(\d+\)|hide|using your sportsbooks|see other bets|manage|fanduelnovic|fanduel|novig|betmgm|caesars|draftkings|bet365|betrivers|fanatics|thescore bet|hard rock bet|kalshi|polymarket|download the|search for a|filter|sort|last update|•|wnba sport icon|mlb sport icon|nba sport icon|nfl sport icon|nhl sport icon|sports|tools|dimers pro|betting|more|$)/i;
+  const NOISE = /^(tag icon|compass star icon|compare \(\d+\)|hide|using your sportsbooks|see bets from other sportsbooks|see other bets|manage|fanduelnovic|fanduel|novig|betmgm|caesars|draftkings|bet365|betrivers|fanatics|thescore bet|hard rock bet|kalshi|polymarket|download the|search for a|filter|sort|last update|•|wnba sport icon|mlb sport icon|nba sport icon|nfl sport icon|nhl sport icon|tennis sport icon|mma sport icon|golf sport icon|sports|tools|dimers pro|betting|more|\+\d+$|betmgmcaesars|$)/i;
   const BOOK_RE = /^(FanDuel|DraftKings|BetMGM|Caesars|Novig|Polymarket|BetOnline|Pinnacle|Bookmaker|ProphetX|Fliff|bet365|BetRivers|Fanatics|Hard Rock Bet|Hard Rock|Kalshi|theScore Bet|theScore)$/i;
   const ODDS_RE = /^[+-]\d+$/;
   const GAME_RE = /^.+\s+vs\.?\s+.+$/i;
   const DATE_RE = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+,\s+\d+/i;
-  const SPORT_RE = /^(WNBA|MLB|NBA|NFL|NHL)$/i;
+  const SPORT_RE = /^(WNBA|MLB|NBA|NFL|NHL|Tennis|MMA|Golf)$/i;
   const SKIP_GAME = /prediction|favored|matchup|best bets|picks include|props include|why |how |what |discover|welcome|upgrade|join|our |every |whether|today|daily|data|live|user|explore|responsible|disclaimer|copyright|trending|questions|download|starting|slugging|strikeout/i;
 
   const gameIndices = [];
@@ -431,6 +429,9 @@ function importBets() {
     document.querySelector('[data-tab="bets"]').classList.add('active');
     document.getElementById('pane-bets').classList.add('active');
     populateDateFilter();
+    const today = new Date().toISOString().split('T')[0];
+    const df = document.getElementById('filter-date');
+    if ([...df.options].some(o => o.value === today)) df.value = today;
     renderBetLog();
   }
 }
@@ -533,20 +534,25 @@ function betCardHTML(b, withControls) {
   if (b.tags?.includes('HIGH'))  tags += '<span class="tag-high">HIGH EDGE</span>';
   if (b.tags?.includes('SWEET')) tags += '<span class="tag-sweet">SWEET SPOT</span>';
   const stakeStr = b.odds ? stakeDisplay(b.odds) : '';
+  const noESPN = !['WNBA','NBA','MLB','NFL','NHL'].includes(b.sport);
   let ctrl = '';
   if (withControls) {
-    const scoreHtml = b.finalScore ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:.02em;">${b.finalScore}</div>` : '';
+    const scoreHtml = b.finalScore ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">${b.finalScore}</div>` : '';
+    const manualNote = noESPN ? `<div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right;">manual grade</div>` : '';
     ctrl = b.result
       ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
            <span class="result-badge result-${b.result}">${b.result.toUpperCase()}</span>
            ${scoreHtml}
            <button class="grade-btn" onclick="clearGrade('${b.id}')">↺</button>
          </div>`
-      : `<div class="inline-grade">
-           <button class="grade-btn win"  onclick="grade('${b.id}','win')">W</button>
-           <button class="grade-btn loss" onclick="grade('${b.id}','loss')">L</button>
-           <button class="grade-btn push" onclick="grade('${b.id}','push')">P</button>
-           <button class="grade-btn void" onclick="grade('${b.id}','void')">V</button>
+      : `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+           <div class="inline-grade">
+             <button class="grade-btn win"  onclick="grade('${b.id}','win')">W</button>
+             <button class="grade-btn loss" onclick="grade('${b.id}','loss')">L</button>
+             <button class="grade-btn push" onclick="grade('${b.id}','push')">P</button>
+             <button class="grade-btn void" onclick="grade('${b.id}','void')">V</button>
+           </div>
+           ${manualNote}
          </div>`;
   }
   return `<div class="bet-card ${rc}">
@@ -750,227 +756,134 @@ function buildBreakdown(filtered) {
     const l=arr.filter(b=>b.result==='loss').length;
     const p=arr.filter(b=>b.result==='push').length;
     const pl=parseFloat(arr.reduce((s,b)=>s+(calcPL(b)||0),0).toFixed(2));
-    const winPct = (w+l) > 0 ? Math.round(w/(w+l)*100)+'%' : '—';
-    return {w,l,p,pl,winPct};
+    const winPct=(w+l)>0?Math.round(w/(w+l)*100):null;
+    const staked=arr.filter(b=>b.result==='win'||b.result==='loss').reduce((s,b)=>s+calcStake(b.odds),0);
+    const roi=staked>0?parseFloat(((pl/staked)*100).toFixed(1)):null;
+    return {w,l,p,pl,winPct,roi,n:w+l+p};
   }
-  function plColor(pl) { return pl>0?'var(--accent)':pl<0?'var(--red)':'var(--muted)'; }
-  function plStr(pl)   { return pl===0?'±0':(pl>0?'+':'')+pl.toFixed(2)+'u'; }
+  function pc(pl){ return pl>0?'var(--accent)':pl<0?'var(--red)':'var(--muted)'; }
+  function ps(pl){ return pl===0?'±0':(pl>0?'+':'')+pl.toFixed(2)+'u'; }
 
-  const MARKETS = ['Over','Under','ML','Spread','Other'];
-  const TAGS = ['High Edge','Sweet Spot','High+Sweet','No Tag'];
-  const TAG_COLORS = {
-    'High Edge':  {bg:'rgba(39,192,113,0.1)',  color:'#27c071'},
-    'Sweet Spot': {bg:'rgba(74,158,255,0.1)',   color:'#4a9eff'},
-    'High+Sweet': {bg:'rgba(240,160,32,0.1)',   color:'#f0a020'},
-    'No Tag':     {bg:'rgba(122,131,145,0.1)',  color:'#7a8391'},
-  };
+  // Greenlight: profitable, min 4 graded, win% >= 55%
+  function isGreen(s) { return s.n >= 4 && s.pl > 0 && s.winPct >= 55; }
+  function isRed(s)   { return s.n >= 4 && s.pl < 0 && s.winPct <= 45; }
 
-  // Group bets by tag → market
-  const byTagMarket = {};
-  filtered.forEach(b => {
-    const tag = tagLabel(b);
-    const mkt = marketType(b.pick);
-    if (!byTagMarket[tag]) byTagMarket[tag] = {};
-    if (!byTagMarket[tag][mkt]) byTagMarket[tag][mkt] = [];
-    byTagMarket[tag][mkt].push(b);
-  });
-
-  // Build tag blocks
-  const tagBlocks = TAGS.map(tag => {
-    const mktData = byTagMarket[tag];
-    if (!mktData) return '';
-    const allBets = Object.values(mktData).flat();
-    const ts = stats(allBets);
-    const {bg, color} = TAG_COLORS[tag];
-    const mktRows = MARKETS.map(mkt => {
-      const arr = mktData[mkt];
-      if (!arr) return '';
-      const s = stats(arr);
-      return `<div style="display:grid;grid-template-columns:1fr 52px 44px 64px;gap:4px;padding:6px 12px;border-top:1px solid var(--border);font-size:11px;align-items:center;">
-        <span style="color:var(--muted);">${mkt}</span>
-        <span style="color:var(--text);">${s.w}–${s.l}${s.p?'–'+s.p:''}</span>
-        <span style="color:var(--text);">${s.winPct}</span>
-        <span style="text-align:right;font-weight:600;color:${plColor(s.pl)};">${plStr(s.pl)}</span>
-      </div>`;
-    }).join('');
-    return `<div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;min-width:0;">
-      <div style="background:${bg};padding:9px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:11px;font-weight:600;color:${color};">${tag.toUpperCase()}</span>
-        <span style="font-size:11px;color:var(--muted);">${ts.w}–${ts.l} · ${ts.winPct} · <span style="color:${plColor(ts.pl)};font-weight:600;">${plStr(ts.pl)}</span></span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 52px 44px 64px;gap:4px;padding:5px 12px;background:var(--surface2);">
-        <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;">MARKET</span>
-        <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;">W–L</span>
-        <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;">WIN%</span>
-        <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;text-align:right;">P&L</span>
-      </div>
-      ${mktRows}
-    </div>`;
-  }).join('');
-
-  // Sport strip
-  const bySport = {};
-  filtered.forEach(b => { if(!bySport[b.sport]) bySport[b.sport]=[]; bySport[b.sport].push(b); });
-  const sportStrip = Object.entries(bySport).map(([sp, arr]) => {
+  function row([label, arr, color]) {
     const s = stats(arr);
-    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:9px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <span class="sport-badge sport-${sp.toLowerCase()}">${sp}</span>
-      <span style="font-size:12px;color:var(--text);">${s.w}–${s.l}${s.p?'–'+s.p:''}</span>
-      <span style="font-size:12px;color:var(--muted);">${s.winPct}</span>
-      <span style="font-size:12px;font-weight:600;color:${plColor(s.pl)};">${plStr(s.pl)}</span>
+    const gl = isGreen(s) ? '🟢' : isRed(s) ? '🔴' : '';
+    const winPctStr = s.winPct !== null ? s.winPct+'%' : '—';
+    const roiStr = s.roi !== null ? (s.roi>=0?'+':'')+s.roi+'%' : '—';
+    return `<div style="display:grid;grid-template-columns:20px 1fr 64px 46px 56px 72px;align-items:center;padding:8px 14px;border-top:1px solid var(--border);font-size:12px;">
+      <span style="font-size:11px;">${gl}</span>
+      <span style="color:${color||'var(--text)'};">${label}</span>
+      <span style="color:var(--muted);font-size:11px;">${s.w}–${s.l}${s.p?'–'+s.p:''}</span>
+      <span style="color:var(--muted);font-size:11px;">${winPctStr}</span>
+      <span style="color:var(--muted);font-size:11px;">${roiStr}</span>
+      <span style="font-weight:600;text-align:right;color:${pc(s.pl)};">${ps(s.pl)}</span>
     </div>`;
-  }).join('');
-
-
-  // Fav/Dog + Odds bucket + Edge bucket
-  const byFavDog = {};
-  filtered.forEach(b => { const n=parseInt(b.odds); const k=isNaN(n)?'Unknown':n<0?'Favorite':'Underdog'; if(!byFavDog[k]) byFavDog[k]=[]; byFavDog[k].push(b); });
-  const byOdds = {};
-  filtered.forEach(b => { const k=oddsBucket(b.odds); if(!byOdds[k]) byOdds[k]=[]; byOdds[k].push(b); });
-  const byEdge = {};
-  filtered.forEach(b => {
-    const k = edgeBucket(b.edge);
-    if(!byEdge[k]) byEdge[k]=[];
-    byEdge[k].push(b);
-  });
-
-  function miniTable(groups) {
-    return Object.entries(groups).sort((a,b)=>{
-      const pa=stats(a[1]).pl, pb=stats(b[1]).pl; return pb-pa;
-    }).map(([k,arr])=>{
-      const s=stats(arr);
-      return `<div style="display:grid;grid-template-columns:1fr 52px 44px 64px;gap:4px;padding:6px 12px;border-top:1px solid var(--border);font-size:11px;">
-        <span style="color:var(--muted);">${k}</span>
-        <span>${s.w}–${s.l}${s.p?'–'+s.p:''}</span>
-        <span>${s.winPct}</span>
-        <span style="text-align:right;font-weight:600;color:${plColor(s.pl)};">${plStr(s.pl)}</span>
-      </div>`;
-    }).join('');
   }
-  function miniCard(title, groups) {
-    return `<div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
-      <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;background:var(--surface2);">${title}</div>
-      <div style="display:grid;grid-template-columns:1fr 52px 44px 64px;gap:4px;padding:5px 12px;background:var(--surface2);">
-        <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;"></span>
-        <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;">W–L</span>
-        <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;">WIN%</span>
-        <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;text-align:right;">P&L</span>
+
+  function section(title, rowData) {
+    if (!rowData.length) return '';
+    // Sort by P&L descending
+    const sorted = [...rowData].sort((a,b) => stats(b[1]).pl - stats(a[1]).pl);
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:10px;">
+      <div style="display:grid;grid-template-columns:20px 1fr 64px 46px 56px 72px;align-items:center;padding:6px 14px;background:var(--surface2);">
+        <span></span>
+        <span style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">${title}</span>
+        <span style="font-size:10px;color:var(--muted);">W–L</span>
+        <span style="font-size:10px;color:var(--muted);">WIN%</span>
+        <span style="font-size:10px;color:var(--muted);">ROI</span>
+        <span style="font-size:10px;color:var(--muted);text-align:right;">P&L</span>
       </div>
-      ${miniTable(groups)}
+      ${sorted.map(row).join('')}
     </div>`;
   }
 
-  const EDGE_BUCKETS = ['10%+','8–10%','5–8%','3–5%','<3%'];
-  const SUB_DIMS = [
-    { label: 'By Market',   keys: ['Over','Under','ML','Spread'], fn: b => marketType(b.pick) },
-    { label: 'By Tag',      keys: ['High Edge','Sweet Spot','High+Sweet','No Tag'], fn: b => tagLabel(b) },
-    { label: 'Fav vs Dog',  keys: ['Favorite','Underdog'], fn: b => { const n=parseInt(b.odds); return isNaN(n)?'Unknown':n<0?'Favorite':'Underdog'; } },
-    { label: 'By Sport',    keys: ['WNBA','MLB','NBA'], fn: b => b.sport },
-  ];
-
-  function edgeColor(bkt) {
-    return bkt==='10%+'||bkt==='8–10%' ? 'var(--accent)' : bkt==='5–8%' ? 'var(--amber)' : 'var(--muted)';
+  function group(fn, keys) {
+    const m={};
+    filtered.forEach(b=>{ const k=fn(b); if(!m[k]) m[k]=[]; m[k].push(b); });
+    const ks = keys ? keys.filter(k=>m[k]) : Object.keys(m).sort();
+    return ks.map(k=>[k,m[k]]);
   }
 
-  // Header row shared
-  const HDR = `<div style="display:grid;grid-template-columns:1fr 58px 44px 68px;padding:5px 12px;background:var(--surface2);">
-    <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;">BUCKET</span>
-    <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;">W–L</span>
-    <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;">WIN%</span>
-    <span style="font-size:9px;color:var(--muted);letter-spacing:.07em;text-align:right;">P&L</span>
-  </div>`;
+  const TCOL={'High Edge':'#27c071','Sweet Spot':'#4a9eff','High+Sweet':'#f0a020','No Tag':'var(--muted)'};
+  const ECOL={'10%+':'var(--accent)','8–10%':'var(--accent)','5–8%':'var(--amber)','3–5%':'var(--muted)','<3%':'var(--muted)'};
 
-  // 1. Edge solo card (full width)
-  const edgeSoloRows = EDGE_BUCKETS.map(bkt => {
-    const arr = byEdge[bkt]; if (!arr) return '';
-    const s = stats(arr);
-    return `<div style="display:grid;grid-template-columns:1fr 58px 44px 68px;padding:7px 12px;border-top:1px solid var(--border);font-size:12px;align-items:center;">
-      <span style="font-weight:600;color:${edgeColor(bkt)};">${bkt}</span>
-      <span>${s.w}–${s.l}${s.p?'–'+s.p:''}</span>
-      <span>${s.winPct}</span>
-      <span style="text-align:right;font-weight:600;color:${plColor(s.pl)};">${plStr(s.pl)}</span>
-    </div>`;
-  }).join('');
+  const byTag   = group(b=>tagLabel(b),['High Edge','Sweet Spot','High+Sweet','No Tag']).map(([k,a])=>[k,a,TCOL[k]]);
+  const byMkt   = group(b=>marketType(b.pick),['Over','Under','ML','Spread']).map(([k,a])=>[k,a]);
+  const bySport = group(b=>b.sport).map(([k,a])=>[k,a]);
+  const byFD    = group(b=>parseInt(b.odds)<0?'Favorite':'Underdog',['Favorite','Underdog']).map(([k,a])=>[k,a]);
+  const byEdge  = group(b=>edgeBucket(b.edge),['10%+','8–10%','5–8%','3–5%','<3%']).map(([k,a])=>[k,a,ECOL[k]]);
 
-  const edgeSoloCard = `<div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
-    <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;background:var(--surface2);">Edge — Overall</div>
-    ${HDR}${edgeSoloRows}
-  </div>`;
-
-  // 2. Edge × dimension cards (one per sub-dim, shown in a 2×2 grid)
-  // Each card: bucket rows, each with sub-dim breakdown indented
-  const edgeCrossCards = SUB_DIMS.map(dim => {
-    // pre-build lookup: bkt → subkey → bets
-    const map = {};
-    filtered.forEach(b => {
-      const bkt = edgeBucket(b.edge);
-      const sk  = dim.fn(b);
-      if (!map[bkt]) map[bkt] = {};
-      if (!map[bkt][sk]) map[bkt][sk] = [];
-      map[bkt][sk].push(b);
+  const tagMktRows=[];
+  ['High Edge','Sweet Spot','High+Sweet','No Tag'].forEach(tag=>{
+    ['Over','Under','ML','Spread'].forEach(mkt=>{
+      const arr=filtered.filter(b=>tagLabel(b)===tag&&marketType(b.pick)===mkt);
+      if(arr.length) tagMktRows.push([`${tag} · ${mkt}`,arr,TCOL[tag]]);
     });
+  });
 
-    const rows = EDGE_BUCKETS.map(bkt => {
-      const subMap = map[bkt]; if (!subMap) return '';
-      const bktBets = byEdge[bkt];
-      const bs = stats(bktBets);
-      const subRows = dim.keys.map(sk => {
-        const arr = subMap[sk]; if (!arr) return '';
-        const s = stats(arr);
-        return `<div style="display:grid;grid-template-columns:1fr 58px 44px 68px;padding:4px 12px 4px 22px;border-top:1px solid var(--border);font-size:11px;align-items:center;">
-          <span style="color:var(--muted);">↳ ${sk}</span>
-          <span>${s.w}–${s.l}${s.p?'–'+s.p:''}</span>
-          <span>${s.winPct}</span>
-          <span style="text-align:right;font-weight:600;color:${plColor(s.pl)};">${plStr(s.pl)}</span>
-        </div>`;
-      }).join('');
-      return `<div style="border-top:1px solid var(--border);">
-        <div style="display:grid;grid-template-columns:1fr 58px 44px 68px;padding:7px 12px;font-size:12px;font-weight:600;color:${edgeColor(bkt)};background:var(--surface);">
-          <span>${bkt}</span>
-          <span style="font-size:11px;color:var(--text);font-weight:400;">${bs.w}–${bs.l}${bs.p?'–'+bs.p:''}</span>
-          <span style="font-size:11px;color:var(--text);font-weight:400;">${bs.winPct}</span>
-          <span style="font-size:11px;text-align:right;font-weight:600;color:${plColor(bs.pl)};">${plStr(bs.pl)}</span>
+  const edgeMktRows=[];
+  ['10%+','8–10%','5–8%','3–5%','<3%'].forEach(bkt=>{
+    ['Over','Under','ML','Spread'].forEach(mkt=>{
+      const arr=filtered.filter(b=>edgeBucket(b.edge)===bkt&&marketType(b.pick)===mkt);
+      if(arr.length) edgeMktRows.push([`${bkt} · ${mkt}`,arr,ECOL[bkt]]);
+    });
+  });
+
+  // ── Intelligence summary ──────────────────────────────────────────────────
+  // Collect all meaningful patterns (min 3 bets) and rank them
+  const allPatterns = [
+    ...byTag, ...byMkt, ...bySport, ...byFD, ...byEdge,
+    ...tagMktRows, ...edgeMktRows
+  ].filter(([,arr])=>arr.length>=3);
+
+  const patStats = allPatterns.map(([label,arr,color])=>({label,s:stats(arr),color}));
+  const greens = patStats.filter(p=>isGreen(p.s)).sort((a,b)=>b.s.pl-a.s.pl).slice(0,4);
+  const reds   = patStats.filter(p=>isRed(p.s)).sort((a,b)=>a.s.pl-b.s.pl).slice(0,4);
+
+  const summaryCard = (greens.length||reds.length) ? `
+    <div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:16px;">
+      <div style="padding:10px 16px;background:var(--surface2);font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">Intelligence Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
+        <div style="padding:12px 16px;border-right:1px solid var(--border);">
+          <div style="font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.06em;margin-bottom:8px;">🟢 STRENGTHS</div>
+          ${greens.length ? greens.map(p=>`
+            <div style="margin-bottom:6px;">
+              <div style="font-size:12px;font-weight:500;color:var(--text);">${p.label}</div>
+              <div style="font-size:11px;color:var(--muted);">${p.s.w}–${p.s.l} · ${p.s.winPct}% win · <span style="color:var(--accent);">${ps(p.s.pl)}</span></div>
+            </div>`).join('') : '<div style="font-size:11px;color:var(--muted);">Not enough data yet</div>'}
         </div>
-        ${subRows}
-      </div>`;
-    }).join('');
+        <div style="padding:12px 16px;">
+          <div style="font-size:10px;color:var(--red);font-weight:600;letter-spacing:.06em;margin-bottom:8px;">🔴 WEAKNESSES</div>
+          ${reds.length ? reds.map(p=>`
+            <div style="margin-bottom:6px;">
+              <div style="font-size:12px;font-weight:500;color:var(--text);">${p.label}</div>
+              <div style="font-size:11px;color:var(--muted);">${p.s.w}–${p.s.l} · ${p.s.winPct}% win · <span style="color:var(--red);">${ps(p.s.pl)}</span></div>
+            </div>`).join('') : '<div style="font-size:11px;color:var(--muted);">Nothing flagged yet</div>'}
+        </div>
+      </div>
+    </div>` : '';
 
-    return `<div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
-      <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;background:var(--surface2);">Edge × ${dim.label}</div>
-      ${HDR}${rows}
-    </div>`;
-  }).join('');
-
-  return `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:16px;">
-      ${tagBlocks}
-    </div>
-    <div style="font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">By Sport</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:16px;">
-      ${sportStrip}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:16px;">
-      ${miniCard('Fav vs Dog', byFavDog)}
-      ${miniCard('Odds Bucket', byOdds)}
-    </div>
-    <div style="font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Edge Breakdown</div>
-    <div style="margin-bottom:12px;">${edgeSoloCard}</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;">
-      ${edgeCrossCards}
-    </div>`;
+  return summaryCard + [
+    section('Tag', byTag),
+    section('Market', byMkt),
+    section('Sport', bySport),
+    section('Fav vs Dog', byFD),
+    section('Edge', byEdge),
+    section('Tag × Market', tagMktRows),
+    section('Edge × Market', edgeMktRows),
+  ].join('');
 }
 
 function renderResults() {
-  const bsf = (document.getElementById('breakdown-sport-filter')||{}).value || '';
-  const sf  = (document.getElementById('results-sport-filter')||{}).value  || '';
-  const allGraded = bets.filter(b => b.result && b.result!=='pending');
-  const filtered  = allGraded.filter(b => !bsf || b.sport===bsf);
-  const tableFiltered = allGraded.filter(b => !sf || b.sport===sf);
+  const sf = (document.getElementById('breakdown-sport-filter')||{}).value || '';
+  const filtered = bets.filter(b => b.result && b.result!=='pending' && (!sf||b.sport===sf));
   const wins=filtered.filter(b=>b.result==='win').length;
   const losses=filtered.filter(b=>b.result==='loss').length;
   const pushes=filtered.filter(b=>b.result==='push').length;
-  const total=wins+losses+pushes;
-  const winPct=total>0?((wins/(wins+losses||1))*100).toFixed(1):'—';
+  const winPct=(wins+losses)>0?((wins/(wins+losses))*100).toFixed(1):'—';
   const totalPL=filtered.reduce((s,b)=>s+(calcPL(b)||0),0);
   const totalStaked=filtered.filter(b=>b.result==='win'||b.result==='loss').reduce((s,b)=>s+calcStake(b.odds),0);
   const roi=totalStaked>0?((totalPL/totalStaked)*100).toFixed(1):'—';
@@ -979,47 +892,16 @@ function renderResults() {
   const plC=totalPL>0?'green':totalPL<0?'red':'';
 
   document.getElementById('summary-stats').innerHTML = `
-    <div class="stat-card"><div class="sc-label">Record</div><div class="sc-val">${wins}-${losses}${pushes?'-'+pushes:''}</div></div>
+    <div class="stat-card"><div class="sc-label">Record</div><div class="sc-val">${wins}–${losses}${pushes?'–'+pushes:''}</div></div>
     <div class="stat-card"><div class="sc-label">Win %</div><div class="sc-val ${wins>losses?'green':'red'}">${winPct}%</div></div>
     <div class="stat-card"><div class="sc-label">P&L</div><div class="sc-val ${plC}">${totalPL>=0?'+':''}${totalPL.toFixed(2)}u</div></div>
     <div class="stat-card"><div class="sc-label">ROI</div><div class="sc-val ${plC}">${roi!=='—'?(totalPL>=0?'+':'')+roi+'%':roi}</div></div>
     <div class="stat-card"><div class="sc-label">Avg Edge</div><div class="sc-val amber">${avgEdge}${avgEdge!=='—'?'%':''}</div></div>
     <div class="stat-card"><div class="sc-label">Graded</div><div class="sc-val">${filtered.length}</div></div>`;
 
-  // Breakdown
-  if (filtered.length) {
-    document.getElementById('breakdown-grid').innerHTML = buildBreakdown(filtered);
-  } else {
-    document.getElementById('breakdown-grid').innerHTML = '<div class="empty-state"><div class="es-icon">◈</div><p>No graded bets yet.</p></div>';
-  }
-
-  // Bet log table
-  if (!tableFiltered.length) {
-    document.getElementById('results-table-container').innerHTML = '<div class="empty-state"><div class="es-icon">◈</div><p>No graded bets yet.</p></div>';
-    return;
-  }
-  const sorted=[...tableFiltered].sort((a,b)=>(b.gameDate||'').localeCompare(a.gameDate||''));
-  const rows=sorted.map(b=>{
-    const pl=calcPL(b);
-    const plStr=pl===null?'—':pl===0?'±0':(pl>0?'+':'')+pl+'u';
-    const stakeStr=b.odds?calcStake(b.odds).toFixed(2)+'u':'—';
-    const plC2=pl>0?'profit-pos':pl<0?'profit-neg':'';
-    return `<tr>
-      <td>${b.gameDate||'—'}</td>
-      <td><span class="sport-badge sport-${b.sport.toLowerCase()}">${b.sport}</span></td>
-      <td style="color:var(--text);font-weight:500">${b.game}</td>
-      <td style="color:var(--accent)">${b.pick||'—'}</td>
-      <td style="color:var(--amber)">${b.edge!=null?b.edge+'%':'—'}</td>
-      <td>${b.odds||'—'}</td>
-      <td style="color:var(--muted);font-size:11px">${stakeStr}</td>
-      <td><span class="result-badge result-${b.result}">${b.result.toUpperCase()}</span></td>
-      <td style="font-size:11px;color:var(--muted)">${b.finalScore||'—'}</td>
-      <td class="${plC2}">${plStr}</td>
-    </tr>`;
-  }).join('');
-  document.getElementById('results-table-container').innerHTML=`<div style="overflow-x:auto"><table>
-    <thead><tr><th>Date</th><th>Sport</th><th>Game</th><th>Pick</th><th>Edge</th><th>Odds</th><th>Stake</th><th>Result</th><th>Score</th><th>P&L</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>`;
+  document.getElementById('breakdown-grid').innerHTML = filtered.length
+    ? buildBreakdown(filtered)
+    : '<div class="empty-state"><div class="es-icon">◈</div><p>No graded bets yet.</p></div>';
 }
 
 load(); updateBadge();
