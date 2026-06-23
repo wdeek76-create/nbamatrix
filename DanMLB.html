@@ -265,28 +265,61 @@
 <div class="tab-panel" id="tab-chart">
   <div class="chart-wrap">
     <div class="chart-main">
-      <div class="chart-title">Cumulative Units</div>
-      <div class="chart-big" id="chartBig">—</div>
-      <div class="chart-range">
-        <button class="range-btn" onclick="setRange('7d',this)">7D</button>
-        <button class="range-btn" onclick="setRange('30d',this)">30D</button>
-        <button class="range-btn active" onclick="setRange('all',this)">All Time</button>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div class="chart-title" id="chartRangeLabel">All Time · Cumulative P&L</div>
+          <div class="chart-big" id="chartBig">—</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <div class="chart-range">
+            <button class="range-btn" onclick="setRange('7d',this)">7D</button>
+            <button class="range-btn" onclick="setRange('30d',this)">30D</button>
+            <button class="range-btn active" onclick="setRange('all',this)">All Time</button>
+            <button class="range-btn" id="weekRangeBtn" onclick="setRange('week',this)" style="display:none;">Week</button>
+          </div>
+          <div id="chartSelectedWeek" style="font-size:11px;color:var(--accent);display:none;cursor:pointer;" onclick="clearWeekFilter()">✕ Clear week filter</div>
+        </div>
       </div>
       <canvas id="chartCanvas" style="width:100%;height:320px;display:block;"></canvas>
-      <div style="display:flex;gap:20px;margin-top:14px;">
-        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Peak</div><div id="chartPeak" style="font-size:16px;font-weight:800;color:var(--win);">—</div></div>
-        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Max Drawdown</div><div id="chartDip" style="font-size:16px;font-weight:800;color:var(--loss);">—</div></div>
-        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Best Day</div><div id="chartBestDay" style="font-size:16px;font-weight:800;color:var(--win);">—</div></div>
-        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Worst Day</div><div id="chartWorstDay" style="font-size:16px;font-weight:800;color:var(--loss);">—</div></div>
-        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Best Win</div><div id="chartBestWin" style="font-size:16px;font-weight:800;color:var(--win);">—</div></div>
-        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Worst Loss</div><div id="chartWorstLoss" style="font-size:16px;font-weight:800;color:var(--loss);">—</div></div>
-        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Longest Win Streak</div><div id="chartWinStreak" style="font-size:16px;font-weight:800;color:var(--win);">—</div></div>
-        <div><div style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Longest Loss Streak</div><div id="chartLossStreak" style="font-size:16px;font-weight:800;color:var(--loss);">—</div></div>
+      <!-- stat strip below chart -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px;">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Peak</div>
+          <div id="chartPeak" style="font-size:15px;font-weight:800;color:var(--win);">—</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Max Drawdown</div>
+          <div id="chartDip" style="font-size:15px;font-weight:800;color:var(--loss);">—</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Best Day</div>
+          <div id="chartBestDay" style="font-size:13px;font-weight:800;color:var(--win);">—</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Worst Day</div>
+          <div id="chartWorstDay" style="font-size:13px;font-weight:800;color:var(--loss);">—</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Best Single Win</div>
+          <div id="chartBestWin" style="font-size:12px;font-weight:700;color:var(--win);">—</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Worst Single Loss</div>
+          <div id="chartWorstLoss" style="font-size:12px;font-weight:700;color:var(--loss);">—</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Win Streak</div>
+          <div id="chartWinStreak" style="font-size:15px;font-weight:800;color:var(--win);">—</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Loss Streak</div>
+          <div id="chartLossStreak" style="font-size:15px;font-weight:800;color:var(--loss);">—</div>
+        </div>
       </div>
     </div>
     <div class="chart-side">
       <div class="chart-side-card" id="weeklyCard">
-        <h3>Weekly Breakdown</h3>
+        <h3>Weekly Breakdown <span style="font-size:9px;color:var(--sub);font-weight:400;">· click to zoom</span></h3>
         <div id="weeklyList"></div>
       </div>
       <div class="chart-side-card">
@@ -295,7 +328,7 @@
       </div>
       <div class="chart-side-card">
         <h3>Flat 1u Simulation</h3>
-        <div style="font-size:10px;color:var(--sub);margin-bottom:8px;">Dogs: risk 1u · Favs: risk |odds|/100u to win 1u · vs your actual stake</div>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:8px;">Dogs risk 1u · Favs risk |odds|/100u to win 1u · vs your actual stake</div>
         <div id="flatStakeStats"></div>
       </div>
     </div>
@@ -1879,11 +1912,40 @@ function applyOddsOverrides() {
 // ─── CHART ────────────────────────────────────────────────────────────────────
 let chartRange = 'all';
 let chartInst = null;
+let chartWeekKey = null; // selected week start date string
 
 function setRange(r, el) {
   chartRange = r;
+  if (r !== 'week') chartWeekKey = null;
   document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
+  renderChart();
+}
+
+function clearWeekFilter() {
+  chartWeekKey = null;
+  chartRange = 'all';
+  document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.range-btn:last-of-type').classList.add('active');
+  document.getElementById('chartSelectedWeek').style.display = 'none';
+  document.getElementById('weekRangeBtn').style.display = 'none';
+  renderChart();
+}
+
+function selectWeek(weekKey) {
+  chartWeekKey = weekKey;
+  chartRange = 'week';
+  // show week btn active
+  document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+  const wb = document.getElementById('weekRangeBtn');
+  wb.style.display = '';
+  wb.classList.add('active');
+  const d = new Date(weekKey);
+  const end = new Date(weekKey); end.setDate(end.getDate()+6);
+  const label = `${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}–${end.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
+  const sel = document.getElementById('chartSelectedWeek');
+  sel.textContent = `📅 ${label} · click to clear`;
+  sel.style.display = 'block';
   renderChart();
 }
 
@@ -1925,6 +1987,21 @@ function renderChart() {
   let filtered = points;
   if (chartRange==='7d') filtered = points.slice(-8);
   else if (chartRange==='30d') filtered = points.slice(-31);
+  else if (chartRange==='week' && chartWeekKey) {
+    const wStart = new Date(chartWeekKey);
+    const wEnd = new Date(chartWeekKey); wEnd.setDate(wEnd.getDate()+7);
+    filtered = points.filter(p => {
+      if (p.label==='Start') return true;
+      const pd = new Date(p.date);
+      return pd >= wStart && pd < wEnd;
+    });
+    if (filtered.length < 2) filtered = points.slice(-8); // fallback
+  }
+
+  const rangeLabel = chartRange==='week' && chartWeekKey
+    ? (() => { const d=new Date(chartWeekKey); const e=new Date(chartWeekKey); e.setDate(e.getDate()+6); return `${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}–${e.toLocaleDateString('en-US',{month:'short',day:'numeric'})} · P&L`; })()
+    : chartRange==='7d'?'Last 7 Days':chartRange==='30d'?'Last 30 Days':'All Time · Cumulative P&L';
+  document.getElementById('chartRangeLabel').textContent = rangeLabel;
 
   const fmt = v => (v>=0?'+':'')+v.toFixed(2)+'u';
   const final = filtered[filtered.length-1]?.y ?? 0;
@@ -2425,9 +2502,10 @@ function renderWeekly(dates) {
     const d = new Date(wk);
     const end = new Date(wk); end.setDate(end.getDate()+6);
     const label = `${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${end.toLocaleDateString('en-US',{day:'numeric'})}`;
-    html += `<div class="weekly-row">
+    const isSelected = chartWeekKey === wk;
+    html += `<div class="weekly-row" onclick="selectWeek('${wk}')" style="cursor:pointer;${isSelected?'background:rgba(0,212,255,.08);border-radius:4px;padding:6px 6px;':''}">
       <div>
-        <div class="weekly-label">${label}</div>
+        <div class="weekly-label" style="${isSelected?'color:var(--accent);':''}">${label}</div>
         <div class="weekly-rec">${w}W–${l}L${p?' '+p+'P':''}</div>
       </div>
       <div style="font-size:14px;font-weight:800;color:${pnl>=0?'var(--win)':'var(--loss)'};">${pnl>=0?'+':''}${pnl.toFixed(1)}u</div>
