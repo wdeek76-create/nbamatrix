@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MLB Channel P&L Grader</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0f1117;
     --panel: #16181f;
     --card: #1c1e26;
     --border: #2a2d38;
-    --accent: #00d4ff;
-    --accent2: #00ff9d;
+    --accent: #4f7cff;
+    --accent2: #ffffff;
     --win: #22c55e;
     --loss: #ef4444;
     --push: #f59e0b;
@@ -20,13 +20,13 @@
     --sub: #6b7280;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; min-height: 100vh; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; min-height: 100vh; font-feature-settings: 'tnum' 1, 'kern' 1; -webkit-font-smoothing: antialiased; }
 
-  header { background: linear-gradient(135deg, #0d1b2e 0%, #0a0e1a 100%); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  header h1 { font-size: 15px; font-weight: 800; letter-spacing: 1.5px; color: var(--accent); text-transform: uppercase; }
+  header { background: var(--panel); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; font-weight: 900; letter-spacing: .5px; color: var(--accent); text-transform: uppercase; }
   header .sub { color: var(--sub); font-size: 11px; margin-top: 2px; }
 
-  .grade-btn { background: var(--accent); color: #000; border: none; padding: 8px 16px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px; cursor: pointer; text-transform: uppercase; transition: opacity .15s; border-radius: 6px; }
+  .grade-btn { background: var(--accent); color: #fff; border: none; padding: 8px 16px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px; cursor: pointer; text-transform: uppercase; transition: opacity .15s; border-radius: 6px; }
   .grade-btn:hover { opacity: .85; }
   .grade-btn:disabled { opacity: .4; cursor: not-allowed; }
   .grade-btn.running { background: var(--push); }
@@ -35,8 +35,8 @@
 
   .stats-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
   .stat { padding: 12px 20px; border-right: 1px solid var(--border); min-width: 110px; }
-  .stat .label { font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--sub); margin-bottom: 5px; }
-  .stat .val { font-size: 18px; font-weight: 800; }
+  .stat .label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #6b7799; margin-bottom: 5px; }
+  .stat .val { font-size: 18px; font-weight: 900; color: #ffffff; }
   .stat .val.pos { color: var(--win); }
   .stat .val.neg { color: var(--loss); }
   .stat .val.neu { color: var(--accent); }
@@ -44,7 +44,7 @@
   .filters { display: flex; gap: 6px; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
   .filter-btn { background: var(--card); border: 1px solid var(--border); color: var(--sub); padding: 4px 12px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; cursor: pointer; transition: all .12s; border-radius: 20px; }
   .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+  .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
   .filters select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; font-family: 'Inter', sans-serif; font-size: 11px; border-radius: 6px; }
   .filters input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; font-family: 'Inter', sans-serif; font-size: 11px; width: 140px; border-radius: 6px; }
   .filters input::placeholder { color: var(--sub); }
@@ -52,16 +52,16 @@
 
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; background: var(--bg); }
-  th { background: var(--panel); color: var(--sub); font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 8px 12px; text-align: left; position: sticky; top: 0; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+  th { background: var(--panel); color: var(--sub); font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 12px; text-align: left; position: sticky; top: 0; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
   th:hover { color: var(--accent); }
-  td { padding: 8px 12px; border-bottom: 1px solid rgba(30,45,69,0.5); white-space: nowrap; font-size: 13px; background: var(--bg); }
-  tr:not(.day-header):hover td { background: rgba(0,212,255,.04); }
+  td { padding: 8px 12px; border-bottom: 1px solid rgba(35,40,64,0.8); white-space: nowrap; font-size: 13px; background: var(--bg); color: #ffffff; font-weight: 500; }
+  tr:not(.day-header):hover td { background: rgba(79,124,255,.04); }
 
-  .day-header td { background: rgba(0,212,255,.05); color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 12px; border-top: 1px solid rgba(0,212,255,.12); border-bottom: 1px solid rgba(0,212,255,.12); }
+  .day-header td { background: rgba(79,124,255,.05); color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 12px; border-top: 1px solid rgba(79,124,255,.12); border-bottom: 1px solid rgba(79,124,255,.12); }
 
   .result-pill { display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 700; min-width: 46px; text-align: center; border-radius: 20px; }
-  .result-pill.win  { background: rgba(0,230,118,.15); color: var(--win);  border: 1px solid rgba(0,230,118,.4); }
-  .result-pill.loss { background: rgba(255,68,68,.15);  color: var(--loss); border: 1px solid rgba(255,68,68,.4); }
+  .result-pill.win  { background: rgba(34,197,94,.12); color: var(--win);  border: 1px solid rgba(34,197,94,.35); }
+  .result-pill.loss { background: rgba(239,68,68,.12);  color: var(--loss); border: 1px solid rgba(239,68,68,.35); }
   .result-pill.push { background: rgba(255,165,0,.12);  color: var(--push); border: 1px solid rgba(255,165,0,.4); }
   .result-pill.pending { background: rgba(168,180,200,.1); color: var(--sub); border: 1px solid rgba(168,180,200,.3); }
 
@@ -69,34 +69,34 @@
   .manual-result { display: flex; gap: 3px; }
   .rb { padding: 2px 7px; font-size: 10px; font-weight: 600; border: 1px solid var(--border); background: var(--card); color: var(--sub); cursor: pointer; font-family: 'Inter', sans-serif; border-radius: 4px; }
   .rb:hover { border-color: var(--accent); color: var(--accent); }
-  .rb.active-w { background: rgba(0,230,118,.2); border-color: var(--win); color: var(--win); }
-  .rb.active-l { background: rgba(255,68,68,.2); border-color: var(--loss); color: var(--loss); }
+  .rb.active-w { background: rgba(34,197,94,.18); border-color: var(--win); color: var(--win); }
+  .rb.active-l { background: rgba(239,68,68,.18); border-color: var(--loss); color: var(--loss); }
   .rb.active-p { background: rgba(255,165,0,.2); border-color: var(--push); color: var(--push); }
 
-  .pnl-pos { color: var(--win); font-weight: 700; }
-  .pnl-neg { color: var(--loss); font-weight: 700; }
-  .pnl-push { color: var(--push); font-weight: 600; }
+  .pnl-pos { color: var(--win); font-weight: 800; font-size: 13px; }
+  .pnl-neg { color: var(--loss); font-weight: 800; font-size: 13px; }
+  .pnl-push { color: var(--push); font-weight: 700; }
 
-  .f5-tag { background: rgba(0,212,255,.1); color: var(--accent); border: 1px solid rgba(0,212,255,.3); padding: 1px 6px; font-size: 9px; font-weight: 700; letter-spacing: .5px; border-radius: 4px; }
-  .team-cell { font-weight: 600; color: var(--text); }
-  .odds-pos { color: #7dd3fc; font-weight: 600; }
-  .odds-neg { color: var(--text); }
+  .f5-tag { background: rgba(79,124,255,.1); color: var(--accent); border: 1px solid rgba(79,124,255,.3); padding: 1px 6px; font-size: 9px; font-weight: 700; letter-spacing: .5px; border-radius: 4px; }
+  .team-cell { font-weight: 700; color: #ffffff; font-size: 13px; }
+  .odds-pos { color: #ffffff; font-weight: 700; }
+  .odds-neg { color: #ffffff; font-weight: 700; }
   .api-conflict { color: var(--push); font-size: 9px; font-weight: 600; margin-left: 2px; }
   .conflict td { background: rgba(255,165,0,.05) !important; }
   .odds-edit { cursor: pointer; border-bottom: 1px dashed rgba(168,180,200,.3); }
   .odds-edit:hover { border-bottom-color: var(--accent); color: var(--accent); }
   .odds-input { width: 60px; background: var(--card); border: 1px solid var(--accent); color: var(--text); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; padding: 1px 4px; text-align: center; outline: none; border-radius: 4px; }
 
-  #status-bar { padding: 6px 14px; font-size: 11px; color: var(--accent); background: rgba(0,212,255,.04); border-bottom: 1px solid var(--border); min-height: 26px; font-weight: 500; }
+  #status-bar { padding: 6px 14px; font-size: 11px; color: var(--accent); background: rgba(79,124,255,.04); border-bottom: 1px solid var(--border); min-height: 26px; font-weight: 500; }
   .progress-wrap { padding: 4px 14px; }
   .progress-bar { height: 2px; background: var(--border); border-radius: 2px; }
   .progress-fill { height: 100%; background: var(--accent); transition: width .3s; border-radius: 2px; }
 
   /* ── TABS ── */
-  .tab-nav { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); }
-  .tab-btn { padding: 10px 22px; font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; border: none; background: none; color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; transition: all .12s; font-family: 'Inter', sans-serif; }
+  .tab-nav { display: flex; background: var(--panel); border-bottom: 2px solid var(--border); }
+  .tab-btn { padding: 11px 22px; font-size: 12px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; border: none; background: none; color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .12s; font-family: 'Inter', sans-serif; }
   .tab-btn:hover { color: var(--text); }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
@@ -130,7 +130,7 @@
   .chart-big { font-size: 36px; font-weight: 800; margin-bottom: 16px; }
   .chart-range { display: flex; gap: 6px; margin-bottom: 16px; }
   .range-btn { padding: 4px 12px; font-size: 11px; font-weight: 700; border: 1px solid var(--border); background: var(--card); color: var(--sub); cursor: pointer; font-family: 'Inter', sans-serif; }
-  .range-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .range-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .chart-side { display: flex; flex-direction: column; gap: 14px; }
   .chart-side-card { background: var(--panel); border: 1px solid var(--border); padding: 16px; }
   .chart-side-card h3 { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--sub); margin-bottom: 10px; }
@@ -153,11 +153,11 @@
   .add-panel textarea { width: 100%; height: 200px; background: var(--card); border: 1px solid var(--border); color: var(--text); font-family: 'Inter', sans-serif; font-size: 12px; padding: 10px; resize: vertical; outline: none; }
   .add-panel textarea:focus { border-color: var(--accent); }
   .add-panel textarea::placeholder { color: var(--sub); }
-  .parse-btn { margin-top: 10px; background: var(--accent); color: #000; border: none; padding: 8px 18px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
+  .parse-btn { margin-top: 10px; background: var(--accent); color: #fff; border: none; padding: 8px 18px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
   .parse-btn:hover { opacity: .85; }
   .parse-preview { margin-top: 12px; max-height: 300px; overflow-y: auto; }
   .preview-row { padding: 6px 8px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; font-size: 12px; }
-  .preview-row:hover { background: rgba(0,212,255,.04); }
+  .preview-row:hover { background: rgba(79,124,255,.04); }
   .preview-date { color: var(--sub); width: 60px; font-size: 11px; }
   .preview-team { font-weight: 600; flex: 1; }
   .preview-odds { color: var(--accent); width: 60px; font-weight: 600; }
@@ -199,7 +199,6 @@
   <button class="tab-btn active" onclick="switchTab('bets',this)">📋 Bets</button>
   <button class="tab-btn" onclick="switchTab('calendar',this)">📅 Calendar</button>
   <button class="tab-btn" onclick="switchTab('chart',this)">📈 Chart</button>
-  <button class="tab-btn" onclick="switchTab('preseason',this)">🔍 Pre-Season Grader</button>
   <button class="tab-btn" onclick="switchTab('add',this)">➕ Add Bets</button>
 </div>
 
@@ -240,7 +239,7 @@
     <option value="">All Dates</option>
   </select>
 </div>
-<div id="teamSearchStats" style="display:none;padding:8px 14px;background:rgba(0,212,255,.05);border-bottom:1px solid var(--border);display:none;align-items:center;gap:20px;flex-wrap:wrap;"></div>
+<div id="teamSearchStats" style="display:none;padding:8px 14px;background:rgba(79,124,255,.05);border-bottom:1px solid var(--border);display:none;align-items:center;gap:20px;flex-wrap:wrap;"></div>
 <div class="table-wrap">
 <table id="betTable">
   <thead>
@@ -1165,7 +1164,7 @@ function renderTable() {
           if(r==='win')earlyW++;else if(r==='loss')earlyL++;else if(r==='push')earlyP++;
           if(pl!==null)earlyPnl+=pl;
         });
-        html += `<tr style="background:rgba(0,212,255,.08);border-top:2px solid rgba(0,212,255,.3);border-bottom:2px solid rgba(0,212,255,.3);">
+        html += `<tr style="background:rgba(79,124,255,.08);border-top:2px solid rgba(79,124,255,.3);border-bottom:2px solid rgba(79,124,255,.3);">
           <td colspan="7" style="color:var(--accent);font-size:11px;font-weight:700;padding:8px 12px;">
             ── PRE-SEASON (3/26–4/12): ${earlyW}W-${earlyL}L${earlyP?' '+earlyP+'P':''} &nbsp;·&nbsp;
             <span style="color:${earlyPnl>=0?'var(--win)':'var(--loss)'};">${earlyPnl>=0?'+':''}${earlyPnl.toFixed(2)}u</span>
@@ -1184,7 +1183,7 @@ function renderTable() {
         if(r==='win')earlyW++;else if(r==='loss')earlyL++;else if(r==='push')earlyP++;
         if(pl!==null)earlyPnl+=pl;
       });
-      html += `<tr style="background:rgba(0,212,255,.08);border-top:2px solid rgba(0,212,255,.3);border-bottom:2px solid rgba(0,212,255,.3);">
+      html += `<tr style="background:rgba(79,124,255,.08);border-top:2px solid rgba(79,124,255,.3);border-bottom:2px solid rgba(79,124,255,.3);">
         <td colspan="7" style="color:var(--accent);font-size:11px;font-weight:700;padding:8px 12px;">
           ── PRE-SEASON (3/26–4/12): ${earlyW}W-${earlyL}L${earlyP?' '+earlyP+'P':''} &nbsp;·&nbsp;
           <span style="color:${earlyPnl>=0?'var(--win)':'var(--loss)'};">${earlyPnl>=0?'+':''}${earlyPnl.toFixed(2)}u</span> ──
@@ -1207,11 +1206,11 @@ function renderTable() {
     const scoreDisp = b.score ? `<span style="font-weight:600;color:${r==='win'?'var(--win)':r==='loss'?'var(--loss)':'var(--push)'};">${b.score}</span>` : '—';
 
     html += `<tr class="${b.conflict?'conflict':''}">
-      <td style="color:var(--sub);font-size:12px;">${(b.date||'—').replace('/2026','/26')}</td>
+      <td style="color:#8892b0;font-size:12px;">${(b.date||'—').replace('/2026','/26')}</td>
       <td class="team-cell"><span style="cursor:pointer;border-bottom:1px dashed rgba(168,180,200,.3);" onclick="editTeam(${b.id},this)">${teamLogo(b.team)}${b.team}</span>${b.isF5?' <span class="f5-tag">F5</span>':''}${b.isTotal?` <span class="f5-tag" style="background:rgba(255,165,0,.1);color:var(--push);border-color:rgba(255,165,0,.3);">u${b.totalLine}</span>`:''}${conflictIcon}</td>
       <td><span class="odds-edit ${b.odds>0?'odds-pos':'odds-neg'}" onclick="editOdds(${b.id},this)">${b.odds>0?'+':''}${b.odds}</span></td>
-      <td><span class="odds-edit" style="color:var(--sub);" onclick="editRisk(${b.id},this)">${b.risk!==null?b.risk+'u':'—'}</span></td>
-      <td style="color:var(--accent2);font-weight:600;">${b.toWin?'+'+b.toWin+'u':'—'}</td>
+      <td><span class="odds-edit" style="color:#ffffff;font-weight:700;" onclick="editRisk(${b.id},this)">${b.risk!==null?b.risk+'u':'—'}</span></td>
+      <td style="color:#ffffff;font-weight:700;">${b.toWin?'+'+b.toWin+'u':'—'}</td>
       <td>
         <div class="result-cell">
           ${resultPill}${apiNote}
@@ -1225,7 +1224,7 @@ function renderTable() {
       </td>
       <td>${scoreDisp}</td>
       <td style="text-align:right;padding-right:14px;">${pnlStr}</td>
-      <td style="text-align:right;padding-right:14px;font-size:12px;">${runStr}</td>
+      <td style="text-align:right;padding-right:14px;font-size:12px;font-weight:700;">${runStr}</td>
     </tr>`;
   });
 
@@ -2055,13 +2054,13 @@ function renderChart() {
   function drawBase() {
     ctx.clearRect(0,0,W,H);
     // zero line
-    ctx.strokeStyle='rgba(168,180,200,.2)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.strokeStyle='rgba(107,119,153,.2)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
     ctx.beginPath(); ctx.moveTo(pad.l,toY(0)); ctx.lineTo(pad.l+gW,toY(0)); ctx.stroke();
     ctx.setLineDash([]);
     // gradient fill
     const grad = ctx.createLinearGradient(0,pad.t,0,pad.t+gH);
-    grad.addColorStop(0,'rgba(0,230,118,.3)');
-    grad.addColorStop(1,'rgba(0,230,118,.02)');
+    grad.addColorStop(0,'rgba(34,197,94,.25)');
+    grad.addColorStop(1,'rgba(34,197,94,.02)');
     ctx.beginPath();
     ctx.moveTo(toX(0),toY(filtered[0].y));
     filtered.forEach((p,i)=>ctx.lineTo(toX(i),toY(p.y)));
@@ -2070,47 +2069,47 @@ function renderChart() {
     ctx.closePath();
     ctx.fillStyle=grad; ctx.fill();
     // line
-    ctx.strokeStyle='#00e676'; ctx.lineWidth=2.5; ctx.lineJoin='round';
+    ctx.strokeStyle='#22c55e'; ctx.lineWidth=2.5; ctx.lineJoin='round';
     ctx.beginPath();
     filtered.forEach((p,i)=>{ if(i===0) ctx.moveTo(toX(i),toY(p.y)); else ctx.lineTo(toX(i),toY(p.y)); });
     ctx.stroke();
     // peak marker
     const px2 = toX(peakIdx), py2 = toY(filtered[peakIdx].y);
-    ctx.fillStyle='#00e676';
+    ctx.fillStyle='#22c55e';
     ctx.beginPath(); ctx.arc(px2,py2,5,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#0a0e1a'; ctx.lineWidth=2;
+    ctx.strokeStyle='#0c0e14'; ctx.lineWidth=2;
     ctx.beginPath(); ctx.arc(px2,py2,5,0,Math.PI*2); ctx.stroke();
     // peak label with background
-    ctx.font='bold 10px Inter'; ctx.textAlign='center';
+    ctx.font='700 10px Inter'; ctx.textAlign='center';
     const peakLabel = `▲ ${filtered[peakIdx].y>=0?'+':''}${filtered[peakIdx].y.toFixed(2)}u`;
     const plx = Math.min(Math.max(px2, pad.l+36), W-pad.r-36);
     const plw = ctx.measureText(peakLabel).width + 12;
-    ctx.fillStyle='rgba(10,14,26,.85)'; ctx.strokeStyle='rgba(0,230,118,.5)'; ctx.lineWidth=1;
+    ctx.fillStyle='rgba(12,14,20,.92)'; ctx.strokeStyle='rgba(34,197,94,.5)'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.roundRect(plx-plw/2, py2-26, plw, 16, 3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='#00e676'; ctx.fillText(peakLabel, plx, py2-14);
+    ctx.fillStyle='#22c55e'; ctx.fillText(peakLabel, plx, py2-14);
 
     // dip marker
     const dx2 = toX(dipIdx), dy2 = toY(filtered[dipIdx].y);
-    ctx.fillStyle='#ff4444';
+    ctx.fillStyle='#ef4444';
     ctx.beginPath(); ctx.arc(dx2,dy2,5,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#0a0e1a'; ctx.lineWidth=2;
+    ctx.strokeStyle='#0c0e14'; ctx.lineWidth=2;
     ctx.beginPath(); ctx.arc(dx2,dy2,5,0,Math.PI*2); ctx.stroke();
     // dip label with background
-    ctx.font='bold 10px Inter'; ctx.textAlign='center';
+    ctx.font='700 10px Inter'; ctx.textAlign='center';
     const dipLabel = `▼ ${filtered[dipIdx].y>=0?'+':''}${filtered[dipIdx].y.toFixed(2)}u`;
     const dlx = Math.min(Math.max(dx2, pad.l+36), W-pad.r-36);
     const dlw = ctx.measureText(dipLabel).width + 12;
-    ctx.fillStyle='rgba(10,14,26,.85)'; ctx.strokeStyle='rgba(255,68,68,.5)'; ctx.lineWidth=1;
+    ctx.fillStyle='rgba(12,14,20,.92)'; ctx.strokeStyle='rgba(239,68,68,.5)'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.roundRect(dlx-dlw/2, dy2-26, dlw, 16, 3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='#ff4444'; ctx.fillText(dipLabel, dlx, dy2-14);
+    ctx.fillStyle='#ef4444'; ctx.fillText(dipLabel, dlx, dy2-14);
     // y-axis
-    ctx.fillStyle='rgba(168,180,200,.6)'; ctx.font='10px Inter'; ctx.textAlign='right';
+    ctx.fillStyle='rgba(107,119,153,.9)'; ctx.font='10px Inter'; ctx.textAlign='right';
     for(let i=0;i<=4;i++){
       const v=minV+(maxV-minV)*(i/4);
       ctx.fillText((v>=0?'+':'')+v.toFixed(1)+'u', pad.l-6, toY(v)+4);
     }
     // x labels
-    ctx.textAlign='center'; ctx.fillStyle='rgba(168,180,200,.5)';
+    ctx.textAlign='center'; ctx.fillStyle='rgba(107,119,153,.7)';
     const step=Math.max(1,Math.floor(filtered.length/10));
     filtered.forEach((p,i)=>{
       if(i%step===0||i===filtered.length-1) ctx.fillText(p.x,toX(i),H-pad.b+14);
@@ -2139,13 +2138,13 @@ function renderChart() {
     ctx.beginPath(); ctx.moveTo(px,pad.t); ctx.lineTo(px,H-pad.b); ctx.stroke();
     ctx.setLineDash([]);
     // dot
-    ctx.fillStyle='#00e676';
+    ctx.fillStyle='#22c55e';
     ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#0a0e1a'; ctx.lineWidth=2;
+    ctx.strokeStyle='#0c0e14'; ctx.lineWidth=2;
     ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2); ctx.stroke();
     // tooltip
-    const pnlColor = pt.y>=0?'#00e676':'#ff4444';
-    const dayColor = pt.dayPnl>=0?'#00e676':'#ff4444';
+    const pnlColor = pt.y>=0?'#22c55e':'#ef4444';
+    const dayColor = pt.dayPnl>=0?'#22c55e':'#ef4444';
     const lines2 = [
       pt.label==='Start' ? 'Baseline' : pt.x,
       `Running: ${pt.y>=0?'+':''}${pt.y.toFixed(2)}u`,
@@ -2156,12 +2155,12 @@ function renderChart() {
     if(tx+tw2>W) tx=px-tw2-12;
     if(ty<pad.t) ty=pad.t;
     if(ty+th2>H-pad.b) ty=H-pad.b-th2;
-    ctx.fillStyle='rgba(10,14,26,.95)';
-    ctx.strokeStyle='rgba(0,212,255,.4)'; ctx.lineWidth=1;
+    ctx.fillStyle='rgba(12,14,20,.95)';
+    ctx.strokeStyle='rgba(79,124,255,.4)'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.roundRect(tx,ty,tw2,th2,4); ctx.fill(); ctx.stroke();
-    ctx.textAlign='left'; ctx.font='bold 11px Inter';
-    ctx.fillStyle='#e2e8f0'; ctx.fillText(lines2[0], tx+10, ty+16);
-    ctx.font='11px Inter';
+    ctx.textAlign='left'; ctx.font='700 11px Inter';
+    ctx.fillStyle='#f0f2ff'; ctx.fillText(lines2[0], tx+10, ty+16);
+    ctx.font='500 11px Inter';
     ctx.fillStyle=pnlColor; ctx.fillText(lines2[1], tx+10, ty+32);
     if(lines2[2]){ ctx.fillStyle=dayColor; ctx.fillText(lines2[2], tx+10, ty+48); }
   };
@@ -2233,7 +2232,7 @@ function renderChart() {
     return `<div style="padding:7px 0;border-bottom:1px solid rgba(30,45,69,.5);">
       <div style="font-size:10px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:5px;text-transform:uppercase;">${label}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-        <div style="background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);padding:6px 8px;border-radius:2px;">
+        <div style="background:rgba(79,124,255,.05);border:1px solid rgba(79,124,255,.15);padding:6px 8px;border-radius:2px;">
           <div style="font-size:9px;font-weight:700;color:var(--accent);letter-spacing:.5px;margin-bottom:3px;">YOUR STAKE</div>
           <div style="font-size:13px;font-weight:800;color:${ac};">${actual.pnl>=0?'+':''}${actual.pnl.toFixed(2)}u</div>
           <div style="font-size:10px;color:var(--sub);">ROI ${actual.roi}%</div>
@@ -2400,24 +2399,24 @@ async function copyPanelImage(type) {
   ctx.scale(2, 2);
 
   // bg
-  ctx.fillStyle = '#0d1320';
+  ctx.fillStyle = '#0c0e14';
   ctx.fillRect(0, 0, W, H);
 
   // title bar
-  ctx.fillStyle = '#111827';
+  ctx.fillStyle = '#12151e';
   ctx.fillRect(0, 0, W, topPad + 28);
-  ctx.fillStyle = '#00d4ff'; ctx.font = 'bold 13px Inter'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#4f7cff'; ctx.font = '700 13px Inter'; ctx.textAlign = 'left';
   ctx.fillText(title.replace(/[^\x00-\x7F]/g,'').trim(), 16, topPad + 18);
 
   // stats summary top right
   let tw=STARTING.w,tl=STARTING.l,tp=STARTING.pnl;
   bets.forEach(b=>{const r=effectiveResult(b);const pl=calcPnl(b);if(r==='win')tw++;else if(r==='loss')tl++;if(pl!==null)tp+=pl;});
-  ctx.fillStyle='#a8b4c8'; ctx.font='10px Inter'; ctx.textAlign='right';
+  ctx.fillStyle='#6b7799'; ctx.font='500 10px Inter'; ctx.textAlign='right';
   ctx.fillText(`DANMLB2026 · ${tw}-${tl} · ${tp>=0?'+':''}${tp.toFixed(2)}u`, W-16, topPad+18);
 
   // col headers
   const hy = topPad + headerH - 6;
-  ctx.fillStyle='#a8b4c8'; ctx.font='bold 9px Inter'; ctx.textAlign='left';
+  ctx.fillStyle='#6b7799'; ctx.font='700 9px Inter'; ctx.textAlign='left';
   ctx.fillText(type==='team'?'TEAM':'RANGE', 16, hy);
   ctx.fillText('W-L (WIN%)', 16+colW[0], hy);
   ctx.textAlign='right';
@@ -2425,7 +2424,7 @@ async function copyPanelImage(type) {
   ctx.fillText('P&L', W - 16, hy);
 
   // divider
-  ctx.strokeStyle='#1e2d45'; ctx.lineWidth=1;
+  ctx.strokeStyle='#232840'; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(16, topPad+headerH); ctx.lineTo(W-16, topPad+headerH); ctx.stroke();
 
   const maxPnl = Math.max(...rows.map(([,v])=>Math.abs(v.pnl)), 0.01);
@@ -2445,10 +2444,10 @@ async function copyPanelImage(type) {
 
     if (i%2===0) { ctx.fillStyle='rgba(255,255,255,.025)'; ctx.fillRect(0, ry, W, rowH); }
 
-    ctx.textAlign='left'; ctx.font='bold 11px Inter'; ctx.fillStyle='#e2e8f0';
+    ctx.textAlign='left'; ctx.font='700 11px Inter'; ctx.fillStyle='#f0f2ff';
     ctx.fillText(name, 16, ry+18);
 
-    ctx.font='10px Inter'; ctx.fillStyle='#a8b4c8';
+    ctx.font='500 10px Inter'; ctx.fillStyle='#6b7799';
     ctx.fillText(recStr, 16+colW[0], ry+18);
 
     // bar
@@ -2458,16 +2457,16 @@ async function copyPanelImage(type) {
     ctx.fillStyle=barColor;
     ctx.beginPath(); ctx.roundRect(barX, ry+11, Math.max(filledW,2), 6, 3); ctx.fill();
 
-    ctx.textAlign='right'; ctx.font='bold 11px Inter'; ctx.fillStyle=barColor;
+    ctx.textAlign='right'; ctx.font='700 11px Inter'; ctx.fillStyle=barColor;
     ctx.fillText(roi, W-16-56, ry+18);
     ctx.fillText(pnlStr, W-16, ry+18);
   });
 
   // footer
   const fy = topPad + headerH + rows.length * rowH + 8;
-  ctx.strokeStyle='#1e2d45'; ctx.lineWidth=1;
+  ctx.strokeStyle='#232840'; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(16, fy); ctx.lineTo(W-16, fy); ctx.stroke();
-  ctx.fillStyle='#a8b4c8'; ctx.font='9px Inter'; ctx.textAlign='center';
+  ctx.fillStyle='#6b7799'; ctx.font='500 9px Inter'; ctx.textAlign='center';
   ctx.fillText(`wdeek76-create.github.io/nbamatrix · ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`, W/2, fy+14);
 
   c.toBlob(async blob => {
@@ -2503,7 +2502,7 @@ function renderWeekly(dates) {
     const end = new Date(wk); end.setDate(end.getDate()+6);
     const label = `${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${end.toLocaleDateString('en-US',{day:'numeric'})}`;
     const isSelected = chartWeekKey === wk;
-    html += `<div class="weekly-row" onclick="selectWeek('${wk}')" style="cursor:pointer;${isSelected?'background:rgba(0,212,255,.08);border-radius:4px;padding:6px 6px;':''}">
+    html += `<div class="weekly-row" onclick="selectWeek('${wk}')" style="cursor:pointer;${isSelected?'background:rgba(79,124,255,.08);border-radius:4px;padding:6px 6px;':''}">
       <div>
         <div class="weekly-label" style="${isSelected?'color:var(--accent);':''}">${label}</div>
         <div class="weekly-rec">${w}W–${l}L${p?' '+p+'P':''}</div>
