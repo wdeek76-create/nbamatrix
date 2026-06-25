@@ -10774,16 +10774,15 @@ function parseInjuryCSV(input) {
       if (status) { status.textContent = "No players parsed"; status.style.color = "#f87171"; }
       return;
     }
-    _ingestInjuryRecords(records);
+    // Store CSV records separately so RW paste can merge on top
+    window._csvInjuryRecords = records;
+    try { localStorage.setItem("wnba_csv_injury_records", JSON.stringify(records)); } catch(e) {}
+    _mergeAndIngestInjuries();
     injuriesLastFetched = Date.now();
-    try {
-      localStorage.setItem("wnba_injuries_cache", JSON.stringify({ records, fetchedAt: injuriesLastFetched }));
-    } catch(e) {}
     if (status) { status.textContent = `CSV: ${records.length} players loaded`; status.style.color = "#22c55e"; }
     showToast(`Injury CSV: ${records.length} players loaded`);
     updateInjuryPanel();
     if (typeof renderTable === "function" && merged) renderTable();
-    // Reset file input so same file can be re-uploaded
     input.value = "";
   };
   reader.readAsText(file);
@@ -10792,6 +10791,26 @@ function parseInjuryCSV(input) {
 // Parse the textarea's contents, merge into existing cache. RotoWire records
 // take priority for any player they cover (more current data). ESPN's records
 // fill gaps for players RotoWire didn't include in the news view.
+// Merge CSV and RW injury records. RW wins for any player it covers (has blurbs).
+// CSV fills gaps for players RW didn't include. Result is ingested + cached.
+function _mergeAndIngestInjuries() {
+  const csvRecords = window._csvInjuryRecords || [];
+  const rwRecords = window._rwInjuryRecords || [];
+  // Build map of RW players (keyed by norm name) — these take priority
+  const rwByNorm = new Map();
+  rwRecords.forEach(rec => rwByNorm.set(norm(rec.athlete.displayName), rec));
+  // Start with all RW records, then add CSV records for players not in RW
+  const merged = [...rwRecords];
+  csvRecords.forEach(rec => {
+    const key = norm(rec.athlete.displayName);
+    if (!rwByNorm.has(key)) merged.push(rec);
+  });
+  _ingestInjuryRecords(merged);
+  try {
+    localStorage.setItem("wnba_injuries_cache", JSON.stringify({ records: merged, fetchedAt: Date.now() }));
+  } catch(e) {}
+}
+
 function parseRotoWireInjuriesPaste() {
   const ta = document.getElementById("rw-injury-paste");
   const status = document.getElementById("rw-injury-status-panel");
@@ -10812,13 +10831,13 @@ function parseRotoWireInjuriesPaste() {
     if (byNorm.has(key)) return;
     byNorm.set(key, rec);
   });
-  const mergedRecords = [...byNorm.values()];
-  _ingestInjuryRecords(mergedRecords);
+  const rwRecords = [...byNorm.values()];
+  // Store RW records separately
+  window._rwInjuryRecords = rwRecords;
+  _mergeAndIngestInjuries();
   injuriesLastFetched = Date.now();
-  try {
-    localStorage.setItem("wnba_injuries_cache", JSON.stringify({ records: mergedRecords, fetchedAt: injuriesLastFetched }));
-  } catch(e) {}
-  const msg = `Parsed ${records.length} RotoWire entries · ${injuriesCache.size} total`;
+  const csvCount = (window._csvInjuryRecords || []).length;
+  const msg = `RW: ${records.length} entries · ${csvCount ? csvCount + ' from CSV · ' : ''}${injuriesCache.size} total`;
   if (status) { status.textContent = msg; status.style.color = "#22c55e"; }
   // Also update upload page status if visible
   const uploadStatus = document.getElementById("rw-injury-status");
@@ -13558,6 +13577,11 @@ try {
   const raw = localStorage.getItem(BBREF_ADV_KEY);
   if (raw) _bbrefAdvCache = JSON.parse(raw);
 } catch(e) { /* non-critical */ }
+// Restore CSV injury records to memory (used for merging with RW paste)
+try {
+  const raw = localStorage.getItem("wnba_csv_injury_records");
+  if (raw) window._csvInjuryRecords = JSON.parse(raw);
+} catch(e) {}
 // Render stamp after DOM ready
 setTimeout(() => { if (typeof _renderBBRefAdvStamp === "function") _renderBBRefAdvStamp(); }, 500);
 // ═══════════════════════════════════════════════════════════════════════════════
