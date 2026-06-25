@@ -2087,6 +2087,8 @@ function trackSpread(spec) {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   })();
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}) + " " + dateStr;
   const newBet = {
     id: Date.now().toString() + "_spread_" + Math.random().toString(36).slice(2, 8),
     player: matchup,
@@ -2111,7 +2113,7 @@ function trackSpread(spec) {
     projSource: projSource || "both",
     edge,
     notes: "",
-    timestamp: Date.now()
+    timestamp: timeStr,
   };
   bets.push(newBet);
   saveBets();
@@ -9218,11 +9220,15 @@ function renderTracker() {
 
     // Edge display: totals → point delta as %, props → EV%
     const isTotal = (b.stat || "").toUpperCase() === "GAME_TOTAL";
+    const isSpread = (b.stat || "").toUpperCase() === "GAME_SPREAD";
     let edgeStr, edgeColor;
     if (isTotal && b.proj != null && b.line != null) {
       const ptsEdge = b.ou === "over" ? (b.proj - b.line) : (b.line - b.proj);
       edgeStr = (ptsEdge >= 0 ? "+" : "") + ptsEdge.toFixed(1) + "%";
       edgeColor = ptsEdge >= 3 ? "#22c55e" : ptsEdge > 0 ? "#7dd3fc" : "#f87171";
+    } else if (isSpread && b.edge != null) {
+      edgeStr = (b.edge >= 0 ? "+" : "") + b.edge.toFixed(1);
+      edgeColor = b.edge >= 1.5 ? "#22c55e" : b.edge > 0 ? "#7dd3fc" : "#f87171";
     } else {
       const ev = calcEdge(b.odds, b.fair);
       edgeStr = ev == null ? "—" : (ev > 0 ? "+" : "") + ev.toFixed(1) + "%";
@@ -9232,14 +9238,13 @@ function renderTracker() {
     // For totals: build a "snapshot summary" line showing every model's edge as it stood at track time.
     // This makes the per-model tracking visible at-a-glance on the card.
     let snapshotsRow = "";
-    if (isTotal && b.projSnapshots && b.line != null) {
+    if ((isTotal || isSpread) && b.projSnapshots && b.line != null) {
       const fmtSnap = (key, label) => {
         const snap = b.projSnapshots[key];
         if (!snap || snap.total == null) return null;
         const e = b.ou === "over" ? (snap.total - b.line) : (b.line - snap.total);
         const c = e >= 3 ? "#22c55e" : e > 0 ? "#7dd3fc" : "#f87171";
         const sign = e >= 0 ? "+" : "";
-        // Mark the model used to place this bet
         const isUsed = key === b.projSource;
         const dot = isUsed ? ' <span style="color:#93c5fd;">●</span>' : "";
         return `<span style="color:#a8b0bb;">${label}</span> <span style="color:${c};font-weight:700;">${sign}${e.toFixed(1)}%</span>${dot}`;
@@ -9251,6 +9256,14 @@ function renderTracker() {
       ].filter(Boolean);
       if (parts.length) {
         snapshotsRow = `<div style="font-size:10px;color:#7a8390;display:flex;gap:10px;margin-top:2px;letter-spacing:0.3px;">${parts.join(" · ")}</div>`;
+      }
+    }
+    // For spreads without snapshots: build a simple row from stored edge
+    if (isSpread && !snapshotsRow) {
+      const modelLabel = b.projSource === "both" ? "Combined" : b.projSource === "paceeff" ? "P×E" : b.projSource === "blended" ? "Players" : "";
+      if (b.projTotal != null) {
+        const projStr = (b.projTotal >= 0 ? "+" : "") + b.projTotal.toFixed(1);
+        snapshotsRow = `<div style="font-size:10px;color:#7a8390;display:flex;gap:10px;margin-top:2px;letter-spacing:0.3px;"><span style="color:#a8b0bb;">${modelLabel}</span> <span style="color:#7dd3fc;font-weight:700;">proj ${projStr}</span></div>`;
       }
     }
 
@@ -9300,7 +9313,7 @@ function renderTracker() {
     const oddsStr = b.odds > 0 ? `+${b.odds}` : b.odds;
     const statLbl = b.stat === "GAME_TOTAL" ? "TOTAL"
       : b.stat === "GAME_SPREAD" && b.pickTeam != null && b.line != null
-        ? `${b.pickTeam} ${b.line >= 0 ? "+" : ""}${b.line} SPREAD`
+        ? `${b.pickTeam} ${b.line >= 0 ? "+" : ""}${b.line}`
         : b.stat;
     const logo = logoFor(b.book);
     const logoEl = logo
@@ -9342,7 +9355,7 @@ function renderTracker() {
                 }
                 return teamLogoImg(b.team, 16);
               })()}
-              <span onclick="editBet(${b.id})" style="cursor:pointer;border-bottom:1px dashed #1e40af77;" title="Click to edit">${b.player}</span> <span style="color:#7dd3fc;font-weight:600;">${b.ou} ${b.line} ${statLbl}</span>${(() => {
+              <span onclick="editBet(${b.id})" style="cursor:pointer;border-bottom:1px dashed #1e40af77;" title="Click to edit">${b.player}</span> <span style="color:#7dd3fc;font-weight:600;">${b.stat === "GAME_SPREAD" ? `spread ${statLbl}` : `${b.ou} ${b.line} ${statLbl}`}</span>${(() => {
                 const ctx = b.injuryContext;
                 let badge = "";
                 if (ctx) {
@@ -9362,7 +9375,7 @@ function renderTracker() {
                 return badge;
               })()}
             </div>
-            <div style="font-size:10px;color:#a8b0bb;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${b.stat==="GAME_TOTAL" && b.projSource ? ` · <span style="color:#7dd3fc;font-weight:700;letter-spacing:0.5px;">${b.projSource === "blended" ? "PLAYER" : b.projSource.toUpperCase()}</span>` : ''}</div>
+            <div style="font-size:10px;color:#a8b0bb;">${b.timestamp || b.date}${b.team?` · ${b.team}`:''}${(b.stat==="GAME_TOTAL"||b.stat==="GAME_SPREAD") && b.projSource ? ` · <span style="color:#7dd3fc;font-weight:700;letter-spacing:0.5px;">${b.projSource === "blended" ? "PLAYER" : b.projSource === "both" ? "COMBINED" : b.projSource.toUpperCase()}</span>` : ''}${b.stat==="GAME_SPREAD" && b.projTotal != null ? ` · proj ${b.projTotal >= 0 ? "+" : ""}${b.projTotal.toFixed(1)}` : ''}</div>
           </div>
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
@@ -9408,20 +9421,20 @@ function renderTracker() {
       <!-- Bottom row: metric grid -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(75px, 1fr));gap:10px;">
         ${stat("Odds", oddsStr, "#fff")}
-        ${isTotal && snapshotsRow
+        ${(isTotal || isSpread) && snapshotsRow
           ? `<div style="display:flex;flex-direction:column;gap:1px;min-width:0;grid-column:span 2;">
               <div style="font-size:9px;color:#d4dae3;letter-spacing:0.6px;font-weight:700;text-transform:uppercase;">Edge</div>
               <div style="font-size:13px;color:${edgeColor};font-weight:700;white-space:nowrap;">${edgeStr}</div>
               ${snapshotsRow}
             </div>`
-          : !isTotal && srcProjsRow
+          : !isTotal && !isSpread && srcProjsRow
           ? `<div style="display:flex;flex-direction:column;gap:1px;min-width:0;grid-column:span 2;">
               <div style="font-size:9px;color:#d4dae3;letter-spacing:0.6px;font-weight:700;text-transform:uppercase;">Edge</div>
               <div style="font-size:13px;color:${edgeColor};font-weight:700;white-space:nowrap;">${edgeStr}</div>
               ${srcProjsRow}
             </div>`
           : stat("Edge", edgeStr, edgeColor)}
-        ${stat("Proj", b.proj!=null?b.proj.toFixed(2):"—", "#7dd3fc")}
+        ${stat("Proj", isSpread && b.projTotal != null ? (b.projTotal >= 0 ? "+" : "") + b.projTotal.toFixed(1) : b.proj!=null?b.proj.toFixed(2):"—", "#7dd3fc")}
         ${stat("Actual", actualStr, actualColor)}
         ${stat("Stake", `${b.stake.toFixed(2)}u`, "#fff")}
         ${stat("P&L", plVal, plColor)}
