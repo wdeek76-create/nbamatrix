@@ -497,12 +497,14 @@ table colgroup col.avg-col{width:16%;}
         <button id="export-extra-btn" onclick="doExportExtra()" title="RG + RW + any loaded optional sources (Saber, Dimers)">EXPORT EXTRA</button>
         <button onclick="clearTrackedProps()" title="Clear all ✓ TRACKED pills from Results. Does NOT affect your actual tracked bets in the Tracker." style="background:#0c0d10;border:1px solid #1a1d22;color:#a8b0bb;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;">CLEAR TRACKED</button>
       </div>
-      <div id="table-wrap">
-        <table>
-          <colgroup id="table-colgroup"></colgroup>
-          <thead id="table-head"></thead>
-          <tbody id="table-body"></tbody>
-        </table>
+      <div style="display:flex;justify-content:flex-end;">
+        <div id="table-wrap">
+          <table>
+            <colgroup id="table-colgroup"></colgroup>
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -1395,7 +1397,6 @@ function renderTable() {
     return `<tr class="${i%2===0?'even':'odd'}">
       <td style="padding:7px 10px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#1e40af30;border:1px solid #1e40af77;color:#7dd3fc;border-radius:5px;padding:0 11px;font-size:18px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:26px;height:26px;flex:0 0 auto;">+</button>
           <span style="font-size:14px;font-weight:700;color:${tc};white-space:nowrap;">${r.rawName}</span>
           <span style="display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;">${r.team ? `${teamLogoImg(r.team, 16)}<span style="background:#7dd3fc1a;border:1px solid #7dd3fc55;color:#7dd3fc;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.team}</span>` : ''}${r.pos ? `<span style="background:#93c5fd1a;border:1px solid #93c5fd55;color:#93c5fd;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;">${r.pos}</span>` : ''}${(() => {
             const inj = getInjuryForPlayer(r.rawName, r.team);
@@ -1535,6 +1536,7 @@ function renderTable() {
             return `<span data-tip="${hazardAttr}" style="display:inline-block;color:#fbbf24;font-size:14px;cursor:help;vertical-align:middle;filter:drop-shadow(0 0 4px rgba(251,191,36,0.9)) drop-shadow(0 0 8px rgba(251,191,36,0.5));line-height:1;">⚠</span>`;
           })()}${trackedPill}</span>
           ${minChip}
+          <button onclick="event.stopPropagation();trackRow(${i})" title="Track bet" style="background:#1e40af30;border:1px solid #1e40af77;color:#7dd3fc;border-radius:5px;padding:0 11px;font-size:18px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;line-height:26px;height:26px;flex:0 0 auto;margin-left:auto;">+</button>
         </div>
         <div style="font-size:12px;color:#dde2e9;font-weight:500;margin-top:4px;margin-left:30px;display:flex;align-items:center;flex-wrap:wrap;gap:2px;">${srcInline || '<span style="color:#525a64">no projections</span>'}</div>
       </td>
@@ -3084,70 +3086,269 @@ function _slugToName(url) {
 // `team` is the team abbr from the Rotowire page (LVA, DAL, IND, etc.)
 function parseLineupsText(text) {
   if (!text) return null;
-  const lines = text.split(/\r?\n/);
   const players = {};
   let gameCount = 0;
-  // We scan for "Expected Lineup" and "MAY NOT PLAY" markers, then capture
-  // the bullet-position + bracketed-player-link entries that follow.
-  let mode = null;  // "starting" | "mnp" | null
-  let currentTeam = null;
-  const pendingTeamAbbrs = [];
-  for (let i = 0; i < lines.length; i++) {
-    const ln = lines[i].trim();
-    // Detect team abbreviation lines: `[LVA](...depth-chart...)` — these come
-    // in pairs before each game's two "Expected Lineup" sub-blocks. Queue them
-    // up; shift one each time we hit "Expected Lineup".
-    const teamAbbrMatch = /^\[([A-Z]{2,4})\]\([^)]*depth-chart/.exec(ln);
-    if (teamAbbrMatch) {
-      pendingTeamAbbrs.push(teamAbbrMatch[1]);
-      continue;
-    }
-    if (/^\*\s*Expected Lineup\b/i.test(ln)) {
-      mode = "starting";
-      currentTeam = pendingTeamAbbrs.shift() || currentTeam;
-      gameCount++;  // Each "Expected Lineup" marker = a team's lineup
-      continue;
-    }
-    if (/^\*\s*MAY NOT PLAY\b/i.test(ln)) {
-      mode = "mnp";
-      // Keep currentTeam — MNP players are from the same team as the prior Expected Lineup
-      continue;
-    }
-    // Sections of the page outside lineups (e.g. promos, footer) won't have
-    // these markers nearby — reset mode if we hit a non-matching block of
-    // text long enough to be content (>2 plain text lines without a player).
-    if (!mode) continue;
-    // Player line: starts with `[Name](url)`, optionally followed by a status word
-    const playerMatch = /^\[([^\]]+)\]\(([^)]+)\)(?:\s+(\w+))?/.exec(ln);
-    if (!playerMatch) continue;
-    const displayedName = playerMatch[1].trim();
-    const url = playerMatch[2].trim();
-    const trailStatus = (playerMatch[3] || "").toUpperCase().trim();
-    // Resolve to full name from URL slug; falls back to displayed name
-    const fullName = _slugToName(url) || displayedName;
-    const norm = (typeof window.norm === "function") ? window.norm(fullName) : fullName.toLowerCase().trim();
-    let status;
-    if (mode === "starting") {
-      status = "STARTING";
-    } else {
-      // MNP: status is one of OUT / GTD / DTD / Q (Questionable) / Probable
-      // Normalize known values; default to whatever Rotowire prints
-      if (trailStatus === "OUT") status = "OUT";
-      else if (trailStatus === "GTD") status = "GTD";
-      else if (trailStatus === "DTD") status = "DTD";
-      else if (trailStatus === "Q" || trailStatus === "QUESTIONABLE") status = "QUESTIONABLE";
-      else if (trailStatus === "PROBABLE" || trailStatus === "P") status = "PROBABLE";
-      else status = trailStatus || "GTD";  // fallback assumption
-    }
-    // Latest entry per player wins (a player listed both in starting and MNP
-    // shouldn't happen, but if it does the second mention is more relevant)
-    players[norm] = { name: fullName, displayedName, status, url, team: currentTeam };
+
+  // ── URL-extraction approach ────────────────────────────────────────────
+  // Find every /wnba/player/ URL in the text. Robust to ordering variations,
+  // blank lines, encoding quirks, and minor differences in how the page
+  // text gets copied between browsers.
+  //
+  // Team assignment: walk section markers in order. Each "Expected Lineup"
+  // marker consumes the next queued team abbr (matching the on-page pattern
+  // where team abbrs appear in pairs before each game's two lineup blocks).
+  // Each player URL gets the team of whichever Expected Lineup section it
+  // falls inside.
+  const PLAYER_URL_RE = /https?:\/\/[^\s)\]]*\/wnba\/player\/[a-z0-9\-]+/gi;
+  const SECTION_RE = /(Expected Lineup|MAY NOT PLAY|Projected Minutes)/gi;
+  const TEAM_DEPTH_RE = /\[([A-Z]{2,4})\]\([^)]*depth-chart[^)]*\)/g;
+  const TIME_RE = /(\d{1,2}:\d{2}\s*(?:AM|PM)\s*ET)/gi;
+  const TRAIL_STATUS_RE = /\s+(OUT|GTD|DTD|Q|QUESTIONABLE|PROBABLE|P)\b/i;
+
+  // Collect all markers (sections, teams, times) with their positions.
+  // Use slice to avoid sharing lastIndex between regex calls.
+  const markers = [];
+  let m;
+  let re;
+  re = new RegExp(SECTION_RE.source, "gi");
+  while ((m = re.exec(text)) !== null) {
+    markers.push({ pos: m.index, kind: "section", value: m[1].toLowerCase() });
   }
+  re = new RegExp(TEAM_DEPTH_RE.source, "g");
+  while ((m = re.exec(text)) !== null) {
+    markers.push({ pos: m.index, kind: "team", value: m[1] });
+  }
+  re = new RegExp(TIME_RE.source, "gi");
+  while ((m = re.exec(text)) !== null) {
+    markers.push({ pos: m.index, kind: "time", value: m[1] });
+  }
+  markers.sort((a, b) => a.pos - b.pos);
+
+  // Walk markers in order. Maintain pending team abbrs queue + active
+  // section state. Each Expected Lineup marker shifts the next team abbr
+  // off the queue and starts a new "section range" with that team.
+  // Each section range covers from the marker's pos to the next marker's pos.
+  // Player URLs falling inside a starting-or-mnp range get that range's team + status.
+  const sectionRanges = [];  // [{startPos, endPos, mode, team}]
+  let pendingAbbrs = [];
+  let currentTeam = null;
+  let currentMode = null;
+  let currentStart = null;
+  const flush = (endPos) => {
+    if (currentMode !== null && currentStart !== null) {
+      sectionRanges.push({ startPos: currentStart, endPos, mode: currentMode, team: currentTeam });
+    }
+    currentMode = null;
+    currentStart = null;
+  };
+  markers.forEach(mk => {
+    if (mk.kind === "team") {
+      pendingAbbrs.push(mk.value);
+      return;
+    }
+    if (mk.kind === "time") {
+      // New game block — reset pending teams + flush current section
+      flush(mk.pos);
+      pendingAbbrs = [];
+      currentTeam = null;
+      return;
+    }
+    // section marker
+    if (mk.value === "expected lineup") {
+      flush(mk.pos);
+      currentTeam = pendingAbbrs.shift() || currentTeam;
+      currentMode = "starting";
+      currentStart = mk.pos;
+      gameCount++;
+    } else if (mk.value === "may not play") {
+      flush(mk.pos);
+      // Same team — MNP follows the Expected Lineup
+      currentMode = "mnp";
+      currentStart = mk.pos;
+    } else if (mk.value === "projected minutes") {
+      flush(mk.pos);
+    }
+  });
+  flush(text.length);
+
+  // For each player URL, find the section range it falls into
+  const playerMatches = [];
+  re = new RegExp(PLAYER_URL_RE.source, "gi");
+  while ((m = re.exec(text)) !== null) {
+    playerMatches.push({ url: m[0], pos: m.index });
+  }
+
+  playerMatches.forEach(({ url, pos }) => {
+    // Find the section range containing this position
+    let range = null;
+    for (const r of sectionRanges) {
+      if (pos >= r.startPos && pos < r.endPos) { range = r; break; }
+    }
+    if (!range) return;  // outside any lineup section — skip
+
+    // Look for trailing status on the same line as the URL
+    const afterUrl = text.slice(pos + url.length);
+    const eol = afterUrl.indexOf("\n");
+    const lineRest = eol === -1 ? afterUrl : afterUrl.slice(0, eol);
+    // Strip the trailing `)` from the markdown closing of the link
+    const restAfterParen = lineRest.replace(/^[)\]\s]*/, " ");
+    let trailStatus = "";
+    const tm = TRAIL_STATUS_RE.exec(restAfterParen);
+    if (tm) trailStatus = tm[1].toUpperCase();
+
+    const fullName = _slugToName(url) || url.split("/").pop().replace(/-\d+$/, "");
+    const normKey = (typeof window.norm === "function") ? window.norm(fullName) : fullName.toLowerCase().trim();
+    const status = range.mode === "starting" ? "STARTING" : _normalizeMnpStatus(trailStatus);
+    players[normKey] = { name: fullName, displayedName: fullName, status, url, team: range.team };
+  });
+
+  // Apply canonical team-abbr collapse so PHO→PHX, LV/LAV→LVA, etc.
+  if (typeof _MATCHUP_ABBR_CANONICAL !== "undefined") {
+    Object.values(players).forEach(p => {
+      if (p.team && _MATCHUP_ABBR_CANONICAL[p.team]) {
+        p.team = _MATCHUP_ABBR_CANONICAL[p.team];
+      }
+    });
+  }
+
+  // ── PLAIN-TEXT FALLBACK ────────────────────────────────────────────────
+  // If URL extraction found no players, the paste is probably plain text
+  // (no markdown links). Walk lines after "Expected Lineup" / "MAY NOT PLAY"
+  // markers and grab anything that looks like a person's name. Conservative:
+  // bails out at footer/promo content terminators and rejects obvious
+  // non-player phrases like "Lineup Optimizer" or "Very Likely".
+  if (Object.keys(players).length === 0) {
+    const lines = text.split(/\r?\n/);
+    const KNOWN_TEAM_ABBRS = new Set([
+      "ATL","CHI","CON","DAL","GSV","IND","LAS","LVA","LV","LAV","MIN","NY","NYL",
+      "PHX","PHO","POR","SEA","TOR","WAS","WSH"
+    ]);
+    // Words that, if they appear as a STANDALONE token, disqualify the line
+    // as a player name. These are common footer/promo/UI vocabulary.
+    const DISQUALIFY_WORDS = new Set([
+      "optimizer","lineup","tool","tools","report","bonus","sign","up",
+      "likely","unlikely","toss","tossup","probable","customers","rotowire",
+      "fantasy","daily","picks","props","picks&props","draftkings","fanduel",
+      "betmgm","caesars","value","estimated","chance","play","beware",
+      "scratch","photo","credits","about","contact","advertise","partner",
+      "jobs","privacy","policy","terms","service","responsible","articles",
+      "discord","apps","store","play","subject","gambling","problem",
+      "build","find","generate","pick","picks","matched","fancash","point",
+      "changes","leaderboard","cheat","sheet","projections","stats","split",
+      "trends","championship","odds","ratings","rankings","futures","savings",
+      "depth","chart","charts","game","games","build","tracker","mock","draft",
+      "alerts","tickets","date","display","preference","hide","add","skip",
+      "main","content","wnba","starting","lineups","you","may","also",
+      "interested","new","customer","get","matched"
+    ]);
+    // Explicit phrases that, when encountered, end the lineups section
+    // entirely — reset mode so we don't keep capturing footer content.
+    const END_OF_LINEUPS_RE = /^(Sign Up Bonus|ROTOWIRE|Click to Copy|You may also|Daily Fantasy|Lineup Optimizer|Value Report|Estimated Chance|Very Likely|Very Unlikely|Toss Up|Beware the|About Us|Contact Us|Advertise|Partner|Jobs|GAMB |© Copyright|Privacy Policy|Terms of Service|Responsible Play|Photo Credits|GAMBLING PROBLEM|RotoWire offers|Hope is here|Play it smart|Subject to|New Customers)/i;
+    let mode = null;
+    let pendingAbbrs = [];
+    let currentTeam = null;
+    let plainGameCount = 0;
+    const POS_ONLY = /^\*?\s*(PG|SG|SF|PF|G|F|C)\s*$/i;
+    const POS_PREFIX = /^\*?\s*(PG|SG|SF|PF|G|F|C)\b[\s\t]+(.+)$/i;
+    const TIME_LINE = /^\d{1,2}:\d{2}\s*(AM|PM)\s*ET\b/i;
+    const TRAIL_STATUS = /\s+(OUT|GTD|DTD|Q|QUESTIONABLE|PROBABLE|P)$/i;
+    const TRAIL_NUMBER = /\s+\d{1,3}(?:\.\d+)?$/;
+
+    const tryExtractName = (raw) => {
+      let s = raw.trim();
+      // Strip trailing status
+      let status = "";
+      const tm = TRAIL_STATUS.exec(s);
+      if (tm) { status = tm[1].toUpperCase(); s = s.slice(0, tm.index).trim(); }
+      // Strip trailing number (projected minutes etc.)
+      const nm = TRAIL_NUMBER.exec(s);
+      if (nm) s = s.slice(0, nm.index).trim();
+      // Strip leading position prefix if present
+      const pp = POS_PREFIX.exec(s);
+      if (pp) s = pp[2].trim();
+      // Strip markdown link wrapping if any leaked through
+      const lk = /^\[([^\]]+)\]\([^)]*\)/.exec(s);
+      if (lk) s = lk[1].trim();
+      if (!s || s.length > 50 || s.length < 5) return null;
+      // Must have at least one capital letter
+      if (!/[A-Z]/.test(s)) return null;
+      // Tokenize
+      const words = s.split(/\s+/);
+      // Require 2-4 tokens (player names usually 2-3 words; allow up to 4)
+      if (words.length < 2 || words.length > 4) return null;
+      // Every token must start with capital OR be a name-style initial (e.g. "N.")
+      if (!words.every(w => /^[A-Z]/.test(w) || /^[A-Z]\./.test(w))) return null;
+      // At least one token must be 3+ chars (real surnames are usually 3+ chars)
+      if (!words.some(w => w.replace(/[^A-Za-z]/g, "").length >= 3)) return null;
+      // Reject if any token (lowercased) is in the disqualifier list
+      for (const w of words) {
+        const lc = w.toLowerCase().replace(/[^a-z]/g, "");
+        if (DISQUALIFY_WORDS.has(lc)) return null;
+      }
+      // Reject if line contains common non-name punctuation/symbols
+      if (/[:;@#$%^&*=<>\/\\|{}]/.test(s)) return null;
+      return { name: s, status };
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const ln = lines[i].trim();
+      if (!ln) continue;
+      // End of lineups section — reset mode and don't capture any more
+      if (END_OF_LINEUPS_RE.test(ln)) { mode = null; continue; }
+      if (TIME_LINE.test(ln)) { mode = null; continue; }
+      if (KNOWN_TEAM_ABBRS.has(ln)) { pendingAbbrs.push(ln); continue; }
+      // Multiple team abbrs on one line (e.g. "LAS TOR")
+      {
+        const toks = ln.split(/\s+/);
+        if (toks.length >= 2 && toks.length <= 4 && toks.every(t => KNOWN_TEAM_ABBRS.has(t))) {
+          toks.forEach(t => pendingAbbrs.push(t));
+          continue;
+        }
+      }
+      if (/Expected Lineup/i.test(ln)) {
+        mode = "starting";
+        currentTeam = pendingAbbrs.shift() || currentTeam;
+        plainGameCount++;
+        continue;
+      }
+      if (/MAY NOT PLAY/i.test(ln)) { mode = "mnp"; continue; }
+      if (/Projected Minutes/i.test(ln)) { mode = null; continue; }
+      if (!mode) continue;
+      // Skip position-only lines
+      if (POS_ONLY.test(ln)) continue;
+      const extracted = tryExtractName(ln);
+      if (!extracted) continue;
+      const normKey = (typeof window.norm === "function") ? window.norm(extracted.name) : extracted.name.toLowerCase().trim();
+      const status = mode === "starting" ? "STARTING" : _normalizeMnpStatus(extracted.status);
+      players[normKey] = { name: extracted.name, displayedName: extracted.name, status, url: "", team: currentTeam };
+    }
+    if (plainGameCount > 0) gameCount = plainGameCount;
+    // Apply canonical team-abbr collapse to fallback results too
+    if (typeof _MATCHUP_ABBR_CANONICAL !== "undefined") {
+      Object.values(players).forEach(p => {
+        if (p.team && _MATCHUP_ABBR_CANONICAL[p.team]) {
+          p.team = _MATCHUP_ABBR_CANONICAL[p.team];
+        }
+      });
+    }
+  }
+
   return {
     fetchedAt: Date.now(),
     players,
-    gameCount: Math.ceil(gameCount / 2),  // Each game has 2 teams = 2 markers
+    gameCount: Math.ceil(gameCount / 2),
   };
+}
+
+// Status word normalization helper
+function _normalizeMnpStatus(trailStatus) {
+  const s = (trailStatus || "").toUpperCase();
+  if (s === "OUT") return "OUT";
+  if (s === "GTD") return "GTD";
+  if (s === "DTD") return "DTD";
+  if (s === "Q" || s === "QUESTIONABLE") return "QUESTIONABLE";
+  if (s === "PROBABLE" || s === "P") return "PROBABLE";
+  return s || "GTD";
 }
 
 // Look up a player's lineup status. Returns null if no data or no match.
@@ -3176,12 +3377,20 @@ function handleLineupsParseUpload() {
   }
   const parsed = parseLineupsText(text);
   if (!parsed || Object.keys(parsed.players).length === 0) {
-    showToast("Couldn't parse — try copying from rotowire lineups page again");
+    // Diagnostic: tell the user what was missing so they can fix the paste
+    const hasUrls = /\/wnba\/player\//.test(text);
+    const hasExpected = /Expected Lineup/i.test(text);
+    const hasMnp = /MAY NOT PLAY/i.test(text);
+    let hint = "Try again";
+    if (!hasUrls && !hasExpected) hint = "Paste seems empty of lineup content — copy the Rotowire lineups page again";
+    else if (!hasExpected) hint = "No 'Expected Lineup' section found — copy includes header text but not the lineup blocks";
+    else if (!hasUrls && hasExpected) hint = "Found 'Expected Lineup' but no player names captured — make sure you scrolled and copied the full lineup blocks";
+    showToast(`Couldn't parse: ${hint}`);
     return;
   }
   saveLineupsData(parsed);
   renderLineupsStatus();
-  ta.value = "";  // clear paste field after success
+  ta.value = "";
   showToast(`Loaded ${Object.keys(parsed.players).length} players · ${parsed.gameCount} games`);
 }
 
@@ -4868,6 +5077,22 @@ function updateInjuryCtxInModal() {
       lcColor = "#fbbf24"; lcEmoji = "⚠"; lcLabel = s;
       lcCopy = `${player.split(" ").slice(-1)[0]} is listed as ${s} per Rotowire's lineup page.`;
     }
+    // Look up the injury record to pull the full Rotowire blurb (headline +
+    // analysis) so DTD/GTD/OUT players show the actual news content, not just
+    // a status label. We use the raw injuriesCache directly here so the lookup
+    // works even when ownInjury was suppressed by the dedup above.
+    let injRec = null;
+    if (typeof injuriesCache !== "undefined" && injuriesCache && typeof norm === "function") {
+      injRec = injuriesCache.get(norm(player)) || null;
+    }
+    const headline = (injRec?.comment || "").trim();
+    const blurb = (injRec?.longComment || "").trim();
+    const esc = (str) => str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const newsBlock = (headline || blurb) ? `
+        <div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;">
+          ${headline ? `<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${blurb ? "6px" : "0"};">${esc(headline)}</div>` : ""}
+          ${blurb ? `<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.85;">${esc(blurb)}</div>` : ""}
+        </div>` : "";
     sections.push(`
       <div style="background:rgba(${s === "STARTING" ? "34,197,94" : s === "OUT" ? "248,113,113" : "245,158,11"},0.06);border:1px solid ${lcColor}66;border-radius:8px;padding:11px 13px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -4875,7 +5100,7 @@ function updateInjuryCtxInModal() {
           <div style="font-size:11px;font-weight:800;color:${lcColor};letter-spacing:0.7px;text-transform:uppercase;">Lineups · ${lcLabel}</div>
           <span style="margin-left:auto;font-size:9px;color:#fff;opacity:0.45;letter-spacing:0.3px;">rotowire</span>
         </div>
-        <div style="font-size:11.5px;color:#fff;line-height:1.5;opacity:0.92;">${lcCopy}</div>
+        <div style="font-size:11.5px;color:#fff;line-height:1.5;opacity:0.92;">${lcCopy}</div>${newsBlock}
       </div>
     `);
   }
@@ -4920,6 +5145,17 @@ function updateInjuryCtxInModal() {
         ? `<span style="font-weight:800;">risky for the OVER</span> — ${player.split(" ").slice(-1)[0]} could see reduced minutes or be a late scratch`
         : `<span style="font-weight:800;">mild tailwind for the UNDER</span> — minutes risk caps her output`);
     const detail = (ownInjury.detail || ownInjury.type || "").trim();
+    // Full Rotowire analysis blurb — shows the actual injury news so user can
+    // make an informed decision instead of just seeing a status badge.
+    const headline = (ownInjury.comment || "").trim();
+    const blurb = (ownInjury.longComment || "").trim();
+    const esc = (s) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const newsSection = (headline || blurb) ? `
+        <div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;">
+          ${headline ? `<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${blurb ? "6px" : "0"};">${esc(headline)}</div>` : ""}
+          ${blurb ? `<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.85;">${esc(blurb)}</div>` : ""}
+          <div style="font-size:9px;color:#8b93a0;letter-spacing:0.4px;margin-top:6px;text-transform:uppercase;font-weight:600;">via Rotowire</div>
+        </div>` : "";
     sections.push(`
       <div style="background:rgba(${isOut ? "248,113,113" : "245,158,11"},0.07);border:1px solid ${panelColor}66;border-radius:8px;padding:11px 13px;${sections.length ? 'margin-top:8px;' : ''}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -4933,7 +5169,7 @@ function updateInjuryCtxInModal() {
             <span style="color:#fff;font-weight:700;font-size:11.5px;">${player}</span>
           </div>
           ${detail ? `<span style="color:#fff;opacity:0.6;font-size:10px;text-align:right;max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${detail}</span>` : ""}
-        </div>
+        </div>${newsSection}
       </div>
     `);
   }
@@ -5805,16 +6041,16 @@ function _copyDailyRecapFiltered(kind) {
     if (d >= yesterday0 && d <= yesterdayEnd) { acc.yd.pl += pl; if (hit) acc.yd.w++; else acc.yd.l++; }
   });
   const fmtPeriod = (rec) => `${rec.w}-${rec.l}  ${rec.pl >= 0 ? "+" : ""}${rec.pl.toFixed(2)}u`;
-  // Aligned period-line formatter — pads label + right-justifies W-L for clean
-  // column alignment across all four lines.
-  //   "Yesterday   2-10   -7.45u"
-  //   "WTD        17-23   -7.73u"
-  //   "MTD       222-166  +56.25u"
-  //   "YTD       352-288  +59.46u"
+  // Compact period-line formatter — just "Label W-L ±Pu", single space between
+  // each piece, no padding. User prefers tight format over column alignment.
+  //   "6/24: 2-10 -7.45u"
+  //   "WTD: 17-23 -7.73u"
+  //   "MTD: 222-166 +56.25u"
+  //   "YTD: 352-288 +59.46u"
   const fmtAligned = (label, rec) => {
     const wlStr = `${rec.w}-${rec.l}`;
     const plStr = `${rec.pl >= 0 ? "+" : ""}${rec.pl.toFixed(2)}u`;
-    return `${label.padEnd(10)}${wlStr.padStart(7)}  ${plStr}`;
+    return `${label} ${wlStr} ${plStr}`;
   };
 
   const lines = [];
@@ -9785,6 +10021,44 @@ function getInjuryForPlayer(rawName, teamHint) {
       if (matches.length === 1) rec = matches[0];
     }
   }
+  // Lineup data OVERRIDE — Rotowire's daily lineups page is the most official
+  // source. If the player is in the lineup data, that status is truth. We use
+  // lineup status to either:
+  //   - SUPPRESS an injury record (player is STARTING → no badge, ignore stale DTD)
+  //   - REPLACE the cached status with lineup's status (lineup says OUT,
+  //     even if cache says GTD — lineup wins)
+  // We keep the cache's blurb (comment/longComment/type/detail) for context.
+  const lineupStatus = (typeof getLineupStatusForPlayer === "function")
+    ? getLineupStatusForPlayer(rawName)
+    : null;
+  if (lineupStatus) {
+    const ls = lineupStatus.status;
+    if (ls === "STARTING") {
+      // Confirmed playing — stale DTD/GTD/Questionable from cache is wrong now
+      return null;
+    }
+    // Override status with lineup's. If cache has a blurb, preserve it.
+    if (rec) {
+      rec = { ...rec, status: ls };
+    } else {
+      // No cache entry but lineup has status — synthesize a minimal record so
+      // downstream consumers (Results badges, modal Lineups section) can render.
+      rec = {
+        name: lineupStatus.name || rawName,
+        team: lineupStatus.team || teamHint || "",
+        status: ls,
+        type: "",
+        detail: "",
+        returnDate: "",
+        comment: "",
+        longComment: "",
+        date: ""
+      };
+    }
+    // Skip today-only filter when lineup is the source — lineups are
+    // always for today by definition.
+    return rec;
+  }
   if (!rec) return null;
   // Apply today-only filter unless user has toggled "show all"
   if (!_injuryShowAll() && !_injuryIsForToday(rec)) return null;
@@ -11146,8 +11420,13 @@ async function fetchEspnSchedule() {
       // Format matches what parseEspnSchedule writes: an over+under DK entry per game.
       const books = [];
       let ouLine = null;
+      let spreadHome = null;  // home spread (negative if home favored)
+      let mlAway = null, mlHome = null;
       const odds = comp?.odds?.[0];
       if (odds && odds.overUnder != null) ouLine = parseFloat(odds.overUnder);
+      if (odds && odds.spread != null) spreadHome = parseFloat(odds.spread);
+      if (odds?.awayTeamOdds?.moneyLine != null) mlAway = parseFloat(odds.awayTeamOdds.moneyLine);
+      if (odds?.homeTeamOdds?.moneyLine != null) mlHome = parseFloat(odds.homeTeamOdds.moneyLine);
       if (ouLine != null && !Number.isNaN(ouLine)) {
         books.push({ book: "DK", line: ouLine, overOdds: null, underOdds: null, side: "over" });
         books.push({ book: "DK", line: ouLine, overOdds: null, underOdds: null, side: "under" });
@@ -11155,11 +11434,15 @@ async function fetchEspnSchedule() {
 
       fetched.push({
         awayAbbr, homeAbbr,
-        awayName: away?.team?.location || away?.team?.displayName || awayAbbr,
-        homeName: home?.team?.location || home?.team?.displayName || homeAbbr,
+        // Prefer full displayName ("Washington Mystics") over just city
+        // ("Washington") so the cards show the proper WNBA team name.
+        awayName: away?.team?.displayName || away?.team?.location || awayAbbr,
+        homeName: home?.team?.displayName || home?.team?.location || homeAbbr,
         time: labeledTime,
         gameDate,
         books,
+        spread: spreadHome,
+        mlAway, mlHome,
         defaultSeason: ouLine == null ? "2026" : undefined
       });
     });
@@ -11413,13 +11696,178 @@ function copyTotalsByDate() {
     if (b === "unknown") return -1;
     return a.localeCompare(b);
   });
-  // If only one date, skip the picker and copy everything
-  if (sortedDates.length <= 1) {
-    _executeCopyTotalsByDate(null);
-    return;
-  }
-  // Show the date-picker overlay — user checks which dates to include
+  // Always show the picker — the model selector is the main reason to open
+  // it, and with 1 date the date row just has a single pre-checked option.
+  window._totalsCopyMode = "totals";
   _showTotalsDatePicker(sortedDates);
+}
+
+// Spread copy — same date+model picker flow as totals, but emits projected
+// spreads (home pts − away pts) instead of total points.
+function copySpreadsByDate() {
+  const games = betstampGames || [];
+  if (!games.length) { showToast("No games loaded"); return; }
+  const allDates = new Set();
+  games.forEach(g => {
+    let isoDate = g.gameDate || null;
+    if (!isoDate && typeof g.time === "string") {
+      const dayMatch = g.time.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+      if (dayMatch) {
+        const targetDay = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(dayMatch[1]);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        for (let off = 0; off < 7; off++) {
+          const probe = new Date(today.getTime() + off * 86400000);
+          if (probe.getDay() === targetDay) {
+            const y = probe.getFullYear();
+            const mo = String(probe.getMonth() + 1).padStart(2, "0");
+            const dy = String(probe.getDate()).padStart(2, "0");
+            isoDate = `${y}-${mo}-${dy}`;
+            break;
+          }
+        }
+      }
+    }
+    allDates.add(isoDate || "unknown");
+  });
+  const sortedDates = [...allDates].sort((a, b) => {
+    if (a === "unknown") return 1;
+    if (b === "unknown") return -1;
+    return a.localeCompare(b);
+  });
+  window._totalsCopyMode = "spreads";
+  _showTotalsDatePicker(sortedDates);
+}
+
+// Spread executor — computes projected spread per game using the chosen
+// model. Sorts within date by absolute spread descending (biggest favorites
+// first). Emits lines like "6/24 LAS @ TOR  TOR -3.2 (LAS 84.5 / TOR 87.7)".
+function _executeCopySpreadsByDate(dateFilter, modelOverride) {
+  const games = betstampGames || [];
+  const byDate = new Map();
+  games.forEach(g => {
+    // Compute per-team projections from both models
+    const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
+    const paceEffAway = indep?.ptsA;
+    const paceEffHome = indep?.ptsB;
+    let playerAway = null, playerHome = null;
+    const rwAway = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.awayAbbr) : null;
+    const rwHome = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.homeAbbr) : null;
+    if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
+      playerAway = rwAway.sum;
+      playerHome = rwHome.sum;
+    }
+    // Resolve which model to use for THIS game
+    let projAway = null, projHome = null;
+    const havePxE = paceEffAway != null && paceEffHome != null;
+    const havePlayers = playerAway != null && playerHome != null;
+    if (modelOverride === "both" && havePxE && havePlayers) {
+      projAway = (paceEffAway + playerAway) / 2;
+      projHome = (paceEffHome + playerHome) / 2;
+    } else if (modelOverride === "blended" && havePlayers) {
+      projAway = playerAway;
+      projHome = playerHome;
+    } else if (modelOverride === "paceeff" && havePxE) {
+      projAway = paceEffAway;
+      projHome = paceEffHome;
+    } else if (!modelOverride) {
+      // Smart default — combined when both available, else fall back
+      if (havePxE && havePlayers) {
+        projAway = (paceEffAway + playerAway) / 2;
+        projHome = (paceEffHome + playerHome) / 2;
+      } else if (havePxE) {
+        projAway = paceEffAway;
+        projHome = paceEffHome;
+      } else if (havePlayers) {
+        projAway = playerAway;
+        projHome = playerHome;
+      }
+    } else {
+      // Override requested but data missing — fall back
+      if (havePxE) { projAway = paceEffAway; projHome = paceEffHome; }
+      else if (havePlayers) { projAway = playerAway; projHome = playerHome; }
+    }
+    if (projAway == null || projHome == null) return;
+
+    let isoDate = g.gameDate || null;
+    if (!isoDate && typeof g.time === "string") {
+      const dayMatch = g.time.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+      if (dayMatch) {
+        const targetDay = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(dayMatch[1]);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        for (let off = 0; off < 7; off++) {
+          const probe = new Date(today.getTime() + off * 86400000);
+          if (probe.getDay() === targetDay) {
+            const y = probe.getFullYear();
+            const mo = String(probe.getMonth() + 1).padStart(2, "0");
+            const dy = String(probe.getDate()).padStart(2, "0");
+            isoDate = `${y}-${mo}-${dy}`;
+            break;
+          }
+        }
+      }
+    }
+    const dateKey = isoDate || "unknown";
+    if (dateFilter && !dateFilter.has(dateKey)) return;
+    const dateStr = (() => {
+      if (!isoDate) return "";
+      const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return "";
+      return `${parseInt(m[2])}/${parseInt(m[3])}`;
+    })();
+    const matchup = `${g.awayAbbr} @ ${g.homeAbbr}`;
+    // Projected home margin = projHome - projAway. Positive = home favored.
+    const projHomeMargin = projHome - projAway;
+    const absProjMargin = Math.abs(projHomeMargin);
+    const projFavoredAbbr = projHomeMargin > 0 ? g.homeAbbr : g.awayAbbr;
+    const projStr = `${projFavoredAbbr} -${absProjMargin.toFixed(1)}`;
+    // Market spread (ESPN/DK) — stored on g.spread (home spread, negative = home favored).
+    const marketSpread = (typeof g.spread === "number") ? g.spread : null;
+    let rowLine;
+    if (marketSpread != null) {
+      const marketHomeMargin = -marketSpread;
+      const edge = projHomeMargin - marketHomeMargin;
+      const edgeSigned = `${edge >= 0 ? "+" : ""}${edge.toFixed(1)}`;
+      const marketFavored = marketHomeMargin > 0 ? g.homeAbbr : g.awayAbbr;
+      const marketStr = `${marketFavored} -${Math.abs(marketHomeMargin).toFixed(1)}`;
+      // 1.5pt threshold for spreads — per user: "if we project +8 on a +6.5 thats good"
+      if (Math.abs(edge) >= 1.5) {
+        // Pick the team we like more. If edge > 0 we like home (project them
+        // to win by more than market says). If edge < 0 we like away.
+        const pickAbbr = edge > 0 ? g.homeAbbr : g.awayAbbr;
+        const pickHomeMargin = pickAbbr === g.homeAbbr ? marketHomeMargin : -marketHomeMargin;
+        const sign = pickHomeMargin >= 0 ? "-" : "+";
+        const pickStr = `${pickAbbr} ${sign}${Math.abs(pickHomeMargin).toFixed(1)}`;
+        rowLine = `${dateStr} ${matchup}  →  Pick: ${pickStr}  (proj ${projStr}, edge ${edgeSigned})`;
+      } else {
+        rowLine = `${dateStr} ${matchup}     line: ${marketStr}  (proj ${projStr}, ${edgeSigned} — thin)`;
+      }
+      if (!byDate.has(dateKey)) byDate.set(dateKey, []);
+      byDate.get(dateKey).push({ line: rowLine, sortKey: Math.abs(edge) });
+    } else {
+      rowLine = `${dateStr} ${matchup}     (proj ${projStr}, no market line)`;
+      if (!byDate.has(dateKey)) byDate.set(dateKey, []);
+      byDate.get(dateKey).push({ line: rowLine, sortKey: absProjMargin });
+    }
+  });
+  if (byDate.size === 0) { showToast("No projections in selected dates"); return; }
+  const sortedKeys = [...byDate.keys()].sort((a, b) => {
+    if (a === "unknown") return 1;
+    if (b === "unknown") return -1;
+    return a.localeCompare(b);
+  });
+  // Within each date, sort by absolute spread descending — biggest favorites first
+  const sections = sortedKeys.map(k => {
+    const rows = byDate.get(k).slice().sort((a, b) => b.sortKey - a.sortKey);
+    return rows.map(r => r.line).join("\n");
+  });
+  const text = sections.join("\n\n");
+  const totalCount = [...byDate.values()].reduce((s, arr) => s + arr.length, 0);
+  copyTextToClipboard(text,
+    () => showToast(`Copied ${totalCount} spread${totalCount === 1 ? "" : "s"} across ${byDate.size} date${byDate.size === 1 ? "" : "s"}`),
+    () => showToast("Copy blocked — text in console")
+  );
 }
 
 // Render the date-picker overlay used by Copy By Date
@@ -11430,6 +11878,16 @@ function _showTotalsDatePicker(dates) {
   overlay.id = "totals-date-picker-overlay";
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;";
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  // Detect whether ANY game has RW player projections loaded — drives the
+  // default model. With player data, default to "Combined" (PxE + Players
+  // averaged); without, default to "PaceEff" only.
+  const games = betstampGames || [];
+  const anyRwLoaded = games.some(g => {
+    const a = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.awayAbbr) : null;
+    const b = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.homeAbbr) : null;
+    return a && b && (a.count + b.count) > 0;
+  });
+  window._totalsCopyModel = anyRwLoaded ? "both" : "paceeff";
   // Build the date checkbox list — pre-checked by default so the most common case (copy all) needs zero taps
   const dateRows = dates.map(d => {
     const labelText = d === "unknown" ? "(no date)" : (() => {
@@ -11444,11 +11902,27 @@ function _showTotalsDatePicker(dates) {
       <span style="color:#fff;font-size:13px;font-weight:600;">${labelText}</span>
     </label>`;
   }).join("");
+  // Model selector — three options. Disabled state for "Combined"/"Players" if no RW loaded.
+  const modelBtn = (key, label, active, disabled) => {
+    const bg = active ? "#1e40af" : disabled ? "#0c0d10" : "#0c0d10";
+    const fg = active ? "#fff" : disabled ? "#525a64" : "#7dd3fc";
+    const border = active ? "#1e40af" : disabled ? "#1a1d22" : "#1e40af77";
+    const cursor = disabled ? "not-allowed" : "pointer";
+    const op = disabled ? "opacity:0.5;" : "";
+    return `<button ${disabled ? "disabled" : ""} data-model="${key}" onclick="_totalsCopyPickModel('${key}')" style="${op}flex:1;background:${bg};border:1px solid ${border};color:${fg};border-radius:6px;padding:8px 4px;font-size:10.5px;font-weight:800;letter-spacing:0.3px;cursor:${cursor};font-family:'Inter',sans-serif;">${label}</button>`;
+  };
+  const defaultModel = window._totalsCopyModel;
   overlay.innerHTML = `
     <div style="background:#0c0d10;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px;width:340px;max-width:95vw;max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:0.3px;">Copy By Date</div>
+        <div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:0.3px;">${window._totalsCopyMode === "spreads" ? "Copy Spreads" : "Copy Totals"} By Date</div>
         <button onclick="document.getElementById('totals-date-picker-overlay').remove()" style="background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div style="font-size:11px;color:#a8b0bb;margin-bottom:6px;letter-spacing:0.3px;">Edge source:</div>
+      <div id="totals-copy-model-row" style="display:flex;gap:6px;margin-bottom:14px;">
+        ${modelBtn("both", "Combined", defaultModel === "both", !anyRwLoaded)}
+        ${modelBtn("paceeff", "PaceEff", defaultModel === "paceeff", false)}
+        ${modelBtn("blended", "Players", defaultModel === "blended", !anyRwLoaded)}
       </div>
       <div style="font-size:11px;color:#a8b0bb;margin-bottom:12px;">Pick which dates to include in the copy:</div>
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;" id="totals-date-picker-list">${dateRows}</div>
@@ -11462,6 +11936,20 @@ function _showTotalsDatePicker(dates) {
   document.body.appendChild(overlay);
 }
 
+// Toggle the model selector buttons — visual swap + state update
+function _totalsCopyPickModel(model) {
+  window._totalsCopyModel = model;
+  const row = document.getElementById("totals-copy-model-row");
+  if (!row) return;
+  row.querySelectorAll("button").forEach(btn => {
+    const isActive = btn.dataset.model === model;
+    const disabled = btn.disabled;
+    btn.style.background = isActive ? "#1e40af" : "#0c0d10";
+    btn.style.color = isActive ? "#fff" : disabled ? "#525a64" : "#7dd3fc";
+    btn.style.borderColor = isActive ? "#1e40af" : disabled ? "#1a1d22" : "#1e40af77";
+  });
+}
+
 function _totalsDatePickerToggle(check) {
   document.querySelectorAll("#totals-date-picker-list input[type=checkbox]").forEach(cb => { cb.checked = check; });
 }
@@ -11470,19 +11958,58 @@ function _totalsDatePickerCopy() {
   const selected = Array.from(document.querySelectorAll("#totals-date-picker-list input[type=checkbox]:checked")).map(cb => cb.value);
   if (!selected.length) { showToast("No dates selected"); return; }
   document.getElementById("totals-date-picker-overlay")?.remove();
-  _executeCopyTotalsByDate(new Set(selected));
+  const dateFilter = new Set(selected);
+  const model = window._totalsCopyModel || null;
+  if (window._totalsCopyMode === "spreads") {
+    _executeCopySpreadsByDate(dateFilter, model);
+  } else {
+    _executeCopyTotalsByDate(dateFilter, model);
+  }
 }
 
 // Execute the actual copy. If `dateFilter` is a Set, only include games whose
 // resolved date is in the set. If null, include everything (no filter).
-function _executeCopyTotalsByDate(dateFilter) {
+// `modelOverride` lets the picker force a specific model: "paceeff" | "blended" | "both".
+// When null, picks the smart default per game: "both" if RW player projections
+// are loaded for both teams, otherwise "paceeff".
+function _executeCopyTotalsByDate(dateFilter, modelOverride) {
   const games = betstampGames || [];
   const byDate = new Map();
   games.forEach(g => {
-    // Force 50/50 PaceEff regardless of card's active model
+    // Compute both candidate projections (PxE and RW-blended player sum)
     const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
-    const projTotal = indep?.total;
+    const paceEffTotal = indep?.total;
+    let blendedTotal = null;
+    const rwAway = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.awayAbbr) : null;
+    const rwHome = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.homeAbbr) : null;
+    if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
+      blendedTotal = rwAway.sum + rwHome.sum;
+    }
+    // Resolve which model to use for THIS game:
+    //   - modelOverride wins if forced by the picker (and the model is available)
+    //   - Else smart default: "both" when both teams have RW data, else "paceeff"
+    let projTotal = null;
+    if (modelOverride === "both" && paceEffTotal != null && blendedTotal != null) {
+      projTotal = (paceEffTotal + blendedTotal) / 2;
+    } else if (modelOverride === "blended" && blendedTotal != null) {
+      projTotal = blendedTotal;
+    } else if (modelOverride === "paceeff" && paceEffTotal != null) {
+      projTotal = paceEffTotal;
+    } else if (!modelOverride) {
+      // Smart default: combine when player data is loaded for both teams
+      if (paceEffTotal != null && blendedTotal != null) {
+        projTotal = (paceEffTotal + blendedTotal) / 2;
+      } else if (paceEffTotal != null) {
+        projTotal = paceEffTotal;
+      } else if (blendedTotal != null) {
+        projTotal = blendedTotal;
+      }
+    } else {
+      // Override requested but data missing — fall back to whatever's available
+      projTotal = paceEffTotal ?? blendedTotal;
+    }
     if (projTotal == null) return;
+
     let isoDate = g.gameDate || null;
     if (!isoDate && typeof g.time === "string") {
       const dayMatch = g.time.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
@@ -11521,13 +12048,26 @@ function _executeCopyTotalsByDate(dateFilter) {
       }
     }
     const matchup = `${g.awayAbbr} @ ${g.homeAbbr}`;
-    const projStr = `(p${projTotal.toFixed(2)})`;
-    const lineStr = (line != null)
-      ? `  ${projTotal > line ? "over" : projTotal < line ? "under" : "push"} ${line}  ${projStr}`
-      : `  ${projStr}`;
-    const rowLine = `${dateStr} ${matchup}${lineStr}`;
+    let rowLine;
+    if (line != null) {
+      // Compute signed edge (projection minus line). Positive = projection
+      // higher than line → over lean.
+      const edge = projTotal - line;
+      const edgeSigned = `${edge >= 0 ? "+" : ""}${edge.toFixed(1)}`;
+      // 2pt threshold for totals (vs 1.5pt for spreads — totals are wider markets)
+      if (Math.abs(edge) >= 2) {
+        const side = edge > 0 ? "OVER" : "UNDER";
+        rowLine = `${dateStr} ${matchup}  →  Pick: ${side} ${line}  (proj ${projTotal.toFixed(1)}, edge ${edgeSigned})`;
+      } else {
+        // No-side case — edge too thin to pick a play
+        rowLine = `${dateStr} ${matchup}     line: ${line}  (proj ${projTotal.toFixed(1)}, ${edgeSigned} — thin)`;
+      }
+    } else {
+      // No posted line — just emit the projection
+      rowLine = `${dateStr} ${matchup}     (proj ${projTotal.toFixed(1)}, no market line)`;
+    }
     if (!byDate.has(dateKey)) byDate.set(dateKey, []);
-    byDate.get(dateKey).push(rowLine);
+    byDate.get(dateKey).push({ line: rowLine, edgeAbs: line != null ? Math.abs(projTotal - line) : -1 });
   });
   if (byDate.size === 0) { showToast("No projections in selected dates"); return; }
   const sortedKeys = [...byDate.keys()].sort((a, b) => {
@@ -11535,7 +12075,12 @@ function _executeCopyTotalsByDate(dateFilter) {
     if (b === "unknown") return -1;
     return a.localeCompare(b);
   });
-  const sections = sortedKeys.map(k => byDate.get(k).join("\n"));
+  // Within each date, sort rows by absolute edge descending — biggest edge
+  // first. Rows without a posted line (edgeAbs = -1) sink to the bottom.
+  const sections = sortedKeys.map(k => {
+    const rows = byDate.get(k).slice().sort((a, b) => b.edgeAbs - a.edgeAbs);
+    return rows.map(r => r.line).join("\n");
+  });
   const text = sections.join("\n\n");
   const totalCount = [...byDate.values()].reduce((s, arr) => s + arr.length, 0);
   copyTextToClipboard(text,
@@ -12103,28 +12648,9 @@ function renderTotals() {
         </label>
         ${window._totalsPageRwSlot ? `<button onclick="totalsClearRw()" title="Clear Totals-page RW (Upload-tab RW stays loaded)" style="background:transparent;border:1px solid #1a1d22;color:#a8b0bb;border-radius:6px;width:32px;height:32px;font-size:14px;cursor:pointer;font-family:'Inter',sans-serif;line-height:1;">×</button>` : ''}
         <button onclick="copyAllTotalsProjections()" title="Copy a brief summary of every game's projection (with or without a line) — uses each card's active model" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY PROJECTIONS</button>
-        <button onclick="copyTotalsByDate()" title="Copy every game grouped by date — forced to use the 50/50 Pace×Eff model so output is consistent" style="background:#0c0d10;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY BY DATE (50/50)</button>
+        <button onclick="copyTotalsByDate()" title="Copy totals by date with model picker — defaults to PxE+Players Combined when loaded" style="background:#0c0d10;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY TOTALS</button>
+        <button onclick="copySpreadsByDate()" title="Copy projected spreads by date — same model picker as totals. Spread = home pts − away pts." style="background:#0c0d10;border:1px solid #f59e0b;color:#fbbf24;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY SPREADS</button>
       </div>
-    </div>
-
-    <!-- Custom Matchup: free-form away vs home picker for games not on the slate yet -->
-    <div id="custom-matchup-panel" style="background:#0c0d10;border:1px solid #1a1d22;border-radius:10px;padding:14px;margin-bottom:18px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-        <div style="font-size:13px;font-weight:700;letter-spacing:1.2px;color:#7dd3fc;">CUSTOM MATCHUP</div>
-        <div style="font-size:10px;color:#525a64;letter-spacing:0.5px;">PACE × EFF — for games without a posted total</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <select id="custom-away" class="custom-matchup-select" style="flex:1;min-width:120px;background:#050507;border:1px solid #1a1d22;border-radius:6px;color:#fff;font-size:13px;font-weight:700;padding:9px 12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;"></select>
-        <div style="color:#525a64;font-size:11px;font-weight:700;letter-spacing:1px;">@</div>
-        <select id="custom-home" class="custom-matchup-select" style="flex:1;min-width:120px;background:#050507;border:1px solid #1a1d22;border-radius:6px;color:#fff;font-size:13px;font-weight:700;padding:9px 12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;"></select>
-        <select id="custom-season" style="background:#050507;border:1px solid #1a1d22;border-radius:6px;color:#d4dae3;font-size:11px;font-weight:600;padding:9px 10px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;">
-          <option value="auto">Auto</option>
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-          <option value="blend">Blend</option>
-        </select>
-      </div>
-      <div id="custom-matchup-result" style="margin-top:12px;"></div>
     </div>
 
     ${noProjections && Object.keys(teamStats2025).length === 0 && Object.keys(teamStats2026).length === 0
