@@ -3265,6 +3265,8 @@ async function openBoxScore(espnId, awayName, homeName) {
     ]);
     const ls = await lsRes.json();
     const box = await boxRes.json();
+    // debug: show innings count
+    console.log('innings:', ls.innings?.length, ls.innings?.slice(0,5));
     renderBoxScore(gamePk, ls, box, awayName, homeName);
   } catch(e) {
     document.getElementById('boxscoreBody').innerHTML = '<div class="bs-loading">Failed to load box score.</div>';
@@ -3319,6 +3321,34 @@ function renderBoxScore(gameId, ls, box, awayName, homeName) {
     awayRow += `<td class="total${aWin?' winning':''}">${awayScore}</td><td>${awayHits}</td><td>${awayErrors}</td>`;
     homeRow += `<td class="total${hWin?' winning':''}">${homeScore}</td><td>${homeHits}</td><td>${homeErrors}</td>`;
     html += `<div class="bs-linescore" style="overflow-x:auto;"><table class="bs-linescore-table" style="min-width:500px;"><tr>${hdrs}</tr><tr>${awayRow}</tr><tr>${homeRow}</tr></table></div>`;
+
+    // F5 result — always show if we have any innings data
+    const f5Innings = innings.slice(0,5);
+    const f5Away = f5Innings.reduce((s,i)=>s+(parseInt(i?.away?.runs)||0),0);
+    const f5Home = f5Innings.reduce((s,i)=>s+(parseInt(i?.home?.runs)||0),0);
+    const awayAbbr2 = box?.teams?.away?.team?.abbreviation || awayName?.split(' ').pop();
+    const homeAbbr2 = box?.teams?.home?.team?.abbreviation || homeName?.split(' ').pop();
+
+    let f5Color, f5Text, f5Icon;
+    if (innings.length < 5) {
+      f5Color = 'var(--accent)'; f5Icon = '⏱';
+      f5Text = innings.length === 0
+        ? 'Game not started'
+        : `In progress — Inning ${innings.length} · ${awayAbbr2} ${f5Away} – ${f5Home} ${homeAbbr2}`;
+    } else if (f5Away > f5Home) {
+      f5Color = 'var(--win)'; f5Text = `${awayAbbr2} wins F5  (${f5Away}–${f5Home})`; f5Icon = '⚾';
+    } else if (f5Home > f5Away) {
+      f5Color = 'var(--win)'; f5Text = `${homeAbbr2} wins F5  (${f5Home}–${f5Away})`; f5Icon = '⚾';
+    } else {
+      f5Color = 'var(--push)'; f5Text = `F5 Tie  (${f5Away}–${f5Home})`; f5Icon = '🤝';
+    }
+    html += `<div style="margin:0 20px 12px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:18px;">${f5Icon}</span>
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin-bottom:2px;">First 5 Innings</div>
+        <div style="font-size:15px;font-weight:800;color:${f5Color};">${f5Text}</div>
+      </div>
+    </div>`;
   } else {
     html += `<div style="padding:12px 20px;color:var(--sub);font-size:12px;">Linescore not yet available</div>`;
   }
