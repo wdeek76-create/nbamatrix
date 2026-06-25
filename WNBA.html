@@ -106,7 +106,7 @@ table{width:auto;min-width:100%;border-collapse:collapse;}
 thead{background:#0c0d10;}
 th{padding:8px 10px;font-size:11px;color:#d4dae3;letter-spacing:0.6px;font-weight:600;text-transform:uppercase;white-space:nowrap;}
 th.left{text-align:left;}th.center{text-align:center;}
-tr.even{background:#050507;}tr.odd{background:#10161e;}
+tr.even{background:#050507;}tr.odd{background:#050507;}
 tr:hover{background:#1a1530 !important;}
 td{border-bottom:1px solid #0c0d10;}
 table colgroup col.player-col{width:36%;}
@@ -134,9 +134,9 @@ table colgroup col.avg-col{width:16%;}
 .copyable:hover{opacity:0.8;}
 
 /* MODAL */
-#track-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
-#track-modal.open{display:flex;}
-#track-modal-box{background:#0f1216;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px 22px 20px;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+#track-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
+#track-modal.open{display:block;}
+#track-modal-box{position:fixed;top:0;right:0;height:100%;width:420px;max-width:95vw;background:#0f1216;border-left:1px solid rgba(255,255,255,0.10);border-radius:0;padding:24px 22px 20px;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:-12px 0 40px rgba(0,0,0,0.6);}
 #track-modal-box h3{font-size:22px;font-weight:800;color:#fff;margin-bottom:2px;letter-spacing:-0.3px;}
 #track-modal-box .sub{font-size:12px;color:#a8b0bb;margin-bottom:18px;letter-spacing:0.2px;}
 .modal-row{display:flex;gap:10px;margin-bottom:12px;}
@@ -394,23 +394,21 @@ table colgroup col.avg-col{width:16%;}
       <div id="matchup-status" style="font-size:11px;color:#525a64;"></div>
     </div>
 
-    <!-- Daily Lineups (Rotowire) — paste the page text from
-         rotowire.com/wnba/lineups.php to populate STARTING/OUT/GTD flags on
-         the bet modal. Acts as a late-news security blanket: catches lineup
-         changes ESPN's injury feed might miss. -->
     <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-top:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>
-          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Daily Lineups</div>
-          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Paste from <span style="color:#7dd3fc;font-family:'JetBrains Mono','Menlo',monospace;">rotowire.com/wnba/lineups.php</span> — adds STARTING / GTD / OUT confirmation in the bet modal.</div>
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Injury Report</div>
+          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Upload daily injury CSV — adds GTD / OUT status in the bet modal.</div>
         </div>
-        <button onclick="clearLineupsData()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span id="injury-csv-filename" style="font-size:10px;color:#525a64;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+          <label style="background:#22c55e;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">
+            UPLOAD CSV
+            <input type="file" accept=".csv" style="display:none;" onchange="parseInjuryCSV(this)">
+          </label>
+        </div>
       </div>
-      <textarea id="lineups-paste" placeholder="Paste rotowire lineups page text here…" rows="4" style="width:100%;background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
-        <div id="lineups-status" style="font-size:11px;color:#525a64;"></div>
-        <button onclick="handleLineupsParseUpload()" style="background:#22c55e;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">PARSE</button>
-      </div>
+      <div id="rw-injury-status" style="font-size:11px;color:#525a64;margin-top:8px;"></div>
     </div>
 
     <div style="text-align:center;margin-top:24px;padding:12px 0;font-family:'Inter',sans-serif;font-size:13px;font-style:italic;font-weight:300;letter-spacing:2px;color:rgba(125,211,252,0.45);text-transform:lowercase;">ball is life</div>
@@ -448,24 +446,6 @@ table colgroup col.avg-col{width:16%;}
         <div id="injury-panel-body" style="padding:0 18px 18px 18px;font-size:12px;color:#d4dae3;">
           <!-- RotoWire paste loader: ESPN's feed lags & drops 'opportunity' blurbs;
                paste from rotowire.com/wnba/news.php?view=injuries to get full data. -->
-          <details style="background:rgba(147,197,253,0.04);border:1px solid rgba(147,197,253,0.12);border-radius:10px;margin-bottom:14px;">
-            <summary style="cursor:pointer;list-style:none;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;user-select:none;">
-              <span style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:10px;font-weight:700;color:#93c5fd;letter-spacing:1px;text-transform:uppercase;">Paste from RotoWire</span>
-                <span id="rw-injury-status" style="font-size:10px;color:#525a64;font-weight:500;letter-spacing:0.1px;"></span>
-              </span>
-              <span style="color:#525a64;font-size:10px;letter-spacing:0.1px;">paste</span>
-            </summary>
-            <div style="padding:8px 14px 14px 14px;">
-              <div style="font-size:10px;color:#8b93a0;margin-bottom:8px;line-height:1.5;letter-spacing:0.1px;">Copy from <span style="color:#7dd3fc;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">rotowire.com/wnba/news.php?view=injuries</span> → paste below → Parse. Adds GTD/probable entries + full analysis blurbs ESPN's feed misses.</div>
-              <textarea id="rw-injury-paste" placeholder="Paste the full RotoWire injury news page here..." spellcheck="false"
-                style="width:100%;min-height:80px;background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;outline:none;resize:vertical;"></textarea>
-              <div style="display:flex;gap:6px;margin-top:6px;">
-                <button onclick="parseRotoWireInjuriesPaste()" style="background:#93c5fd;border:none;color:#050507;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">PARSE</button>
-                <button onclick="document.getElementById('rw-injury-paste').value='';document.getElementById('rw-injury-status').textContent='';" style="background:transparent;border:1px solid #1a1d22;color:#d4dae3;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">CLEAR</button>
-              </div>
-            </div>
-          </details>
           <div id="injury-panel-list">Loading…</div>
         </div>
       </details>
@@ -2065,6 +2045,63 @@ function clearTrackedProps() {
   showToast(`Cleared ${n} tracked pill${n === 1 ? "" : "s"}`);
 }
 
+// Track a spread bet from the totals card. Confirms with the user, then
+// saves the bet to localStorage with kind: "spread" / stat: "GAME_SPREAD".
+// Uses 1u-to-win convention at -110 default odds → stake = 1.10u.
+// Stores projSource so we can compare model performance later.
+function trackSpread(spec) {
+  const { awayAbbr, homeAbbr, pickTeam, line, projSpread, projSource, edge, gameDate } = spec;
+  // Format line for display (signed)
+  const lineStr = line >= 0 ? `+${line.toFixed(1)}` : line.toFixed(1);
+  const matchup = `${awayAbbr} @ ${homeAbbr}`;
+  // Default to -110 odds (standard book vig). Stake = $1.10 to win $1.
+  const defaultOdds = -110;
+  const stake = 1.10;
+  const toWin = 1.00;
+  // Confirm with the user — shows the pick, projection, edge, and stake
+  const projStr = projSpread >= 0 ? `+${projSpread.toFixed(1)}` : projSpread.toFixed(1);
+  const modelLabel = projSource === "both" ? "Combined" : projSource === "paceeff" ? "PaceEff" : projSource === "blended" ? "Players" : (projSource || "?");
+  const msg = `Track this spread?\n\n${matchup}  ${pickTeam} ${lineStr}\nProjection: ${pickTeam} ${projStr}\nEdge: ${edge.toFixed(1)} (${modelLabel} model)\nStake: 1.10u to win 1u @ -110\n\nSave?`;
+  if (!confirm(msg)) return;
+
+  // Build the bet record
+  const dateStr = gameDate || (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  })();
+  const newBet = {
+    id: Date.now().toString() + "_spread_" + Math.random().toString(36).slice(2, 8),
+    player: matchup,
+    team: `${awayAbbr}/${homeAbbr}`,
+    stat: "GAME_SPREAD",
+    pickTeam,          // which team we picked
+    line,              // signed spread from pick-team perspective
+    odds: defaultOdds,
+    stake,
+    toWin,
+    book: "DK",
+    ou: "spread",      // synthetic marker so existing filters don't choke
+    result: "pending",
+    gameDate: dateStr,
+    date: (() => {
+      // Also store m/d/yyyy format for legacy consumers
+      const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return null;
+      return `${parseInt(m[2])}/${parseInt(m[3])}/${m[1]}`;
+    })(),
+    projTotal: projSpread,   // store projection for later analysis
+    projSource: projSource || "both",
+    edge,
+    notes: "",
+    timestamp: Date.now()
+  };
+  bets.push(newBet);
+  saveBets();
+  // Re-render totals view to flip the Track button → TRACKED pill
+  if (typeof renderTotalsView === "function") renderTotalsView();
+  showToast(`Tracked ${pickTeam} ${lineStr} (${modelLabel})`);
+}
+
 function trackTotal(payload, ...legacyArgs) {
   // New API: trackTotal({awayAbbr, homeAbbr, side, line, odds, book, projTotal, projSource, snapshots, gameDate})
   // Legacy API: trackTotal(awayAbbr, homeAbbr, side, line, odds, book, projTotal, projSource)
@@ -2764,7 +2801,7 @@ const BOOK_LOGOS = {
   "Pinnacle": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABAAEADASIAAhEBAxEB/8QAGwAAAgMBAQEAAAAAAAAAAAAAAAIDBwgBCQT/xAAuEAABAwMEAAQDCQAAAAAAAAABAAIRAwQFBgcSIRQiMUEIUWETFSQyNVJxkqH/xAAZAQEAAwEBAAAAAAAAAAAAAAACAAEFAwT/xAAfEQACAAYDAQAAAAAAAAAAAAAAAQIDBRESMQQTUSH/2gAMAwEAAhEDEQA/AMqyiUnJHJbWRmfWPKWVzkl5s/ez+wQiaQ1Cxy5Rgon3HY9ignpBxISQSiUvqgo5CSGkIJUcolPICRLC9HdyrnanbPR1ln9SaNxJtK9anbN8LhqNRwe5hcJBA6hh7XnAHeq9M95NtcbupoPHacymUusdRo16V2Klu1hcXNpubHm9vOV5pz+o7S0ir9a7a7W727XXGr9vsbZ4zK02VHW9eha+GLqtMS6jWpjrvruJEgg/PDYfPst8Z/L6D+HHZq605isuL7L1m132ltWrMdc3NzUbH2j2t/IwdSSAIaB2T3gVvQ6VS7suNWHlcJSkoldQoSUSk5oDpKhShJQVp/4ot8tD7g7XY7A6ZuMqb62v6FzUFa1dSbwZTqNJ5T83BZeBEK7aegNv3NZ+KA5gH9Tb1I/lZVRqUrhOHsTd/Fc2aXSJtQy64krW27bKRPrKYK8H7f7fim93ih5GzH3m3v8A1Ue1KnVOVzsutNW9Vi6pR5tOx7Yk8vHfQIQhaZjHzyu8vollEotiG5I5fRLKJRaT2Wm1okTtKjBlOFcNlojbezqZKmSCf//Z",
   "Prop Builder": "data:image/jpeg;base64,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",
   "FanDuel": "data:image/jpeg;base64,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",
-  "Novig": "data:image/jpeg;base64,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",
+  "Novig": "data:image/png;base64,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R6AyAgpZGsmqrq42gwYNYrqwMt3AWRFAIGABAlbAnUPVEAhZYNdddzVr1641CxYssFs4zJ8/P+TqUjcEEECgrAIErLJyczIEsiWgkSwd2vH9oIMOYguHbHUvrUEAgRIECFgl4PFWBGIS0Lqp5B9fdVfI0hYOe+65J1s4+EKlHAQQiF6AgBV9F9IABOoKuBC1ZcsW+4Sm8lq0aGF23313e9sb3fpGj/WzXXbZxYYuvVbva+qhqwu127vKu+CCC7itTlMheR8CCGRGoHlmWkJDEMixgMKRQlKzZs1Mq1at7IiSRpU2b95sNm7cWJCM9rdSQNL9B1WeHqu8Qg+NZOlc2sKhT58+9rY62pSUAwEEEMijAAErj71OmzMloFCz1157mVWrVtl2ffLJJ+bggw82Q4YMMT169DBdunQx7dq1s1f8uTVTCl963cqVK+26KS1QHz16tL0y0OG0adPGjkq597if7+yrC1kaJTvwwAPNu+++a7p167azt/AcAgggkEmBwv95msnm06i0BA477LCN8+bNa66RkGJGQdKqT9bKddN5mv7TiJOOiy66yJx44olmwIABplOnTnYKsNBwpJCmbRcWLVpkZsyYYSZNmmSeeOIJW67KcKNjhfblpk2b7I7vClfjx483hxxyiC2Lv8onoL7S1K0bjSzfmeM5k2y2/eNj67Z/aLBcJp5ui6amBKxouiquihKw0usvTftphEhbJOi46qqrzOWXX25HirS2ysehW+L861//Mo8++qi56667bJE656effmoU6go5FNo0zXjooYeaiRMnMpJVCJrH1xCwGsckYDVuxCuaLkDAarod79yJAAFrJzglPKUPTf3RqNVNN91kRo4cWSe46ANDz5dy1C9DO7Xfeeed5t577zVVVVV2fVchI2Oqh6YitSZMwWzx4sX2KsNS6sZ7CxeQPyNYO/ciYO3ch2dLE2BYtDQ/3o1AWQQ0aqWRIwWWwYMHm5kzZ5qbb765TrhSRUoNVzsqQ7fD0fqsV1991e7a7hrsrlJ039f/qg8vBTG347vWZGm/LA4EEEAgDwIErDz0Mm2MWkBBRVN/CioKOmPGjDG9e/cua5tUh/79+5vHHnvM/N///Z+9WlBThgp+jR0aRdF0praFGD58uJ16bOw9PI8AAgjELlDaXELsraf+qQkwReiHNrneasqUKeakk07yU3CJpUyYMMGcffbZdspQC9oLWZelNVluipGrC0vsgALezhRh40hMETZuxCuaLsAIVtPteCcCqQookGiKTaM/s2bNCiZcqdFnnXWWrZOmLDVVWMhIltqiNrVv3950797dzJ49O1U/CkcAAQQqKUDAqqQ+50agAQH9y7q6utouENfVfIcffnhJO603cJom/1j1U520pkqjUrpaUCNZjR1ux3dNeZ5xxhnmrbfeauwtPI8AAghEKUDAirLbqHSWBTQipCk3jVxNnz7dbnOg9vpYwO7LTXVRyNo2FWymTp1qw5WuFtTPGjvUtvXr1xttbnr88cebbfulNfYWnkcAAQSiEyBgRddlVDjLAgooCirahmHatGm14SrENruQpY1NJ0+ebENToSFL04XuKkTtOq+wxYEAAghkSYCAlaXepC3RCyi06BY2ulJQozuFjAhVstFuVE2L7++//3476qbpwkLqrZC1Zs0ao1vyfPGLX2S6sJIdybkRQMC7AAHLOykFItA0AYUSLQIfNWqUGTFihC3EBZimlVi+d6mel156qenVq5fdq8uNTjVWA00XKmRpxO6cc85h4XtjYDyPAALRCBCwoukqKpplAYWrli1b2ibecMMN9lY4sbVXi93Hjh1rq609rwo93NWFS5cutWu6FixYUOhbeR0CCCAQrAABK9iuoWJ5EtC0mqYG77vvPtOjR49om96vXz9zyy232FvjaDSu0EMhSwvfNV2oLRx05SQHAgggELMAASvm3qPumRDQdJob8dHmnbEfuj+ipgzbtWtXu5C9kDa5Hd+1hYOmC7mtTiFqvAYBBEIVIGCF2jPUKzcCCiPakuGOO+4wHTp0KGiBeKg4murs0qWLuf32281HH31U9NYSClluCwfts8V0Yag9Tb0QQKAxAQJWY0I8j0CKAgokChU6dJ8+HbEsbLeVrfeXq7tGoHTofoVqYzGHW5PVtm1bO104d+7cYt7OaxFAAIEgBAhYQXQDlcizgG7ifM0115jOnTtnhqFr1672SsjVq1cXHbCEoJClUT2FLG0BwY7vmfnVoCEI5EaAgJWbrqahIQq428ucfPLJBd0wOcQ27KhOWrTv1pMVciPoHZWh9ymgLVu2zAwdOtTMmTNnRy/jZwgggECQAgSsILuFSuVBQIvb9957b9tUbbSZtUNXFOpwU6BNaZ9GsjTFuGrVKrur/cKFC5tSDO9B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",
   "ProphetX": "data:image/jpeg;base64,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",
   "Bookmaker": "data:image/jpeg;base64,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",
   "Bet105": "data:image/jpeg;base64,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",
@@ -7059,23 +7096,26 @@ async function shareOpenPropsAsImageExclusive() {
       }
       const playToStr = playToValue != null ? (playToValue > 0 ? `+${playToValue}` : `−${Math.abs(playToValue)}`) : null;
 
-      // Bet card — no left color bar, more rounded, more padding
+      // Bet card — stacked book rows, no best-book corner, cyan stat pill
       h += `<div style="background:#050507;border:1px solid #1a1d22;border-radius:9px;padding:11px 14px;">`;
-      h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;">`;
-      // Direction: BOLD white with subtle glow (no red/green color)
-      h += `<div><span style="color:#fff;font-size:13px;font-weight:800;letter-spacing:0.3px;text-shadow:0 0 8px rgba(255,255,255,0.20),0 0 1px rgba(255,255,255,0.5);">${ouUpper} ${bestLine}</span> <span style="display:inline-block;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.10);padding:2px 8px;border-radius:5px;font-size:9.5px;font-weight:800;color:#fff;letter-spacing:0.5px;margin-left:6px;vertical-align:1px;">${statLabel}</span></div>`;
-      // Headline: odds + logo + book name. Odds same color as secondary row.
-      h += `<div style="font-size:14px;color:#fff;font-weight:700;display:flex;align-items:center;gap:6px;"><span style="font-family:'JetBrains Mono','Menlo',monospace;">${oddsStr}</span>${bookLogoHtml(best.book, 17)}<span style="color:#fff;font-weight:700;">${esc(best.book)}</span></div>`;
+      // Header: direction + stat pill only
+      h += `<div style="display:flex;align-items:center;margin-bottom:8px;">`;
+      h += `<span style="color:#fff;font-size:13px;font-weight:800;letter-spacing:0.3px;">${ouUpper} ${bestLine}</span>`;
+      h += `<span style="display:inline-block;background:rgba(125,211,252,0.10);border:1px solid rgba(125,211,252,0.25);padding:3px 10px;border-radius:20px;font-size:9px;font-weight:800;color:#7dd3fc;letter-spacing:0.6px;margin-left:8px;">${statLabel}</span>`;
       h += `</div>`;
-      // Stop-sign entry — acts as the "play to" book at the end of the row.
-      // Bold white value with subtle glow preserved.
-      const playToEntry = playToStr
-        ? `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:10px;">${stopSignSvg(16)}<span style="font-family:'JetBrains Mono','Menlo',monospace;color:#fff;font-weight:800;text-shadow:0 0 6px rgba(255,255,255,0.35);">${playToStr}</span></span>`
-        : "";
-      const fullBooksRow = booksRow + playToEntry;
-      if (fullBooksRow) {
-        h += `<div style="font-size:12px;color:#fff;line-height:1.85;font-weight:600;">${fullBooksRow}</div>`;
-      }
+      // Stacked book rows — best first, then sameLine others
+      const allBookRows = [{ book: best.book, odds: best.odds, isBest: true }, ...sameLine.map(p => ({ book: p.book, odds: p.odds, isBest: false }))];
+      allBookRows.forEach(p => {
+        const o = fmtOdds(p.odds);
+        const rowBg = p.isBest ? `background:rgba(125,211,252,0.05);border:1px solid rgba(125,211,252,0.18);` : `background:rgba(255,255,255,0.02);border:1px solid #1a1d22;`;
+        const oddsColor = p.isBest ? `#7dd3fc` : `#d4dae3`;
+        const bestLabel = p.isBest ? `<span style="font-size:8px;font-weight:800;color:#7dd3fc;letter-spacing:0.5px;margin-left:4px;">BEST</span>` : ``;
+        h += `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 9px;border-radius:6px;${rowBg}margin-bottom:3px;">`;
+        h += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#fff;">${bookLogoHtml(p.book, 15)}${esc(p.book)}${bestLabel}</div>`;
+        h += `<span style="font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;font-weight:700;color:${oddsColor};">${o}</span>`;
+        h += `</div>`;
+      });
+      // Alt lines section — grouped by line, stacked rows
       const diffLineGroups = {};
       remaining.forEach(p => {
         if ((p.line ?? bet.line) === bestLine) return;
@@ -7084,36 +7124,28 @@ async function shareOpenPropsAsImageExclusive() {
         diffLineGroups[k].items.push(p);
       });
       const altLineRows = Object.values(diffLineGroups).map(g => {
-        g.items.sort((a, b) => b.odds - a.odds);  // best first
-        // Each book just shows its odds. The direction+line label sits at the
-        // start of the row (mirrors the main bet card's "OVER 7.5" header style).
-        const items = g.items.map(p => {
-          return `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:10px;">${bookLogoHtml(p.book, 14)}<span style="font-family:'JetBrains Mono','Menlo',monospace;">${fmtOdds(p.odds)}</span></span>`;
+        g.items.sort((a, b) => b.odds - a.odds);
+        const dirLabel = `<div style="font-size:10px;font-weight:800;color:#7dd3fc;letter-spacing:0.5px;margin-bottom:3px;">${ouUpper} ${g.line}</div>`;
+        const rows = g.items.map(p => {
+          const o = fmtOdds(p.odds);
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 9px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid #1a1d22;margin-bottom:3px;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#fff;">${bookLogoHtml(p.book, 14)}${esc(p.book)}</div>
+            <span style="font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;font-weight:700;color:#d4dae3;">${o}</span>
+          </div>`;
         }).join("");
-        const altPt = g.fair != null ? playToOdds(g.fair, 5) : null;
-        const altPtStr = altPt != null ? (altPt > 0 ? `+${altPt}` : `−${Math.abs(altPt)}`) : null;
-        const altPtEntry = altPtStr
-          ? `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:10px;">${stopSignSvg(14)}<span style="font-family:'JetBrains Mono','Menlo',monospace;color:#fff;font-weight:800;text-shadow:0 0 5px rgba(255,255,255,0.35);">${altPtStr}</span></span>`
-          : "";
-        // Direction label (OVER 6.5 / UNDER 18.5) — matches the headline direction's white-with-glow styling, just sized down for the alt row context.
-        const dirHeader = `<span style="display:inline-block;color:#fff;font-weight:800;font-size:11.5px;letter-spacing:0.3px;margin-right:12px;text-shadow:0 0 6px rgba(255,255,255,0.22),0 0 1px rgba(255,255,255,0.5);">${ouUpper} ${g.line}</span>`;
-        return `<div>${dirHeader}${items}${altPtEntry}</div>`;
+        return dirLabel + rows;
       });
       if (altLineRows.length) {
-        // Alts header line + one row per alt-line group. Each row right-aligns its play-to.
-        h += `<div style="font-size:11px;color:#fff;margin-top:7px;padding-left:10px;border-left:1px solid #1a1d22;letter-spacing:0.3px;line-height:1.8;font-weight:600;">
-          <div style="font-size:10px;color:#fff;letter-spacing:0.8px;font-weight:700;margin-bottom:2px;">ALTS</div>
-          ${altLineRows.join("")}
-        </div>`;
+        h += `<div style="margin-top:8px;padding-left:10px;border-left:2px solid rgba(125,211,252,0.2);">`;
+        h += `<div style="font-size:9px;font-weight:800;color:#525a64;letter-spacing:0.8px;margin-bottom:5px;">ALTS</div>`;
+        h += altLineRows.join("");
+        h += `</div>`;
       }
       h += `</div>`;
     });
     if (playerBlockOpen) h += `</div></div>`;
     if (matchupBlockOpen) h += `</div>`;
-    // Closing tagline — appears only on the final image so it reads as a true sign-off
-    if (pageIdx === totalPages - 1) {
-      h += `<div style="margin-top:20px;padding-top:14px;border-top:1px solid #1a1d22;text-align:center;font-size:11px;color:#fff;font-weight:500;letter-spacing:0.3px;font-style:italic;">you've locked in the last play, root em in</div>`;
-    }
+    // no footer tagline
     h += `</div>`;
     return h;
   }
@@ -9299,6 +9331,7 @@ function renderTracker() {
         <button onclick="copyDailyRecapTotals()" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Totals Recap</button>
         <button onclick="exportBets()" style="background:#0c0d10;border:1px solid #1a1d22;color:#7dd3fc;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Backup</button>
         <button onclick="importBets()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Restore</button>
+        <button id="seasonLogsSyncBtnTop" onclick="handleSyncSeasonLogs(false)" title="Sync season logs" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">🔄 Sync Logs</button>
       </span>
     </div>
 
@@ -10357,6 +10390,86 @@ function parseRotoWireInjuries(text) {
     i = analysisIdx > -1 ? analysisIdx + 2 : posTeamIdx + 4;
   }
   return records;
+}
+
+// Parse an uploaded injury CSV (Player,Team,Pos,Injury,Status,Est. Return)
+// and ingest directly — no paste needed.
+function parseInjuryCSV(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const nameEl = document.getElementById("injury-csv-filename");
+  const status = document.getElementById("rw-injury-status");
+  if (nameEl) nameEl.textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result || "";
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) {
+      if (status) { status.textContent = "CSV empty"; status.style.color = "#f87171"; }
+      return;
+    }
+    // Detect header row
+    const headerLine = lines[0].replace(/^\uFEFF/, ""); // strip BOM
+    const headers = headerLine.split(",").map(h => h.trim().toLowerCase());
+    const iPlayer = headers.indexOf("player");
+    const iTeam   = headers.indexOf("team");
+    const iPos    = headers.indexOf("pos");
+    const iInj    = headers.indexOf("injury");
+    const iStatus = headers.indexOf("status");
+    const iReturn = headers.findIndex(h => h.includes("return"));
+    if (iPlayer === -1 || iStatus === -1) {
+      if (status) { status.textContent = "CSV missing Player/Status columns"; status.style.color = "#f87171"; }
+      return;
+    }
+    // Map CSV status strings → canonical
+    function mapStatus(s) {
+      const v = (s || "").toLowerCase().trim();
+      if (v === "out" || v === "inactive") return "Out";
+      if (v.includes("day-to-day") || v.includes("day to day")) return "Day-To-Day";
+      if (v.includes("game time") || v.includes("gtd")) return "Questionable";
+      if (v.includes("questionable")) return "Questionable";
+      if (v.includes("probable")) return "Probable";
+      if (v.includes("out for season") || v.includes("season-ending")) return "Out";
+      return "Day-To-Day";
+    }
+    const records = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(",").map(c => c.trim());
+      const playerName = cols[iPlayer] || "";
+      if (!playerName) continue;
+      const teamAbbr = iTeam >= 0 ? (cols[iTeam] || "").toUpperCase() : "";
+      const pos      = iPos >= 0  ? cols[iPos]  : "";
+      const injType  = iInj >= 0  ? cols[iInj]  : "";
+      const rawStatus = iStatus >= 0 ? cols[iStatus] : "";
+      const retDate  = iReturn >= 0 ? cols[iReturn] : "";
+      records.push({
+        id: `csv-${playerName}-${i}`,
+        athlete: { displayName: playerName, team: { abbreviation: teamAbbr } },
+        status: mapStatus(rawStatus),
+        details: { type: injType, detail: rawStatus, returnDate: retDate },
+        shortComment: injType ? `${injType}${retDate ? " · Est. return " + retDate : ""}` : (retDate ? "Est. return " + retDate : ""),
+        longComment: "",
+        date: retDate,
+        _teamAbbr: teamAbbr
+      });
+    }
+    if (records.length === 0) {
+      if (status) { status.textContent = "No players parsed"; status.style.color = "#f87171"; }
+      return;
+    }
+    _ingestInjuryRecords(records);
+    injuriesLastFetched = Date.now();
+    try {
+      localStorage.setItem("wnba_injuries_cache", JSON.stringify({ records, fetchedAt: injuriesLastFetched }));
+    } catch(e) {}
+    if (status) { status.textContent = `CSV: ${records.length} players loaded`; status.style.color = "#22c55e"; }
+    showToast(`Injury CSV: ${records.length} players loaded`);
+    updateInjuryPanel();
+    if (typeof renderTable === "function" && merged) renderTable();
+    // Reset file input so same file can be re-uploaded
+    input.value = "";
+  };
+  reader.readAsText(file);
 }
 
 // Parse the textarea's contents, merge into existing cache. RotoWire records
@@ -11821,32 +11934,35 @@ function _executeCopySpreadsByDate(dateFilter, modelOverride) {
     const projHomeMargin = projHome - projAway;
     const absProjMargin = Math.abs(projHomeMargin);
     const projFavoredAbbr = projHomeMargin > 0 ? g.homeAbbr : g.awayAbbr;
-    const projStr = `${projFavoredAbbr} -${absProjMargin.toFixed(1)}`;
     // Market spread (ESPN/DK) — stored on g.spread (home spread, negative = home favored).
     const marketSpread = (typeof g.spread === "number") ? g.spread : null;
     let rowLine;
     if (marketSpread != null) {
+      // marketSpread is home's spread. Convert to home margin (negate).
       const marketHomeMargin = -marketSpread;
+      // Edge = our home margin minus market home margin. Positive = we like home more.
       const edge = projHomeMargin - marketHomeMargin;
-      const edgeSigned = `${edge >= 0 ? "+" : ""}${edge.toFixed(1)}`;
-      const marketFavored = marketHomeMargin > 0 ? g.homeAbbr : g.awayAbbr;
-      const marketStr = `${marketFavored} -${Math.abs(marketHomeMargin).toFixed(1)}`;
-      // 1.5pt threshold for spreads — per user: "if we project +8 on a +6.5 thats good"
-      if (Math.abs(edge) >= 1.5) {
-        // Pick the team we like more. If edge > 0 we like home (project them
-        // to win by more than market says). If edge < 0 we like away.
-        const pickAbbr = edge > 0 ? g.homeAbbr : g.awayAbbr;
-        const pickHomeMargin = pickAbbr === g.homeAbbr ? marketHomeMargin : -marketHomeMargin;
-        const sign = pickHomeMargin >= 0 ? "-" : "+";
-        const pickStr = `${pickAbbr} ${sign}${Math.abs(pickHomeMargin).toFixed(1)}`;
-        rowLine = `${dateStr} ${matchup}  →  Pick: ${pickStr}  (proj ${projStr}, edge ${edgeSigned})`;
+      const absEdge = Math.abs(edge);
+      // Pick = the side our projection favors more than market
+      const pickAbbr = edge > 0 ? g.homeAbbr : g.awayAbbr;
+      // Same-team orientation: show market spread + projected spread on the
+      // PICK team's side so they line up cleanly without sign-flipping.
+      const pickMarketSpread = pickAbbr === g.homeAbbr ? marketSpread : -marketSpread;
+      const pickProjSpread = pickAbbr === g.homeAbbr ? -projHomeMargin : projHomeMargin;
+      const fmt = (n) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}`;
+      const pickStr = `${pickAbbr} ${fmt(pickMarketSpread)}`;
+      const projStr = `proj ${pickAbbr} ${fmt(pickProjSpread)}`;
+      // 1.5pt threshold for spreads — per user "+8 on a +6.5 is good"
+      if (absEdge >= 1.5) {
+        rowLine = `${dateStr} ${matchup}  Bet ${pickStr}  (proj ${pickAbbr} ${fmt(pickProjSpread)}, edge ${absEdge.toFixed(1)})`;
       } else {
-        rowLine = `${dateStr} ${matchup}     line: ${marketStr}  (proj ${projStr}, ${edgeSigned} — thin)`;
+        rowLine = `${dateStr} ${matchup}  ${pickStr}  (proj ${pickAbbr} ${fmt(pickProjSpread)}, edge ${absEdge.toFixed(1)}, no play)`;
       }
       if (!byDate.has(dateKey)) byDate.set(dateKey, []);
-      byDate.get(dateKey).push({ line: rowLine, sortKey: Math.abs(edge) });
+      byDate.get(dateKey).push({ line: rowLine, sortKey: absEdge });
     } else {
-      rowLine = `${dateStr} ${matchup}     (proj ${projStr}, no market line)`;
+      // No market spread — just emit the projection
+      rowLine = `${dateStr} ${matchup}  proj ${projFavoredAbbr} -${absProjMargin.toFixed(1)}  (${g.awayAbbr} ${projAway.toFixed(1)} / ${g.homeAbbr} ${projHome.toFixed(1)})`;
       if (!byDate.has(dateKey)) byDate.set(dateKey, []);
       byDate.get(dateKey).push({ line: rowLine, sortKey: absProjMargin });
     }
@@ -12053,18 +12169,18 @@ function _executeCopyTotalsByDate(dateFilter, modelOverride) {
       // Compute signed edge (projection minus line). Positive = projection
       // higher than line → over lean.
       const edge = projTotal - line;
-      const edgeSigned = `${edge >= 0 ? "+" : ""}${edge.toFixed(1)}`;
+      const absEdge = Math.abs(edge);
       // 2pt threshold for totals (vs 1.5pt for spreads — totals are wider markets)
-      if (Math.abs(edge) >= 2) {
+      if (absEdge >= 2) {
         const side = edge > 0 ? "OVER" : "UNDER";
-        rowLine = `${dateStr} ${matchup}  →  Pick: ${side} ${line}  (proj ${projTotal.toFixed(1)}, edge ${edgeSigned})`;
+        rowLine = `${dateStr} ${matchup}  Bet ${side} ${line}  (proj ${projTotal.toFixed(1)}, edge ${absEdge.toFixed(1)})`;
       } else {
-        // No-side case — edge too thin to pick a play
-        rowLine = `${dateStr} ${matchup}     line: ${line}  (proj ${projTotal.toFixed(1)}, ${edgeSigned} — thin)`;
+        // No-play case — edge too thin to pick a play. Still show line for context.
+        rowLine = `${dateStr} ${matchup}  ${line}  (proj ${projTotal.toFixed(1)}, edge ${absEdge.toFixed(1)}, no play)`;
       }
     } else {
       // No posted line — just emit the projection
-      rowLine = `${dateStr} ${matchup}     (proj ${projTotal.toFixed(1)}, no market line)`;
+      rowLine = `${dateStr} ${matchup}  (proj ${projTotal.toFixed(1)}, no market line)`;
     }
     if (!byDate.has(dateKey)) byDate.set(dateKey, []);
     byDate.get(dateKey).push({ line: rowLine, edgeAbs: line != null ? Math.abs(projTotal - line) : -1 });
@@ -12120,18 +12236,29 @@ function renderTotals() {
   // warning when the user opens a track modal for a game that already has any
   // tracked bet on the same date. Value = array of existing bets for context.
   const trackedTotalsByGame = new Map();
+  // Spread tracking — parallel sig set for the spread row on each card.
+  // Key = "AWAY/HOME|TEAM|LINE" so we know if this specific spread + side is
+  // already tracked (regardless of book / date).
+  const trackedSpreadsSig = new Set();
   bets.forEach(b => {
-    if (b.stat !== "GAME_TOTAL") return;
-    // b.team was stored as "AWAY/HOME" by trackTotal()
-    const sig = `${b.team}|${b.ou}|${b.line}|${b.book}`;
-    trackedTotalsSig.add(sig);
-    // Game-level dedup key — date + team pair
-    const gameKey = `${b.date || ""}|${b.team || ""}`;
-    if (!trackedTotalsByGame.has(gameKey)) trackedTotalsByGame.set(gameKey, []);
-    trackedTotalsByGame.get(gameKey).push(b);
+    if (b.stat === "GAME_TOTAL") {
+      // b.team was stored as "AWAY/HOME" by trackTotal()
+      const sig = `${b.team}|${b.ou}|${b.line}|${b.book}`;
+      trackedTotalsSig.add(sig);
+      // Game-level dedup key — date + team pair
+      const gameKey = `${b.date || ""}|${b.team || ""}`;
+      if (!trackedTotalsByGame.has(gameKey)) trackedTotalsByGame.set(gameKey, []);
+      trackedTotalsByGame.get(gameKey).push(b);
+    } else if (b.stat === "GAME_SPREAD") {
+      // b.team = "AWAY/HOME" (matchup), b.pickTeam = the team picked,
+      // b.line = the spread number (signed from pick-team perspective)
+      const sig = `${b.team}|${b.pickTeam}|${b.line}`;
+      trackedSpreadsSig.add(sig);
+    }
   });
   // Make game-level map accessible to trackTotal() for the duplicate warning
   window._trackedTotalsByGame = trackedTotalsByGame;
+  window._trackedSpreadsSig = trackedSpreadsSig;
 
   // ── Date filter ──
   // Collect unique game dates (ISO format from ESPN parse) sorted chronologically.
@@ -12627,6 +12754,71 @@ function renderTotals() {
           </thead>
           <tbody>${bookRows}</tbody>
         </table>
+        ${(() => {
+          // Spread display block — appears below the totals book table when
+          // the game has a market spread (g.spread from ESPN/DK). Computes
+          // projected spread from the same source as the totals projection
+          // (active model: blended, paceeff, or both). Shows pick + edge.
+          if (typeof g.spread !== "number") return "";
+          // Projected home margin (positive = home favored)
+          let projAwayPts = null, projHomePts = null;
+          if (activeSrc === "blended" && rwAway && rwHome) {
+            projAwayPts = rwAway.sum; projHomePts = rwHome.sum;
+          } else if (activeSrc === "paceeff" && indepInfo) {
+            projAwayPts = indepInfo.ptsA; projHomePts = indepInfo.ptsB;
+          } else if (activeSrc === "both" && rwAway && rwHome && indepInfo) {
+            projAwayPts = (rwAway.sum + indepInfo.ptsA) / 2;
+            projHomePts = (rwHome.sum + indepInfo.ptsB) / 2;
+          } else if (indepInfo) {
+            projAwayPts = indepInfo.ptsA; projHomePts = indepInfo.ptsB;
+          }
+          if (projAwayPts == null || projHomePts == null) return "";
+          const projHomeMargin = projHomePts - projAwayPts;
+          const marketHomeMargin = -g.spread;  // g.spread is home spread (negative = home favored)
+          const edge = projHomeMargin - marketHomeMargin;
+          const absEdge = Math.abs(edge);
+          const pickAbbr = edge > 0 ? g.homeAbbr : g.awayAbbr;
+          // Same-team orientation for market + projection
+          const pickMarketSpread = pickAbbr === g.homeAbbr ? g.spread : -g.spread;
+          const pickProjSpread = pickAbbr === g.homeAbbr ? -projHomeMargin : projHomeMargin;
+          const fmt = (n) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}`;
+          const isPlay = absEdge >= 1.5;
+          const edgeColor = isPlay ? "#22c55e" : "#a8b0bb";
+          const edgeBg = isPlay ? "#22c55e22" : "transparent";
+          const edgeBorder = isPlay ? "#22c55e55" : "transparent";
+          const labelText = isPlay ? "BET" : "no play";
+          // Tracked-state check: see if this matchup+team+line already exists
+          const trackSig = `${g.awayAbbr}/${g.homeAbbr}|${pickAbbr}|${pickMarketSpread}`;
+          const isTracked = (window._trackedSpreadsSig || new Set()).has(trackSig);
+          // Track button payload (escaped for inline onclick)
+          const trackPayload = {
+            awayAbbr: g.awayAbbr,
+            homeAbbr: g.homeAbbr,
+            pickTeam: pickAbbr,
+            line: pickMarketSpread,
+            projSpread: pickProjSpread,
+            projSource: activeSrc,
+            edge,
+            gameDate: g.gameDate || null
+          };
+          const trackButton = isTracked
+            ? `<span style="background:#22c55e22;border:1px solid #22c55e55;color:#22c55e;border-radius:5px;padding:3px 9px;font-size:10.5px;font-weight:800;letter-spacing:0.4px;font-family:'Inter',sans-serif;">✓ TRACKED</span>`
+            : (isPlay
+                ? `<button onclick='trackSpread(${JSON.stringify(trackPayload).replace(/'/g, "&#39;")})' style="background:#1e40af;border:1px solid #1e40af;color:#fff;border-radius:5px;padding:3px 9px;font-size:10.5px;font-weight:800;letter-spacing:0.4px;cursor:pointer;font-family:'Inter',sans-serif;">+ TRACK</button>`
+                : "");
+          return `<div style="margin-top:12px;padding:10px 12px;background:#050507;border:1px solid #1a1d22;border-radius:8px;font-family:'Inter',sans-serif;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="font-size:10px;color:#d4dae3;letter-spacing:1px;font-weight:600;text-transform:uppercase;">DK Spread</span>
+              <span style="font-size:13px;color:#fff;font-weight:700;font-family:'JetBrains Mono',monospace;">${pickAbbr} ${fmt(pickMarketSpread)}</span>
+              <span style="color:#525a64;font-size:10px;">·</span>
+              <span style="font-size:11px;color:#a8b0bb;">proj <span style="color:#d4dae3;font-family:'JetBrains Mono',monospace;font-weight:600;">${pickAbbr} ${fmt(pickProjSpread)}</span></span>
+              <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+                <span style="background:${edgeBg};border:1px solid ${edgeBorder};color:${edgeColor};border-radius:5px;padding:3px 9px;font-size:10.5px;font-weight:800;letter-spacing:0.4px;">${labelText} · edge ${absEdge.toFixed(1)}</span>
+                ${trackButton}
+              </span>
+            </div>
+          </div>`;
+        })()}
         ${bestSummary}
       </div>`;
   }).join("");
