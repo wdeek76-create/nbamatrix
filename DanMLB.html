@@ -2126,21 +2126,23 @@ function renderChart() {
   let fPeak=-Infinity, fDip=Infinity, fBestDay=-Infinity, fWorstDay=Infinity;
   let fBestLabel='', fWorstLabel='';
   filtered.forEach(p => {
-    if(p.y > fPeak) fPeak = p.y;
-    if(p.y < fDip) fDip = p.y;
+    const relY = p.y - periodStart;
+    if(relY > fPeak) fPeak = relY;
+    if(relY < fDip) fDip = relY;
     if(p.dayPnl > fBestDay) { fBestDay=p.dayPnl; fBestLabel=p.label; }
     if(p.dayPnl < fWorstDay) { fWorstDay=p.dayPnl; fWorstLabel=p.label; }
   });
-  // for non-all ranges show relative peak/dip
-  const showPeak = chartRange==='all' ? fPeak : fPeak - periodStart;
-  const showDip  = chartRange==='all' ? fDip  : fDip  - periodStart;
-  document.getElementById('chartPeak').textContent = fmt(showPeak);
-  document.getElementById('chartDip').textContent = fmt(showDip);
+  document.getElementById('chartPeak').textContent = fmt(fPeak);
+  document.getElementById('chartDip').textContent = fmt(fDip);
   document.getElementById('chartBestDay').textContent = `${fmt(fBestDay)} (${fBestLabel})`;
   document.getElementById('chartWorstDay').textContent = `${fmt(fWorstDay)} (${fWorstLabel})`;
 
-  // best single win and worst single loss
-  const gradedBets = bets.filter(b => effectiveResult(b)==='win'||effectiveResult(b)==='loss');
+  // best single win and worst single loss — filter to period dates
+  const periodDates = new Set(filtered.map(p=>p.date).filter(Boolean));
+  const gradedBets = bets.filter(b => {
+    const r = effectiveResult(b);
+    return (r==='win'||r==='loss') && (chartRange==='all' || periodDates.has(b.date));
+  });
   let bestWin = {pnl:0,label:''}, worstLoss = {pnl:0,label:''};
   gradedBets.forEach(b => {
     const pl = calcPnl(b);
@@ -2209,7 +2211,8 @@ function renderChart() {
     ctx.beginPath(); ctx.arc(px2,py2,5,0,Math.PI*2); ctx.stroke();
     // peak label with background
     ctx.font='700 10px Inter'; ctx.textAlign='center';
-    const peakLabel = `▲ ${filtered[peakIdx].y>=0?'+':''}${filtered[peakIdx].y.toFixed(2)}u`;
+    const peakVal = chartRange==='all' ? filtered[peakIdx].y : filtered[peakIdx].y - periodStart;
+    const peakLabel = `▲ ${peakVal>=0?'+':''}${peakVal.toFixed(2)}u`;
     const plx = Math.min(Math.max(px2, pad.l+36), W-pad.r-36);
     const plw = ctx.measureText(peakLabel).width + 12;
     ctx.fillStyle='rgba(12,14,20,.92)'; ctx.strokeStyle='rgba(34,197,94,.5)'; ctx.lineWidth=1;
@@ -2224,7 +2227,8 @@ function renderChart() {
     ctx.beginPath(); ctx.arc(dx2,dy2,5,0,Math.PI*2); ctx.stroke();
     // dip label with background
     ctx.font='700 10px Inter'; ctx.textAlign='center';
-    const dipLabel = `▼ ${filtered[dipIdx].y>=0?'+':''}${filtered[dipIdx].y.toFixed(2)}u`;
+    const dipVal = chartRange==='all' ? filtered[dipIdx].y : filtered[dipIdx].y - periodStart;
+    const dipLabel = `▼ ${dipVal>=0?'+':''}${dipVal.toFixed(2)}u`;
     const dlx = Math.min(Math.max(dx2, pad.l+36), W-pad.r-36);
     const dlw = ctx.measureText(dipLabel).width + 12;
     ctx.fillStyle='rgba(12,14,20,.92)'; ctx.strokeStyle='rgba(239,68,68,.5)'; ctx.lineWidth=1;
