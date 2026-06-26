@@ -6864,7 +6864,7 @@ async function shareOpenPropsAsImage() {
       try {
         const canvas = await h2c(container.firstChild, {
           backgroundColor: "#0a0b0d",
-          scale: 3,
+          scale: 4,
           logging: false,
           useCORS: true,
         });
@@ -7161,7 +7161,7 @@ async function shareOpenPropsAsImageExclusive() {
         h += `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;">`;
         if (teams) { h += teamLogoHtml(teams.away, 18); h += teamLogoHtml(teams.home, 18); }
         h += `</div>`;
-        h += `<div style="font-size:12px;font-weight:800;color:#fff;letter-spacing:-0.1px;margin-bottom:2px;">${esc(fullName(teams ? teams.away : e.matchup))} <span style="color:#525a64;font-weight:500;">@</span> ${esc(fullName(teams ? teams.home : e.matchup))}</div>`;
+        h += `<div style="font-size:12px;font-weight:800;color:#fff;letter-spacing:-0.1px;margin-bottom:2px;">${esc(fullName(teams ? teams.away : e.matchup))} @ ${esc(fullName(teams ? teams.home : e.matchup))}</div>`;
         h += `<div style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 8px rgba(255,255,255,0.3),0 0 2px rgba(255,255,255,0.5);">${matchupCount} ${matchupCount === 1 ? "prop" : "props"}</div>`;
         h += `</div>`;
         lastMatchup = e.matchup;
@@ -7268,7 +7268,7 @@ async function shareOpenPropsAsImageExclusive() {
           const o = fmtOdds(p.odds);
           return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 9px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid #1a1d22;margin-bottom:3px;">
             <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#fff;">${bookLogoHtml(p.book, 14)}${esc(p.book)}</div>
-            <span style="font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;font-weight:700;color:#d4dae3;">${o}</span>
+            <span style="font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;font-weight:700;color:#fff;">${o}</span>
           </div>`;
         }).join("");
         const altPt = g.fair != null ? playToOdds(g.fair, 5) : null;
@@ -7277,8 +7277,8 @@ async function shareOpenPropsAsImageExclusive() {
         return dirLabel + rows + altPtRow;
       });
       if (altLineRows.length) {
-        h += `<div style="margin-top:8px;padding-left:10px;border-left:2px solid rgba(125,211,252,0.2);">`;
-        h += `<div style="font-size:9px;font-weight:800;color:#525a64;letter-spacing:0.8px;margin-bottom:5px;">ALTS</div>`;
+        h += `<div style="margin-top:8px;">`;
+        h += `<div style="font-size:9px;font-weight:800;color:#fff;letter-spacing:0.8px;margin-bottom:5px;">ALTS</div>`;
         h += altLineRows.join("");
         h += `</div>`;
       }
@@ -7316,7 +7316,7 @@ async function shareOpenPropsAsImageExclusive() {
       try {
         const canvas = await h2c(container.firstChild, {
           backgroundColor: null,
-          scale: 3,
+          scale: 4,
           logging: false,
           useCORS: true,
         });
