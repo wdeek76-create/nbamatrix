@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -11161,7 +11161,8 @@ function updateInjuryPanel() {
     // (e.g. "Janelle Salaun") while the roster has the proper form ("Janelle Salaün").
     // We walk through 1-2-3 word spans in the text, normalize each, and compare
     // against the normalized roster — catches all the encoding variants in one pass.
-    if (rosterNames.size > 0) {
+    // Always try to highlight — rosterNames includes injuriesCache players
+    {
       // Beneficiaries (in beneficiariesCache) get a stronger green-pill treatment —
       // they're the names that matter for betting decisions. Regular roster
       // names get the standard blue-bold.
@@ -13536,9 +13537,15 @@ loadBets();
     });
     // Bold roster player names in the blurb. Diacritic-aware: matches
     // "Janelle Salaun" in the blurb to "Janelle Salaün" in the roster, etc.
-    if (typeof merged !== "undefined" && Array.isArray(merged) && merged.length) {
+    {
       const rosterByNorm = new Map();
-      merged.forEach(r => { if (r.rawName) rosterByNorm.set(norm(r.rawName), r.rawName); });
+      if (typeof merged !== "undefined" && Array.isArray(merged) && merged.length) {
+        merged.forEach(r => { if (r.rawName) rosterByNorm.set(norm(r.rawName), r.rawName); });
+      }
+      // Also add injured players so blurb mentions get highlighted even without projections
+      if (typeof injuriesCache !== "undefined" && injuriesCache) {
+        injuriesCache.forEach((entry) => { if (entry.name && !rosterByNorm.has(norm(entry.name))) rosterByNorm.set(norm(entry.name), entry.name); });
+      }
       if (rosterByNorm.size > 0) {
         const NAME_RUN_RE = /\b[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ'\-]+(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ'\-]+){0,3}\b(?![^<]*<\/span>)/g;
         out = out.replace(NAME_RUN_RE, (run) => {
