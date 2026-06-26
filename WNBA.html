@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -10977,19 +10977,14 @@ function parseRotoWireInjuriesPaste() {
     if (byNorm.has(key)) return;
     byNorm.set(key, rec);
   });
-  // Filter to today's news + ongoing situations only — drop stale game-specific entries
-  const filtered = [...byNorm.values()].filter(rec => {
-    const isOngoing = (typeof _injuryIsOngoing === "function") && _injuryIsOngoing(rec);
-    const isToday = (typeof _injuryIsForToday === "function") && _injuryIsForToday(rec);
-    return isOngoing || isToday;
-  });
-  const mergedRecords = filtered.length > 0 ? filtered : [...byNorm.values()]; // fallback if all filtered
+  // Ingest all records — display layer (_injuryIsForToday) filters what's shown
+  const mergedRecords = [...byNorm.values()];
   _ingestInjuryRecords(mergedRecords);
   injuriesLastFetched = Date.now();
   try {
     localStorage.setItem("wnba_injuries_cache", JSON.stringify({ records: mergedRecords, fetchedAt: injuriesLastFetched }));
   } catch(e) {}
-  const msg = `${mergedRecords.length} of ${records.length} entries (today) · ${injuriesCache.size} total`;
+  const msg = `${mergedRecords.length} entries loaded · ${injuriesCache.size} total`;
   if (status) { status.textContent = msg; status.style.color = "#22c55e"; }
   showToast(`Parsed ${records.length} RotoWire entries`);
   if (ta) ta.value = "";
