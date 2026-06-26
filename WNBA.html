@@ -5295,67 +5295,82 @@ function updateTeammateRiskInModal() {
   const team = window._modalTeam || "";
   if (!player || !team) { container.style.display = "none"; return; }
 
-  // Detect direction from the shorthand input (matches Splits/Matchup parse)
   let ou = "over";
   const shorthandEl = document.getElementById("modal-shorthand");
   if (shorthandEl && shorthandEl.value) {
     const tok = shorthandEl.value.trim().toLowerCase().split(/\s+/)[0] || "";
     if (tok.startsWith("u")) ou = "under";
   }
-  // Only fires for UNDER bets — that's where teammate absences create the trap.
-  if (ou !== "under") { container.style.display = "none"; return; }
 
-  // Check teammate injury list
-  if (typeof injuriesByTeam === "undefined" || !injuriesByTeam || !injuriesByTeam.get) {
-    container.style.display = "none"; return;
-  }
-  // Try the bet's internal abbr and the ESPN-normalized variant
+  if (typeof injuriesByTeam === "undefined" || !injuriesByTeam?.get) { container.style.display = "none"; return; }
   const espnTeam = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[team]) || team;
-  let teamList = injuriesByTeam.get(team) || injuriesByTeam.get(espnTeam) || [];
+  const teamList = injuriesByTeam.get(team) || injuriesByTeam.get(espnTeam) || [];
   if (!teamList.length) { container.style.display = "none"; return; }
 
-  // Filter to risky-status teammates only — excluding the player themselves
-  const playerNorm = (typeof norm === "function") ? norm(player) : player.toLowerCase();
+  const playerNorm = norm(player);
   const risky = teamList.filter(r => {
-    if (!r || !r.name) return false;
-    const rn = (typeof norm === "function") ? norm(r.name) : r.name.toLowerCase();
-    if (rn === playerNorm) return false;
+    if (!r?.name) return false;
+    if (norm(r.name) === playerNorm) return false;
     const s = (r.status || "").toLowerCase();
-    return s.includes("question") || s.includes("day") || s.includes("game time");
+    return s === "out" || s.includes("question") || s.includes("day") || s.includes("game time") || s.includes("probable");
   });
   if (!risky.length) { container.style.display = "none"; return; }
 
-  // Render the warning panel
-  const rows = risky.map(r => {
-    const label = _injuryStatusLabel(r.status);
-    const color = _injuryStatusColor(r.status, r.longComment || r.comment || "");
-    const detail = (r.detail || r.type || "").trim();
-    const blurb = (r.comment || "").trim();
-    const analysis = (r.longComment || "").trim();
-    const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    const blurbBlock = (blurb || analysis) ? `
-      <div style="margin-top:6px;padding:7px 10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:6px;">
-        ${blurb ? `<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${analysis ? '5px' : '0'};">${esc(blurb)}</div>` : ""}
-        ${analysis ? `<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.85;">${esc(analysis)}</div>` : ""}
-      </div>` : "";
-    return `<div style="margin-top:6px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:6px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;">
-        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-          <span style="background:${color}22;border:1px solid ${color}66;color:${color};border-radius:4px;padding:3px 7px;font-size:9.5px;font-weight:800;letter-spacing:0.5px;">${label}</span>
-          <span style="color:#fff;font-weight:700;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.name}</span>
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  const severityOf = (r) => {
+    const adv = (typeof getBBRefAdvForPlayer === "function") ? getBBRefAdvForPlayer(r.name) : null;
+    if (adv) {
+      const usg = adv.usg || 0, per = adv.per || 0;
+      if (usg >= 26 || per >= 22) return { label:"SEVERE", color:"#f87171", bg:"rgba(248,113,113,0.10)", border:"rgba(248,113,113,0.35)" };
+      if (usg >= 20 || per >= 15) return { label:"MODERATE", color:"#f59e0b", bg:"rgba(245,158,11,0.10)", border:"rgba(245,158,11,0.35)" };
+      return { label:"MINOR", color:"#a8b0bb", bg:"rgba(255,255,255,0.04)", border:"rgba(255,255,255,0.10)" };
+    }
+    const s = (r.status||"").toLowerCase();
+    if (s === "out") return { label:"OUT", color:"#f87171", bg:"rgba(248,113,113,0.10)", border:"rgba(248,113,113,0.35)" };
+    return { label:"GTD", color:"#f59e0b", bg:"rgba(245,158,11,0.10)", border:"rgba(245,158,11,0.35)" };
+  };
+
+  const sevRank = s => s.label==="SEVERE"||s.label==="OUT" ? 0 : s.label==="MODERATE" ? 1 : 2;
+  const riskyWithSev = risky.map(r => ({ r, sev: severityOf(r) })).sort((a,b) => sevRank(a.sev) - sevRank(b.sev));
+
+  const rows = riskyWithSev.map(({ r, sev }) => {
+    const adv = (typeof getBBRefAdvForPlayer === "function") ? getBBRefAdvForPlayer(r.name) : null;
+    const blurb = (r.comment||"").trim();
+    const analysis = (r.longComment||"").trim();
+    const detail = (r.detail||r.type||"").trim();
+    const injLabel = _injuryStatusLabel(r.status);
+    const injColor = _injuryStatusColor(r.status, r.longComment||"");
+    const advRow = adv ? `<div style="display:flex;gap:12px;margin-top:5px;padding:4px 8px;background:rgba(255,255,255,0.02);border-radius:5px;">
+      ${adv.usg!=null?`<span style="font-size:10px;color:#7dd3fc;font-weight:700;">USG ${adv.usg.toFixed(1)}%</span>`:""}
+      ${adv.per!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:600;">PER ${adv.per.toFixed(1)}</span>`:""}
+      ${adv.ortg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:600;">ORtg ${adv.ortg.toFixed(0)}</span>`:""}
+    </div>` : "";
+    const blurbBlock = (blurb||analysis) ? `<div style="margin-top:6px;padding:7px 9px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;">
+      ${blurb?`<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${analysis?'5px':'0'};">${esc(blurb)}</div>`:""}
+      ${analysis?`<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.88;">${esc(analysis)}</div>`:""}
+    </div>` : "";
+    return `<div style="margin-top:8px;padding:9px 11px;background:${sev.bg};border:1px solid ${sev.border};border-radius:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+          <span style="border:1px solid ${sev.border};color:${sev.color};border-radius:4px;padding:2px 7px;font-size:9px;font-weight:800;letter-spacing:0.6px;">${sev.label}</span>
+          <span style="color:#fff;font-weight:800;font-size:12px;">${esc(r.name)}</span>
+          <span style="background:${injColor}22;border:1px solid ${injColor}55;color:${injColor};border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;">${injLabel}</span>
         </div>
-        ${detail ? `<span style="color:#fff;opacity:0.55;font-size:10px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;">${detail}</span>` : ""}
+        ${detail?`<span style="color:#a8b0bb;font-size:10px;white-space:nowrap;">${esc(detail)}</span>`:""}
       </div>
-      ${blurbBlock}
+      ${advRow}${blurbBlock}
     </div>`;
   }).join("");
 
-  container.innerHTML = `<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:11px 13px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-      <span style="font-size:14px;">⚠️</span>
-      <div style="font-size:11px;font-weight:800;color:#f59e0b;letter-spacing:0.7px;text-transform:uppercase;">Teammate Risk · UNDER</div>
-    </div>
-    <div style="font-size:11.5px;color:#fff;line-height:1.5;opacity:0.92;">If ${risky.length === 1 ? "this teammate sits" : "any of these teammates sit"} or ${risky.length === 1 ? "is" : "are"} limited, ${player.split(" ").slice(-1)[0]} likely absorbs minutes/usage — risky for an UNDER.</div>
+  const topSev = riskyWithSev[0]?.sev || { color:"#f59e0b", border:"rgba(245,158,11,0.3)" };
+  const dirMsg = ou === "under"
+    ? `${risky.length===1?"This teammate":"These teammates"} being out/limited means ${player.split(" ").slice(-1)[0]} likely absorbs usage — risky for an UNDER.`
+    : `${risky.length===1?"This teammate":"These teammates"} being out/limited could boost ${player.split(" ").slice(-1)[0]}'s role — supports the OVER.`;
+
+  container.innerHTML = `<div style="background:rgba(0,0,0,0.15);border:1px solid ${topSev.border};border-radius:10px;padding:12px 13px;">
+    <div style="font-size:11px;font-weight:800;color:${topSev.color};letter-spacing:0.7px;text-transform:uppercase;margin-bottom:5px;">Teammate Impact · ${ou==="under"?"UNDER ⚠":"OVER ⚠"}</div>
+    <div style="font-size:11px;color:#d4dae3;line-height:1.5;margin-bottom:4px;">${dirMsg}</div>
     ${rows}
   </div>`;
   container.style.display = "block";
@@ -7079,9 +7094,9 @@ async function shareOpenPropsAsImageExclusive() {
     return `<svg width="${sz}" height="${sz}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;display:inline-block;flex-shrink:0;filter:drop-shadow(0 0 3px rgba(220,38,38,0.65)) drop-shadow(0 0 1px rgba(220,38,38,0.4));"><polygon points="30,5 70,5 95,30 95,70 70,95 30,95 5,70 5,30" fill="#dc2626" stroke="#fff" stroke-width="3"/><text x="50" y="62" font-family="Arial,sans-serif" font-size="28" font-weight="900" fill="#fff" text-anchor="middle">STOP</text></svg>`;
   };
 
-  // Chunk by player — keep all of a player's bets together. Max ~10 bets per
-  // chunk so each image stays readable on mobile. 33 props ≈ 3-4 images.
-  const MAX_BETS_PER_IMAGE = 10;
+  // Chunk by matchup — each matchup gets its own image. Split further if a
+  // single matchup exceeds the per-image limit.
+  const MAX_BETS_PER_IMAGE = 6;
   const playerGroups = [];
   {
     let curPlayer = null;
@@ -7098,11 +7113,13 @@ async function shareOpenPropsAsImageExclusive() {
   }
   const chunks = [];
   let _curChunk = [];
+  let _curMatchup = null;
   playerGroups.forEach(group => {
-    if (_curChunk.length > 0 && _curChunk.length + group.length > MAX_BETS_PER_IMAGE) {
-      chunks.push(_curChunk);
-      _curChunk = [];
-    }
+    const groupMatchup = group[0]?.matchup;
+    const matchupChanged = _curMatchup !== null && groupMatchup !== _curMatchup;
+    const tooLong = _curChunk.length > 0 && _curChunk.length + group.length > MAX_BETS_PER_IMAGE;
+    if (matchupChanged || tooLong) { chunks.push(_curChunk); _curChunk = []; }
+    _curMatchup = groupMatchup;
     _curChunk.push(...group);
   });
   if (_curChunk.length) chunks.push(_curChunk);
