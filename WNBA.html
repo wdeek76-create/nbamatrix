@@ -5382,10 +5382,12 @@ function updateTeammateRiskInModal() {
 
   const severityOf = (r) => {
     const adv = (typeof getBBRefAdvForPlayer === "function") ? getBBRefAdvForPlayer(r.name) : null;
-    if (adv) {
+    if (adv && (adv.g || 0) >= 5) {
       const usg = adv.usg || 0, per = adv.per || 0;
-      if (usg >= 26 || per >= 22) return { label:"SEVERE", color:"#f87171", bg:"rgba(248,113,113,0.10)", border:"rgba(248,113,113,0.35)" };
-      if (usg >= 20 || per >= 15) return { label:"MODERATE", color:"#f59e0b", bg:"rgba(245,158,11,0.10)", border:"rgba(245,158,11,0.35)" };
+      const mpg = (adv.mp && adv.g) ? adv.mp / adv.g : null;
+      const highMin = mpg != null && mpg >= 25;
+      if (usg >= 26 || per >= 22 || (usg >= 22 && highMin)) return { label:"SEVERE",   color:"#f87171", bg:"rgba(248,113,113,0.10)", border:"rgba(248,113,113,0.35)" };
+      if (usg >= 20 || per >= 15 || highMin)                 return { label:"MODERATE", color:"#f59e0b", bg:"rgba(245,158,11,0.10)",  border:"rgba(245,158,11,0.35)"  };
       return { label:"MINOR", color:"#a8b0bb", bg:"rgba(255,255,255,0.04)", border:"rgba(255,255,255,0.10)" };
     }
     const s = (r.status||"").toLowerCase();
@@ -5578,8 +5580,9 @@ function updateStatsSignalBorder() {
 function _advRoleSummary(adv) {
   if (!adv) return "";
   const g = adv.g || 0;
-  if (g < 5) return ""; // too few games — stats unreliable
-  const usg = adv.usg || 0, per = adv.per || 0, ortg = adv.ortg;
+  if (g < 5) return "";
+  const usg = adv.usg || 0, per = adv.per || 0;
+  const mpg = (adv.mp && adv.g) ? (adv.mp / adv.g).toFixed(1) : null;
   let role = "";
   if (usg >= 28) role = "primary option";
   else if (usg >= 23) role = "high-usage starter";
@@ -5591,8 +5594,8 @@ function _advRoleSummary(adv) {
   else if (per >= 17) eff = "above-avg efficiency";
   else if (per >= 12) eff = "average efficiency";
   else if (per > 0) eff = "below-avg efficiency";
-  const ortgNote = ortg != null ? (ortg >= 115 ? ", strong offense" : ortg < 100 ? ", weak offense" : "") : "";
-  return `${role}${eff ? ` · ${eff}` : ""}${ortgNote}`;
+  const mpgNote = mpg ? ` · ${mpg} mpg` : "";
+  return `${role}${eff ? ` · ${eff}` : ""}${mpgNote}`;
 }
 
 function _buildAdvRow(adv, tinyText) {
