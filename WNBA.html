@@ -4130,11 +4130,51 @@ function saveBet() {
           const adj = getMatchupAdjustment(oppTeam, bet.stat, bet.ou);
           if (adj) bet.matchupSnap = adj;
         }
-        // Snapshot BBRef advanced stats for the player at save time
         try {
           const adv = getBBRefAdvForPlayer(bet.player);
           if (adv && adv.usg != null) {
             bet.advSnap = { usg: adv.usg, per: adv.per, ortg: adv.ortg, drtg: adv.drtg, ts: adv.ts };
+            // Compute stat-aware signal at track time
+            const matchupAdj = bet.matchupSnap?.favorable ?? null;
+            const ou = bet.ou || "over";
+            const stat = (bet.stat || "").toUpperCase();
+            let score = 0, signals = 0;
+
+            const addSignal = (val, threshold_up, threshold_down) => {
+              signals++;
+              if (val >= threshold_up) score += ou === "over" ? 1 : -1;
+              else if (val <= threshold_down) score += ou === "under" ? 1 : -1;
+            };
+
+            if (stat === "PTS" || stat === "3PM" || stat === "PRA") {
+              if (adv.usg != null) addSignal(adv.usg, 22, 16);
+              if (adv.ortg != null) addSignal(adv.ortg, 112, 100);
+              if (adv.ts != null && stat === "PTS") addSignal(adv.ts * 100, 56, 48);
+            }
+            if (stat === "REB" || stat === "PRA") {
+              if (adv.trb != null) addSignal(adv.trb, 12, 6);
+              if (adv.usg != null) { signals++; /* USG minor for REB */ }
+            }
+            if (stat === "AST" || stat === "PRA") {
+              if (adv.ast != null) addSignal(adv.ast, 20, 8);
+              if (adv.usg != null) addSignal(adv.usg, 22, 16);
+            }
+            if (stat === "STL" || stat === "BLK") {
+              // Defensive stats — less driven by offensive advanced stats, skip signal
+              signals = 0;
+            }
+            // Matchup always relevant
+            if (matchupAdj != null && signals > 0) {
+              signals++;
+              if (matchupAdj >= 5) score += ou === "over" ? 1 : -1;
+              else if (matchupAdj <= -5) score += ou === "under" ? 1 : -1;
+            }
+
+            if (signals > 0) {
+              const ratio = score / signals;
+              bet.statsSignal = ratio >= 0.5 ? "agree" : ratio <= -0.5 ? "conflict" : "mixed";
+              bet.statsSignalStat = stat; // store which stat drove the signal
+            }
           }
         } catch(e) {}
       }
@@ -5365,8 +5405,8 @@ function updateTeammateRiskInModal() {
     const injColor = _injuryStatusColor(r.status, r.longComment||"");
     const advRow = _buildAdvRow(adv);
     const blurbBlock = (blurb||analysis) ? `<div style="margin-top:6px;padding:7px 9px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;">
-      ${blurb?`<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${analysis?'5px':'0'};">${esc(blurb)}</div>`:""}
-      ${analysis?`<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.88;">${esc(analysis)}</div>`:""}
+      ${blurb?`<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${analysis?'5px':'0'};">${_decorateBlurb(blurb)}</div>`:""}
+      ${analysis?`<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.88;">${_decorateBlurb(analysis)}</div>`:""}
     </div>` : "";
     return `<div style="margin-top:8px;padding:9px 11px;background:${sev.bg};border:1px solid ${sev.border};border-radius:8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
@@ -5398,6 +5438,58 @@ function updateTeammateRiskInModal() {
 // _tickerCachedEvents (paired by bet.team), looks up the opp-avg row, and
 // shows a single colored bar like the Volatility row. Bar color reflects
 // favorability for the bet direction (positive favorable = green, negative = red).
+function _decorateBlurb(text) {
+  if (!text) return "";
+  let out = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const HIGHLIGHT_PATTERNS = [
+    { re: /\b(increased? playing time|more minutes|expanded role|larger role|big(ger)? role|primary backup|set to start|step up|pick up the slack|help pick up the slack|absorbed by|absorb the (minutes|playing time|run)|(playing time|minutes) (will|may|could) (be )?absorbed|meaningful playing time|significant minutes|would be candidates|are candidates|likely fill in|fill in (for|at))\b/gi, color:"#22c55e" },
+    { re: /\b(reduced role|fewer minutes|lose minutes|cut into|reduced minutes|less playing time|bench role|losing out on|revert to a reserve)\b/gi, color:"#f87171" },
+    { re: /\b(out for the season|season[- ]ending|miss(es|ed|ing) (the )?rest of the season|out indefinitely|surgery|torn (ACL|MCL|achilles|meniscus|labrum|rotator)|ruptured)\b/gi, color:"#f87171" },
+    { re: /\b(probable|expected to (play|return|be available)|trending toward|will play|will return|set to return)\b/gi, color:"#22c55e" },
+    { re: /\b(doubtful|jeopardy|questionable|iffy|uncertain)\b/gi, color:"#f59e0b" },
+    { re: /\b(candidates? to see|candidates? for|likely to see|in line for|could see|may see|stand(s)? to benefit)\b/gi, color:"#22c55e", subdued:true },
+  ];
+  HIGHLIGHT_PATTERNS.forEach(p => {
+    out = p.subdued
+      ? out.replace(p.re, m => `<span style="color:${p.color};font-style:italic;opacity:0.85;">${m}</span>`)
+      : out.replace(p.re, m => `<span style="background:${p.color}22;color:${p.color};font-weight:700;padding:0 3px;border-radius:2px;">${m}</span>`);
+  });
+  // Highlight player names — use rosterNames + injuriesCache
+  const rosterByNorm = new Map();
+  if (typeof merged !== "undefined" && merged && merged.length) {
+    merged.forEach(r => { if (r.rawName) rosterByNorm.set(norm(r.rawName), r.rawName); });
+  }
+  if (typeof injuriesCache !== "undefined" && injuriesCache) {
+    injuriesCache.forEach((entry) => { if (entry.name && !rosterByNorm.has(norm(entry.name))) rosterByNorm.set(norm(entry.name), entry.name); });
+  }
+  const beneficiarySet = new Set();
+  if (typeof beneficiariesCache !== "undefined" && beneficiariesCache) {
+    beneficiariesCache.forEach((_, k) => beneficiarySet.add(k));
+  }
+  const NAME_RUN_RE = /\b[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ']+(?:-[A-Za-zà-öø-ÿ']+)*(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ']+(?:-[A-Za-zà-öø-ÿ']+)*){0,3}\b(?![^<]*<\/span>)/g;
+  out = out.replace(NAME_RUN_RE, run => {
+    const fn = norm(run);
+    const isBen = beneficiarySet.has(fn);
+    if (rosterByNorm.has(fn)) return isBen
+      ? `<strong style="background:#22c55e22;color:#4ade80;padding:1px 6px;border-radius:4px;border:1px solid #22c55e55;font-weight:800;">${run}</strong>`
+      : `<strong style="color:#7dd3fc;">${run}</strong>`;
+    const words = run.split(/\s+/);
+    if (words.length >= 2) {
+      const lt = norm(words.slice(-2).join(" "));
+      if (rosterByNorm.has(lt)) {
+        const pre = words.slice(0,-2).join(" ");
+        const isBen2 = beneficiarySet.has(lt);
+        const pill = isBen2
+          ? `<strong style="background:#22c55e22;color:#4ade80;padding:1px 6px;border-radius:4px;border:1px solid #22c55e55;font-weight:800;">${words.slice(-2).join(" ")}</strong>`
+          : `<strong style="color:#7dd3fc;">${words.slice(-2).join(" ")}</strong>`;
+        return pre ? `${pre} ${pill}` : pill;
+      }
+    }
+    return run;
+  });
+  return out;
+}
+
 function updateStatsSignalBorder() {
   const btn = document.getElementById("modal-save-btn-top");
   const btn2 = document.getElementById("modal-save-btn");
@@ -5408,43 +5500,42 @@ function updateStatsSignalBorder() {
   const ou = (shorthand?.value || "").trim().toLowerCase().startsWith("u") ? "under" : "over";
 
   const adv = (typeof getBBRefAdvForPlayer === "function") ? getBBRefAdvForPlayer(player) : null;
-  const matchupAdj = window._modalMatchupAdj || null; // favorable % if stored
+  const matchupAdj = window._modalMatchupAdj || null;
 
-  // Score signals: +1 supports bet, -1 contradicts, 0 neutral
+  // Detect stat from modal
+  const statEl = document.getElementById("modal-stat");
+  const stat = (statEl?.textContent || statEl?.value || "PTS").toUpperCase().trim();
+
   let score = 0, signals = 0;
 
+  const addSig = (val, up, down) => {
+    if (val == null) return;
+    signals++;
+    if (val >= up) score += ou === "over" ? 1 : -1;
+    else if (val <= down) score += ou === "under" ? 1 : -1;
+  };
+
   if (adv) {
-    const usg = adv.usg || 0;
-    const ortg = adv.ortg || 0;
-
-    // USG% signal
-    if (usg >= 22) {
-      score += ou === "over" ? 1 : -1; signals++;
-    } else if (usg < 18) {
-      score += ou === "under" ? 1 : -1; signals++;
+    if (stat === "PTS" || stat === "3PM" || stat === "PRA" || stat === "POINTS" || stat === "3-PT MADE") {
+      addSig(adv.usg, 22, 16);
+      addSig(adv.ortg, 112, 100);
+      if (stat === "PTS" || stat === "POINTS") addSig(adv.ts != null ? adv.ts * 100 : null, 56, 48);
+    } else if (stat === "REB" || stat === "REBOUNDS") {
+      addSig(adv.trb, 12, 6);
+    } else if (stat === "AST" || stat === "ASSISTS") {
+      addSig(adv.ast, 20, 8);
+      addSig(adv.usg, 22, 16);
     } else {
-      signals++; // neutral
-    }
-
-    // ORtg signal (offensive efficiency → scoring volume)
-    if (ortg >= 112) {
-      score += ou === "over" ? 1 : -1; signals++;
-    } else if (ortg < 100) {
-      score += ou === "under" ? 1 : -1; signals++;
-    } else {
-      signals++;
+      // Generic fallback
+      addSig(adv.usg, 22, 16);
+      addSig(adv.ortg, 112, 100);
     }
   }
 
-  // Matchup signal
-  if (matchupAdj != null) {
-    if (matchupAdj >= 5) {
-      score += ou === "over" ? 1 : -1; signals++;
-    } else if (matchupAdj <= -5) {
-      score += ou === "under" ? 1 : -1; signals++;
-    } else {
-      signals++;
-    }
+  if (matchupAdj != null && signals > 0) {
+    signals++;
+    if (matchupAdj >= 5) score += ou === "over" ? 1 : -1;
+    else if (matchupAdj <= -5) score += ou === "under" ? 1 : -1;
   }
 
   // Determine color
@@ -5514,7 +5605,7 @@ function _buildAdvRow(adv, tinyText) {
       ${adv.usg!=null?`<span style="font-size:10px;color:#7dd3fc;font-weight:700;">USG ${adv.usg.toFixed(1)}%</span>`:""}
       ${adv.per!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:600;">PER ${adv.per.toFixed(1)}</span>`:""}
       ${adv.ortg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:600;">ORtg ${adv.ortg.toFixed(0)}</span>`:""}
-      ${summary?`<span style="font-size:9.5px;color:#8b93a0;font-style:italic;">${summary}</span>`:""}
+      ${summary?`<span style="font-size:10px;color:#fff;font-weight:800;">${summary}</span>`:""}
     </div>
   </div>`;
 }
@@ -5547,7 +5638,7 @@ function updateBBRefAdvInModal() {
     <div style="background:#0a0b0d;border:1px solid #1a1d22;border-radius:8px;padding:10px 12px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
         <div style="font-size:10px;font-weight:700;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;">Season Advanced · ${g}g</div>
-        ${summary ? `<div style="font-size:9.5px;color:#a8b0bb;font-style:italic;">${summary}</div>` : ""}
+        ${summary ? `<div style="font-size:10px;color:#fff;font-weight:800;margin-top:4px;">${summary}</div>` : ""}
       </div>
       ${lowSample
         ? `<div style="font-size:10px;color:#525a64;">Too few games (${g}) — stats unreliable</div>`
@@ -5732,8 +5823,37 @@ async function gradeBet(b) {
     return { ok: true, result, total };
   }
 
-  // Player prop grading (default)
-  // No box score data found
+  // GAME SPREAD grading branch
+  if ((b.stat||"").toUpperCase() === "GAME_SPREAD") {
+    if (!meta || !meta.games || !meta.games.length) {
+      return { ok: false, reason: `No WNBA games scheduled on ${iso}` };
+    }
+    let awayAbbr = null, homeAbbr = null;
+    if (b.team && b.team.includes("/")) {
+      [awayAbbr, homeAbbr] = b.team.split("/").map(s => normTeamAbbr(s.trim()));
+    } else if (b.player && b.player.includes("@")) {
+      const parts = b.player.split("@").map(s => s.trim());
+      awayAbbr = normTeamAbbr(parts[0]);
+      homeAbbr = normTeamAbbr(parts[1]);
+    }
+    if (!awayAbbr || !homeAbbr) return { ok: false, reason: "Could not parse matchup from spread bet" };
+    const game = meta.games.find(g => normTeamAbbr(g.awayAbbr) === awayAbbr && normTeamAbbr(g.homeAbbr) === homeAbbr);
+    if (!game) return { ok: false, reason: `${awayAbbr} @ ${homeAbbr} not in ESPN games for ${iso}` };
+    if (!game.completed) return { ok: false, reason: `${awayAbbr} @ ${homeAbbr} not final yet (${game.status})` };
+    if (game.awayScore == null || game.homeScore == null) return { ok: false, reason: "ESPN final scores not available yet" };
+    // Determine pick team's margin
+    const pickNorm = normTeamAbbr(b.pickTeam || "");
+    const isAway = pickNorm === normTeamAbbr(awayAbbr);
+    const pickScore = isAway ? game.awayScore : game.homeScore;
+    const oppScore  = isAway ? game.homeScore : game.awayScore;
+    const margin = pickScore - oppScore; // positive = pick team won outright
+    const line = parseFloat(b.line);
+    const covered = margin + line; // e.g. pick +5.5 wins if margin > -5.5
+    let result;
+    if (Math.abs(covered) < 0.001) result = "void";
+    else result = covered > 0 ? "hit" : "miss";
+    return { ok: true, result, total: margin };
+  }
   if (!rows || !rows.length) {
     if (!meta || meta.total === 0) {
       return { ok: false, reason: `No WNBA games scheduled on ${iso}` };
@@ -8600,6 +8720,49 @@ function renderSrcAnalytics() {
     ${matchupWithSnap > 0 ? section("Signals · Matchup", `${matchupWithSnap} bet${matchupWithSnap===1?"":"s"} with matchup data`, tableShell(matchupRows, { labelHead: "Signal" })) : ""}
     ${advWithSnap > 0 ? section("Advanced Stats · USG% & Efficiency", `${advWithSnap} bet${advWithSnap===1?"":"s"} with BBRef snapshot`, tableShell(advRows, { labelHead: "Player Profile" })) : ""}
     ${advMatchup.highUsgFav.total + advMatchup.midUsgFav.total + advMatchup.lowUsgFav.total + advMatchup.highUsgHw.total > 0 ? section("Advanced Stats · USG% vs Matchup", "Usage tier × defensive matchup favorability", tableShell(advMatchupRows, { labelHead: "Signal" })) : ""}
+    ${(() => {
+      const PTS_STATS = ["PTS","POINTS","3PM","3-PT MADE"];
+      const REB_STATS = ["REB","REBOUNDS"];
+      const AST_STATS = ["AST","ASSISTS"];
+      const PRA_STATS = ["PRA"];
+
+      const mkBuckets = () => ({ agree: emptyStats(), mixed: emptyStats(), conflict: emptyStats() });
+      const bySignal = { all: mkBuckets(), pts: mkBuckets(), reb: mkBuckets(), ast: mkBuckets(), pra: mkBuckets(), other: mkBuckets() };
+      let signalTotal = 0;
+
+      settled.forEach(b => {
+        if (!b.statsSignal) return;
+        signalTotal++;
+        const s = (b.stat||"").toUpperCase();
+        accum(b, bySignal.all[b.statsSignal]);
+        if (PTS_STATS.includes(s)) accum(b, bySignal.pts[b.statsSignal]);
+        else if (REB_STATS.includes(s)) accum(b, bySignal.reb[b.statsSignal]);
+        else if (AST_STATS.includes(s)) accum(b, bySignal.ast[b.statsSignal]);
+        else if (PRA_STATS.includes(s)) accum(b, bySignal.pra[b.statsSignal]);
+        else accum(b, bySignal.other[b.statsSignal]);
+      });
+
+      if (!signalTotal) return "";
+
+      const signalRow = (label, buckets) => [
+        buckets.agree.total ? row(`<span style="color:#22c55e;">✓</span> ${label} · Agreed`, buckets.agree, { featured: true }) : "",
+        buckets.mixed.total ? row(`<span style="color:#f59e0b;">~</span> ${label} · Mixed`, buckets.mixed) : "",
+        buckets.conflict.total ? row(`<span style="color:#f87171;">✗</span> ${label} · Conflicted`, buckets.conflict, { dim: true }) : "",
+      ].join("");
+
+      const hasGroup = g => bySignal[g].agree.total + bySignal[g].mixed.total + bySignal[g].conflict.total > 0;
+
+      const rows2 = [
+        signalRow("Overall", bySignal.all),
+        hasGroup("pts") ? signalRow("PTS/3PM", bySignal.pts) : "",
+        hasGroup("reb") ? signalRow("REB", bySignal.reb) : "",
+        hasGroup("ast") ? signalRow("AST", bySignal.ast) : "",
+        hasGroup("pra") ? signalRow("PRA", bySignal.pra) : "",
+        hasGroup("other") ? signalRow("Other", bySignal.other) : "",
+      ].join("");
+
+      return section("Stats Signal · Agreement by Stat", `${signalTotal} bet${signalTotal===1?"":"s"} · stat-aware: USG%+ORtg for PTS, TRB% for REB, AST% for Assists`, tableShell(rows2, { labelHead: "Signal × Stat" }));
+    })()}
   </div>`;
 }
 
