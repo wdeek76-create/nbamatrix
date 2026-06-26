@@ -2400,10 +2400,13 @@ function populateSourceAgreement() {
       <span class="src-check" style="font-size:9px;opacity:0.9;"></span>
     </span>`;
   });
-  // AVG pill — shows the blended Proj (same value as Blended Proj line).
-  // Clickable to mark AVG as the decider when you trust the consensus.
-  // This is the default decider when nothing is explicitly picked.
-  const avgVal = window._modalProj;
+  // AVG pill — recompute from the source values currently shown so it can
+  // never drift from the displayed sources (it's the mean of contributing
+  // sources for THIS stat, identical to the Blended Proj when sources match).
+  const contributing = sourcesWithData.map(s => vals[s.key]).filter(v => v != null && v > 0);
+  const avgVal = contributing.length
+    ? contributing.reduce((a, b) => a + b, 0) / contributing.length
+    : window._modalProj;
   if (avgVal != null) {
     sourcePills.push(`<span class="modal-src-pill" data-src="avg" data-val="${avgVal}" onclick="setModalDecider('avg', ${avgVal})" style="display:inline-flex;align-items:center;gap:5px;background:#0c0d10;border:1px solid #1e40af55;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;transition:box-shadow 0.15s;">
       <span class="src-label" style="color:#7dd3fc;font-weight:600;font-size:9px;letter-spacing:0.3px;">AVG</span>
@@ -5343,7 +5346,7 @@ function updateInjuryCtxInModal() {
       else                              { sevLabel = "MINOR";    sevColor = "#a8b0bb"; sevBg = "rgba(255,255,255,0.05)"; }
     }
     const sevBadge = sevLabel ? `<span style="background:${sevBg};border:1px solid ${sevColor}55;color:${sevColor};border-radius:4px;padding:2px 7px;font-size:9px;font-weight:800;letter-spacing:0.5px;margin-left:6px;">${sevLabel}</span>` : "";
-    const advRow = _buildAdvRow(causingAdv);
+    const advRow = _buildAdvRow(causingAdv, null, causingRec?.name);
     const blurbBlock = (causingRec?.comment || causingRec?.longComment) ? `<div style="margin-top:6px;padding:7px 9px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;">
       ${causingRec.comment?`<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${causingRec.longComment?'5px':'0'};">${causingRec.comment}</div>`:""}
       ${causingRec.longComment?`<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.88;">${causingRec.longComment}</div>`:""}
@@ -5494,8 +5497,22 @@ function updateTeammateRiskInModal() {
       return supportColor(tier);
     }
 
-    if (s.includes("probable")) return { label:"PROBABLE", color:"#22c55e", bg:"rgba(34,197,94,0.08)", border:"rgba(34,197,94,0.25)" };
-    return { label:"GTD", color:"#f59e0b", bg:"rgba(245,158,11,0.10)", border:"rgba(245,158,11,0.35)" };
+    // GTD / Questionable / Probable — not confirmed out, so we can't say their
+    // production is freed up yet. But preview what the impact WOULD be if ruled
+    // out, so the user can gauge the swing potential.
+    let ifOutTier = 0;
+    if (prod != null && hi != null) {
+      if (prod >= hi) ifOutTier = 2;
+      else if (prod >= mid) ifOutTier = 1;
+    } else if (adv && (adv.g || 0) >= 5) {
+      if (usg >= 24 || per >= 20 || highMin) ifOutTier = 2;
+      else if (usg >= 18 || per >= 14) ifOutTier = 1;
+    }
+    const ifOutWord = ifOutTier === 2 ? "BIG" : ifOutTier === 1 ? "MOD" : "MINOR";
+    const ifOut = { ifOutTier, ifOutWord };
+
+    if (s.includes("probable")) return { label:"PROBABLE", color:"#22c55e", bg:"rgba(34,197,94,0.08)", border:"rgba(34,197,94,0.25)", ...ifOut };
+    return { label:"GTD", color:"#f59e0b", bg:"rgba(245,158,11,0.10)", border:"rgba(245,158,11,0.35)", ...ifOut };
   };
 
   const sevRank = s => (s.label.includes("\u2191\u2191")||s.label==="HEADWIND") ? 0 : (s.label.includes("\u2191")||s.label==="CAUTION") ? 1 : 2;
@@ -5508,7 +5525,7 @@ function updateTeammateRiskInModal() {
     const detail = (r.detail||r.type||"").trim();
     const injLabel = _injuryStatusLabel(r.status);
     const injColor = _injuryStatusColor(r.status, r.longComment||"");
-    const advRow = _buildAdvRow(adv);
+    const advRow = _buildAdvRow(adv, null, r.name);
     const blurbBlock = (blurb||analysis) ? `<div style="margin-top:6px;padding:7px 9px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;">
       ${blurb?`<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${analysis?'5px':'0'};">${_decorateBlurb(blurb)}</div>`:""}
       ${analysis?`<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.88;">${_decorateBlurb(analysis)}</div>`:""}
@@ -5517,6 +5534,7 @@ function updateTeammateRiskInModal() {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
           <span style="border:1px solid ${sev.border};color:${sev.color};border-radius:4px;padding:2px 7px;font-size:9px;font-weight:800;letter-spacing:0.6px;">${sev.label}</span>
+          ${sev.ifOutTier !== undefined ? `<span style="border:1px dashed ${sev.ifOutTier===2?'#f8717188':sev.ifOutTier===1?'#f59e0b88':'#525a64'};color:${sev.ifOutTier===2?'#f87171':sev.ifOutTier===1?'#f59e0b':'#8b93a0'};border-radius:4px;padding:2px 6px;font-size:8.5px;font-weight:700;letter-spacing:0.4px;opacity:0.85;">IF OUT: ${sev.ifOutWord}</span>` : ""}
           <span style="color:#fff;font-weight:800;font-size:12px;">${esc(r.name)}</span>
           <span style="background:${injColor}22;border:1px solid ${injColor}55;color:${injColor};border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;">${injLabel}</span>
         </div>
@@ -5676,7 +5694,7 @@ function updateAdvBar() {
       if (adv.usg != null) advPills.push(pill("USG%", adv.usg.toFixed(1), sc(adv.usg, 22, 16)));
     }
     const summaryRow = _advRoleSummary(adv);
-    if (summaryRow) rows.push(`<div style="font-size:10px;font-weight:800;color:#fff;">${summaryRow}</div>`);
+    if (summaryRow) rows.push(`<div style="font-size:10.5px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase;">${summaryRow}</div>`);
     const s = section("Season", advPills);
     if (s) rows.push(s);
   }
@@ -5851,18 +5869,30 @@ function _advRoleSummary(adv) {
 }
 
 
-function _buildAdvRow(adv, tinyText) {
+function _buildAdvRow(adv, tinyText, playerName) {
   if (!adv) return "";
   const g = adv.g || 0;
   if (g < 5) return `<div style="font-size:9.5px;color:#525a64;margin-top:4px;">Too few games (${g}) — adv stats unreliable</div>`;
   const summary = _advRoleSummary(adv);
+  // Season per-game averages for this teammate, so you can see what production
+  // would actually be freed up if they're out.
+  const pg = playerName && typeof getBBRefPGForPlayer === "function" ? getBBRefPGForPlayer(playerName) : null;
+  const pgRow = pg ? `<div style="display:flex;gap:10px;padding:4px 8px;margin-top:3px;background:rgba(255,255,255,0.02);border-radius:5px;flex-wrap:wrap;">
+      <span style="font-size:8px;font-weight:800;color:#525a64;letter-spacing:0.6px;text-transform:uppercase;align-self:center;">Season</span>
+      ${pg.ppg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.ppg.toFixed(1)} <span style="color:#525a64;font-weight:600;">PPG</span></span>`:""}
+      ${pg.rpg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.rpg.toFixed(1)} <span style="color:#525a64;font-weight:600;">RPG</span></span>`:""}
+      ${pg.apg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.apg.toFixed(1)} <span style="color:#525a64;font-weight:600;">APG</span></span>`:""}
+      ${pg.threePm!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.threePm.toFixed(1)} <span style="color:#525a64;font-weight:600;">3PM</span></span>`:""}
+      ${pg.mp!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.mp.toFixed(1)} <span style="color:#525a64;font-weight:600;">MPG</span></span>`:""}
+    </div>` : "";
   return `<div style="margin-top:5px;">
     <div style="display:flex;gap:12px;padding:4px 8px;background:rgba(255,255,255,0.02);border-radius:5px;flex-wrap:wrap;">
       ${adv.usg!=null?`<span style="font-size:10px;color:#7dd3fc;font-weight:700;">USG ${adv.usg.toFixed(1)}%</span>`:""}
       ${adv.per!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:600;">PER ${adv.per.toFixed(1)}</span>`:""}
       ${adv.ortg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:600;">ORtg ${adv.ortg.toFixed(0)}</span>`:""}
-      ${summary?`<span style="font-size:10px;color:#fff;font-weight:800;">${summary}</span>`:""}
     </div>
+    ${pgRow}
+    ${summary?`<div style="font-size:10px;color:#fff;font-weight:900;letter-spacing:0.4px;text-transform:uppercase;margin-top:3px;">${summary}</div>`:""}
   </div>`;
 }
 
