@@ -8694,6 +8694,40 @@ function renderSrcAnalytics() {
   }
   function comboLabel(srcs) { return srcs.map(k => SRC_LABELS[k]).join(" + "); }
 
+  // ── Plain-English summary banner ──
+  // Takes an array of {label, stats} buckets and produces a one-line takeaway:
+  // which bucket is your best/worst by ROI, and a verdict. Shown at the top of
+  // a section so you don't have to read the table to know what's going on.
+  function summarize(buckets, opts) {
+    opts = opts || {};
+    const valid = buckets.filter(b => b.stats && b.stats.total >= 3);
+    if (valid.length === 0) return "";
+    const withRoi = valid.map(b => ({
+      label: b.label,
+      total: b.stats.total,
+      roi: b.stats.staked > 0 ? (b.stats.pl / b.stats.staked) * 100 : 0,
+      pl: b.stats.pl,
+      hitPct: Math.round((b.stats.hits / b.stats.total) * 100),
+    }));
+    const best = withRoi.reduce((a, b) => b.roi > a.roi ? b : a);
+    const worst = withRoi.reduce((a, b) => b.roi < a.roi ? b : a);
+    let msg;
+    if (withRoi.length === 1) {
+      const o = withRoi[0];
+      msg = `${o.label}: ${o.hitPct}% win, ${o.roi >= 0 ? "+" : ""}${o.roi.toFixed(1)}% ROI over ${o.total} bets.`;
+    } else if (best.roi <= 0) {
+      msg = `All buckets are losing here. Least bad: <b>${best.label}</b> (${best.roi.toFixed(1)}% ROI). Consider avoiding this angle.`;
+    } else if (worst.roi >= 0) {
+      msg = `All buckets profitable. Strongest: <b>${best.label}</b> (+${best.roi.toFixed(1)}% ROI, ${best.hitPct}% over ${best.total}).`;
+    } else {
+      msg = `Best: <b>${best.label}</b> (+${best.roi.toFixed(1)}% ROI). Worst: <b>${worst.label}</b> (${worst.roi.toFixed(1)}% ROI) — lean into the first, fade the second.`;
+    }
+    const extra = opts.note ? ` ${opts.note}` : "";
+    return `<div style="padding:9px 12px;background:rgba(125,211,252,0.05);border-bottom:1px solid #1a1d22;font-size:11px;color:#cbd5e1;line-height:1.5;">
+      <span style="color:#7dd3fc;font-weight:800;letter-spacing:0.5px;">TAKEAWAY · </span>${msg}${extra}
+    </div>`;
+  }
+
   // ── Injury Context breakdown ──
   // Snapshot was taken at save time (locked in injuryContext), so this reflects
   // each bet's actual context regardless of later injury data changes.
@@ -8938,6 +8972,11 @@ function renderSrcAnalytics() {
     matchupBuckets.strongHw.total ? row(`<span style="color:#f87171;">↓↓</span> Strong matchup headwind (≤−15%)`, matchupBuckets.strongHw, { dim: true }) : "",
     matchupBuckets.tripleAgree.total ? row(`<span style="color:#22c55e;">✓✓✓</span> Trends + Splits + Matchup all agree`, matchupBuckets.tripleAgree, { featured: true }) : "",
   ].join("");
+  const matchupSummary = summarize([
+    { label: "strong tailwind (≥+15%)", stats: matchupBuckets.strongFav },
+    { label: "favorable (≥+10%)", stats: matchupBuckets.favorable },
+    { label: "headwind (≤−10%)", stats: matchupBuckets.headwind },
+  ], { note: "How you do when the defense gives up more/less of that stat than average." });
 
   // ── ADVANCED STATS — USG% buckets ──
   // Bucket bets by the player's USG% snapshot at save time.
@@ -9037,6 +9076,19 @@ function renderSrcAnalytics() {
     edgeMatch.neither.total ? row(`<span style="color:#f87171;">✗</span> Neither favors`, edgeMatch.neither, { dim: true }) : "",
   ].join("");
 
+  const advSummary = summarize([
+    { label: "High USG% (≥28%)", stats: advBuckets.usgHigh },
+    { label: "Mid USG% (22-28%)", stats: advBuckets.usgMid },
+    { label: "Low USG% (<22%)", stats: advBuckets.usgLow },
+  ], { note: "Usage % = how much of the offense ran through the player. Tests whether ball-dominant players hit props more often for you." });
+
+  const edgeMatchSummary = summarize([
+    { label: "Player + Defense both favor", stats: edgeMatch.both },
+    { label: "Player edge only", stats: edgeMatch.player },
+    { label: "Defense edge only", stats: edgeMatch.def },
+    { label: "Neither favors", stats: edgeMatch.neither },
+  ], { note: "The sweet spot is when the player's own numbers AND the matchup both point your way." });
+
   const modeIsEV = _srcAnalyticsMode === "ev";
   const modePillStyle = (active) => `background:${active ? "rgba(125,211,252,0.18)" : "transparent"};color:${active ? "#7dd3fc" : "#8b93a0"};border:1px solid ${active ? "rgba(125,211,252,0.4)" : "#1a1d22"};padding:5px 12px;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;border-radius:4px;cursor:pointer;font-family:'Inter',sans-serif;`;
 
@@ -9062,9 +9114,9 @@ function renderSrcAnalytics() {
     ${section("By Direction", "Solo source records split by overs vs unders", tableShell(bySideRows, { labelHead: "Direction · Source" }))}
     ${section("Signals · Trends & Injury", `${totalTrendMatched} matched · ${totalUnmatched} unmatched`, tableShell(signalRows, { labelHead: "Signal" }))}
     ${splitsWithSnap > 0 ? section("Signals · Splits & Disagreement", `${splitsWithSnap} bet${splitsWithSnap===1?"":"s"} with snapshots · grows as you place new picks`, tableShell(splitsRows, { labelHead: "Signal" })) : ""}
-    ${matchupWithSnap > 0 ? section("Signals · Matchup", `${matchupWithSnap} bet${matchupWithSnap===1?"":"s"} with matchup data`, tableShell(matchupRows, { labelHead: "Signal" })) : ""}
-    ${advWithSnap > 0 ? section("Advanced Stats · USG% & Efficiency", `${advWithSnap} bet${advWithSnap===1?"":"s"} with BBRef snapshot`, tableShell(advRows, { labelHead: "Player Profile" })) : ""}
-    ${edgeMatch.both.total + edgeMatch.player.total + edgeMatch.def.total + edgeMatch.neither.total > 0 ? section("Player Edge × Matchup", "Does your record peak when the player's stats AND the defense both favor your side?", tableShell(advMatchupRows, { labelHead: "Alignment" })) : ""}
+    ${matchupWithSnap > 0 ? section("Signals · Matchup", `${matchupWithSnap} bet${matchupWithSnap===1?"":"s"} with matchup data`, matchupSummary + tableShell(matchupRows, { labelHead: "Signal" })) : ""}
+    ${advWithSnap > 0 ? section("Advanced Stats · USG% & Efficiency", `${advWithSnap} bet${advWithSnap===1?"":"s"} with BBRef snapshot`, advSummary + tableShell(advRows, { labelHead: "Player Profile" })) : ""}
+    ${edgeMatch.both.total + edgeMatch.player.total + edgeMatch.def.total + edgeMatch.neither.total > 0 ? section("Player Edge × Matchup", "Does your record peak when the player's stats AND the defense both favor your side?", edgeMatchSummary + tableShell(advMatchupRows, { labelHead: "Alignment" })) : ""}
     ${(() => {
       // Per Game analytics — bucket by whether season avg was above/below the line
       const above = emptyStats(), below = emptyStats(), noData = emptyStats();
@@ -9089,7 +9141,11 @@ function renderSrcAnalytics() {
         above.total ? row("Season avg ABOVE line", above, { featured: true }) : "",
         below.total ? row("Season avg BELOW line", below, { dim: true }) : "",
       ].join("");
-      return section("Per Game · Avg vs Line", `${pgTotal} bet${pgTotal===1?"":"s"} · season avg compared to the line you bet`, tableShell(pgRows, { labelHead: "Situation" }));
+      const pgSummary = summarize([
+        { label: "Season avg ABOVE line", stats: above },
+        { label: "Season avg BELOW line", stats: below },
+      ], { note: "This tracks whether the player's season average was above or below the line when you bet." });
+      return section("Per Game · Avg vs Line", `${pgTotal} bet${pgTotal===1?"":"s"} · season avg compared to the line you bet`, pgSummary + tableShell(pgRows, { labelHead: "Situation" }));
     })()}
     ${(() => {
       // Shooting analytics — 3P% buckets for 3PM props
@@ -9111,7 +9167,12 @@ function renderSrcAnalytics() {
         sh3Mid.total ? row("3P% Average (30-37%)", sh3Mid) : "",
         sh3Low.total ? row("3P% Low (<30%)", sh3Low, { dim: true }) : "",
       ].join("");
-      return section("Shooting · 3P% Buckets", `${shTotal} PTS/3PM/PRA bets with shooting data`, tableShell(shRows, { labelHead: "Shooter Profile" }));
+      const shSummary = summarize([
+        { label: "Elite shooters (≥37%)", stats: sh3High },
+        { label: "Average shooters (30-37%)", stats: sh3Mid },
+        { label: "Low shooters (<30%)", stats: sh3Low },
+      ], { note: "Groups your scoring bets by the shooter's 3P%." });
+      return section("Shooting · 3P% Buckets", `${shTotal} PTS/3PM/PRA bets with shooting data`, shSummary + tableShell(shRows, { labelHead: "Shooter Profile" }));
     })()}
     ${(() => {
       // Self-Created % buckets for ASSIST bets — measures whether the
@@ -9136,16 +9197,50 @@ function renderSrcAnalytics() {
         mid.total ? row("Self-Created Mid (25-45%)", mid) : "",
         low.total ? row("Self-Created Low (<25%) · finisher", low, { dim: true }) : "",
       ].join("");
-      return section("Self-Created % · Assist Signal", `${scTotal} AST/PRA bets · ball-handlers (high self-created) vs finishers`, tableShell(scRows, { labelHead: "Playmaker Profile" }));
+      const scSummary = summarize([
+        { label: "ball-handlers (high self-created)", stats: high },
+        { label: "mid-range (25-45%)", stats: mid },
+        { label: "finishers (low self-created)", stats: low },
+      ], { note: "Self-created % = how often a player makes their own shots unassisted. High = playmaker, low = catch-and-shoot finisher." });
+      return section("Self-Created % · Assist Signal", `${scTotal} AST/PRA bets · ball-handlers (high self-created) vs finishers`, scSummary + tableShell(scRows, { labelHead: "Playmaker Profile" }));
     })()}
     ${(() => {
-      const PTS_STATS = ["PTS","POINTS","3PM","3-PT MADE"];
+      // Rebounds analytics — bucket REB bets by the player's TRB% (rebound rate)
+      // snapshot, since that's the primary rebounding signal.
+      const rbHigh = emptyStats(), rbMid = emptyStats(), rbLow = emptyStats();
+      let rbTotal = 0;
+      settled.forEach(b => {
+        const statKey = (b.stat||"").toUpperCase();
+        if (!["REB","REBOUNDS","PRA"].includes(statKey)) return;
+        const a = b.advSnap || getBBRefAdvForPlayer(b.player);
+        if (!a || a.trb == null) return;
+        rbTotal++;
+        if (a.trb >= 12) accum(b, rbHigh);
+        else if (a.trb >= 6) accum(b, rbMid);
+        else accum(b, rbLow);
+      });
+      if (!rbTotal) return "";
+      const rbRows = [
+        rbHigh.total ? row("TRB% Elite (≥12%) · glass-cleaner", rbHigh, { featured: true }) : "",
+        rbMid.total ? row("TRB% Average (6-12%)", rbMid) : "",
+        rbLow.total ? row("TRB% Low (<6%) · perimeter", rbLow, { dim: true }) : "",
+      ].join("");
+      const rbSummary = summarize([
+        { label: "elite rebounders (≥12%)", stats: rbHigh },
+        { label: "average rebounders (6-12%)", stats: rbMid },
+        { label: "low rebounders (<6%)", stats: rbLow },
+      ], { note: "TRB% = share of available rebounds a player grabbed while on the floor. The primary rebounding signal." });
+      return section("Rebounding · TRB% Buckets", `${rbTotal} REB/PRA bets with rebound-rate data`, rbSummary + tableShell(rbRows, { labelHead: "Rebounder Profile" }));
+    })()}
+    ${(() => {
+      const PTS_STATS = ["PTS","POINTS"];
+      const THREE_STATS = ["3PM","3-PT MADE"];
       const REB_STATS = ["REB","REBOUNDS"];
       const AST_STATS = ["AST","ASSISTS"];
       const PRA_STATS = ["PRA"];
 
       const mkBuckets = () => ({ agree: emptyStats(), mixed: emptyStats(), conflict: emptyStats() });
-      const bySignal = { all: mkBuckets(), pts: mkBuckets(), reb: mkBuckets(), ast: mkBuckets(), pra: mkBuckets(), other: mkBuckets() };
+      const bySignal = { all: mkBuckets(), pts: mkBuckets(), three: mkBuckets(), reb: mkBuckets(), ast: mkBuckets(), pra: mkBuckets(), other: mkBuckets() };
       let signalTotal = 0;
 
       settled.forEach(b => {
@@ -9154,6 +9249,7 @@ function renderSrcAnalytics() {
         const s = (b.stat||"").toUpperCase();
         accum(b, bySignal.all[b.statsSignal]);
         if (PTS_STATS.includes(s)) accum(b, bySignal.pts[b.statsSignal]);
+        else if (THREE_STATS.includes(s)) accum(b, bySignal.three[b.statsSignal]);
         else if (REB_STATS.includes(s)) accum(b, bySignal.reb[b.statsSignal]);
         else if (AST_STATS.includes(s)) accum(b, bySignal.ast[b.statsSignal]);
         else if (PRA_STATS.includes(s)) accum(b, bySignal.pra[b.statsSignal]);
@@ -9172,14 +9268,21 @@ function renderSrcAnalytics() {
 
       const rows2 = [
         signalRow("Overall", bySignal.all),
-        hasGroup("pts") ? signalRow("PTS/3PM", bySignal.pts) : "",
+        hasGroup("pts") ? signalRow("PTS", bySignal.pts) : "",
+        hasGroup("three") ? signalRow("3PM", bySignal.three) : "",
         hasGroup("reb") ? signalRow("REB", bySignal.reb) : "",
         hasGroup("ast") ? signalRow("AST", bySignal.ast) : "",
         hasGroup("pra") ? signalRow("PRA", bySignal.pra) : "",
         hasGroup("other") ? signalRow("Other", bySignal.other) : "",
       ].join("");
 
-      return section("Stats Signal · Agreement by Stat", `${signalTotal} bet${signalTotal===1?"":"s"} · stat-aware: USG%+ORtg for PTS, TRB% for REB, AST% for Assists`, tableShell(rows2, { labelHead: "Signal × Stat" }));
+      const sigSummary = summarize([
+        { label: "signal Agreed", stats: bySignal.all.agree },
+        { label: "signal Mixed", stats: bySignal.all.mixed },
+        { label: "signal Conflicted", stats: bySignal.all.conflict },
+      ], { note: "When all your stat signals point the same way (Agreed), you should win more than when they Conflict. This is the headline test of whether the whole system works." });
+
+      return section("Stats Signal · Agreement by Stat", `${signalTotal} bet${signalTotal===1?"":"s"} · stat-aware: USG%+ORtg for PTS, TRB% for REB, AST% for Assists`, sigSummary + tableShell(rows2, { labelHead: "Signal × Stat" }));
     })()}
   </div>`;
 }
