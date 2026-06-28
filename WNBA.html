@@ -377,6 +377,7 @@ table colgroup col.avg-col{width:16%;}
   <button class="tab-btn active" onclick="switchTab('upload')">UPLOAD</button>
   <button class="tab-btn" onclick="switchTab('results')">PROJECTIONS</button>
   <button class="tab-btn" onclick="switchTab('tracker')">TRACKER</button>
+  <button class="tab-btn" onclick="switchTab('expected')">EXPECTED</button>
   <button class="tab-btn" onclick="switchTab('totals')">TOTALS</button>
   <button class="tab-btn" onclick="switchTab('srcanalytics')">SOURCE ANALYTICS</button>
   <button class="tab-btn" onclick="switchTab('playeranalytics')">PLAYER ANALYTICS</button>
@@ -515,6 +516,7 @@ table colgroup col.avg-col{width:16%;}
   <div id="tracker-tab" style="display:none;"></div>
 
   <div id="srcanalytics-tab" style="display:none;"></div>
+  <div id="expected-tab" style="display:none;"></div>
   <div id="playeranalytics-tab" style="display:none;"></div>
 
   <div id="autograde-tab" style="display:none;"></div>
@@ -1302,11 +1304,13 @@ function switchTab(tab) {
   // Tracker page reads cleaner without the wave/gradient overlay — toggle via class
   document.body.classList.toggle("tracker-active", tab === "tracker");
   document.getElementById("srcanalytics-tab").style.display = tab==="srcanalytics"?"block":"none";
+  document.getElementById("expected-tab").style.display = tab==="expected"?"block":"none";
   document.getElementById("playeranalytics-tab").style.display = tab==="playeranalytics"?"block":"none";
   document.getElementById("autograde-tab").style.display = tab==="autograde"?"block":"none";
   document.getElementById("cap-tool-tab").style.display = tab==="captool"?"block":"none";
   document.getElementById("pace-tab").style.display = tab==="pace"?"block":"none";
   if (tab==="tracker") renderTracker();
+  if (tab==="expected") renderExpected();
   if (tab==="srcanalytics") renderSrcAnalytics();
   if (tab==="playeranalytics") renderPlayerAnalytics();
   if (tab==="autograde") renderAutoGrade();
@@ -10861,6 +10865,163 @@ function copyStatBreakdown() {
   }
 }
 
+function renderExpected() {
+  const el = document.getElementById("expected-tab");
+  try { loadBets(); } catch(e) {}
+  const all = (typeof bets !== "undefined" && Array.isArray(bets)) ? bets : [];
+  // Settled props only (exclude game totals/spreads, voids don't count toward ROI).
+  const isTot = b => { const s=(b.stat||"").toUpperCase(); return s==="GAME_TOTAL"||s==="GAME_SPREAD"; };
+  const settled = all.filter(b => (b.result==="hit"||b.result==="miss") && !isTot(b) && b.line!=null);
+  const voids = all.filter(b => b.result==="void" && !isTot(b));
+
+  const plOf = b => {
+    const stake = b.stake!=null ? Number(b.stake) : 1;
+    if (b.result==="hit") { const o=Number(b.odds||0); return stake*(o>0?o/100:100/Math.abs(o)); }
+    return -stake;
+  };
+  const blank = () => ({ n:0, w:0, l:0, pl:0, staked:0 });
+  const add = (acc,b) => { const st=b.stake!=null?Number(b.stake):1; acc.n++; acc.staked+=st; acc.pl+=plOf(b); if(b.result==="hit")acc.w++; else acc.l++; };
+  const fin = s => ({ ...s,
+    roi: s.staked>0 ? (s.pl/s.staked)*100 : null,
+    plPerBet: s.n>0 ? s.pl/s.n : null,
+    winPct: (s.w+s.l)>0 ? (s.w/(s.w+s.l))*100 : null,
+  });
+
+  // ── aggregate ──
+  const overall = blank();
+  const byStat = {}, bySide = { over: blank(), under: blank() };
+  const STAT_ORDER = ["PTS","REB","AST","3PM","PRA"];
+  settled.forEach(b => {
+    add(overall, b);
+    const s = (b.stat||"").toUpperCase();
+    if (!byStat[s]) byStat[s] = blank();
+    add(byStat[s], b);
+    const side = (b.ou||"").toLowerCase()==="under" ? "under" : "over";
+    add(bySide[side], b);
+  });
+  const O = fin(overall);
+
+  // Season projection: extrapolate the realized per-bet result over a full
+  // season. Default season length assumption shown so it's transparent.
+  // Units per 100 bets — the standard way to express edge at scale. No made-up
+  // season length; just normalizes your realized per-bet result to a 100-bet rate.
+  const per100 = (g) => g.plPerBet!=null ? g.plPerBet*100 : null;
+
+  const fmtU = v => v==null ? "—" : (v>=0?"+":"−")+Math.abs(v).toFixed(2)+"u";
+  const fmtPct = v => v==null ? "—" : (v>=0?"+":"−")+Math.abs(v).toFixed(1)+"%";
+  const col = v => v==null ? "#d4dae3" : v>=0 ? "#4ade80" : "#f87171";
+
+  if (settled.length === 0) {
+    el.innerHTML = `<div style="max-width:760px;margin:0 auto;padding:40px 20px;text-align:center;color:#d4dae3;font-family:'Inter',sans-serif;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#fff;">No settled props yet</div>
+      <div style="font-size:13px;">Once you've graded some props, this tab will show your season P&amp;L, ROI, and a projection of how the full season should trend based on your sample so far.</div>
+    </div>`;
+    return;
+  }
+
+  // ── big summary cards ──
+  const bigCard = (label, value, color, sub) => `
+    <div style="flex:1;min-width:140px;background:#0a0b0d;border:1px solid #283041;border-radius:12px;padding:16px 18px;box-shadow:0 0 0 1px rgba(125,211,252,0.05),0 4px 18px rgba(125,211,252,0.05);">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1px;color:#7dd3fc;text-transform:uppercase;margin-bottom:8px;">${label}</div>
+      <div style="font-size:24px;font-weight:800;color:${color};font-family:'JetBrains Mono',monospace;">${value}</div>
+      ${sub?`<div style="font-size:11px;font-weight:600;color:#d4dae3;margin-top:5px;">${sub}</div>`:""}
+    </div>`;
+
+  // ── breakdown table row ──
+  const row = (label, g, accent) => {
+    const gg = fin(g);
+    const proj = per100(gg);
+    return `<tr style="border-bottom:1px solid #15181d;">
+      <td style="padding:9px 12px;font-size:12px;font-weight:700;color:${accent||"#fff"};">${label}</td>
+      <td style="padding:9px 12px;font-size:12px;color:#fff;text-align:center;font-family:'JetBrains Mono',monospace;">${gg.w}-${gg.l}</td>
+      <td style="padding:9px 12px;font-size:12px;color:#fff;text-align:center;font-family:'JetBrains Mono',monospace;">${gg.winPct!=null?gg.winPct.toFixed(0)+"%":"—"}</td>
+      <td style="padding:9px 12px;font-size:12px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:${col(gg.pl)};">${fmtU(gg.pl)}</td>
+      <td style="padding:9px 12px;font-size:12px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:${col(gg.roi)};">${fmtPct(gg.roi)}</td>
+      <td style="padding:9px 12px;font-size:12px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:${col(proj)};">${fmtU(proj)}</td>
+    </tr>`;
+  };
+
+  const tableHead = `<tr style="border-bottom:1px solid #283041;">
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:left;"></th>
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:center;">W-L</th>
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:center;">Win%</th>
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:right;">Units</th>
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:right;">ROI</th>
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:right;">Units/100</th>
+  </tr>`;
+
+  const statRows = STAT_ORDER.filter(s=>byStat[s]).map(s=>row(s, byStat[s])).join("");
+  const sideRows = row("OVER", bySide.over, "#4ade80") + row("UNDER", bySide.under, "#fb923c");
+
+  el.innerHTML = `
+  <div style="max-width:860px;margin:0 auto;padding:18px 16px 60px;font-family:'Inter',sans-serif;">
+    <div style="font-size:11px;font-weight:700;color:#d4dae3;margin-bottom:16px;line-height:1.5;">
+      Season P&amp;L from <span style="color:#fff;font-weight:800;">${O.n}</span> settled props${voids.length?` (${voids.length} void)`:""}. The <span style="color:#7dd3fc;font-weight:800;">Units/100</span> column normalizes your result to a per-100-bet rate — the standard way to read your edge at scale. At your pace, multiply it by ${(O.n/100).toFixed(1)} to see where ${O.n} bets lands you.
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px;">
+      ${bigCard("Record", `${O.w}-${O.l}`, "#fff", O.winPct!=null?`${O.winPct.toFixed(1)}% win`:"")}
+      ${bigCard("Units P&L", fmtU(O.pl), col(O.pl), `${O.n} bets · ${O.staked.toFixed(1)}u staked`)}
+      ${bigCard("ROI", fmtPct(O.roi), col(O.roi), `${O.plPerBet!=null?fmtU(O.plPerBet)+"/bet":""}`)}
+      ${bigCard("Units/100", fmtU(per100(O)), col(per100(O)), "per 100 bets")}
+    </div>
+
+    <div id="eos-calc" style="background:#0a0b0d;border:1px solid #283041;border-radius:12px;padding:16px 18px;margin-bottom:22px;box-shadow:0 0 0 1px rgba(125,211,252,0.05),0 4px 18px rgba(125,211,252,0.05);">
+      <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#7dd3fc;text-transform:uppercase;margin-bottom:4px;">End of Regular Season Projection</div>
+      <div style="font-size:11px;font-weight:600;color:#d4dae3;margin-bottom:14px;">Regular season ends <span style="color:#fff;font-weight:800;">Thu, Sep 24, 2026</span>. Projects remaining bets at your pace × your current per-bet edge (${fmtU(O.plPerBet)}/bet).</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+        <span style="font-size:12px;font-weight:700;color:#fff;">Bets per day</span>
+        <input id="eos-bpd" type="number" min="0" max="40" value="17" oninput="updateEosCalc(${O.plPerBet!=null?O.plPerBet:0}, ${O.pl})" style="width:70px;background:#070809;border:1px solid #283041;border-radius:6px;color:#fff;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;padding:7px 10px;text-align:center;">
+        <span style="font-size:11px;font-weight:600;color:#d4dae3;">(you've averaged ~15–20)</span>
+      </div>
+      <div id="eos-out" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+    </div>
+
+    <div style="background:#0a0b0d;border:1px solid #1a1d22;border-radius:12px;overflow:hidden;margin-bottom:18px;">
+      <div style="padding:11px 14px;font-size:11px;font-weight:800;letter-spacing:1px;color:#fff;text-transform:uppercase;border-bottom:1px solid #1a1d22;">By Stat</div>
+      <table style="width:100%;border-collapse:collapse;">${tableHead}${statRows||`<tr><td style="padding:14px;color:#d4dae3;font-size:12px;">No stat data.</td></tr>`}</table>
+    </div>
+
+    <div style="background:#0a0b0d;border:1px solid #1a1d22;border-radius:12px;overflow:hidden;">
+      <div style="padding:11px 14px;font-size:11px;font-weight:800;letter-spacing:1px;color:#fff;text-transform:uppercase;border-bottom:1px solid #1a1d22;">Over vs Under</div>
+      <table style="width:100%;border-collapse:collapse;">${tableHead}${sideRows}</table>
+    </div>
+  </div>`;
+  // Populate the projection with the default bets/day once rendered.
+  try { updateEosCalc(O.plPerBet!=null?O.plPerBet:0, O.pl); } catch(e) {}
+}
+
+// End-of-regular-season projection. Counts days from today through Sep 24, 2026,
+// multiplies by bets/day to estimate remaining bets, and projects units off the
+// realized per-bet edge. Also shows the projected FINAL total (current + added).
+function updateEosCalc(plPerBet, currentPL) {
+  const out = document.getElementById("eos-out");
+  if (!out) return;
+  const bpdEl = document.getElementById("eos-bpd");
+  const bpd = bpdEl ? Math.max(0, Number(bpdEl.value) || 0) : 0;
+  // Days remaining through end of regular season (inclusive of today).
+  const end = new Date(2026, 8, 24); // Sep is month index 8
+  const now = new Date();
+  const msPerDay = 86400000;
+  const daysLeft = Math.max(0, Math.ceil((end - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / msPerDay));
+  const remBets = Math.round(daysLeft * bpd);
+  const addUnits = plPerBet * remBets;
+  const finalUnits = currentPL + addUnits;
+  const fmtU = v => v==null||isNaN(v) ? "—" : (v>=0?"+":"−")+Math.abs(v).toFixed(2)+"u";
+  const col = v => (v==null||isNaN(v)) ? "#d4dae3" : v>=0 ? "#4ade80" : "#f87171";
+  const card = (label, value, color, sub) => `
+    <div style="flex:1;min-width:130px;background:#070809;border:1px solid #1a1d22;border-radius:10px;padding:13px 15px;">
+      <div style="font-size:9px;font-weight:800;letter-spacing:0.8px;color:#7dd3fc;text-transform:uppercase;margin-bottom:7px;">${label}</div>
+      <div style="font-size:20px;font-weight:800;color:${color};font-family:'JetBrains Mono',monospace;">${value}</div>
+      ${sub?`<div style="font-size:10px;font-weight:600;color:#d4dae3;margin-top:4px;">${sub}</div>`:""}
+    </div>`;
+  out.innerHTML =
+    card("Days left", String(daysLeft), "#fff", "through Sep 24") +
+    card("Bets remaining", String(remBets), "#fff", `${bpd}/day`) +
+    card("Projected added", fmtU(addUnits), col(addUnits), "from here") +
+    card("Projected final", fmtU(finalUnits), col(finalUnits), "season total");
+}
+
 function renderTracker() {
   const el = document.getElementById("tracker-tab");
   // Apply kind filter (all | props | totals) to every aggregation in this view
@@ -16208,6 +16369,14 @@ function renderScheduleExpandContent(summary) {
   const state = summary?.header?.competitions?.[0]?.status?.type?.state;
   const teams = summary?.boxscore?.players || [];
   const injuries = summary?.injuries || [];
+  // This game's date (YYYY-MM-DD) so we only surface bets for THIS game, not
+  // every bet ever tracked on a player.
+  const _gameIso = summary?.header?.competitions?.[0]?.date || summary?.header?.competitions?.[0]?.startDate || null;
+  const _gameDay = _gameIso ? String(_gameIso).slice(0,10) : null;
+  const _betDay = (b) => {
+    const d = b.gameDate || b.date || "";
+    return String(d).slice(0,10);
+  };
   // Build a map of YOUR tracked bets by normalized player name, so we can
   // surface them right on the box score (highlight the player + show the line
   // and whether it's currently hitting based on live/final stats).
@@ -16219,6 +16388,8 @@ function renderScheduleExpandContent(summary) {
       bets.forEach(b => {
         if (!b.player || !b.stat || b.line == null) return;
         if (b.stat === "GAME_TOTAL" || b.stat === "GAME_SPREAD") return;
+        // Scope to THIS game's date so a player's other-day bets don't show here.
+        if (_gameDay && _betDay(b) && _betDay(b) !== _gameDay) return;
         const k = norm(b.player);
         // Dedup identical props (same player+stat+side+line) so a prop tracked
         // more than once shows a single pill, matching the share-card behavior.
@@ -16299,8 +16470,8 @@ function renderScheduleExpandContent(summary) {
         const nameColor = hasBet ? "#fde047" : "#fff";
         return `
         <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;${hasBet ? "background:rgba(253,224,71,0.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:4px;" : ""}">
-          <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:30px;text-align:left;">${escapeHtmlBasic(p.min)}'</span>
           <span style="flex:1;color:${nameColor};font-weight:700;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${p.starter ? '<span style="color:#7dd3fc;font-size:9px;">★</span>' : ""}${escapeHtmlBasic(p.name)}${betPills}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:26px;text-align:right;">${escapeHtmlBasic(p.min)}'</span>
           <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;min-width:22px;text-align:right;">${p.pts}</span>
           <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:18px;text-align:right;">${p.reb}r</span>
           <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:18px;text-align:right;">${p.ast}a</span>
