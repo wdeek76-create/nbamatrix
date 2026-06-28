@@ -1840,59 +1840,74 @@ function doExportExtra() {
   writeConsensusCsv(allowed, "WNBAblenderExtra.csv", `extra (RG+RW+${labelExtras})`);
 }
 
-// MatrixCSV — exports only the genuinely-agreeing edges per stat, using
-// per-stat tightness thresholds trained from bet history (source-agreement
-// spread distribution, p40 = tightest 40% with wiggle room). Frozen numbers;
-// recompute from a fresh bets file when you want them resharpened.
-// A prop is included if it has 2+ of RG/RW/DMR present AND their spread%
-// ((max-min)/avg*100) is within that stat's threshold. All stats, one file.
+// MatrixCSV — same upload format as EXPORT AVG/CONSENSUS, but each stat column
+// is gated by its own trained tightness threshold (source-agreement spread%,
+// p40 from bet history). A stat's projection is written ONLY if RG/RW/DMR
+// (2+ present) agree within that stat's threshold; otherwise it's zeroed out.
+// So when imported, only the genuinely-agreeing edges carry real numbers.
+// Frozen thresholds — recompute from a fresh bets file to resharpen.
 const MATRIX_THRESHOLDS = { pts: 16, reb: 20, ast: 16, threepm: 21, pra: 12 };
 function doExportMatrix() {
   if (!merged) { showToast("Load sources and blend first"); return; }
   const lookups = getSlotLookups();
-  // Source columns we measure agreement across: RG, RW, DMR (skip Saber/AVG).
-  const SRC_COLS = [
-    { key: "roto", label: "RG" },
-    { key: "rotowire", label: "RW" },
-    { key: "dimers", label: "DMR" },
-  ];
-  const srcIdx = SRC_COLS.map(s => SOURCES.findIndex(x => x.key === s.key));
-  const statsToScan = ["pts", "reb", "ast", "threepm", "pra"];
-  const header = "player,team,stat,line,RG,RW,DMR,AVG,spread_pct,src_count";
-  const rows = [];
-  let passCount = 0;
-  statsToScan.forEach(stat => {
+  // Sources we measure agreement across: RG, RW, DMR (Saber/AVG excluded).
+  const srcIdx = ["roto", "rotowire", "dimers"].map(k => SOURCES.findIndex(s => s.key === k));
+  // For a player+stat: returns the blended value if 2+ measured sources are
+  // present AND their spread% is within the stat's threshold; else null.
+  const tightVal = (r, stat) => {
     const thresh = MATRIX_THRESHOLDS[stat];
-    merged.forEach(r => {
-      // Pull each measured source's projection for this player+stat.
-      const vals = srcIdx.map(i => {
-        const lk = lookups[i];
-        if (!lk) return null;
-        const m = lk[r.norm];
-        return (m && m[stat] != null && m[stat] > 0) ? m[stat] : null;
-      });
-      const present = vals.filter(v => v != null);
-      if (present.length < 2) return; // need 2+ sources to measure agreement
-      const avg = present.reduce((a, b) => a + b, 0) / present.length;
-      if (avg <= 0) return;
-      const spreadPct = (Math.max(...present) - Math.min(...present)) / avg * 100;
-      if (spreadPct > thresh) return; // not tight enough for this stat
-      passCount++;
-      const num = v => (v != null && !isNaN(v)) ? Number(v).toFixed(2) : "";
-      rows.push([
-        r.rawName,
-        r.team || "",
-        STAT_LABEL[stat],
-        num(r.con[stat]),
-        num(vals[0]), num(vals[1]), num(vals[2]),
-        num(avg),
-        spreadPct.toFixed(1),
-        `${present.length}/3`,
-      ].map(v => `"${v}"`).join(","));
-    });
-  });
-  if (!passCount) { showToast("No props passed the per-stat tightness"); return; }
-  const csv = [header, ...rows].join("\n");
+    if (thresh == null) return null;
+    const vals = srcIdx.map(i => {
+      const lk = lookups[i];
+      if (!lk) return null;
+      const m = lk[r.norm];
+      return (m && m[stat] != null && m[stat] > 0) ? m[stat] : null;
+    }).filter(v => v != null);
+    if (vals.length < 2) return null;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    if (avg <= 0) return null;
+    const spreadPct = (Math.max(...vals) - Math.min(...vals)) / avg * 100;
+    if (spreadPct > thresh) return null;
+    // Passed — use the blended consensus value for this stat.
+    return (r.con && r.con[stat] != null) ? r.con[stat] : avg;
+  };
+
+  const searchLoose = looseName(document.getElementById("search-box").value);
+  const rows = merged
+    .filter(r => !searchLoose || looseName(r.rawName).includes(searchLoose))
+    .sort((a, b) => a.rawName.localeCompare(b.rawName));
+  if (!rows.length) { showToast("No players to export"); return; }
+  const header = "id,name,first_name,last_name,position,team,three_pointers_made,assists,blocks,double_double,points,rebounds,steals,triple_double,turnovers,fd_points,dk_points";
+  const tmplByNorm = {};
+  WNBA_TEMPLATE.forEach(t => { tmplByNorm[norm(t.name)] = t; });
+  let exported = 0, edgeCount = 0;
+  const dataRows = rows.map(r => {
+    // Gate each stat on its own threshold; non-passing stats become null → 0.00.
+    const tpm = tightVal(r, "threepm");
+    const ast = tightVal(r, "ast");
+    const pts = tightVal(r, "pts");
+    const reb = tightVal(r, "reb");
+    const passed = [tpm, ast, pts, reb].filter(v => v != null).length;
+    if (passed === 0) return null; // no agreeing edges for this player — skip row
+    edgeCount += passed;
+    exported++;
+    const t = tmplByNorm[r.norm] || {};
+    const first = t.first_name || (r.rawName.split(" ")[0] || "");
+    const last  = t.last_name  || (r.rawName.split(" ").slice(1).join(" ") || "");
+    const num = (v) => (v != null && !isNaN(v)) ? Number(v).toFixed(2) : "0.00";
+    return [
+      t.id || "", r.rawName, first, last, r.pos || t.position || "", r.team || t.team || "",
+      num(tpm),
+      num(ast),
+      "0.00", "0.00",           // blocks, double_double
+      num(pts),
+      num(reb),
+      "0.00", "0.00", "0.00",   // steals, triple_double, turnovers
+      "0.00", "0.00",           // fd_points, dk_points
+    ].map(v => `"${v}"`).join(",");
+  }).filter(Boolean);
+  if (!exported) { showToast("No props passed the per-stat tightness"); return; }
+  const csv = [header, ...dataRows].join("\n");
   // UTF-8 BOM so importers correctly decode accented characters (Salaün, etc.).
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -1900,7 +1915,7 @@ function doExportMatrix() {
   a.href = url; a.download = "WNBAblenderMatrix.csv"; a.style.display = "none";
   document.body.appendChild(a); a.click();
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-  showToast(`MatrixCSV: ${passCount} agreeing edges across all stats`);
+  showToast(`MatrixCSV: ${edgeCount} agreeing edges across ${exported} players`);
 }
 
 function clearSearch() {
