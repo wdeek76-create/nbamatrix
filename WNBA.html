@@ -305,6 +305,15 @@ table colgroup col.avg-col{width:16%;}
    tooltips on edge elements don't get clipped by the modal. */
 .tip-left::after { left: 0; transform: none; }
 .tip-right::after { left: auto; right: 0; transform: none; }
+/* Narrow-width handling for the PROJECTIONS page only. Kicks in below 760px
+   (e.g. split-screen / half-window) so controls and the table reflow instead
+   of cramping. Zero effect at normal widths. */
+@media (max-width: 760px) {
+  #results-tab #controls { gap: 6px; margin-bottom: 12px; }
+  #results-tab #table-wrap { min-width: 0; width: 100%; }
+  #results-tab #table-wrap > table { min-width: 540px; }
+  #results-tab #search-box { max-width: 220px; }
+}
 </style>
 </head>
 <body>
@@ -2420,10 +2429,12 @@ function updateTrendsInModal() {
 function _sourceRecordsForStat(stat, side) {
   // side = "over" | "under" | null/"" (both). Filters bets to that direction so
   // the records reflect the side you're actually betting.
-  let bets;
-  try { bets = loadBets(); } catch (e) { return null; }
-  if (!Array.isArray(bets)) return null;
-  const settled = bets.filter(b => (b.result === "hit" || b.result === "miss") && b.srcProjs && b.line != null && (b.stat || "").toUpperCase() !== "GAME_TOTAL");
+  // NOTE: loadBets() populates the GLOBAL `bets` array and returns undefined,
+  // so we read the global after calling it (not its return value).
+  try { loadBets(); } catch (e) { return null; }
+  const allBets = (typeof bets !== "undefined" && Array.isArray(bets)) ? bets : null;
+  if (!allBets) return null;
+  const settled = allBets.filter(b => (b.result === "hit" || b.result === "miss") && b.srcProjs && b.line != null && (b.stat || "").toUpperCase() !== "GAME_TOTAL");
   if (!settled.length) return null;
 
   const statUC = (stat || "").toUpperCase();
@@ -2553,10 +2564,6 @@ function _sourceRecordsForStat(stat, side) {
 function _renderSourceRecords() {
   const recEl = document.getElementById("modal-src-records");
   if (!recEl) return;
-  // MARKER: prove the function is being entered at all.
-  recEl.style.display = "block";
-  recEl.innerHTML = `<div style="margin-top:7px;font-size:10px;color:#22c55e;font-family:monospace;">✓ records fn ran</div>`;
-  window.__recFnRan = (window.__recFnRan || 0) + 1;
   const stat = (document.getElementById("modal-stat") || {}).value || "";
   let recSide = "";
   const shEl = document.getElementById("modal-shorthand");
@@ -2683,10 +2690,7 @@ function populateSourceAgreement() {
   // THIS stat + the side you typed. Re-rendered on each keystroke too.
   try {
     if (typeof _renderSourceRecords === "function") _renderSourceRecords();
-  } catch (err) {
-    const re = document.getElementById("modal-src-records");
-    if (re) { re.style.display = "block"; re.innerHTML = `<div style="margin-top:7px;font-size:9px;color:#f87171;font-family:monospace;word-break:break-all;">REC ERR: ${err.message}</div>`; }
-  }
+  } catch (err) { /* records are non-critical; never block the modal */ }
   document.getElementById("modal-src-badge").textContent = "";
   document.getElementById("modal-src-badge").style.cssText = "font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;display:none;";
   // Re-apply decider highlight after re-render (in case state was set)
