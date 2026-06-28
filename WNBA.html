@@ -79,8 +79,8 @@ input{font-family:'Inter',sans-serif;font-size:15px;}
 #merge-btn{width:100%;padding:14px;font-size:13px;font-weight:700;letter-spacing:0.5px;border:none;border-radius:8px;margin-top:8px;transition:all 0.2s;}
 
 #controls{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
-#controls input[type=text]{background:#0c0d10;border:1px solid #1a1d22;border-radius:9px;padding:8px 14px;font-size:13px;color:#e2e8f0;outline:none;width:170px;transition:border-color 0.2s;}
-#controls input[type=text]:focus{border-color:#1e40af;}
+#controls input[type=text],#search-box{background:#0c0d10;border:1px solid #1a1d22;border-radius:9px;padding:8px 14px;font-size:13px;color:#e2e8f0;outline:none;width:170px;transition:border-color 0.2s;}
+#controls input[type=text]:focus,#search-box:focus{border-color:#1e40af;}
 
 .ctrl-btn{background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;transition:all 0.2s;}
 .ctrl-btn:hover{border-color:#1e40af77;color:#7dd3fc;}
@@ -278,29 +278,33 @@ table colgroup col.avg-col{width:16%;}
 .tip::after {
   content: attr(data-tip);
   position: absolute;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   background: #1a1d22;
   color: #e8edf3;
   border: 0.5px solid #2a2f37;
   border-radius: 7px;
-  padding: 7px 10px;
+  padding: 8px 11px;
   font-size: 11px;
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.5;
   font-family: 'Inter', sans-serif;
   width: max-content;
-  max-width: 240px;
+  max-width: 260px;
   white-space: normal;
   text-align: left;
-  z-index: 9999;
+  z-index: 99999;
   opacity: 0;
   pointer-events: none;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
   transition: opacity 0.08s ease;
 }
 .tip:hover::after { opacity: 1; }
+/* Edge-aware variants: pin tooltip to left/right edge of the trigger so wide
+   tooltips on edge elements don't get clipped by the modal. */
+.tip-left::after { left: 0; transform: none; }
+.tip-right::after { left: auto; right: 0; transform: none; }
 </style>
 </head>
 <body>
@@ -553,10 +557,6 @@ table colgroup col.avg-col{width:16%;}
         </div>
       </details>
       <div id="controls">
-        <div style="position:relative;display:inline-block;">
-          <input type="text" id="search-box" placeholder="Search player..." oninput="renderTable()" onkeydown="searchEnterCopy(event)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="padding-right:28px;"/>
-          <button onclick="clearSearch()" title="Clear search" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#d4dae3;cursor:pointer;padding:2px 6px;font-size:14px;font-family:'Inter',sans-serif;line-height:1;">✕</button>
-        </div>
         <button class="ctrl-btn" id="con-btn" onclick="toggleConOnly()">CONSENSUS ONLY</button>
         <span class="sep">|</span>
         <span style="color:#3d5570;font-size:11px;font-weight:600;letter-spacing:2px;">SORT</span>
@@ -579,6 +579,12 @@ table colgroup col.avg-col{width:16%;}
         <button id="export-con-btn" onclick="doExportConsensus()" title="RG + RW only (core consensus, locked)">EXPORT CONSENSUS</button>
         <button id="export-extra-btn" onclick="doExportExtra()" title="RG + RW + any loaded optional sources (Saber, Dimers)">EXPORT EXTRA</button>
         <button onclick="clearTrackedProps()" title="Clear all ✓ TRACKED pills from Projections. Does NOT affect your actual tracked bets in the Tracker." style="background:#0c0d10;border:1px solid #1a1d22;color:#a8b0bb;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;">CLEAR TRACKED</button>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+        <div style="position:relative;display:inline-block;">
+          <input type="text" id="search-box" placeholder="Search player..." oninput="renderTable()" onkeydown="searchEnterCopy(event)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="padding-right:28px;"/>
+          <button onclick="clearSearch()" title="Clear search" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#d4dae3;cursor:pointer;padding:2px 6px;font-size:14px;font-family:'Inter',sans-serif;line-height:1;">✕</button>
+        </div>
       </div>
       <div style="display:flex;justify-content:flex-end;">
         <div id="table-wrap">
@@ -2411,23 +2417,20 @@ function updateTrendsInModal() {
 // where this source had a projection that LEANED the bet's side, what's the
 // record + units. "Combo" = bets where ALL sources-with-data agreed on the
 // side. Returns { solo: {key: {w,l,pl,roi}}, combo: {w,l,pl,roi,n} } or null.
-function _sourceRecordsForStat(stat) {
+function _sourceRecordsForStat(stat, side) {
+  // side = "over" | "under" | null/"" (both). Filters bets to that direction so
+  // the records reflect the side you're actually betting.
   let bets;
-  try { bets = loadBets(); } catch (e) { console.log("[srcRec] loadBets failed", e); return null; }
-  if (!Array.isArray(bets)) { console.log("[srcRec] bets not array"); return null; }
-  const settled = bets.filter(b => (b.result === "hit" || b.result === "miss") && b.srcProjs && b.line != null && !b.isTotal);
-  const withProjs = bets.filter(b => b.srcProjs);
-  const statBets = bets.filter(b => (b.stat||"").toUpperCase() === (stat||"").toUpperCase());
-  console.log("[srcRec] stat:", JSON.stringify(stat), "| total bets:", bets.length, "| have srcProjs:", withProjs.length, "| settled+srcProjs:", settled.length, "| this-stat bets:", statBets.length);
-  if (settled[0]) console.log("[srcRec] sample settled bet:", JSON.stringify({stat:settled[0].stat, ou:settled[0].ou, line:settled[0].line, odds:settled[0].odds, result:settled[0].result, srcProjs:settled[0].srcProjs}));
-  if (withProjs[0]) console.log("[srcRec] sample srcProjs keys:", Object.keys(withProjs[0].srcProjs||{}));
+  try { bets = loadBets(); } catch (e) { return null; }
+  if (!Array.isArray(bets)) return null;
+  const settled = bets.filter(b => (b.result === "hit" || b.result === "miss") && b.srcProjs && b.line != null && (b.stat || "").toUpperCase() !== "GAME_TOTAL");
   if (!settled.length) return null;
 
   const statUC = (stat || "").toUpperCase();
+  const sideLC = (side || "").toLowerCase();
   const sameStat = b => (b.stat || "").toUpperCase() === statUC;
+  const sameSide = b => !sideLC || (b.ou || "").toLowerCase() === sideLC;
 
-  // Agreement test — identical to Source Analytics' srcAgreed(), respecting the
-  // EV vs directional toggle so the modal combo always matches the analytics tab.
   const mode = (typeof _srcAnalyticsMode !== "undefined") ? _srcAnalyticsMode : "ev";
   const leans = (v, b) => {
     if (v == null) return null;
@@ -2455,66 +2458,182 @@ function _sourceRecordsForStat(stat) {
   const SRC_KEYS = ["roto", "rotowire", "dimers"];
   const SRC_LBL = { roto: "RG", rotowire: "RW", dimers: "DMR" };
 
-  const solo = {};
-  SRC_KEYS.forEach(key => {
-    const acc = blank();
-    settled.forEach(b => {
-      if (!sameStat(b)) return;
-      if (leans(b.srcProjs[key], b) !== true) return;
-      const stake = b.stake != null ? Number(b.stake) : 1;
-      acc.staked += stake; acc.pl += plOf(b);
-      if (b.result === "hit") acc.w++; else acc.l++;
-    });
-    if (acc.w + acc.l > 0) solo[key] = finalize(acc);
-  });
-
-  // Exclusive combos — keyed by the EXACT set of sources that agreed (2+),
-  // mirroring Source Analytics' combosByStat. A bet where RG+RW agreed but DMR
-  // didn't counts only toward the "RG+RW" combo.
-  const comboMap = {};
-  settled.forEach(b => {
-    if (!sameStat(b)) return;
-    const agreed = SRC_KEYS.filter(k => leans(b.srcProjs[k], b) === true);
-    if (agreed.length < 2) return;
-    const key = agreed.map(k => SRC_LBL[k]).join("+");
-    if (!comboMap[key]) comboMap[key] = { label: key, ...blank() };
-    const stake = b.stake != null ? Number(b.stake) : 1;
-    comboMap[key].staked += stake; comboMap[key].pl += plOf(b);
-    if (b.result === "hit") comboMap[key].w++; else comboMap[key].l++;
-  });
-  const combos = Object.values(comboMap).map(finalize).sort((a, b) => b.pl - a.pl);
-
-  // If this stat has no records yet, fall back to all-stats so the user still
-  // sees their source profitability instead of an empty panel.
-  if (!Object.keys(solo).length && !combos.length) {
-    const soloAll = {};
+  // Compute solo + combos over a given bet filter (so we can reuse for fallback).
+  const compute = (filterFn) => {
+    const solo = {};
     SRC_KEYS.forEach(key => {
       const acc = blank();
       settled.forEach(b => {
+        if (!filterFn(b)) return;
         if (leans(b.srcProjs[key], b) !== true) return;
         const stake = b.stake != null ? Number(b.stake) : 1;
         acc.staked += stake; acc.pl += plOf(b);
         if (b.result === "hit") acc.w++; else acc.l++;
       });
-      if (acc.w + acc.l > 0) soloAll[key] = finalize(acc);
+      if (acc.w + acc.l > 0) solo[key] = finalize(acc);
     });
-    const comboMapAll = {};
+    const comboMap = {};
     settled.forEach(b => {
+      if (!filterFn(b)) return;
       const agreed = SRC_KEYS.filter(k => leans(b.srcProjs[k], b) === true);
       if (agreed.length < 2) return;
       const key = agreed.map(k => SRC_LBL[k]).join("+");
-      if (!comboMapAll[key]) comboMapAll[key] = { label: key, ...blank() };
+      if (!comboMap[key]) comboMap[key] = { label: key, ...blank() };
       const stake = b.stake != null ? Number(b.stake) : 1;
-      comboMapAll[key].staked += stake; comboMapAll[key].pl += plOf(b);
-      if (b.result === "hit") comboMapAll[key].w++; else comboMapAll[key].l++;
+      comboMap[key].staked += stake; comboMap[key].pl += plOf(b);
+      if (b.result === "hit") comboMap[key].w++; else comboMap[key].l++;
     });
-    const combosAll = Object.values(comboMapAll).map(finalize).sort((a, b) => b.pl - a.pl);
-    if (Object.keys(soloAll).length || combosAll.length) {
-      return { solo: soloAll, combos: combosAll, scope: "all" };
+    const combos = Object.values(comboMap).map(finalize).sort((a, b) => b.pl - a.pl);
+    return { solo, combos };
+  };
+
+  // Combo records split by side — for a given stat filter, returns a map of
+  // comboKey -> { over, under } so the modal can show both, highlighting the
+  // typed side. Keys are like "RG+RW".
+  const combosBySide = (statFilter) => {
+    const map = {};
+    const add = (b, sideKey) => {
+      const agreed = SRC_KEYS.filter(k => leans(b.srcProjs[k], b) === true);
+      if (agreed.length < 2) return;
+      const key = agreed.map(k => SRC_LBL[k]).join("+");
+      if (!map[key]) map[key] = { label: key, over: blank(), under: blank() };
+      const tgt = map[key][sideKey];
+      const stake = b.stake != null ? Number(b.stake) : 1;
+      tgt.staked += stake; tgt.pl += plOf(b);
+      if (b.result === "hit") tgt.w++; else tgt.l++;
+    };
+    settled.forEach(b => {
+      if (!statFilter(b)) return;
+      const s = (b.ou || "").toLowerCase();
+      if (s === "over") add(b, "over");
+      else if (s === "under") add(b, "under");
+    });
+    // Finalize and only keep combos with at least one side having bets.
+    return Object.values(map).map(c => ({
+      label: c.label,
+      over: finalize(c.over),
+      under: finalize(c.under),
+      total: (c.over.w + c.over.l + c.under.w + c.under.l),
+    })).filter(c => c.total > 0);
+  };
+
+  // Primary: this stat + this side (for solo chips).
+  let res = compute(b => sameStat(b) && sameSide(b));
+  let comboSplit = combosBySide(sameStat);
+  if (Object.keys(res.solo).length || comboSplit.length) {
+    return { solo: res.solo, comboSplit, scope: sideLC ? "stat+side" : "stat" };
+  }
+
+  // Fallback 1: this stat, both sides for solo.
+  if (sideLC) {
+    res = compute(b => sameStat(b));
+    if (Object.keys(res.solo).length || comboSplit.length) {
+      return { solo: res.solo, comboSplit, scope: "stat" };
     }
   }
 
-  return { solo, combos, scope: "stat" };
+  // Fallback 2: all stats.
+  res = compute(b => sameSide(b));
+  comboSplit = combosBySide(() => true);
+  if (Object.keys(res.solo).length || comboSplit.length) {
+    return { solo: res.solo, comboSplit, scope: sideLC ? "all+side" : "all" };
+  }
+
+  res = compute(() => true);
+  if (Object.keys(res.solo).length || comboSplit.length) {
+    return { solo: res.solo, comboSplit, scope: "all" };
+  }
+
+  return null;
+}
+
+// Renders the per-source records panel under the source pills. Reads the current
+// stat + the over/under typed in the shorthand box, so it updates live as you
+// type a side. Called on modal open AND on each keystroke (via updateSourceAgreement).
+function _renderSourceRecords() {
+  const recEl = document.getElementById("modal-src-records");
+  if (!recEl) return;
+  const stat = (document.getElementById("modal-stat") || {}).value || "";
+  let recSide = "";
+  const shEl = document.getElementById("modal-shorthand");
+  if (shEl && shEl.value) {
+    const tok = shEl.value.trim().toLowerCase().split(/\s+/)[0] || "";
+    if (tok.startsWith("u")) recSide = "under";
+    else if (tok.startsWith("o")) recSide = "over";
+  }
+  const recs = _sourceRecordsForStat(stat, recSide);
+  if (!recs || (!Object.keys(recs.solo).length && !recs.comboSplit.length)) {
+    recEl.innerHTML = "";
+    recEl.style.display = "none";
+    return;
+  }
+  const fmtU = u => (u >= 0 ? "+" : "") + u.toFixed(2) + "u";
+  const roiColor = roi => roi == null ? "#8b93a0" : roi > 0 ? "#4ade80" : roi < 0 ? "#f87171" : "#8b93a0";
+  const lbl = k => k === "rotowire" ? "RW" : k === "roto" ? "RG" : k === "saber" ? "SAB" : k === "dimers" ? "DMR" : k.toUpperCase();
+
+  // Solo chips — side-reactive (already scoped by recSide in the function).
+  const SRC_ORDER = ["roto", "rotowire", "dimers"];
+  const chips = SRC_ORDER.filter(k => recs.solo[k]).map(k => {
+    const r = recs.solo[k];
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:'JetBrains Mono','Menlo',monospace;background:rgba(255,255,255,0.02);border:1px solid #1a1d22;border-radius:4px;padding:2px 6px;">
+      <span style="color:#8b93a0;font-weight:700;">${lbl(k)}</span>
+      <span style="color:#d4dae3;">${r.w}-${r.l}</span>
+      <span style="color:${roiColor(r.pl)};font-weight:700;">${fmtU(r.pl)}</span>
+    </span>`;
+  }).join("");
+
+  // Combo rows — show BOTH sides. Typed side bright + leading, other dimmed after.
+  let comboBlock = "";
+  if (recs.comboSplit.length) {
+    // Decide lead side: typed side if set, else whichever has more total bets.
+    const sideStat = (rec) => `${rec.w}-${rec.l}`;
+    const hasBets = (rec) => (rec.w + rec.l) > 0;
+    // Sort combos by the lead side's units (typed side, or overall pl if no side).
+    const leadKey = recSide || null;
+    const comboSorted = [...recs.comboSplit].sort((a, b) => {
+      const av = leadKey ? a[leadKey].pl : (a.over.pl + a.under.pl);
+      const bv = leadKey ? b[leadKey].pl : (b.over.pl + b.under.pl);
+      return bv - av;
+    });
+    const sidePart = (rec, sideKey, bright) => {
+      if (!hasBets(rec)) return "";
+      const tag = sideKey === "over" ? "O" : "U";
+      const col = bright ? "#e8edf3" : "#5a6470";
+      const recCol = bright ? "#d4dae3" : "#4a525c";
+      const uCol = bright ? roiColor(rec.pl) : "#4a525c";
+      const rCol = bright ? roiColor(rec.roi) : "#4a525c";
+      return `<span style="display:inline-flex;align-items:baseline;gap:5px;${bright?"":"opacity:0.85;"}">
+        <span style="color:${col};font-weight:800;">${tag}</span>
+        <span style="color:${recCol};">${sideStat(rec)}</span>
+        <span style="color:${uCol};font-weight:700;">${fmtU(rec.pl)}</span>
+        ${rec.roi != null ? `<span style="color:${rCol};font-weight:700;">${(rec.roi >= 0 ? "+" : "") + rec.roi.toFixed(1)}%</span>` : ""}
+      </span>`;
+    };
+    const comboRows = comboSorted.map(c => {
+      // Lead = typed side (or over by default if no side typed).
+      const lead = leadKey || "over";
+      const other = lead === "over" ? "under" : "over";
+      const leadPart = sidePart(c[lead], lead, true);
+      const otherPart = sidePart(c[other], other, false);
+      const sep = (leadPart && otherPart) ? `<span style="color:#2a2f37;margin:0 2px;">|</span>` : "";
+      return `<div style="font-size:9.5px;font-family:'JetBrains Mono','Menlo',monospace;display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;padding:2px 0;">
+        <span style="color:#7dd3fc;font-weight:800;letter-spacing:0.3px;min-width:96px;">${c.label}</span>
+        <span style="display:inline-flex;align-items:baseline;gap:6px;flex-wrap:wrap;">${leadPart}${sep}${otherPart}</span>
+      </div>`;
+    }).join("");
+    comboBlock = `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #1a1d22;display:flex;flex-direction:column;gap:2px;">
+      <div style="font-size:8px;font-weight:800;color:#525a64;letter-spacing:0.7px;text-transform:uppercase;margin-bottom:2px;">When sources agree${recSide ? ` · ${recSide} leads` : ""}</div>
+      ${comboRows}
+    </div>`;
+  }
+  const scopeLabel = recSide
+    ? `${recSide.toUpperCase()} record${recs.scope && recs.scope.indexOf("all") === 0 ? " · all stats" : ""}`
+    : (recs.scope && recs.scope.indexOf("all") === 0 ? "All stats" : "");
+  recEl.innerHTML = `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #1a1d22;">
+    ${chips ? `${scopeLabel ? `<div style="font-size:8px;font-weight:800;color:#525a64;letter-spacing:0.7px;text-transform:uppercase;margin-bottom:4px;">${scopeLabel}</div>` : ""}<div style="display:flex;gap:5px;flex-wrap:wrap;">${chips}</div>` : ""}
+    ${comboBlock}
+  </div>`;
+  recEl.style.display = "block";
 }
 
 function populateSourceAgreement() {
@@ -2557,57 +2676,8 @@ function populateSourceAgreement() {
 
   // ── Per-source profitability records (under the pills) ──
   // Solo chip per source = its record + units when it backed the bet side, for
-  // THIS stat. Plus a combo line when sources agreed. Tracked-bet driven.
-  const recEl = document.getElementById("modal-src-records");
-  if (recEl) {
-    const stat = (document.getElementById("modal-stat") || {}).value || "";
-    const recs = _sourceRecordsForStat(stat);
-    if (!recs || (!Object.keys(recs.solo).length && !recs.combos.length)) {
-      // TEMP DIAGNOSTIC — show why it's empty
-      let dbg = "";
-      try {
-        const allBets = loadBets() || [];
-        const wp = allBets.filter(b => b.srcProjs);
-        const ss = allBets.filter(b => (b.result==="hit"||b.result==="miss") && b.srcProjs && b.line!=null);
-        const thisStat = ss.filter(b => (b.stat||"").toUpperCase() === (stat||"").toUpperCase());
-        const keys = wp[0] ? Object.keys(wp[0].srcProjs||{}).join(",") : "—";
-        dbg = `stat="${stat}" · bets=${allBets.length} · w/srcProjs=${wp.length} · settled+proj=${ss.length} · thisStat=${thisStat.length} · keys=[${keys}]`;
-      } catch(e) { dbg = "err:"+e.message; }
-      recEl.innerHTML = `<div style="margin-top:7px;font-size:9px;color:#f59e0b;font-family:'JetBrains Mono','Menlo',monospace;line-height:1.5;word-break:break-all;">DEBUG: ${dbg}</div>`;
-      recEl.style.display = "block";
-    } else {
-      const fmtU = u => (u >= 0 ? "+" : "") + u.toFixed(2) + "u";
-      const roiColor = roi => roi == null ? "#8b93a0" : roi > 0 ? "#4ade80" : roi < 0 ? "#f87171" : "#8b93a0";
-      const lbl = k => k === "rotowire" ? "RW" : k === "roto" ? "RG" : k === "saber" ? "SAB" : k === "dimers" ? "DMR" : k.toUpperCase();
-      const SRC_ORDER = ["roto", "rotowire", "dimers"];
-      const chips = SRC_ORDER.filter(k => recs.solo[k]).map(k => {
-        const r = recs.solo[k];
-        return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:'JetBrains Mono','Menlo',monospace;background:rgba(255,255,255,0.02);border:1px solid #1a1d22;border-radius:4px;padding:2px 6px;">
-          <span style="color:#8b93a0;font-weight:700;">${lbl(k)}</span>
-          <span style="color:#d4dae3;">${r.w}-${r.l}</span>
-          <span style="color:${roiColor(r.pl)};font-weight:700;">${fmtU(r.pl)}</span>
-        </span>`;
-      }).join("");
-      // Combo lines — exclusive agreement sets, matching Source Analytics.
-      let comboBlock = "";
-      if (recs.combos.length) {
-        const comboRows = recs.combos.map(c => `<div style="font-size:9.5px;font-family:'JetBrains Mono','Menlo',monospace;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="color:#7dd3fc;font-weight:800;letter-spacing:0.3px;">${c.label} agree</span>
-            <span style="color:#d4dae3;">${c.w}-${c.l}</span>
-            <span style="color:${roiColor(c.pl)};font-weight:700;">${fmtU(c.pl)}</span>
-            ${c.roi != null ? `<span style="color:#6b7280;">·</span><span style="color:${roiColor(c.roi)};font-weight:700;">${(c.roi >= 0 ? "+" : "") + c.roi.toFixed(1)}%</span>` : ""}
-          </div>`).join("");
-        comboBlock = `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #1a1d22;display:flex;flex-direction:column;gap:3px;">
-          ${comboRows}
-        </div>`;
-      }
-      recEl.innerHTML = `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #1a1d22;">
-        <div style="display:flex;gap:5px;flex-wrap:wrap;">${chips}</div>
-        ${comboBlock}
-      </div>`;
-      recEl.style.display = "block";
-    }
-  }
+  // THIS stat + the side you typed. Re-rendered on each keystroke too.
+  if (typeof _renderSourceRecords === "function") _renderSourceRecords();
   document.getElementById("modal-src-badge").textContent = "";
   document.getElementById("modal-src-badge").style.cssText = "font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;display:none;";
   // Re-apply decider highlight after re-render (in case state was set)
@@ -2754,6 +2824,8 @@ function updateSourceAgreement() {
     badge.style.color = "#7dd3fc";
     badge.style.border = "1px solid rgba(125,211,252,0.3)";
   }
+  // Refresh per-source records so they reflect the over/under just typed.
+  if (typeof _renderSourceRecords === "function") _renderSourceRecords();
 }
 
 function openTrackModal(player, pos, stat, proj, team, presetDate) {
@@ -6243,8 +6315,8 @@ function updateBBRefAdvInModal() {
   const g = adv.g || 0;
   const lowSample = g < 5;
 
-  const stat = (label, val, color, tip) => `
-    <div ${tip?`class="tip" data-tip="${tip.replace(/"/g,'&quot;')}"`:''} style="display:flex;flex-direction:column;align-items:center;min-width:52px;${tip?'cursor:help;':''}">
+  const stat = (label, val, color, tip, edge) => `
+    <div ${tip?`class="tip${edge==='left'?' tip-left':edge==='right'?' tip-right':''}" data-tip="${tip.replace(/"/g,'&quot;')}"`:''} style="display:flex;flex-direction:column;align-items:center;min-width:52px;${tip?'cursor:help;':''}">
       <div style="font-size:13px;font-weight:800;color:${color || '#fff'};font-family:'JetBrains Mono','Menlo',monospace;">${val}</div>
       <div style="font-size:9px;color:#fff;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px;">${label}</div>
     </div>`;
@@ -6263,12 +6335,12 @@ function updateBBRefAdvInModal() {
       ${lowSample
         ? `<div style="font-size:10px;color:#525a64;">Too few games (${g}) — stats unreliable</div>`
         : `<div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:4px;">
-            ${stat("USG%", pct(adv.usg), usgColor, "Usage Rate — the share of the team's offensive possessions a player uses (shots, free throws, turnovers) while on the floor. 28%+ is a primary option, 22-28% a secondary scorer, under 22% a role player.")}
+            ${stat("USG%", pct(adv.usg), usgColor, "Usage Rate — the share of the team's offensive possessions a player uses (shots, free throws, turnovers) while on the floor. 28%+ is a primary option, 22-28% a secondary scorer, under 22% a role player.", "left")}
             ${stat("PER", fmt(adv.per, 1), perColor, "Player Efficiency Rating — a per-minute summary of total productivity, league-average is 15. 22+ is All-Star level, 15-22 solid starter, under 15 below-average.")}
             ${stat("ORtg", fmt(adv.ortg, 0), ortgColor, "Offensive Rating — points produced per 100 possessions. 115+ is elite efficiency, 105-115 average, under 105 inefficient.")}
             ${stat("DRtg", fmt(adv.drtg, 0), "#fff", "Defensive Rating — points allowed per 100 possessions while on the floor. Lower is better; under 100 is strong team defense.")}
-            ${stat("TS%", pct(adv.ts), "#fff", "True Shooting % — scoring efficiency accounting for 2s, 3s, and free throws. 58%+ is elite, around 55% average, under 52% inefficient.")}
-            ${stat("AST%", pct(adv.ast), "#fff", "Assist % — the share of teammates' made field goals a player assisted while on the floor. 25%+ is a primary creator, 15-25% secondary, under 10% a finisher.")}
+            ${stat("TS%", pct(adv.ts), "#fff", "True Shooting % — scoring efficiency accounting for 2s, 3s, and free throws. 58%+ is elite, around 55% average, under 52% inefficient.", "right")}
+            ${stat("AST%", pct(adv.ast), "#fff", "Assist % — the share of teammates' made field goals a player assisted while on the floor. 25%+ is a primary creator, 15-25% secondary, under 10% a finisher.", "right")}
           </div>`
       }
     </div>`;
