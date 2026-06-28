@@ -2553,6 +2553,10 @@ function _sourceRecordsForStat(stat, side) {
 function _renderSourceRecords() {
   const recEl = document.getElementById("modal-src-records");
   if (!recEl) return;
+  // MARKER: prove the function is being entered at all.
+  recEl.style.display = "block";
+  recEl.innerHTML = `<div style="margin-top:7px;font-size:10px;color:#22c55e;font-family:monospace;">✓ records fn ran</div>`;
+  window.__recFnRan = (window.__recFnRan || 0) + 1;
   const stat = (document.getElementById("modal-stat") || {}).value || "";
   let recSide = "";
   const shEl = document.getElementById("modal-shorthand");
