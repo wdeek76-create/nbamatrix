@@ -588,6 +588,7 @@ table colgroup col.avg-col{width:16%;}
         <button id="export-con-btn" onclick="doExportConsensus()" title="RG + RW only (core consensus, locked)">EXPORT CONSENSUS</button>
         <button id="export-extra-btn" onclick="doExportExtra()" title="RG + RW + any loaded optional sources (Saber, Dimers)">EXPORT EXTRA</button>
         <button id="export-matrix-btn" onclick="doExportMatrix()" title="Per-stat trained tightness — only the genuinely-agreeing edges per stat, all stats in one file" style="background:#0c0d10;border:1px solid #a855f7;color:#c084fc;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:700;letter-spacing:0.3px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;">MatrixCSV</button>
+        <button id="export-matrix-pra-btn" onclick="doExportMatrixPRA()" title="PRA-only — players whose sources agree on the PRA total within the trained 12% threshold. Writes their PTS/REB/AST through so PRA reconstructs on upload." style="background:#0c0d10;border:1px solid #a855f7;color:#c084fc;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:700;letter-spacing:0.3px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;">PRA Matrix</button>
         <button onclick="clearTrackedProps()" title="Clear all ✓ TRACKED pills from Projections. Does NOT affect your actual tracked bets in the Tracker." style="background:#0c0d10;border:1px solid #1a1d22;color:#a8b0bb;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;">CLEAR TRACKED</button>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
@@ -1916,6 +1917,74 @@ function doExportMatrix() {
   document.body.appendChild(a); a.click();
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
   showToast(`MatrixCSV: ${edgeCount} agreeing edges across ${exported} players`);
+}
+
+// PRA Matrix — separate PRA-only export. Measures source agreement on each
+// source's PRA total (RG/DIMERS direct, RW summed — handled by the parser),
+// gates on the trained 12% threshold, and for passing players writes their
+// real PTS/REB/AST through so the PRA line reconstructs correctly on upload
+// (UA sums P+R+A). Standard upload format; separate file you run on its own.
+function doExportMatrixPRA() {
+  if (!merged) { showToast("Load sources and blend first"); return; }
+  const lookups = getSlotLookups();
+  const srcIdx = ["roto", "rotowire", "dimers"].map(k => SOURCES.findIndex(s => s.key === k));
+  const thresh = MATRIX_THRESHOLDS.pra; // 12
+  // PRA agreement: spread% across each source's PRA total. 2+ sources needed.
+  const praAgrees = (r) => {
+    const vals = srcIdx.map(i => {
+      const lk = lookups[i];
+      if (!lk) return null;
+      const m = lk[r.norm];
+      return (m && m.pra != null && m.pra > 0) ? m.pra : null;
+    }).filter(v => v != null);
+    if (vals.length < 2) return false;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    if (avg <= 0) return false;
+    const spreadPct = (Math.max(...vals) - Math.min(...vals)) / avg * 100;
+    return spreadPct <= thresh;
+  };
+
+  const searchLoose = looseName(document.getElementById("search-box").value);
+  const rows = merged
+    .filter(r => !searchLoose || looseName(r.rawName).includes(searchLoose))
+    .sort((a, b) => a.rawName.localeCompare(b.rawName));
+  if (!rows.length) { showToast("No players to export"); return; }
+  const header = "id,name,first_name,last_name,position,team,three_pointers_made,assists,blocks,double_double,points,rebounds,steals,triple_double,turnovers,fd_points,dk_points";
+  const tmplByNorm = {};
+  WNBA_TEMPLATE.forEach(t => { tmplByNorm[norm(t.name)] = t; });
+  let exported = 0;
+  const dataRows = rows.map(r => {
+    if (!praAgrees(r)) return null;
+    // Carry the blended PTS/REB/AST through so PRA reconstructs (P+R+A) on upload.
+    const pts = (r.con && r.con.pts != null) ? r.con.pts : null;
+    const reb = (r.con && r.con.reb != null) ? r.con.reb : null;
+    const ast = (r.con && r.con.ast != null) ? r.con.ast : null;
+    if (pts == null || reb == null || ast == null) return null; // need all 3 for a valid PRA
+    exported++;
+    const t = tmplByNorm[r.norm] || {};
+    const first = t.first_name || (r.rawName.split(" ")[0] || "");
+    const last  = t.last_name  || (r.rawName.split(" ").slice(1).join(" ") || "");
+    const num = (v) => (v != null && !isNaN(v)) ? Number(v).toFixed(2) : "0.00";
+    return [
+      t.id || "", r.rawName, first, last, r.pos || t.position || "", r.team || t.team || "",
+      "0.00",                   // three_pointers_made (not part of PRA)
+      num(ast),
+      "0.00", "0.00",           // blocks, double_double
+      num(pts),
+      num(reb),
+      "0.00", "0.00", "0.00",   // steals, triple_double, turnovers
+      "0.00", "0.00",           // fd_points, dk_points
+    ].map(v => `"${v}"`).join(",");
+  }).filter(Boolean);
+  if (!exported) { showToast("No players passed PRA tightness"); return; }
+  const csv = [header, ...dataRows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "WNBAblenderPRA.csv"; a.style.display = "none";
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  showToast(`PRA Matrix: ${exported} agreeing PRA players`);
 }
 
 function clearSearch() {
