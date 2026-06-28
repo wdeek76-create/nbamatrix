@@ -145,7 +145,7 @@ table colgroup col.avg-col{width:16%;}
 .modal-field input,.modal-field select{background:#050507;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;outline:none;transition:border-color 0.15s;width:100%;}
 .modal-field input:focus,.modal-field select:focus{border-color:#1e40af;}
 .modal-field select option{background:#0c0d10;}
-#modal-proj-display{font-size:13px;color:#7dd3fc;font-weight:700;margin-bottom:4px;min-height:18px;letter-spacing:0.2px;}
+#modal-proj-display{font-size:13px;color:#fff;font-weight:800;margin-bottom:4px;min-height:18px;letter-spacing:0.2px;font-family:'JetBrains Mono','Menlo',monospace;}
 #modal-stake-preview{font-size:12px;color:#d4dae3;margin-bottom:10px;min-height:14px;}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
 .modal-btn-cancel{background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:10px;padding:11px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.2px;}
@@ -272,6 +272,35 @@ table colgroup col.avg-col{width:16%;}
 #cap-tool-tab .cap-plays-clear-row { margin-top: 10px; display: flex; justify-content: flex-end; }
 #cap-tool-tab .cap-plays-clear-btn { background: transparent; border: 1px solid #1a1d22; border-radius: 6px; color: #6b7280; font-size: 10px; padding: 5px 12px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; }
 #cap-tool-tab .cap-plays-clear-btn:hover { border-color: #f87171; color: #f87171; }
+/* Instant custom tooltips — native title= has a ~1s delay; this shows immediately.
+   Add class "tip" + data-tip="..." to any element. */
+.tip { position: relative; }
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1d22;
+  color: #e8edf3;
+  border: 0.5px solid #2a2f37;
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  font-family: 'Inter', sans-serif;
+  width: max-content;
+  max-width: 240px;
+  white-space: normal;
+  text-align: left;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  transition: opacity 0.08s ease;
+}
+.tip:hover::after { opacity: 1; }
 </style>
 </head>
 <body>
@@ -2377,6 +2406,82 @@ function updateTrendsInModal() {
   container.style.display = "block";
 }
 
+// Compute each source's solo profitability and the combo-agreement record
+// from tracked bets, scoped to the current stat. "Solo" = of all settled bets
+// where this source had a projection that LEANED the bet's side, what's the
+// record + units. "Combo" = bets where ALL sources-with-data agreed on the
+// side. Returns { solo: {key: {w,l,pl,roi}}, combo: {w,l,pl,roi,n} } or null.
+function _sourceRecordsForStat(stat) {
+  let bets;
+  try { bets = loadBets(); } catch (e) { return null; }
+  if (!Array.isArray(bets)) return null;
+  const settled = bets.filter(b => (b.result === "hit" || b.result === "miss") && b.srcProjs && b.line != null && !b.isTotal);
+  if (!settled.length) return null;
+
+  const statUC = (stat || "").toUpperCase();
+  const sameStat = b => (b.stat || "").toUpperCase() === statUC;
+
+  // Agreement test — identical to Source Analytics' srcAgreed(), respecting the
+  // EV vs directional toggle so the modal combo always matches the analytics tab.
+  const mode = (typeof _srcAnalyticsMode !== "undefined") ? _srcAnalyticsMode : "ev";
+  const leans = (v, b) => {
+    if (v == null) return null;
+    if (b.line == null) return null;
+    if (Math.abs(v - b.line) < 1e-9) return null;
+    if (mode === "directional") return b.ou === "over" ? v > b.line : v < b.line;
+    const odds = Number(b.odds);
+    if (!odds || typeof modelWinProb !== "function") return b.ou === "over" ? v > b.line : v < b.line;
+    const dec = odds > 0 ? odds / 100 + 1 : 100 / Math.abs(odds) + 1;
+    const pw = modelWinProb(v, b.line, b.ou, b.stat);
+    if (pw == null) return b.ou === "over" ? v > b.line : v < b.line;
+    return (pw * dec - 1) >= 0;
+  };
+  const plOf = b => {
+    const stake = b.stake != null ? Number(b.stake) : 1;
+    if (b.result === "hit") {
+      const odds = Number(b.odds || 0);
+      return stake * (odds > 0 ? odds / 100 : 100 / Math.abs(odds));
+    }
+    return -stake;
+  };
+  const blank = () => ({ w: 0, l: 0, pl: 0, staked: 0 });
+  const finalize = s => ({ ...s, roi: s.staked > 0 ? (s.pl / s.staked) * 100 : null });
+
+  const SRC_KEYS = ["roto", "rotowire", "dimers"];
+  const SRC_LBL = { roto: "RG", rotowire: "RW", dimers: "DMR" };
+
+  const solo = {};
+  SRC_KEYS.forEach(key => {
+    const acc = blank();
+    settled.forEach(b => {
+      if (!sameStat(b)) return;
+      if (leans(b.srcProjs[key], b) !== true) return;
+      const stake = b.stake != null ? Number(b.stake) : 1;
+      acc.staked += stake; acc.pl += plOf(b);
+      if (b.result === "hit") acc.w++; else acc.l++;
+    });
+    if (acc.w + acc.l > 0) solo[key] = finalize(acc);
+  });
+
+  // Exclusive combos — keyed by the EXACT set of sources that agreed (2+),
+  // mirroring Source Analytics' combosByStat. A bet where RG+RW agreed but DMR
+  // didn't counts only toward the "RG+RW" combo.
+  const comboMap = {};
+  settled.forEach(b => {
+    if (!sameStat(b)) return;
+    const agreed = SRC_KEYS.filter(k => leans(b.srcProjs[k], b) === true);
+    if (agreed.length < 2) return;
+    const key = agreed.map(k => SRC_LBL[k]).join("+");
+    if (!comboMap[key]) comboMap[key] = { label: key, ...blank() };
+    const stake = b.stake != null ? Number(b.stake) : 1;
+    comboMap[key].staked += stake; comboMap[key].pl += plOf(b);
+    if (b.result === "hit") comboMap[key].w++; else comboMap[key].l++;
+  });
+  const combos = Object.values(comboMap).map(finalize).sort((a, b) => b.pl - a.pl);
+
+  return { solo, combos };
+}
+
 function populateSourceAgreement() {
   const panel = document.getElementById("modal-src-agreement");
   const pillsEl = document.getElementById("modal-src-pills");
@@ -2414,6 +2519,49 @@ function populateSourceAgreement() {
     </span>`);
   }
   pillsEl.innerHTML = sourcePills.join("");
+
+  // ── Per-source profitability records (under the pills) ──
+  // Solo chip per source = its record + units when it backed the bet side, for
+  // THIS stat. Plus a combo line when sources agreed. Tracked-bet driven.
+  const recEl = document.getElementById("modal-src-records");
+  if (recEl) {
+    const stat = (document.getElementById("modal-stat") || {}).value || "";
+    const recs = _sourceRecordsForStat(stat);
+    if (!recs || (!Object.keys(recs.solo).length && !recs.combos.length)) {
+      recEl.innerHTML = "";
+      recEl.style.display = "none";
+    } else {
+      const fmtU = u => (u >= 0 ? "+" : "") + u.toFixed(2) + "u";
+      const roiColor = roi => roi == null ? "#8b93a0" : roi > 0 ? "#4ade80" : roi < 0 ? "#f87171" : "#8b93a0";
+      const lbl = k => k === "rotowire" ? "RW" : k === "roto" ? "RG" : k === "saber" ? "SAB" : k === "dimers" ? "DMR" : k.toUpperCase();
+      const chips = sourcesWithData.filter(s => recs.solo[s.key]).map(s => {
+        const r = recs.solo[s.key];
+        return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:'JetBrains Mono','Menlo',monospace;background:rgba(255,255,255,0.02);border:1px solid #1a1d22;border-radius:4px;padding:2px 6px;">
+          <span style="color:#8b93a0;font-weight:700;">${lbl(s.key)}</span>
+          <span style="color:#d4dae3;">${r.w}-${r.l}</span>
+          <span style="color:${roiColor(r.pl)};font-weight:700;">${fmtU(r.pl)}</span>
+        </span>`;
+      }).join("");
+      // Combo lines — exclusive agreement sets, matching Source Analytics.
+      let comboBlock = "";
+      if (recs.combos.length) {
+        const comboRows = recs.combos.map(c => `<div style="font-size:9.5px;font-family:'JetBrains Mono','Menlo',monospace;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span style="color:#7dd3fc;font-weight:800;letter-spacing:0.3px;">${c.label} agree</span>
+            <span style="color:#d4dae3;">${c.w}-${c.l}</span>
+            <span style="color:${roiColor(c.pl)};font-weight:700;">${fmtU(c.pl)}</span>
+            ${c.roi != null ? `<span style="color:#6b7280;">·</span><span style="color:${roiColor(c.roi)};font-weight:700;">${(c.roi >= 0 ? "+" : "") + c.roi.toFixed(1)}%</span>` : ""}
+          </div>`).join("");
+        comboBlock = `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #1a1d22;display:flex;flex-direction:column;gap:3px;">
+          ${comboRows}
+        </div>`;
+      }
+      recEl.innerHTML = `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #1a1d22;">
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">${chips}</div>
+        ${comboBlock}
+      </div>`;
+      recEl.style.display = "block";
+    }
+  }
   document.getElementById("modal-src-badge").textContent = "";
   document.getElementById("modal-src-badge").style.cssText = "font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;display:none;";
   // Re-apply decider highlight after re-render (in case state was set)
@@ -2577,9 +2725,8 @@ function openTrackModal(player, pos, stat, proj, team, presetDate) {
   populateSourceAgreement();
   updateTrendsInModal();
   if (typeof updateSplitsInModal === "function") updateSplitsInModal();
-  if (typeof updateMatchupInModal === "function") updateMatchupInModal();
-  if (typeof updateTeammateRiskInModal === "function") updateTeammateRiskInModal();
-  if (typeof updateInjuryCtxInModal === "function") updateInjuryCtxInModal();
+  // Note: matchup + teammate panels need window._modalTeam, which is set below.
+  // They're called after _modalTeam is assigned so they render on open.
   window._modalMatchupAdj = null;
   if (typeof updateBBRefAdvInModal === "function") updateBBRefAdvInModal();
   if (typeof updateAdvBar === "function") updateAdvBar();
@@ -2614,6 +2761,13 @@ function openTrackModal(player, pos, stat, proj, team, presetDate) {
   document.getElementById("modal-proj-display").textContent = projDisp ? `Blended Proj: ${projDisp}` : 'Blended Proj: —';
   window._modalProj = projDisp ? parseFloat(projDisp) : null;
   window._modalTeam = team || null;
+  // Now that _modalTeam is set, render the panels that depend on it so the
+  // correct teammate/matchup info appears immediately on open (no need to type
+  // a line first).
+  window._tmIdx = 0; // reset carousel to first card on each open
+  if (typeof updateMatchupInModal === "function") updateMatchupInModal();
+  if (typeof updateTeammateRiskInModal === "function") updateTeammateRiskInModal();
+  if (typeof updateInjuryCtxInModal === "function") updateInjuryCtxInModal();
   document.getElementById("modal-book").value = "";
   document.getElementById("modal-stake-preview").textContent = "";
   const evPrev = document.getElementById("modal-ev-preview");
@@ -3714,6 +3868,16 @@ function teamLogoUrl(abbr) {
   if (!abbr) return null;
   const espnAbbr = INTERNAL_TO_ESPN_ABBR[abbr.toUpperCase()] || abbr.toUpperCase();
   return `https://a.espncdn.com/i/teamlogos/wnba/500/${espnAbbr.toLowerCase()}.png`;
+}
+// Format an ESPN ISO game datetime as "7:30 PM ET" for share-card headers.
+function _fmtGameTime(iso) {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    const t = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+    return `${t} ET`;
+  } catch (e) { return null; }
 }
 // Inline <img> snippet for a team. Uses onerror to hide broken images if ESPN
 // changes URLs or an abbr falls outside the map. Size is configurable.
@@ -5532,7 +5696,18 @@ function updateTeammateRiskInModal() {
     return { label:"GTD", color:"#f59e0b", bg:"rgba(245,158,11,0.10)", border:"rgba(245,158,11,0.35)", ...ifOut };
   };
 
-  const sevRank = s => (/\u2191\u2191|\u2193\u2193/.test(s.label)||s.label==="HEADWIND") ? 0 : (/\u2191|\u2193/.test(s.label)||s.label==="CAUTION") ? 1 : 2;
+  // Rank for ordering: strongest impact first. OUT/returning players with a
+  // strong directional grade rank highest; GTD players are ranked by their
+  // IF-OUT tier so a "GTD · IF OUT: BIG" outranks a confirmed-out MINOR.
+  const sevRank = s => {
+    // Confirmed directional impact (FREES/ABSORBS double-arrow, or HEADWIND)
+    if (/\u2191\u2191|\u2193\u2193/.test(s.label) || s.label === "HEADWIND") return 0;
+    if (/\u2191|\u2193/.test(s.label) || s.label === "CAUTION") return 1;
+    // GTD/probable: rank by projected IF-OUT tier (2 big, 1 mod, 0 minor)
+    if (s.ifOutTier === 2) return 0.5;
+    if (s.ifOutTier === 1) return 1.5;
+    return 2;
+  };
   const riskyWithSev = risky.map(r => ({ r, sev: severityOf(r) })).sort((a,b) => sevRank(a.sev) - sevRank(b.sev));
 
   const rows = riskyWithSev.map(({ r, sev }) => {
@@ -5543,24 +5718,46 @@ function updateTeammateRiskInModal() {
     const injLabel = _injuryStatusLabel(r.status);
     const injColor = _injuryStatusColor(r.status, r.longComment||"");
     const advRow = _buildAdvRow(adv, null, r.name);
-    const blurbBlock = (blurb||analysis) ? `<div style="margin-top:6px;padding:7px 9px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;">
-      ${blurb?`<div style="font-size:11px;color:#fff;font-weight:600;line-height:1.45;margin-bottom:${analysis?'5px':'0'};">${_decorateBlurb(blurb)}</div>`:""}
-      ${analysis?`<div style="font-size:10.5px;color:#d4dae3;line-height:1.55;opacity:0.88;">${_decorateBlurb(analysis)}</div>`:""}
+    const blurbBlock = (blurb||analysis) ? `<div style="margin-top:7px;padding:8px 10px;background:rgba(0,0,0,0.18);border-radius:6px;">
+      ${blurb?`<div style="font-size:11px;color:#e8edf3;font-weight:500;line-height:1.5;margin-bottom:${analysis?'5px':'0'};">${_decorateBlurb(blurb)}</div>`:""}
+      ${analysis?`<div style="font-size:10.5px;color:#9ca3af;line-height:1.55;">${_decorateBlurb(analysis)}</div>`:""}
     </div>` : "";
-    return `<div style="margin-top:8px;padding:9px 11px;background:${sev.bg};border:1px solid ${sev.border};border-radius:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
-        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
-          ${sev.returning ? `<span style="border:1px solid #c084fc88;color:#c084fc;background:rgba(192,132,252,0.10);border-radius:4px;padding:2px 7px;font-size:8.5px;font-weight:800;letter-spacing:0.5px;">RETURNING</span>` : ""}
-          <span style="border:1px solid ${sev.border};color:${sev.color};border-radius:4px;padding:2px 7px;font-size:9px;font-weight:800;letter-spacing:0.6px;">${sev.label}</span>
-          ${sev.ifOutTier !== undefined ? `<span style="border:1px dashed ${sev.ifOutTier===2?'#f8717188':sev.ifOutTier===1?'#f59e0b88':'#525a64'};color:${sev.ifOutTier===2?'#f87171':sev.ifOutTier===1?'#f59e0b':'#8b93a0'};border-radius:4px;padding:2px 6px;font-size:8.5px;font-weight:700;letter-spacing:0.4px;opacity:0.85;">IF OUT: ${sev.ifOutWord}</span>` : ""}
-          <span style="color:#fff;font-weight:800;font-size:12px;">${esc(r.name)}</span>
-          <span style="background:${injColor}22;border:1px solid ${injColor}55;color:${injColor};border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;">${injLabel}</span>
+    // Tooltip text explaining each badge on hover
+    const sevTip = sev.direction === "return"
+      ? "How much this returning teammate absorbs your stat — brighter = bigger producer coming back"
+      : sev.label === "HEADWIND" || sev.label === "CAUTION"
+        ? "This teammate being out works against your bet side"
+        : "How much this teammate being out frees up your stat — brighter = bigger producer sidelined";
+    const ifOutTip = "Projected impact if this questionable player gets ruled OUT, graded by their production in your stat";
+    const returningTip = "This player is coming back from injury — their return absorbs minutes/touches from teammates";
+
+    return `<div style="padding:10px 12px;background:${sev.bg};border:1px solid ${sev.border};border-radius:9px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="color:#fff;font-weight:800;font-size:13px;letter-spacing:-0.1px;">${esc(r.name)}</span>
+          <span title="${injLabel} status" style="background:${injColor}1f;border:1px solid ${injColor}55;color:${injColor};border-radius:4px;padding:1px 7px;font-size:8.5px;font-weight:800;letter-spacing:0.4px;">${injLabel}</span>
         </div>
-        ${detail?`<span style="color:#a8b0bb;font-size:10px;white-space:nowrap;">${esc(detail)}</span>`:""}
+        ${detail?`<span style="color:#8b93a0;font-size:10px;white-space:nowrap;">${esc(detail)}</span>`:""}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;">
+        ${sev.returning ? `<span class="tip" data-tip="${returningTip.replace(/"/g,'&quot;')}" style="border:1px solid #c084fc88;color:#c084fc;background:rgba(192,132,252,0.10);border-radius:4px;padding:2px 7px;font-size:8.5px;font-weight:800;letter-spacing:0.5px;cursor:help;">RETURNING</span>` : ""}
+        <span class="tip" data-tip="${sevTip.replace(/"/g,'&quot;')}" style="border:1px solid ${sev.border};color:${sev.color};border-radius:4px;padding:2px 8px;font-size:9px;font-weight:800;letter-spacing:0.6px;cursor:help;">${sev.label}</span>
+        ${sev.ifOutTier !== undefined ? `<span class="tip" data-tip="${ifOutTip.replace(/"/g,'&quot;')}" style="border:1px dashed ${sev.ifOutTier===2?'#f8717188':sev.ifOutTier===1?'#f59e0b88':'#525a64'};color:${sev.ifOutTier===2?'#f87171':sev.ifOutTier===1?'#f59e0b':'#8b93a0'};border-radius:4px;padding:2px 7px;font-size:8.5px;font-weight:700;letter-spacing:0.4px;cursor:help;">IF OUT: ${sev.ifOutWord}</span>` : ""}
       </div>
       ${advRow}${blurbBlock}
     </div>`;
-  }).join("");
+  });
+
+  // One-line descriptor per teammate for the collapsed "done" summary.
+  const cardSummaries = riskyWithSev.map(({ r, sev }) => {
+    let effect = "";
+    if (sev.direction === "out") effect = ou === "over" ? "boosts OVER" : "headwind";
+    else if (sev.direction === "return") effect = ou === "under" ? "boosts UNDER" : "headwind";
+    else if (sev.ifOutTier === 2) effect = "big if out";
+    else if (sev.ifOutTier === 1) effect = "mod if out";
+    else effect = "minor";
+    return { name: r.name.split(" ").slice(-1)[0], effect, color: sev.color };
+  });
 
   const topSev = riskyWithSev[0]?.sev || { color:"#f59e0b", border:"rgba(245,158,11,0.3)" };
   const _statWord = { PTS:"scoring", POINTS:"scoring", REB:"rebounding", REBOUNDS:"rebounding", AST:"assists", ASSISTS:"assists", "3PM":"3-point", "3-PT MADE":"3-point", PRA:"production" }[betStat] || "production";
@@ -5581,12 +5778,62 @@ function updateTeammateRiskInModal() {
       : `${risky.length===1?"This teammate":"These teammates"} being out frees up ${_statWord} for ${_lastName} — supports the OVER. Brighter = bigger ${_statWord} producer now sidelined.`;
   }
 
-  container.innerHTML = `<div style="background:rgba(0,0,0,0.15);border:1px solid ${topSev.border};border-radius:10px;padding:12px 13px;">
-    <div style="font-size:11px;font-weight:800;color:${topSev.color};letter-spacing:0.7px;text-transform:uppercase;margin-bottom:5px;">Teammate Impact · ${ou==="under"?"UNDER ⚠":"OVER ⚠"}</div>
-    <div style="font-size:11px;color:#d4dae3;line-height:1.5;margin-bottom:4px;">${dirMsg}</div>
-    ${rows}
-  </div>`;
+  // Stash carousel state globally so the nav buttons can re-render.
+  window._tmCards = rows;
+  window._tmSummaries = cardSummaries;
+  window._tmIdx = 0;
+  window._tmHeader = { color: topSev.color, label: ou === "under" ? "UNDER ⚠" : "OVER ⚠", dirMsg, border: topSev.border };
+
+  container.innerHTML = _renderTeammateCarousel();
   container.style.display = "block";
+}
+
+// Render the teammate-impact carousel at the current index. One card at a time
+// with forward/back arrows + a position counter that counts down ("2 left").
+// On the final card, advancing collapses to a one-line recap of all teammates.
+function _renderTeammateCarousel() {
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const cards = window._tmCards || [];
+  const sums = window._tmSummaries || [];
+  const h = window._tmHeader || { color: "#f59e0b", label: "", dirMsg: "", border: "rgba(245,158,11,0.3)" };
+  const n = cards.length;
+  const i = window._tmIdx || 0;
+
+  // Collapsed recap state (reached the end)
+  if (i >= n) {
+    const chips = sums.map(s => `<span style="font-size:9.5px;color:${s.color};font-weight:700;white-space:nowrap;">${esc(s.name)} <span style="color:#6b7280;font-weight:500;">${s.effect}</span></span>`).join(`<span style="color:#2a2d33;">·</span>`);
+    return `<div style="background:rgba(0,0,0,0.15);border:1px solid ${h.border};border-radius:10px;padding:11px 13px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="font-size:10px;font-weight:800;color:#4ade80;letter-spacing:0.6px;text-transform:uppercase;">✓ ${n} reviewed</div>
+        <button onclick="window._tmIdx=0;_refreshTeammateCarousel()" style="background:transparent;border:1px solid #2a2d33;color:#8b93a0;border-radius:5px;padding:3px 10px;font-size:9px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.4px;">REVIEW AGAIN</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px;">${chips}</div>
+    </div>`;
+  }
+
+  const remaining = n - i - 1;
+  const counter = remaining === 0 ? `<span style="color:#4ade80;font-weight:800;">last one!</span>` : `${remaining} left`;
+  const prevDisabled = i === 0;
+  const nextLabel = remaining === 0 ? "DONE ✓" : "NEXT →";
+
+  return `<div style="background:rgba(0,0,0,0.15);border:1px solid ${h.border};border-radius:10px;padding:12px 13px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+      <div style="font-size:11px;font-weight:800;color:${h.color};letter-spacing:0.7px;text-transform:uppercase;">Teammate Impact · ${h.label}</div>
+      <div style="font-size:10px;font-weight:700;color:#4ade80;font-family:'JetBrains Mono','Menlo',monospace;white-space:nowrap;">${i + 1}/${n} · ${counter}</div>
+    </div>
+    <div style="font-size:11px;color:#d4dae3;line-height:1.5;margin-bottom:8px;">${h.dirMsg}</div>
+    ${cards[i]}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;">
+      <button onclick="window._tmIdx=Math.max(0,(window._tmIdx||0)-1);_refreshTeammateCarousel()" ${prevDisabled?'disabled':''} style="background:transparent;border:1px solid ${prevDisabled?'#1a1d22':'#2a2d33'};color:${prevDisabled?'#3a3d43':'#d4dae3'};border-radius:6px;padding:6px 14px;font-size:10px;font-weight:700;cursor:${prevDisabled?'default':'pointer'};font-family:'Inter',sans-serif;letter-spacing:0.4px;">← BACK</button>
+      <div style="display:flex;gap:4px;">${cards.map((_,k)=>`<span style="width:6px;height:6px;border-radius:50%;background:${k===i?h.color:'#2a2d33'};"></span>`).join("")}</div>
+      <button onclick="window._tmIdx=(window._tmIdx||0)+1;_refreshTeammateCarousel()" style="background:${h.color}1a;border:1px solid ${h.color}66;color:${h.color};border-radius:6px;padding:6px 14px;font-size:10px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.4px;">${nextLabel}</button>
+    </div>
+  </div>`;
+}
+
+function _refreshTeammateCarousel() {
+  const container = document.getElementById("modal-teammate-risk");
+  if (container) container.innerHTML = _renderTeammateCarousel();
 }
 
 // Render the Matchup panel inside the bet modal. Pulls opponent from
@@ -5675,15 +5922,23 @@ function updateAdvBar() {
     return "#d4dae3";
   };
 
-  const pill = (label, valStr, color) =>
-    `<span style="font-size:10px;font-weight:600;color:#8b93a0;white-space:nowrap;font-family:'JetBrains Mono','Menlo',monospace;">${label} <span style="font-weight:900;color:${color};">${valStr}</span></span>`;
+  // Option C chip: the pill background carries the signal color. Label is white
+  // bold, value white bold too — nothing greyed. % lives on the value.
+  const pill = (label, valStr, color) => {
+    let bg, border, txt;
+    if (color === "#4ade80" || color === "#22c55e") { bg = "rgba(74,222,128,0.12)"; border = "rgba(74,222,128,0.35)"; txt = "#4ade80"; }
+    else if (color === "#f87171") { bg = "rgba(248,113,113,0.12)"; border = "rgba(248,113,113,0.35)"; txt = "#f87171"; }
+    else { bg = "rgba(255,255,255,0.04)"; border = "#2a2f37"; txt = "#fff"; }
+    return `<span style="display:inline-flex;align-items:baseline;gap:5px;font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;background:${bg};border:0.5px solid ${border};border-radius:6px;padding:3px 9px;white-space:nowrap;">
+      <span style="color:#fff;font-weight:700;">${label}</span><span style="font-weight:800;color:${txt};">${valStr}</span></span>`;
+  };
 
   const section = (title, pills) => {
     const real = pills.filter(Boolean);
     if (!real.length) return "";
     return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:8px;font-weight:800;color:#525a64;letter-spacing:0.8px;text-transform:uppercase;min-width:44px;">${title}</span>
-      <div style="display:flex;gap:9px;flex-wrap:wrap;">${real.join("")}</div>
+      <span style="font-size:8.5px;font-weight:800;color:#fff;letter-spacing:0.9px;text-transform:uppercase;min-width:50px;flex-shrink:0;">${title}</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">${real.join("")}</div>
     </div>`;
   };
 
@@ -5784,7 +6039,7 @@ function updateAdvBar() {
 
   if (!rows.length) { bar.style.display = "none"; return; }
 
-  bar.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:#0a0b0d;border:1px solid #1a1d22;border-radius:6px;">
+  bar.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;padding:8px 2px;">
     ${rows.join("")}
   </div>`;
   bar.style.display = "block";
@@ -5894,35 +6149,35 @@ function _advRoleSummary(adv) {
   else if (per >= 17) eff = "above-avg efficiency";
   else if (per >= 12) eff = "average efficiency";
   else if (per > 0) eff = "below-avg efficiency";
-  const mpgNote = mpg ? ` · ${mpg} mpg` : "";
-  return `${role}${eff ? ` · ${eff}` : ""}${mpgNote}`;
+  const mpgNote = mpg ? ` (${mpg} mpg)` : "";
+  return `${role}${eff ? ` – ${eff}` : ""}${mpgNote}`;
 }
 
 
 function _buildAdvRow(adv, tinyText, playerName) {
   if (!adv) return "";
   const g = adv.g || 0;
-  if (g < 5) return `<div style="font-size:9.5px;color:#525a64;margin-top:4px;">Too few games (${g}) — adv stats unreliable</div>`;
+  if (g < 5) return `<div style="font-size:9.5px;color:#525a64;margin-top:5px;">Too few games (${g}) — adv stats unreliable</div>`;
   const summary = _advRoleSummary(adv);
-  // Season per-game averages for this teammate, so you can see what production
-  // would actually be freed up if they're out.
   const pg = playerName && typeof getBBRefPGForPlayer === "function" ? getBBRefPGForPlayer(playerName) : null;
-  const pgRow = pg ? `<div style="display:flex;gap:10px;padding:4px 8px;margin-top:3px;background:rgba(255,255,255,0.02);border-radius:5px;flex-wrap:wrap;">
-      <span style="font-size:8px;font-weight:800;color:#525a64;letter-spacing:0.6px;text-transform:uppercase;align-self:center;">Season</span>
-      ${pg.ppg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.ppg.toFixed(1)} <span style="color:#525a64;font-weight:600;">PPG</span></span>`:""}
-      ${pg.rpg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.rpg.toFixed(1)} <span style="color:#525a64;font-weight:600;">RPG</span></span>`:""}
-      ${pg.apg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.apg.toFixed(1)} <span style="color:#525a64;font-weight:600;">APG</span></span>`:""}
-      ${pg.threePm!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.threePm.toFixed(1)} <span style="color:#525a64;font-weight:600;">3PM</span></span>`:""}
-      ${pg.mp!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:700;">${pg.mp.toFixed(1)} <span style="color:#525a64;font-weight:600;">MPG</span></span>`:""}
-    </div>` : "";
-  return `<div style="margin-top:5px;">
-    <div style="display:flex;gap:12px;padding:4px 8px;background:rgba(255,255,255,0.02);border-radius:5px;flex-wrap:wrap;">
-      ${adv.usg!=null?`<span style="font-size:10px;color:#7dd3fc;font-weight:700;">USG ${adv.usg.toFixed(1)}%</span>`:""}
-      ${adv.per!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:600;">PER ${adv.per.toFixed(1)}</span>`:""}
-      ${adv.ortg!=null?`<span style="font-size:10px;color:#d4dae3;font-weight:600;">ORtg ${adv.ortg.toFixed(0)}</span>`:""}
-    </div>
-    ${pgRow}
-    ${summary?`<div style="font-size:10px;color:#fff;font-weight:900;letter-spacing:0.4px;text-transform:uppercase;margin-top:3px;">${summary}</div>`:""}
+  // Tiny stat chip: value in mono, dim label after
+  const chip = (val, label, tip, valColor) => `<span ${tip?`class="tip" data-tip="${tip.replace(/"/g,'&quot;')}"`:''} style="font-size:10px;font-weight:700;color:${valColor||'#d4dae3'};font-family:'JetBrains Mono','Menlo',monospace;${tip?'cursor:help;':''}">${val}<span style="color:#6b7280;font-weight:600;margin-left:2px;font-family:'Inter',sans-serif;">${label}</span></span>`;
+  const advChips = [
+    adv.usg!=null ? chip(adv.usg.toFixed(1)+"%", "USG", "Usage rate — share of the offense that ran through this player", "#7dd3fc") : "",
+    adv.per!=null ? chip(adv.per.toFixed(1), "PER", "Player Efficiency Rating — overall per-minute productivity (15 = league avg)") : "",
+    adv.ortg!=null ? chip(adv.ortg.toFixed(0), "ORtg", "Offensive Rating — points produced per 100 possessions") : "",
+  ].filter(Boolean).join("");
+  const pgChips = pg ? [
+    pg.ppg!=null ? chip(pg.ppg.toFixed(1), "PPG", "Points per game") : "",
+    pg.rpg!=null ? chip(pg.rpg.toFixed(1), "RPG", "Rebounds per game") : "",
+    pg.apg!=null ? chip(pg.apg.toFixed(1), "APG", "Assists per game") : "",
+    pg.threePm!=null ? chip(pg.threePm.toFixed(1), "3PM", "Threes made per game") : "",
+    pg.mp!=null ? chip(pg.mp.toFixed(1), "MPG", "Minutes per game") : "",
+  ].filter(Boolean).join("") : "";
+  return `<div style="margin-top:7px;display:flex;flex-direction:column;gap:5px;">
+    ${summary?`<div style="font-size:9.5px;color:#e8edf3;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">${summary}</div>`:""}
+    ${advChips?`<div style="display:flex;gap:14px;flex-wrap:wrap;">${advChips}</div>`:""}
+    ${pgChips?`<div style="display:flex;gap:14px;flex-wrap:wrap;padding-top:4px;border-top:1px solid rgba(255,255,255,0.04);">${pgChips}</div>`:""}
   </div>`;
 }
 
@@ -5939,19 +6194,19 @@ function updateBBRefAdvInModal() {
   const g = adv.g || 0;
   const lowSample = g < 5;
 
-  const stat = (label, val, color) => `
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:52px;">
-      <div style="font-size:13px;font-weight:800;color:${color || '#d4dae3'};font-family:'JetBrains Mono','Menlo',monospace;">${val}</div>
-      <div style="font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px;">${label}</div>
+  const stat = (label, val, color, tip) => `
+    <div ${tip?`class="tip" data-tip="${tip.replace(/"/g,'&quot;')}"`:''} style="display:flex;flex-direction:column;align-items:center;min-width:52px;${tip?'cursor:help;':''}">
+      <div style="font-size:13px;font-weight:800;color:${color || '#fff'};font-family:'JetBrains Mono','Menlo',monospace;">${val}</div>
+      <div style="font-size:9px;color:#fff;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px;">${label}</div>
     </div>`;
 
-  const usgColor = adv.usg != null ? (adv.usg >= 28 ? "#7dd3fc" : adv.usg >= 22 ? "#d4dae3" : "#525a64") : "#525a64";
-  const perColor = adv.per != null ? (adv.per >= 22 ? "#7dd3fc" : adv.per >= 15 ? "#d4dae3" : "#525a64") : "#525a64";
-  const ortgColor = adv.ortg != null ? (adv.ortg >= 115 ? "#22c55e" : adv.ortg >= 105 ? "#d4dae3" : "#f87171") : "#525a64";
+  const usgColor = adv.usg != null ? (adv.usg >= 28 ? "#7dd3fc" : adv.usg >= 22 ? "#fff" : "#fff") : "#fff";
+  const perColor = adv.per != null ? (adv.per >= 22 ? "#7dd3fc" : adv.per >= 15 ? "#fff" : "#fff") : "#fff";
+  const ortgColor = adv.ortg != null ? (adv.ortg >= 115 ? "#22c55e" : adv.ortg >= 105 ? "#fff" : "#f87171") : "#fff";
   const summary = _advRoleSummary(adv);
 
   container.innerHTML = `
-    <div style="background:#0a0b0d;border:1px solid #1a1d22;border-radius:8px;padding:10px 12px;">
+    <div style="padding:6px 2px 10px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
         <div style="font-size:10px;font-weight:700;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;">Season Advanced · ${g}g</div>
         ${summary ? `<div style="font-size:10px;color:#fff;font-weight:800;margin-top:4px;">${summary}</div>` : ""}
@@ -5959,12 +6214,12 @@ function updateBBRefAdvInModal() {
       ${lowSample
         ? `<div style="font-size:10px;color:#525a64;">Too few games (${g}) — stats unreliable</div>`
         : `<div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:4px;">
-            ${stat("USG%", pct(adv.usg), usgColor)}
-            ${stat("PER", fmt(adv.per, 1), perColor)}
-            ${stat("ORtg", fmt(adv.ortg, 0), ortgColor)}
-            ${stat("DRtg", fmt(adv.drtg, 0), "#d4dae3")}
-            ${stat("TS%", pct(adv.ts), "#d4dae3")}
-            ${stat("AST%", pct(adv.ast), "#d4dae3")}
+            ${stat("USG%", pct(adv.usg), usgColor, "Usage Rate — the share of the team's offensive possessions a player uses (shots, free throws, turnovers) while on the floor. 28%+ is a primary option, 22-28% a secondary scorer, under 22% a role player.")}
+            ${stat("PER", fmt(adv.per, 1), perColor, "Player Efficiency Rating — a per-minute summary of total productivity, league-average is 15. 22+ is All-Star level, 15-22 solid starter, under 15 below-average.")}
+            ${stat("ORtg", fmt(adv.ortg, 0), ortgColor, "Offensive Rating — points produced per 100 possessions. 115+ is elite efficiency, 105-115 average, under 105 inefficient.")}
+            ${stat("DRtg", fmt(adv.drtg, 0), "#fff", "Defensive Rating — points allowed per 100 possessions while on the floor. Lower is better; under 100 is strong team defense.")}
+            ${stat("TS%", pct(adv.ts), "#fff", "True Shooting % — scoring efficiency accounting for 2s, 3s, and free throws. 58%+ is elite, around 55% average, under 52% inefficient.")}
+            ${stat("AST%", pct(adv.ast), "#fff", "Assist % — the share of teammates' made field goals a player assisted while on the floor. 25%+ is a primary creator, 15-25% secondary, under 10% a finisher.")}
           </div>`
       }
     </div>`;
@@ -7593,7 +7848,7 @@ async function shareOpenPropsAsImageExclusive() {
           if (espn === aw || espn === hm) teamToMatchup[internal] = key;
         });
       }
-      matchupTeams[key] = { away: aw, home: hm };
+      matchupTeams[key] = { away: aw, home: hm, date: ev.date || comp.date || null };
     });
   }
   enriched.forEach(e => {
@@ -7752,7 +8007,7 @@ async function shareOpenPropsAsImageExclusive() {
         if (typeof _RW_TEAM_NAME_TO_ABBR !== "undefined") {
           Object.entries(_RW_TEAM_NAME_TO_ABBR).forEach(([full, abbr]) => { _abbrToFull[abbr] = full; });
         }
-        const ESPN_TO_FULL = {"LA":"Los Angeles Sparks","NY":"New York Liberty","LV":"Las Vegas Aces","GS":"Golden State Valkyries","CON":"Connecticut Sun","IND":"Indiana Fever","CHI":"Chicago Sky","ATL":"Atlanta Dream","DAL":"Dallas Wings","MIN":"Minnesota Lynx","PHX":"Phoenix Mercury","POR":"Portland Fire","SEA":"Seattle Storm","TOR":"Toronto Tempo","WAS":"Washington Mystics"};
+        const ESPN_TO_FULL = {"LA":"Los Angeles Sparks","NY":"New York Liberty","LV":"Las Vegas Aces","GS":"Golden State Valkyries","CON":"Connecticut Sun","IND":"Indiana Fever","CHI":"Chicago Sky","ATL":"Atlanta Dream","DAL":"Dallas Wings","MIN":"Minnesota Lynx","PHX":"Phoenix Mercury","POR":"Portland Fire","SEA":"Seattle Storm","TOR":"Toronto Tempo","WAS":"Washington Mystics","WSH":"Washington Mystics"};
         const fullName = (abbr) => _abbrToFull[abbr] || ESPN_TO_FULL[abbr] || abbr;
         const matchupLabel = teams ? `${fullName(teams.away)} @ ${fullName(teams.home)}` : fullName(e.matchup);
         h += `<div style="margin-bottom:14px;">`;
@@ -7761,6 +8016,8 @@ async function shareOpenPropsAsImageExclusive() {
         if (teams) { h += teamLogoHtml(teams.away, 18); h += teamLogoHtml(teams.home, 18); }
         h += `</div>`;
         h += `<div style="font-size:12px;font-weight:800;color:#fff;letter-spacing:-0.1px;margin-bottom:2px;">${esc(fullName(teams ? teams.away : e.matchup))} @ ${esc(fullName(teams ? teams.home : e.matchup))}</div>`;
+        const _gt = teams && teams.date ? _fmtGameTime(teams.date) : null;
+        if (_gt) h += `<div style="font-size:9px;font-weight:700;color:#9ca3af;letter-spacing:0.4px;margin-bottom:3px;">${_gt}</div>`;
         h += `<div style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 8px rgba(255,255,255,0.3),0 0 2px rgba(255,255,255,0.5);">${matchupCount} ${matchupCount === 1 ? "prop" : "props"}</div>`;
         h += `</div>`;
         lastMatchup = e.matchup;
@@ -7997,7 +8254,7 @@ async function shareOpenPropsAsImageDiscord() {
       const key = `${aw} @ ${hm}`;
       teamToMatchup[aw] = key; teamToMatchup[hm] = key;
       if (typeof INTERNAL_TO_ESPN_ABBR !== "undefined") Object.keys(INTERNAL_TO_ESPN_ABBR).forEach(i => { const e2 = INTERNAL_TO_ESPN_ABBR[i]; if (e2 === aw || e2 === hm) teamToMatchup[i] = key; });
-      matchupTeams[key] = { away: aw, home: hm };
+      matchupTeams[key] = { away: aw, home: hm, date: ev.date || comp.date || null };
     });
   }
   enriched.forEach(e => { const t = e.bet.team || ""; const et = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[t]) || t; e.matchup = teamToMatchup[t] || teamToMatchup[et] || t || "Other"; });
@@ -8034,7 +8291,7 @@ async function shareOpenPropsAsImageDiscord() {
 
   const _abbrToFull = {};
   if (typeof _RW_TEAM_NAME_TO_ABBR !== "undefined") Object.entries(_RW_TEAM_NAME_TO_ABBR).forEach(([full, abbr]) => { _abbrToFull[abbr] = full; });
-  const ESPN_TO_FULL = {"LA":"Los Angeles Sparks","NY":"New York Liberty","LV":"Las Vegas Aces","GS":"Golden State Valkyries","CON":"Connecticut Sun","IND":"Indiana Fever","CHI":"Chicago Sky","ATL":"Atlanta Dream","DAL":"Dallas Wings","MIN":"Minnesota Lynx","PHX":"Phoenix Mercury","POR":"Portland Fire","SEA":"Seattle Storm","TOR":"Toronto Tempo","WAS":"Washington Mystics"};
+  const ESPN_TO_FULL = {"LA":"Los Angeles Sparks","NY":"New York Liberty","LV":"Las Vegas Aces","GS":"Golden State Valkyries","CON":"Connecticut Sun","IND":"Indiana Fever","CHI":"Chicago Sky","ATL":"Atlanta Dream","DAL":"Dallas Wings","MIN":"Minnesota Lynx","PHX":"Phoenix Mercury","POR":"Portland Fire","SEA":"Seattle Storm","TOR":"Toronto Tempo","WAS":"Washington Mystics","WSH":"Washington Mystics"};
   const fullName = (abbr) => _abbrToFull[abbr] || ESPN_TO_FULL[abbr] || abbr;
 
   // Render a single matchup column — identical card style as ExclusiveSC
@@ -8048,6 +8305,8 @@ async function shareOpenPropsAsImageDiscord() {
     if (teams) { h += teamLogoHtml(teams.away, 18); h += teamLogoHtml(teams.home, 18); }
     h += `</div>`;
     h += `<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:2px;">${esc(fullName(teams ? teams.away : matchupKey))} @ ${esc(fullName(teams ? teams.home : matchupKey))}</div>`;
+    const _gt2 = teams && teams.date ? _fmtGameTime(teams.date) : null;
+    if (_gt2) h += `<div style="font-size:9px;font-weight:700;color:#9ca3af;letter-spacing:0.4px;margin-bottom:3px;">${_gt2}</div>`;
     h += `<div style="font-size:10px;font-weight:800;color:#fff;">${count} ${count===1?"prop":"props"}</div>`;
     h += `</div>`;
 
@@ -16701,10 +16960,11 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
          openTrackModal() once; updated on each keystroke via updateSourceAgreement(). -->
     <div id="modal-src-agreement" style="margin-top:6px;display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <div style="font-size:10px;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;">Source projections</div>
+        <div style="font-size:10px;color:#fff;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;font-family:'JetBrains Mono','Menlo',monospace;">Source projections</div>
         <span id="modal-src-badge" style="font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;"></span>
       </div>
       <div id="modal-src-pills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      <div id="modal-src-records" style="display:none;"></div>
     </div>
     <!-- Matchup adjustment — pulls from uploaded opp-avg CSV (Rotowire defensive
          averages) and shows how favorable tonight's opponent is for this stat.
