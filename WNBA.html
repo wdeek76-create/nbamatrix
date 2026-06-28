@@ -8703,7 +8703,7 @@ async function shareOpenPropsAsImageDiscord() {
     Object.values(diffGroups).forEach(items => { n += 1 + items.length + 1; });
     return n;
   };
-  const renderPropBox = (bet, best, maxRows) => {
+  const renderPropBox = (bet, best, maxRows, matchupKey) => {
     const statName = (typeof STAT_FULL_NAME !== "undefined" && STAT_FULL_NAME[bet.stat]) ? STAT_FULL_NAME[bet.stat] : bet.stat;
     const statLabel = String(statName).toUpperCase();
     const ouUpper = (bet.ou||"").toUpperCase();
@@ -8713,17 +8713,45 @@ async function shareOpenPropsAsImageDiscord() {
     const seen2 = new Set();
     const remaining = allPrices.filter(p => { if (p.book===best.book && p.odds===best.odds && p.line===bestLine) return false; const k=`${p.book}|${p.odds}|${p.line}`; if (seen2.has(k)) return false; seen2.add(k); return true; });
     const sameLine = remaining.filter(p => (p.line??bet.line)===bestLine).sort((a,b)=>b.odds-a.odds);
-    const headlinePlayTo = sameLine.length>0 ? null : playToOdds2(best.fair,5);
+    const headlinePlayTo = sameLine.length>0 ? null : playToOdds(best.fair,5);
     let playToValue = headlinePlayTo;
-    if (playToValue==null && sameLine.length>0) { const gf = sameLine.reduce((f,p)=>(p.fair!=null&&(f==null||p.fair<f))?p.fair:f, best.fair); playToValue = playToOdds2(gf,5); }
+    if (playToValue==null && sameLine.length>0) { const gf = sameLine.reduce((f,p)=>(p.fair!=null&&(f==null||p.fair<f))?p.fair:f, best.fair); playToValue = playToOdds(gf,5); }
     const playToStr = playToValue!=null ? (playToValue>0?`+${playToValue}`:`−${Math.abs(playToValue)}`) : null;
     const tPillLogo = teamLogoHtml(bet.team, 12);
 
-    let b = `<div style="background:#0a0b0d;border:1px solid #283041;border-radius:11px;padding:12px;box-shadow:0 0 0 1px rgba(125,211,252,0.05),0 4px 18px rgba(125,211,252,0.06),inset 0 1px 0 rgba(255,255,255,0.02);box-sizing:border-box;display:flex;flex-direction:column;">`;
-    // player + team
-    b += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap;">`;
-    b += `<span style="font-size:13px;font-weight:800;color:#fff;">${esc(bet.player)}</span>`;
-    if (bet.team) b += `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.30);padding:2px 6px;border-radius:20px;font-size:8px;font-weight:800;color:#7dd3fc;letter-spacing:0.4px;">${tPillLogo}${esc(bet.team)}</span>`;
+    let b = `<div style="background:#0a0b0d;border:1px solid #2d3850;border-radius:11px;padding:12px;box-shadow:0 0 0 1px rgba(125,211,252,0.08),0 6px 26px rgba(125,211,252,0.10),0 2px 10px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.03);box-sizing:border-box;display:flex;flex-direction:column;">`;
+    // ── game header: bettor's team highlighted blue @ opponent ──
+    // matchupKey may be a resolved "AW @ HM" key OR a bare team abbr (when the
+    // prop didn't resolve to a game). Try both to find the real teams.
+    let teams = matchupKey ? matchupTeams[matchupKey] : null;
+    if (!teams) {
+      const tEspn = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[bet.team]) || bet.team;
+      const altKey = teamToMatchup[bet.team] || teamToMatchup[tEspn];
+      if (altKey && matchupTeams[altKey]) teams = matchupTeams[altKey];
+    }
+    const _gt = teams && teams.date ? _fmtGameTime(teams.date) : null;
+    // Figure out which side the bet's team is, to highlight it.
+    const betEspn = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[bet.team]) || bet.team;
+    let myAbbr = null, oppAbbr = null;
+    if (teams) {
+      if (teams.away === betEspn || teams.away === bet.team) { myAbbr = teams.away; oppAbbr = teams.home; }
+      else if (teams.home === betEspn || teams.home === bet.team) { myAbbr = teams.home; oppAbbr = teams.away; }
+      else { myAbbr = teams.away; oppAbbr = teams.home; }
+    }
+    b += `<div style="display:flex;align-items:center;gap:5px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid #1a1d22;">`;
+    if (teams && myAbbr) {
+      b += teamLogoHtml(myAbbr, 14);
+      b += `<span style="font-size:10px;font-weight:800;color:#7dd3fc;letter-spacing:0.2px;">${esc(fullName(myAbbr))}</span>`;
+      b += `<span style="font-size:10px;font-weight:700;color:#525a64;margin:0 2px;">@</span>`;
+      b += `<span style="font-size:10px;font-weight:700;color:#fff;">${esc(fullName(oppAbbr))}</span>`;
+    } else {
+      b += `<span style="font-size:10px;font-weight:800;color:#7dd3fc;">${esc(fullName(bet.team || matchupKey || ""))}</span>`;
+    }
+    if (_gt) b += `<span style="font-size:8px;font-weight:700;color:#9ca3af;margin-left:auto;">${esc(_gt)}</span>`;
+    b += `</div>`;
+    // player (team identification now lives in the header above)
+    b += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;">`;
+    b += `<span style="font-size:14px;font-weight:800;color:#fff;">${esc(bet.player)}</span>`;
     b += `</div>`;
     // line + stat chip
     b += `<div style="display:flex;align-items:center;margin-bottom:7px;"><span style="color:#fff;font-size:13px;font-weight:800;">${ouUpper} ${bestLine}</span><span style="display:inline-block;background:rgba(125,211,252,0.10);border:1px solid rgba(125,211,252,0.25);padding:2px 9px;border-radius:20px;font-size:8px;font-weight:800;color:#7dd3fc;letter-spacing:0.5px;margin-left:7px;">${statLabel}</span></div>`;
@@ -8742,7 +8770,7 @@ async function shareOpenPropsAsImageDiscord() {
       g.items.sort((a,b)=>b.odds-a.odds);
       b += `<div style="font-size:9px;font-weight:800;color:#7dd3fc;margin:3px 0;">${ouUpper} ${g.line}</div>`;
       g.items.forEach(p => { b += `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid #1a1d22;margin-bottom:3px;"><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#fff;">${bookLogoHtml(p.book,12)}${esc(p.book)}</div><span style="font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;font-weight:700;color:#fff;">${fmtOdds(p.odds)}</span></div>`; });
-      const altPt = g.fair!=null ? playToOdds2(g.fair,5) : null;
+      const altPt = g.fair!=null ? playToOdds(g.fair,5) : null;
       if (altPt!=null) b += `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid #1a1d22;margin-bottom:3px;"><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#fff;">${stopSignSvg(12)} Play to</div><span style="font-family:'JetBrains Mono','Menlo',monospace;font-size:11px;font-weight:800;color:#fff;">${altPt>0?`+${altPt}`:`−${Math.abs(altPt)}`}</span></div>`;
     });
     // pad blank rows to maxRows so all boxes are identical height
@@ -8766,25 +8794,11 @@ async function shareOpenPropsAsImageDiscord() {
     h += `<div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #1a1d22;">`;
     h += `<div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.2px;">${niceDate}</div><div style="font-size:12px;font-weight:700;color:#fff;margin-top:9px;">${enriched.length} ${enriched.length===1?"prop":"props"} &nbsp;·&nbsp; ${overCount} over &nbsp;·&nbsp; ${underCount} under</div>`;
     h += `</div>`;
-    // Per game: a compact full-width header, then that game's prop boxes in a grid.
-    byMatchup.forEach((mbets, key) => {
-      if (!mbets.length) return;
-      const teams = matchupTeams[key];
-      const count = propsPerMatchup[key];
-      const _gt = teams && teams.date ? _fmtGameTime(teams.date) : null;
-      const matchLabel = teams ? `${esc(fullName(teams.away))} @ ${esc(fullName(teams.home))}` : esc(fullName(key));
-      // compact game header
-      h += `<div style="display:flex;align-items:center;gap:7px;margin:4px 0 10px;padding:7px 12px;background:rgba(125,211,252,0.04);border:1px solid #1a1d22;border-radius:8px;">`;
-      if (teams) { h += teamLogoHtml(teams.away, 15); h += teamLogoHtml(teams.home, 15); }
-      h += `<span style="font-size:12px;font-weight:800;color:#fff;">${matchLabel}</span>`;
-      h += `<span style="font-size:9px;font-weight:700;color:#9ca3af;margin-left:auto;">${_gt ? esc(_gt)+" · " : ""}${count} ${count===1?"prop":"props"}</span>`;
-      h += `</div>`;
-      // prop boxes grid
-      h += `<div style="display:grid;grid-template-columns:repeat(${BOX_COLS},1fr);gap:14px;align-items:stretch;margin-bottom:18px;">`;
-      mbets.forEach(({ bet, best }) => { h += renderPropBox(bet, best, globalMaxRows); });
-      h += `</div>`;
-    });
-    h += `</div>`;
+    // ONE grid, every prop box flowing in, each self-contained with its own
+    // game header. Boxes are all identical size (uniform height via padding).
+    h += `<div style="display:grid;grid-template-columns:repeat(${BOX_COLS},1fr);gap:14px;align-items:stretch;">`;
+    enriched.forEach(({ bet, best, matchup }) => { h += renderPropBox(bet, best, globalMaxRows, matchup); });
+    h += `</div></div>`;
     return h;
   };
 
@@ -15852,9 +15866,9 @@ function buildTickerBetCards() {
       <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};box-shadow:${dotShadow};"></span>
       <span style="font-weight:700;color:#fff;">${escapeHtmlBasic(lastName)}</span>
       ${teamTag}
-      <span style="color:#a8b0bb;font-size:10px;font-weight:600;letter-spacing:0.3px;">${ouLabel} ${b.stat}</span>
+      <span style="color:#fff;font-size:10px;font-weight:700;letter-spacing:0.3px;">${ouLabel} ${b.stat}</span>
       <span class="tk-at">·</span>
-      <span class="tk-score" style="color:${dotColor === "#525a64" ? "#a8b0bb" : "#fff"};">${valueStr}</span>
+      <span class="tk-score" style="color:#fff;font-weight:700;">${valueStr}</span>
     </div>`;
   });
 }
@@ -15879,9 +15893,9 @@ function buildTickerTopScorerCards() {
       <span style="font-weight:700;color:#fff;">${escapeHtmlBasic(lastName)}</span>
       <span style="font-size:9px;color:#7dd3fc;font-weight:700;">${escapeHtmlBasic(p.teamAbbr || "")}</span>
       <span class="tk-score">${p.stats.pts}</span>
-      <span style="color:#8b93a0;font-size:10px;font-weight:600;letter-spacing:0.3px;">pts</span>
-      ${p.stats.reb ? `<span style="color:#a8b0bb;font-size:10px;">${p.stats.reb}r</span>` : ""}
-      ${p.stats.ast ? `<span style="color:#a8b0bb;font-size:10px;">${p.stats.ast}a</span>` : ""}
+      <span style="color:#fff;font-size:10px;font-weight:700;letter-spacing:0.3px;">pts</span>
+      ${p.stats.reb ? `<span style="color:#fff;font-weight:700;font-size:10px;">${p.stats.reb}r</span>` : ""}
+      ${p.stats.ast ? `<span style="color:#fff;font-weight:700;font-size:10px;">${p.stats.ast}a</span>` : ""}
     </div>`;
   });
 }
@@ -15985,14 +15999,14 @@ function renderScheduleSection(date, events) {
     const headerStyle = isToday
       ? `padding:14px 20px 8px 20px;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(125,211,252,0.06) 0%,transparent 100%);border-top:1px solid rgba(125,211,252,0.12);`
       : `padding:14px 20px 6px 20px;display:flex;align-items:center;gap:8px;`;
-    const labelColor = isToday ? "#7dd3fc" : "#a8b0bb";
+    const labelColor = isToday ? "#7dd3fc" : "#fff";
     return `
       <div style="${headerStyle}">
         <span style="font-size:${isToday ? 11 : 10}px;color:${labelColor};letter-spacing:1.4px;font-weight:${isToday ? 800 : 700};text-transform:uppercase;">${label}</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:18px 20px;border-left:3px solid #2c333d;">
-        <span style="font-size:13px;font-weight:800;letter-spacing:2px;color:#525a64;text-transform:uppercase;">Day Off</span>
-        <span style="font-size:11px;color:#3d4450;">${escapeHtmlBasic(dateStr)}</span>
+        <span style="font-size:13px;font-weight:800;letter-spacing:2px;color:#fff;text-transform:uppercase;">Day Off</span>
+        <span style="font-size:11px;color:#fff;font-weight:700;">${escapeHtmlBasic(dateStr)}</span>
       </div>`;
   }
   const rows = events.map(ev => renderScheduleRow(ev, isToday)).filter(Boolean).join("");
@@ -16185,10 +16199,16 @@ function renderScheduleExpandContent(summary) {
   try {
     loadBets();
     if (typeof bets !== "undefined" && Array.isArray(bets)) {
+      const seenBet = {};
       bets.forEach(b => {
         if (!b.player || !b.stat || b.line == null) return;
         if (b.stat === "GAME_TOTAL" || b.stat === "GAME_SPREAD") return;
         const k = norm(b.player);
+        // Dedup identical props (same player+stat+side+line) so a prop tracked
+        // more than once shows a single pill, matching the share-card behavior.
+        const sig = `${k}|${(b.stat||"").toUpperCase()}|${(b.ou||"").toLowerCase()}|${b.line}`;
+        if (seenBet[sig]) return;
+        seenBet[sig] = true;
         if (!betsByPlayer[k]) betsByPlayer[k] = [];
         betsByPlayer[k].push(b);
       });
@@ -16264,10 +16284,10 @@ function renderScheduleExpandContent(summary) {
         return `
         <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;${hasBet ? "background:rgba(253,224,71,0.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:4px;" : ""}">
           <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:30px;text-align:left;">${escapeHtmlBasic(p.min)}'</span>
-          <span style="flex:1;color:${nameColor};font-weight:${p.starter || hasBet ? 700 : 500};display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${p.starter ? '<span style="color:#7dd3fc;font-size:9px;">★</span>' : ""}${escapeHtmlBasic(p.name)}${betPills}</span>
-          <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:700;min-width:22px;text-align:right;">${p.pts}</span>
-          <span style="font-family:'JetBrains Mono',monospace;color:#a8b0bb;font-size:11px;min-width:18px;text-align:right;">${p.reb}r</span>
-          <span style="font-family:'JetBrains Mono',monospace;color:#a8b0bb;font-size:11px;min-width:18px;text-align:right;">${p.ast}a</span>
+          <span style="flex:1;color:${nameColor};font-weight:700;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${p.starter ? '<span style="color:#7dd3fc;font-size:9px;">★</span>' : ""}${escapeHtmlBasic(p.name)}${betPills}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;min-width:22px;text-align:right;">${p.pts}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:18px;text-align:right;">${p.reb}r</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:18px;text-align:right;">${p.ast}a</span>
         </div>`;
       }).join("");
       const logoHtml = teamLogo ? `<img src="${escapeHtmlBasic(teamLogo)}" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none'">` : "";
@@ -16276,9 +16296,9 @@ function renderScheduleExpandContent(summary) {
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(125,211,252,0.08);">
             ${logoHtml}
             <span style="font-size:11px;font-weight:700;letter-spacing:0.6px;color:#7dd3fc;">${escapeHtmlBasic(teamAbbr)}</span>
-            <span style="font-size:9px;color:#525a64;letter-spacing:0.6px;margin-left:auto;text-transform:uppercase;">MIN · PTS · REB · AST</span>
+            <span style="font-size:9px;color:#fff;font-weight:700;letter-spacing:0.6px;margin-left:auto;text-transform:uppercase;">MIN · PTS · REB · AST</span>
           </div>
-          ${rows || `<div style="color:#525a64;font-size:11px;">No box score yet.</div>`}
+          ${rows || `<div style="color:#fff;font-weight:700;font-size:11px;">No box score yet.</div>`}
         </div>`;
     }).join("");
     return sections;
