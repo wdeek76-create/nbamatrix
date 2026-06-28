@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pick Filter</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #111; --surface2: #161616; --surface3: #1a1a1a;
+    --border: #222; --text: #f0f0f0; --muted: #888;
+    --warn: #f59e0b;
+    --dave: #00e5ff; --dave-dim: rgba(0,229,255,0.10);
+    --micah: #a78bfa; --micah-dim: rgba(167,139,250,0.10);
+    --green: #34d399; --red: #f87171; --orange: #fb923c; --blue: #60a5fa;
+  }
+  body { background:var(--bg); color:var(--text); font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; min-height:100vh; padding-bottom:60px; }
+
+  /* HEADER */
+  header { padding:16px 16px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .logo { font-size:13px; font-weight:800; letter-spacing:0.18em; text-transform:uppercase; }
+  .logo .d { color:var(--dave); } .logo .m { color:var(--micah); }
+  .header-sub { font-size:10px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; }
+
+  /* TABS */
+  .tabs { display:flex; border-bottom:1px solid var(--border); background:var(--bg); position:sticky; top:0; z-index:10; }
+  .tab { flex:1; padding:12px 4px; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; text-align:center; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; background:none; border-top:none; border-left:none; border-right:none; transition:all 0.15s; }
+  .tab.active-dave  { color:var(--dave);  border-bottom-color:var(--dave); }
+  .tab.active-micah { color:var(--micah); border-bottom-color:var(--micah); }
+  .tab.active-log   { color:var(--green); border-bottom-color:var(--green); }
+  .tab-panel { display:none; padding:14px; }
+  .tab-panel.active { display:block; }
+
+  /* SOURCE NAME */
+  .source-name { font-size:15px; font-weight:800; margin-bottom:6px; }
+  .source-name.dave { color:var(--dave); } .source-name.micah { color:var(--micah); }
+
+  /* FILTER TABLE */
+  .filter-table { width:100%; border-collapse:collapse; margin-bottom:14px; }
+  .filter-table td { font-size:10px; padding:4px 6px; border-bottom:1px solid var(--border); color:#e0e0e0; vertical-align:top; }
+  .filter-table td:first-child { font-weight:700; color:var(--text); white-space:nowrap; width:62px; }
+  .ft-note { color:#aaa; font-size:9px; display:block; margin-top:1px; }
+  .ft-warn { color:var(--warn); font-size:9px; display:block; margin-top:1px; }
+
+  /* PASTE */
+  .paste-area { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:12px; font-family:'SF Mono','Fira Code',monospace; line-height:1.6; padding:13px; resize:vertical; min-height:120px; outline:none; transition:border-color 0.2s; }
+  .paste-area.dave:focus  { border-color:var(--dave); }
+  .paste-area.micah:focus { border-color:var(--micah); }
+  .paste-area::placeholder { color:var(--muted); font-family:inherit; }
+
+  /* BUTTONS */
+  .btn-row { display:flex; gap:8px; margin-top:10px; }
+  .parse-btn { flex:1; padding:13px; font-weight:800; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; border:none; border-radius:10px; cursor:pointer; transition:opacity 0.15s; }
+  .parse-btn:active { opacity:0.75; }
+  .parse-btn.dave  { background:var(--dave);  color:#000; }
+  .parse-btn.micah { background:var(--micah); color:#000; }
+  .clear-btn { padding:13px 14px; background:transparent; color:var(--muted); font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; border:1px solid var(--border); border-radius:10px; cursor:pointer; }
+
+  /* RESULTS */
+  .results-wrap { margin-top:18px; }
+  hr.divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
+  .results-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .results-label { font-size:10px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#aaa; }
+  .count-pill { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+  .count-pill.dave  { background:var(--dave-dim);  color:var(--dave); }
+  .count-pill.micah { background:var(--micah-dim); color:var(--micah); }
+
+  /* PICK CARD */
+  .pick-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:11px 12px; margin-bottom:7px; display:flex; align-items:flex-start; gap:10px; }
+  .pick-left { flex:1; min-width:0; }
+  .pick-team { font-size:14px; font-weight:600; line-height:1.3; margin-bottom:5px; word-break:break-word; }
+  .pick-meta { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+  .tag { font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:2px 7px; border-radius:4px; border:1px solid transparent; }
+  .tag.sport-dave   { color:var(--dave);   border-color:rgba(0,229,255,0.2);   background:var(--dave-dim); }
+  .tag.sport-micah  { color:var(--micah);  border-color:rgba(167,139,250,0.2); background:var(--micah-dim); }
+  .tag.type-ml     { color:var(--blue);   border-color:rgba(96,165,250,0.2);  background:rgba(96,165,250,0.07); }
+  .tag.type-total  { color:var(--green);  border-color:rgba(52,211,153,0.2);  background:rgba(52,211,153,0.07); }
+  .tag.type-spread { color:var(--orange); border-color:rgba(251,146,60,0.2);  background:rgba(251,146,60,0.07); }
+  .warn-tag { font-size:9px; color:var(--warn); font-weight:600; }
+  .pick-time { font-size:10px; color:#aaa; }
+  .pick-odds { font-size:13px; font-weight:700; font-family:'SF Mono',monospace; white-space:nowrap; padding-top:1px; }
+
+  /* OUTPUT BOX */
+  .output-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px; font-family:'SF Mono','Fira Code',monospace; font-size:11px; line-height:1.9; color:var(--text); white-space:pre-wrap; word-break:break-word; min-height:40px; margin-top:12px; }
+  .copy-btn { width:100%; margin-top:8px; padding:11px; background:transparent; font-weight:700; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; border-radius:10px; cursor:pointer; transition:background 0.15s; }
+  .copy-btn.dave  { color:var(--dave);  border:1px solid var(--dave); }
+  .copy-btn.micah { color:var(--micah); border:1px solid var(--micah); }
+  .copy-btn.copied { color:var(--green) !important; border-color:var(--green) !important; }
+
+  /* SKIPPED */
+  .skipped-toggle { margin-top:10px; font-size:10px; color:#aaa; letter-spacing:0.08em; text-transform:uppercase; background:none; border:none; cursor:pointer; text-decoration:underline; text-underline-offset:3px; padding:3px 0; }
+  .skipped-list { display:none; margin-top:6px; }
+  .skipped-list.open { display:block; }
+  .skipped-item { font-size:11px; color:#bbb; padding:5px 0; border-bottom:1px solid var(--border); font-family:'SF Mono',monospace; line-height:1.4; }
+  .skip-reason { color:#666; font-size:10px; }
+  .empty-state { text-align:center; color:var(--muted); font-size:12px; padding:24px 0; }
+
+  /* ── LOG TAB ── */
+  .log-section { margin-bottom:20px; }
+  .log-section-title { font-size:10px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#aaa; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+
+  /* STATS STRIP */
+  .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:14px; }
+  .stat-box { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 8px; text-align:center; }
+  .stat-val { font-size:16px; font-weight:800; font-family:'SF Mono',monospace; }
+  .stat-val.pos { color:var(--green); } .stat-val.neg { color:var(--red); } .stat-val.neu { color:var(--text); }
+  .stat-lbl { font-size:9px; color:#aaa; letter-spacing:0.08em; text-transform:uppercase; margin-top:2px; }
+
+  /* SOURCE TOGGLE */
+  .source-toggle { display:flex; gap:6px; margin-bottom:12px; }
+  .src-btn { flex:1; padding:8px; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; border-radius:8px; cursor:pointer; background:var(--surface); border:1px solid var(--border); color:var(--muted); transition:all 0.15s; }
+  .src-btn.active-dave  { border-color:var(--dave);  color:var(--dave);  background:var(--dave-dim); }
+  .src-btn.active-micah { border-color:var(--micah); color:var(--micah); background:var(--micah-dim); }
+  .src-btn.active-all   { border-color:#aaa; color:#fff; background:#222; }
+
+  /* BET LOG ROW */
+  .bet-row { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:11px 12px; margin-bottom:6px; }
+  .bet-row-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .bet-team { font-size:13px; font-weight:600; flex:1; min-width:0; word-break:break-word; }
+  .bet-result { font-size:12px; font-weight:800; font-family:'SF Mono',monospace; white-space:nowrap; }
+  .bet-result.win  { color:var(--green); }
+  .bet-result.loss { color:var(--red); }
+  .bet-result.push { color:#aaa; }
+  .bet-result.pending { color:var(--warn); }
+  .bet-row-meta { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; align-items:center; }
+  .bet-date { font-size:10px; color:#aaa; margin-left:auto; }
+
+  /* GRADE BTN */
+  .grade-btn { font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:3px 8px; border-radius:5px; border:1px solid var(--border); background:var(--surface2); color:#aaa; cursor:pointer; }
+  .grade-btn:active { opacity:0.7; }
+  .grade-all-btn { width:100%; padding:11px; background:transparent; color:var(--green); border:1px solid var(--green); border-radius:10px; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; margin-bottom:12px; }
+  .grade-all-btn:active { opacity:0.7; }
+
+  /* DELETE */
+  .delete-btn { font-size:10px; color:#444; background:none; border:none; cursor:pointer; padding:2px 4px; }
+  .delete-btn:active { color:var(--red); }
+
+  /* SPORT BREAKDOWN */
+  .breakdown-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .breakdown-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+  .bk-sport { font-size:11px; font-weight:700; color:var(--text); margin-bottom:4px; }
+  .bk-row { display:flex; justify-content:space-between; font-size:10px; color:#aaa; margin-top:2px; }
+  .bk-val { font-weight:700; color:var(--text); font-family:'SF Mono',monospace; }
+  .bk-val.pos { color:var(--green); } .bk-val.neg { color:var(--red); }
+
+  .clear-log-btn { width:100%; padding:10px; background:transparent; color:#444; border:1px solid #222; border-radius:8px; font-size:10px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; margin-top:10px; }
+  .no-bets { text-align:center; color:var(--muted); font-size:12px; padding:30px 0; }
+
+  .grading-indicator { font-size:10px; color:var(--warn); margin-top:6px; }
+
+  /* LOG SUB-TABS */
+  .log-subtabs { display:flex; gap:6px; margin-bottom:14px; }
+  .log-subtab { flex:1; padding:9px 6px; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; text-align:center; border-radius:8px; cursor:pointer; background:var(--surface); border:1px solid var(--border); color:var(--muted); transition:all 0.15s; }
+  .log-subtab.active { background:#1e1e1e; border-color:#aaa; color:#fff; }
+  .log-subpanel { display:none; }
+  .log-subpanel.active { display:block; }
+  /* HISTORICAL */
+  .hist-toggle { display:flex; gap:6px; margin-bottom:14px; }
+  .hist-btn { flex:1; padding:8px; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; border-radius:8px; cursor:pointer; background:var(--surface); border:1px solid var(--border); color:var(--muted); transition:all 0.15s; }
+  .hist-btn.active-dave  { border-color:var(--dave);  color:var(--dave);  background:var(--dave-dim); }
+  .hist-btn.active-micah { border-color:var(--micah); color:var(--micah); background:var(--micah-dim); }
+  .hist-summary { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px; }
+  .hist-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+  .hist-row:last-child { border-bottom:none; }
+  .hist-lbl { font-size:12px; color:#e0e0e0; font-weight:600; }
+  .hist-val { font-size:13px; font-family:'SF Mono',monospace; font-weight:800; }
+  .hist-val.pos { color:var(--green); } .hist-val.neg { color:var(--red); }
+  .hist-sport-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:6px; }
+  .hist-sport-name { font-size:12px; font-weight:800; color:var(--text); margin-bottom:8px; }
+  .hist-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px; }
+  .hist-cell { text-align:center; }
+  .hist-cell-val { font-size:13px; font-weight:800; font-family:'SF Mono',monospace; }
+  .hist-cell-val.pos { color:var(--green); } .hist-cell-val.neg { color:var(--red); }
+  .hist-cell-lbl { font-size:9px; color:#aaa; text-transform:uppercase; letter-spacing:0.06em; margin-top:1px; }
+  .hist-markets { border-top:1px solid #1a1a1a; padding-top:6px; }
+  .hist-mkt-row { display:flex; justify-content:space-between; font-size:10px; color:#aaa; margin-top:3px; }
+  .hist-mkt-val { font-family:'SF Mono',monospace; font-weight:700; }
+  .hist-mkt-val.pos { color:var(--green); } .hist-mkt-val.neg { color:var(--red); }
+  .hist-warn { font-size:9px; color:var(--warn); margin-top:4px; }
+  .hist-year-strip { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:14px; }
+  .hist-year-box { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center; }
+  .hist-year-val { font-size:15px; font-weight:800; font-family:'SF Mono',monospace; }
+  .hist-year-lbl { font-size:9px; color:#aaa; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Pick<span class="d">D</span><span class="m">M</span></div>
+  <div class="header-sub">Dave · Micah</div>
+</header>
+
+<div class="tabs">
+  <button class="tab active-dave" id="tab-dave"  onclick="switchTab('dave',this)">Dave</button>
+  <button class="tab"             id="tab-micah" onclick="switchTab('micah',this)">Micah</button>
+  <button class="tab"             id="tab-log"   onclick="switchTab('log',this)">Log</button>
+</div>
+
+<!-- ══ DAVE ══ -->
+<div class="tab-panel active" id="panel-dave">
+  <div class="source-name dave">Dave</div>
+  <table class="filter-table">
+    <tr><td>MLB</td><td>ML · Total <span class="ft-note">ML 57.1% +14.44u · Total 56.3% +5.81u</span></td></tr>
+    <tr><td>NBA</td><td>Total only <span class="ft-warn">⚠ Spreads −ROI · ML 1 bet only</span></td></tr>
+    <tr><td>NCAA</td><td>Spread · Total</td></tr>
+    <tr><td>NCAAM</td><td>Spread · Total <span class="ft-note">Spread 56.4% +45u · Total 55.6%</span></td></tr>
+    <tr><td>NFL</td><td>Total only <span class="ft-warn">⚠ Spreads −ROI · ML 1 bet only</span></td></tr>
+    <tr><td>WNBA</td><td>Total only <span class="ft-warn">⚠ Spreads −ROI</span></td></tr>
+    <tr><td>NHL</td><td>— skipped <span class="ft-warn">⚠ All markets −ROI (−8.93u total)</span></td></tr>
+    <tr><td>World Cup</td><td>— skipped</td></tr>
+  </table>
+  <textarea class="paste-area dave" id="dave-input" placeholder="Paste Dave's picks here..."></textarea>
+  <div class="btn-row">
+    <button class="parse-btn dave" onclick="parsePicks('dave')">Parse + Log</button>
+    <button class="clear-btn" onclick="clearSource('dave')">Clear</button>
+  </div>
+  <div class="results-wrap" id="dave-results" style="display:none;">
+    <hr class="divider">
+    <div class="results-header">
+      <div class="results-label">Qualifying Picks</div>
+      <div class="count-pill dave" id="dave-count">0</div>
+    </div>
+    <div id="dave-cards"></div>
+    <div class="output-box" id="dave-output"></div>
+    <button class="copy-btn dave" id="dave-copy" onclick="copyOutput('dave')">Copy All</button>
+    <button class="skipped-toggle" onclick="toggleSkipped('dave')">Show skipped</button>
+    <div class="skipped-list" id="dave-skipped"></div>
+  </div>
+  <div class="empty-state" id="dave-empty" style="display:none;">No qualifying picks found.</div>
+</div>
+
+<!-- ══ MICAH ══ -->
+<div class="tab-panel" id="panel-micah">
+  <div class="source-name micah">Micah</div>
+  <table class="filter-table">
+    <tr><td>MLB</td><td>Total only <span class="ft-warn">⚠ ML 43.6% −27u · Spreads 31.3% −12u</span></td></tr>
+    <tr><td>NBA</td><td>Total · Spread <span class="ft-note">Total 62.1% +26u · Spread 53.1% +3.47u</span></td></tr>
+    <tr><td>NCAAF</td><td>Total · Spread <span class="ft-note">Total 68.8% +15u · Spread 53.8% +3.64u</span></td></tr>
+    <tr><td>NCAAM</td><td>Total only <span class="ft-warn">⚠ Spreads −11u negative ROI — skipped</span></td></tr>
+    <tr><td>NFL</td><td>Total · Spread <span class="ft-warn">⚠ Total 69.4% +23u · Spread small sample (72 bets +1.45u)</span></td></tr>
+    <tr><td>NHL</td><td>ML · Total · Spread <span class="ft-warn">⚠ Small sample — 20 bets total, all positive, use caution</span></td></tr>
+    <tr><td>WNBA</td><td>Total · Spread <span class="ft-note">Total 78.6% +7u · Spread 60.6% +5u</span></td></tr>
+  </table>
+  <textarea class="paste-area micah" id="micah-input" placeholder="Paste Micah's picks here..."></textarea>
+  <div class="btn-row">
+    <button class="parse-btn micah" onclick="parsePicks('micah')">Parse + Log</button>
+    <button class="clear-btn" onclick="clearSource('micah')">Clear</button>
+  </div>
+  <div class="results-wrap" id="micah-results" style="display:none;">
+    <hr class="divider">
+    <div class="results-header">
+      <div class="results-label">Qualifying Picks</div>
+      <div class="count-pill micah" id="micah-count">0</div>
+    </div>
+    <div id="micah-cards"></div>
+    <div class="output-box" id="micah-output"></div>
+    <button class="copy-btn micah" id="micah-copy" onclick="copyOutput('micah')">Copy All</button>
+    <button class="skipped-toggle" onclick="toggleSkipped('micah')">Show skipped</button>
+    <div class="skipped-list" id="micah-skipped"></div>
+  </div>
+  <div class="empty-state" id="micah-empty" style="display:none;">No qualifying picks found.</div>
+</div>
+
+<!-- ══ LOG ══ -->
+<div class="tab-panel" id="panel-log">
+
+  <!-- Sub-tabs: Live vs Historical -->
+  <div class="log-subtabs">
+    <button class="log-subtab active" id="lsubt-live" onclick="switchLogSub('live',this)">Live Tracker</button>
+    <button class="log-subtab"        id="lsubt-hist" onclick="switchLogSub('hist',this)">Historical</button>
+  </div>
+
+  <!-- ── LIVE TRACKER ── -->
+  <div class="log-subpanel active" id="logsub-live">
+    <div class="source-toggle">
+      <button class="src-btn active-all" id="filter-all"   onclick="setLogFilter('all',this)">All</button>
+      <button class="src-btn"            id="filter-dave"  onclick="setLogFilter('dave',this)">Dave</button>
+      <button class="src-btn"            id="filter-micah" onclick="setLogFilter('micah',this)">Micah</button>
+    </div>
+    <div class="stats-strip" id="log-stats"></div>
+    <button class="grade-all-btn" onclick="gradeAllPending()">⟳ Grade All Pending</button>
+    <div class="grading-indicator" id="grading-status" style="display:none;"></div>
+    <div class="log-section">
+      <div class="log-section-title">By Sport</div>
+      <div class="breakdown-grid" id="sport-breakdown"></div>
+    </div>
+    <div class="log-section">
+      <div class="log-section-title">
+        <span>Bet History</span>
+        <span id="bet-count-label" style="font-weight:400;"></span>
+      </div>
+      <div id="bet-list"></div>
+    </div>
+    <button class="clear-log-btn" onclick="clearLog()">Clear All Logged Bets</button>
+  </div>
+
+  <!-- ── HISTORICAL ── -->
+  <div class="log-subpanel" id="logsub-hist">
+    <div class="hist-toggle">
+      <button class="hist-btn active-dave" id="hbtn-dave"  onclick="switchHist('dave',this)">Dave</button>
+      <button class="hist-btn"             id="hbtn-micah" onclick="switchHist('micah',this)">Micah</button>
+    </div>
+    <div id="hist-content"></div>
+  </div>
+
+</div>
+
+<script>
+// ══ FILTER RULES ══
+const RULES = {
+  dave: {
+    MLB:   {ML:true,  Total:true,  Spread:false},
+    NBA:   {ML:false, Total:true,  Spread:false},
+    NCAA:  {ML:false, Total:true,  Spread:true},
+    NCAAM: {ML:false, Total:true,  Spread:true},
+    NFL:   {ML:false, Total:true,  Spread:false},
+    WNBA:  {ML:false, Total:true,  Spread:false},
+  },
+  micah: {
+    MLB:   {ML:false, Total:true,  Spread:false},
+    NBA:   {ML:false, Total:true,  Spread:true},
+    NCAAF: {ML:false, Total:true,  Spread:true},
+    NCAAM: {ML:false, Total:true,  Spread:false},
+    NFL:   {ML:false, Total:true,  Spread:true},
+    NHL:   {ML:true,  Total:true,  Spread:true},
+    WNBA:  {ML:false, Total:true,  Spread:true},
+  }
+};
+
+const SMALL_WARN = {
+  dave:  {NBA:'Spreads/ML filtered',NFL:'Spreads filtered',WNBA:'Spreads filtered'},
+  micah: {NFL:'⚠ Small sample spreads',NHL:'⚠ Small sample (20 bets)',MLB:'⚠ ML/Spreads filtered',NCAAM:'⚠ Spreads filtered'}
+};
+
+// ESPN API sport endpoints
+const ESPN_ENDPOINTS = {
+  MLB:   'baseball/mlb',
+  NBA:   'basketball/nba',
+  NCAAF: 'football/college-football',
+  NCAAM: 'basketball/mens-college-basketball',
+  NFL:   'football/nfl',
+  NHL:   'hockey/nhl',
+  WNBA:  'basketball/wnba',
+  NCAA:  'basketball/mens-college-basketball',
+};
+
+const SPORT_ALIASES = [
+  ['ncaaf','NCAAF'],['ncaam','NCAAM'],['ncaa men','NCAAM'],
+  ['ncaab','NCAA'], ['ncaa','NCAA'],
+  ['world cup','WORLD_CUP'],['worldcup','WORLD_CUP'],['soccer','WORLD_CUP'],
+  ['wnba','WNBA'],
+  ['mlb','MLB'],['baseball','MLB'],
+  ['nba','NBA'],
+  ['nfl','NFL'],['football','NFL'],
+  ['nhl','NHL'],['hockey','NHL'],
+];
+
+function detectSport(str) {
+  const lower = str.toLowerCase();
+  for (const [key,val] of SPORT_ALIASES) {
+    if (lower.includes(key)) return val;
+  }
+  return null;
+}
+
+function parseLine(line) {
+  const unitMatch = line.match(/^\d+(?:\.\d+)?\s*(?:units?|u)\s*:\s*/i);
+  if (!unitMatch) return null;
+  const rest = line.slice(unitMatch[0].length).trim();
+
+  const sportMatch = rest.match(/\(([^)]+)\)?\s*$/);
+  const sport = sportMatch ? detectSport(sportMatch[1]) : null;
+  const timeMatch = rest.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)\s*ET)/i);
+  const time = timeMatch ? timeMatch[1] : '';
+
+  let core = rest;
+  if (sportMatch) core = core.slice(0, core.lastIndexOf(sportMatch[0])).trim();
+  if (timeMatch)  core = core.replace(timeMatch[0], '').trim();
+
+  const oddsMatch = core.match(/\(?\s*([+-]\d+)\s*\)?\s*$/);
+  const odds = oddsMatch ? oddsMatch[1] : '';
+  let pickPart = oddsMatch ? core.slice(0, core.lastIndexOf(oddsMatch[0])).trim() : core;
+
+  let betType = 'ML';
+  if (/\b(over|under|o\/u)\b/i.test(pickPart)) {
+    betType = 'Total';
+  } else {
+    const sm = pickPart.match(/([+-]\d+(?:\.\d+)?)$/);
+    if (sm && Math.abs(parseFloat(sm[1])) <= 30) betType = 'Spread';
+  }
+
+  return { team:pickPart.trim(), odds, time, sport, betType, raw:line };
+}
+
+// ══ STATE ══
+const state = {
+  dave:  {qualified:[], skipped:[]},
+  micah: {qualified:[], skipped:[]}
+};
+let logFilter = 'all';
+
+// ══ STORAGE ══
+const STORAGE_KEY = 'pickdm_bets_v1';
+function loadBets() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+function saveBets(bets) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
+}
+
+// Unit calc: dogs risk 1u flat, favs risk abs(odds)/100 to win 1u
+function calcUnits(odds, result) {
+  const o = parseInt(odds);
+  if (isNaN(o)) return 0;
+  if (result === 'push') return 0;
+  if (result === 'win') {
+    return o > 0 ? o / 100 : 1;
+  } else {
+    return o > 0 ? -1 : -(Math.abs(o) / 100);
+  }
+}
+
+// ══ PARSE ══
+function parsePicks(src) {
+  const input = document.getElementById(`${src}-input`).value.trim();
+  if (!input) return;
+  state[src].qualified = [];
+  state[src].skipped   = [];
+  const rules = RULES[src];
+
+  for (const line of input.split('\n').map(l=>l.trim()).filter(Boolean)) {
+    const pick = parseLine(line);
+    if (!pick) continue;
+    if (!pick.sport) { state[src].skipped.push({raw:pick.raw,reason:'Sport not recognized'}); continue; }
+    const rule = rules[pick.sport];
+    if (!rule) { state[src].skipped.push({raw:pick.raw,reason:`${pick.sport} — not tracked for ${src}`}); continue; }
+    if (!rule[pick.betType]) { state[src].skipped.push({raw:pick.raw,reason:`${pick.sport} ${pick.betType} — filtered`}); continue; }
+    state[src].qualified.push(pick);
+  }
+
+  // Auto-log
+  const bets = loadBets();
+  const today = new Date().toISOString().slice(0,10);
+  for (const p of state[src].qualified) {
+    // Avoid duplicate logging (same team+sport+type+date+source)
+    const dup = bets.find(b =>
+      b.source===src && b.team===p.team && b.sport===p.sport &&
+      b.betType===p.betType && b.date===today
+    );
+    if (!dup) {
+      bets.push({
+        id: Date.now() + Math.random(),
+        source: src,
+        team: p.team,
+        odds: p.odds,
+        time: p.time,
+        sport: p.sport,
+        betType: p.betType,
+        date: today,
+        result: 'pending',
+        units: null,
+      });
+    }
+  }
+  saveBets(bets);
+  renderResults(src);
+}
+
+// ══ RENDER PARSE RESULTS ══
+function renderResults(src) {
+  const {qualified, skipped} = state[src];
+  const resultsEl = document.getElementById(`${src}-results`);
+  const emptyEl   = document.getElementById(`${src}-empty`);
+  const cardsEl   = document.getElementById(`${src}-cards`);
+  const outputEl  = document.getElementById(`${src}-output`);
+  const countEl   = document.getElementById(`${src}-count`);
+  const skippedEl = document.getElementById(`${src}-skipped`);
+  const copyBtn   = document.getElementById(`${src}-copy`);
+
+  if (qualified.length===0 && skipped.length===0) {
+    resultsEl.style.display='none'; emptyEl.style.display='block'; return;
+  }
+  resultsEl.style.display='block'; emptyEl.style.display='none';
+  countEl.textContent = qualified.length;
+
+  cardsEl.innerHTML = '';
+  for (const p of qualified) {
+    const typeClass = p.betType==='ML'?'type-ml':p.betType==='Total'?'type-total':'type-spread';
+    const warn = (SMALL_WARN[src]||{})[p.sport]||'';
+    cardsEl.innerHTML += `
+      <div class="pick-card">
+        <div class="pick-left">
+          <div class="pick-team">${p.team}</div>
+          <div class="pick-meta">
+            <span class="tag sport-${src}">${p.sport}</span>
+            <span class="tag ${typeClass}">${p.betType}</span>
+            ${p.time?`<span class="pick-time">${p.time}</span>`:''}
+            ${warn?`<span class="warn-tag">${warn}</span>`:''}
+          </div>
+        </div>
+        <div class="pick-odds">${p.odds||'—'}</div>
+      </div>`;
+  }
+
+  outputEl.textContent = qualified.map(p=>{
+    const o=p.odds?` (${p.odds})`:'';
+    const t=p.time?` ${p.time}`:'';
+    return `1u: ${p.team}${o}${t} [${p.sport} · ${p.betType}]`;
+  }).join('\n');
+
+  skippedEl.innerHTML = skipped.map(s=>
+    `<div class="skipped-item">✕ ${s.raw}<br><span class="skip-reason">${s.reason}</span></div>`
+  ).join('');
+
+  copyBtn.textContent='Copy All'; copyBtn.classList.remove('copied');
+}
+
+// ══ LOG TAB ══
+function renderLog() {
+  const allBets = loadBets();
+  const bets = logFilter==='all' ? allBets : allBets.filter(b=>b.source===logFilter);
+
+  // Stats strip
+  const settled = bets.filter(b=>b.result!=='pending');
+  const wins = settled.filter(b=>b.result==='win').length;
+  const losses = settled.filter(b=>b.result==='loss').length;
+  const pushes = settled.filter(b=>b.result==='push').length;
+  const pending = bets.filter(b=>b.result==='pending').length;
+  const totalUnits = settled.reduce((acc,b)=>acc+(b.units||0),0);
+  const winPct = settled.length ? ((wins/settled.length)*100).toFixed(1) : '—';
+  const uStr = totalUnits>=0 ? `+${totalUnits.toFixed(2)}` : totalUnits.toFixed(2);
+  const uClass = totalUnits>0?'pos':totalUnits<0?'neg':'neu';
+
+  document.getElementById('log-stats').innerHTML = `
+    <div class="stat-box"><div class="stat-val neu">${wins}-${losses}${pushes?'-'+pushes:''}</div><div class="stat-lbl">Record</div></div>
+    <div class="stat-box"><div class="stat-val ${uClass}">${uStr}u</div><div class="stat-lbl">Units</div></div>
+    <div class="stat-box"><div class="stat-val neu">${winPct}${winPct!=='—'?'%':''}</div><div class="stat-lbl">Win %</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--warn)">${pending}</div><div class="stat-lbl">Pending</div></div>
+  `;
+
+  // Sport breakdown
+  const sports = [...new Set(bets.map(b=>b.sport))].sort();
+  let bkHtml = '';
+  for (const sport of sports) {
+    const sb = bets.filter(b=>b.sport===sport);
+    const ss = sb.filter(b=>b.result!=='pending');
+    const sw = ss.filter(b=>b.result==='win').length;
+    const su = ss.reduce((a,b)=>a+(b.units||0),0);
+    const suStr = su>=0?`+${su.toFixed(2)}`:su.toFixed(2);
+    const suClass = su>0?'pos':su<0?'neg':'';
+    const wp = ss.length?((sw/ss.length)*100).toFixed(0)+'%':'—';
+    bkHtml += `
+      <div class="breakdown-card">
+        <div class="bk-sport">${sport}</div>
+        <div class="bk-row"><span>${sw}-${ss.length-sw}</span><span class="bk-val ${suClass}">${suStr}u</span></div>
+        <div class="bk-row"><span>Win%</span><span class="bk-val">${wp}</span></div>
+      </div>`;
+  }
+  document.getElementById('sport-breakdown').innerHTML = bkHtml || '<div style="color:#444;font-size:12px;">No data yet</div>';
+
+  // Bet count label
+  document.getElementById('bet-count-label').textContent = `${bets.length} bet${bets.length!==1?'s':''}`;
+
+  // Bet list — newest first
+  const sorted = [...bets].sort((a,b)=>b.date.localeCompare(a.date));
+  let listHtml = '';
+  for (const b of sorted) {
+    const typeClass = b.betType==='ML'?'type-ml':b.betType==='Total'?'type-total':'type-spread';
+    const srcClass  = `sport-${b.source}`;
+    let resultHtml = '';
+    if (b.result==='pending') {
+      resultHtml = `<span class="bet-result pending">PENDING</span>`;
+    } else {
+      const u = (b.units||0)>=0?`+${(b.units).toFixed(2)}`:(b.units).toFixed(2);
+      const rc = b.result==='win'?'win':b.result==='loss'?'loss':'push';
+      resultHtml = `<span class="bet-result ${rc}">${b.result.toUpperCase()} ${u}u</span>`;
+    }
+    listHtml += `
+      <div class="bet-row" id="bet-${b.id}">
+        <div class="bet-row-top">
+          <div class="bet-team">${b.team} ${b.odds?`<span style="color:#aaa;font-size:11px;font-family:'SF Mono',monospace">${b.odds}</span>`:''}</div>
+          ${resultHtml}
+        </div>
+        <div class="bet-row-meta">
+          <span class="tag ${srcClass}">${b.source}</span>
+          <span class="tag ${typeClass}">${b.betType}</span>
+          <span class="tag" style="color:#aaa;border-color:#333">${b.sport}</span>
+          ${b.result==='pending'?`<button class="grade-btn" onclick="gradeOne('${b.id}')">Grade</button>`:''}
+          <button class="delete-btn" onclick="deleteBet('${b.id}')">✕</button>
+          <span class="bet-date">${b.date}${b.time?' · '+b.time:''}</span>
+        </div>
+      </div>`;
+  }
+  document.getElementById('bet-list').innerHTML = listHtml || '<div class="no-bets">No bets logged yet — parse picks to start tracking.</div>';
+}
+
+// ══ ESPN GRADING ══
+async function fetchESPNScores(sport, date) {
+  const endpoint = ESPN_ENDPOINTS[sport];
+  if (!endpoint) return [];
+  // date format: YYYYMMDD
+  const d = date.replace(/-/g,'');
+  const url = `https://site.api.espn.com/apis/site/v2/sports/${endpoint}/scoreboard?dates=${d}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.events || [];
+  } catch { return []; }
+}
+
+function normalizeTeam(str) {
+  return str.toLowerCase()
+    .replace(/[^a-z0-9\s]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function teamMatchesEvent(team, event) {
+  const norm = normalizeTeam(team);
+  const competitors = event.competitions?.[0]?.competitors || [];
+  for (const c of competitors) {
+    const names = [
+      c.team?.displayName, c.team?.shortDisplayName,
+      c.team?.name, c.team?.nickname, c.team?.abbreviation
+    ].filter(Boolean).map(n=>normalizeTeam(n));
+    if (names.some(n => n.includes(norm) || norm.includes(n))) return {matched:true, competitor:c, competitors};
+  }
+  return {matched:false};
+}
+
+function gradeFromEvent(bet, event) {
+  const comp = event.competitions?.[0];
+  if (!comp) return null;
+  const status = comp.status?.type?.completed;
+  if (!status) return null; // not finished
+
+  const competitors = comp.competitors || [];
+  const home = competitors.find(c=>c.homeAway==='home');
+  const away = competitors.find(c=>c.homeAway==='away');
+  if (!home || !away) return null;
+
+  const homeScore = parseInt(home.score);
+  const awayScore = parseInt(away.score);
+  if (isNaN(homeScore)||isNaN(awayScore)) return null;
+
+  const norm = normalizeTeam(bet.team);
+  const {matched, competitor} = teamMatchesEvent(bet.team, event);
+
+  if (bet.betType === 'ML') {
+    if (!matched) return null;
+    const winner = competitors.find(c=>c.winner);
+    if (!winner) return homeScore===awayScore?'push':null;
+    const isWin = competitor.id===winner.id;
+    return isWin?'win':'loss';
+  }
+
+  if (bet.betType === 'Total') {
+    // Extract total from pick team string: "over 8.5" or "under 220"
+    const overMatch  = bet.team.match(/over\s+([\d.]+)/i);
+    const underMatch = bet.team.match(/under\s+([\d.]+)/i);
+    const total = homeScore + awayScore;
+    if (overMatch)  { const line=parseFloat(overMatch[1]);  return total>line?'win':total<line?'loss':'push'; }
+    if (underMatch) { const line=parseFloat(underMatch[1]); return total<line?'win':total>line?'loss':'push'; }
+    return null;
+  }
+
+  if (bet.betType === 'Spread') {
+    if (!matched) return null;
+    // Extract spread from pick: "Blue Jays -1.5" → -1.5
+    const spreadMatch = bet.team.match(/([+-]\d+(?:\.\d+)?)$/);
+    if (!spreadMatch) return null;
+    const spread = parseFloat(spreadMatch[1]);
+    const isHome = competitor.homeAway==='home';
+    const teamScore = isHome?homeScore:awayScore;
+    const oppScore  = isHome?awayScore:homeScore;
+    const covered = teamScore + spread - oppScore;
+    return covered>0?'win':covered<0?'loss':'push';
+  }
+
+  return null;
+}
+
+async function gradeOne(id) {
+  const bets = loadBets();
+  const bet = bets.find(b=>String(b.id)===String(id));
+  if (!bet||bet.result!=='pending') return;
+
+  const events = await fetchESPNScores(bet.sport, bet.date);
+  let result = null;
+  for (const ev of events) {
+    result = gradeFromEvent(bet, ev);
+    if (result) break;
+  }
+  if (result) {
+    bet.result = result;
+    bet.units  = calcUnits(bet.odds, result);
+    saveBets(bets);
+    renderLog();
+  } else {
+    // Show brief feedback on the button
+    const btn = document.querySelector(`#bet-${id} .grade-btn`);
+    if (btn) { btn.textContent='No result yet'; setTimeout(()=>{btn.textContent='Grade';},2000); }
+  }
+}
+
+async function gradeAllPending() {
+  const status = document.getElementById('grading-status');
+  status.style.display='block';
+  const bets = loadBets();
+  const pending = bets.filter(b=>b.result==='pending');
+  if (!pending.length) { status.textContent='No pending bets.'; setTimeout(()=>{status.style.display='none';},2000); return; }
+
+  // Group by sport+date to minimize API calls
+  const groups = {};
+  for (const b of pending) {
+    const key = `${b.sport}|${b.date}`;
+    if (!groups[key]) groups[key] = {sport:b.sport, date:b.date, bets:[]};
+    groups[key].bets.push(b);
+  }
+
+  let graded = 0;
+  for (const [key, group] of Object.entries(groups)) {
+    status.textContent = `Grading ${group.sport} ${group.date}...`;
+    const events = await fetchESPNScores(group.sport, group.date);
+    for (const bet of group.bets) {
+      let result = null;
+      for (const ev of events) {
+        result = gradeFromEvent(bet, ev);
+        if (result) break;
+      }
+      if (result) {
+        bet.result = result;
+        bet.units  = calcUnits(bet.odds, result);
+        graded++;
+      }
+    }
+  }
+
+  saveBets(bets);
+  status.textContent = `Graded ${graded} of ${pending.length} bets.`;
+  setTimeout(()=>{status.style.display='none';},3000);
+  renderLog();
+}
+
+function deleteBet(id) {
+  const bets = loadBets().filter(b=>String(b.id)!==String(id));
+  saveBets(bets);
+  renderLog();
+}
+
+function clearLog() {
+  if (!confirm('Clear all logged bets? This cannot be undone.')) return;
+  saveBets([]);
+  renderLog();
+}
+
+
+// ══ HISTORICAL DATA ══
+const HIST_DATA = {
+  dave: {
+    overall: { wins:875, losses:731, profit:71.37, roi:4.4, years:[
+      {year:2025, wins:499, losses:423, profit:31.51, roi:3.4},
+      {year:2026, wins:376, losses:308, profit:39.87, roi:5.8},
+    ]},
+    sports: [
+      { sport:'MLB', wins:111, losses:90, profit:17.08, roi:8.5,
+        markets:[
+          {name:'ML',    wins:60,  losses:45,  profit:14.44, roi:10.1, note:''},
+          {name:'Total', wins:45,  losses:35,  profit:5.81,  roi:7.3,  note:''},
+          {name:'Spread',wins:6,   losses:9,   profit:-2.18, roi:-14.5, note:'⚠ Negative — filtered'},
+        ]},
+      { sport:'NBA', wins:162, losses:134, profit:13.30, roi:4.5,
+        markets:[
+          {name:'Total', wins:225, losses:158, profit:21.27, roi:12.1, note:''},
+          {name:'Spread',wins:98,  losses:98,  profit:-8.88, roi:-4.5,  note:'⚠ Negative — filtered'},
+          {name:'ML',    wins:1,   losses:0,   profit:0.91,  roi:90.9,  note:'⚠ 1 bet only'},
+        ]},
+      { sport:'NCAA', wins:86, losses:70, profit:8.20, roi:5.3, markets:[]},
+      { sport:'NCAAM', wins:344, losses:270, profit:42.72, roi:7.0,
+        markets:[
+          {name:'Spread',wins:329, losses:254, profit:45.08, roi:7.7,  note:''},
+          {name:'Total', wins:15,  losses:12,  profit:1.64,  roi:6.1,  note:''},
+        ]},
+      { sport:'NFL', wins:95, losses:87, profit:-0.59, roi:-0.3,
+        markets:[
+          {name:'Total', wins:34,  losses:22,  profit:8.95,  roi:16.0, note:''},
+          {name:'Spread',wins:61,  losses:64,  profit:-8.55, roi:-6.8,  note:'⚠ Negative — filtered'},
+          {name:'ML',    wins:0,   losses:1,   profit:-1.00, roi:-100,  note:'⚠ 1 bet only'},
+        ]},
+      { sport:'WNBA', wins:59, losses:55, profit:-1.36, roi:-1.2,
+        markets:[
+          {name:'Total', wins:22,  losses:15,  profit:5.00,  roi:13.5, note:''},
+          {name:'Spread',wins:37,  losses:40,  profit:-6.36, roi:-8.3,  note:'⚠ Negative — filtered'},
+        ]},
+      { sport:'NHL',  wins:11, losses:19, profit:-8.93, roi:-29.8, note:'⚠ All markets negative — skipped entirely', markets:[]},
+    ]
+  },
+  micah: {
+    overall: { wins:908, losses:760, profit:67.84, roi:4.1, years:[
+      {year:2025, wins:543, losses:436, profit:57.92, roi:5.9},
+      {year:2026, wins:365, losses:324, profit:9.92,  roi:1.4},
+    ]},
+    sports: [
+      { sport:'MLB', wins:179, losses:189, profit:-22.80, roi:-6.2,
+        markets:[
+          {name:'Total', wins:90,  losses:66,  profit:15.98, roi:10.2, note:''},
+          {name:'ML',    wins:78,  losses:101, profit:-27.39,roi:-15.3, note:'⚠ Negative — filtered'},
+          {name:'Spread',wins:10,  losses:22,  profit:-12.30,roi:-38.4, note:'⚠ Negative — filtered'},
+        ]},
+      { sport:'NBA', wins:226, losses:175, profit:30.56, roi:7.6,
+        markets:[
+          {name:'Total', wins:87,  losses:53,  profit:26.18, roi:18.7, note:''},
+          {name:'Spread',wins:138, losses:122, profit:3.47,  roi:1.3,  note:''},
+        ]},
+      { sport:'NCAAF', wins:104, losses:75, profit:19.64, roi:11.0,
+        markets:[
+          {name:'Total', wins:33,  losses:15,  profit:15.00, roi:31.3, note:''},
+          {name:'Spread',wins:70,  losses:60,  profit:3.64,  roi:2.8,  note:''},
+        ]},
+      { sport:'NCAAM', wins:216, losses:197, profit:-0.64, roi:-0.2,
+        markets:[
+          {name:'Total', wins:49,  losses:33,  profit:11.55, roi:14.1, note:''},
+          {name:'Spread',wins:167, losses:163, profit:-11.18,roi:-3.4,  note:'⚠ Negative — filtered'},
+        ]},
+      { sport:'NFL', wins:125, losses:93, profit:20.41, roi:9.4,
+        markets:[
+          {name:'Total', wins:50,  losses:22,  profit:23.75, roi:33.0, note:''},
+          {name:'Spread',wins:72,  losses:64,  profit:1.45,  roi:1.1,  note:'⚠ Small sample'},
+        ]},
+      { sport:'NHL', wins:20, losses:3, profit:14.45, roi:62.8,
+        markets:[
+          {name:'Total', wins:13,  losses:2,   profit:9.65,  roi:64.3, note:'⚠ Small sample'},
+          {name:'ML',    wins:5,   losses:0,   profit:3.98,  roi:79.5, note:'⚠ Small sample'},
+          {name:'Spread',wins:2,   losses:1,   profit:0.83,  roi:27.5, note:'⚠ Small sample'},
+        ], note:'⚠ Only 20 total bets — all positive but use caution'},
+      { sport:'WNBA', wins:31, losses:16, profit:12.17, roi:25.9,
+        markets:[
+          {name:'Total', wins:11,  losses:3,   profit:6.98,  roi:49.9, note:''},
+          {name:'Spread',wins:20,  losses:13,  profit:5.18,  roi:15.7, note:''},
+        ]},
+    ]
+  }
+};
+
+let histSource = 'dave';
+
+function switchHist(src, el) {
+  histSource = src;
+  document.querySelectorAll('.hist-btn').forEach(b=>b.classList.remove('active-dave','active-micah'));
+  el.classList.add(`active-${src}`);
+  renderHist();
+}
+
+function renderHist() {
+  const data = HIST_DATA[histSource];
+  const color = histSource==='dave' ? 'var(--dave)' : 'var(--micah)';
+  const o = data.overall;
+  const profStr = o.profit>=0 ? `+${o.profit.toFixed(2)}` : o.profit.toFixed(2);
+  const profClass = o.profit>=0 ? 'pos' : 'neg';
+  const roiStr = o.roi>=0 ? `+${o.roi}%` : `${o.roi}%`;
+
+  let html = `
+    <div class="hist-summary">
+      <div class="hist-row">
+        <span class="hist-lbl">Overall Record</span>
+        <span class="hist-val">${o.wins}-${o.losses}</span>
+      </div>
+      <div class="hist-row">
+        <span class="hist-lbl">Total Profit</span>
+        <span class="hist-val ${profClass}">${profStr}u</span>
+      </div>
+      <div class="hist-row">
+        <span class="hist-lbl">Win Rate</span>
+        <span class="hist-val">${((o.wins/(o.wins+o.losses))*100).toFixed(1)}%</span>
+      </div>
+      <div class="hist-row">
+        <span class="hist-lbl">ROI</span>
+        <span class="hist-val ${profClass}">${roiStr}</span>
+      </div>
+    </div>
+    <div class="hist-year-strip">`;
+
+  for (const y of o.years) {
+    const yp = y.profit>=0?`+${y.profit.toFixed(2)}`:y.profit.toFixed(2);
+    const yc = y.profit>=0?'pos':'neg';
+    html += `
+      <div class="hist-year-box">
+        <div class="hist-year-val ${yc}">${yp}u</div>
+        <div class="hist-cell-lbl">${y.year} · ${y.wins}-${y.losses} · ${y.roi>=0?'+':''}${y.roi}% ROI</div>
+      </div>`;
+  }
+  html += `</div>`;
+
+  // Per-sport cards (only tracked sports)
+  const tracked = data.sports.filter(s => {
+    const rules = RULES[histSource];
+    return rules[s.sport] || s.note;
+  });
+
+  for (const s of tracked) {
+    const sp = s.profit>=0?`+${s.profit.toFixed(2)}`:`${s.profit.toFixed(2)}`;
+    const sc = s.profit>=0?'pos':'neg';
+    const sr = s.roi>=0?`+${s.roi}%`:`${s.roi}%`;
+    const wr = ((s.wins/(s.wins+s.losses))*100).toFixed(1);
+
+    html += `<div class="hist-sport-card">
+      <div class="hist-sport-name" style="color:${color}">${s.sport}</div>
+      <div class="hist-grid">
+        <div class="hist-cell"><div class="hist-cell-val ${sc}">${sp}u</div><div class="hist-cell-lbl">Units</div></div>
+        <div class="hist-cell"><div class="hist-cell-val">${wr}%</div><div class="hist-cell-lbl">Win%</div></div>
+        <div class="hist-cell"><div class="hist-cell-val ${sc}">${sr}</div><div class="hist-cell-lbl">ROI</div></div>
+      </div>`;
+
+    if (s.markets && s.markets.length) {
+      html += `<div class="hist-markets">`;
+      for (const m of s.markets) {
+        const mp = m.profit>=0?`+${m.profit.toFixed(2)}`:m.profit.toFixed(2);
+        const mc = m.profit>=0?'pos':'neg';
+        const mw = ((m.wins/(m.wins+m.losses))*100).toFixed(0);
+        html += `<div class="hist-mkt-row">
+          <span>${m.name} (${m.wins}-${m.losses} · ${mw}%)</span>
+          <span class="hist-mkt-val ${mc}">${mp}u ${m.roi>=0?'+':''}${m.roi}% ROI</span>
+        </div>`;
+        if (m.note) html += `<div class="hist-warn">${m.note}</div>`;
+      }
+      html += `</div>`;
+    }
+    if (s.note) html += `<div class="hist-warn">${s.note}</div>`;
+    html += `</div>`;
+  }
+
+  document.getElementById('hist-content').innerHTML = html;
+}
+
+function switchLogSub(sub, el) {
+  document.querySelectorAll('.log-subtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.log-subpanel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`logsub-${sub}`).classList.add('active');
+  if (sub==='hist') renderHist();
+  if (sub==='live') renderLog();
+}
+
+function setLogFilter(f, el) {
+  logFilter = f;
+  document.querySelectorAll('.src-btn').forEach(b=>b.classList.remove('active-all','active-dave','active-micah'));
+  el.classList.add(`active-${f}`);
+  renderLog();
+}
+
+// ══ UTILS ══
+function copyOutput(src) {
+  const text = document.getElementById(`${src}-output`).textContent;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.getElementById(`${src}-copy`);
+    btn.textContent='✓ Copied'; btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='Copy All';btn.classList.remove('copied');},2000);
+  });
+}
+function clearSource(src) {
+  document.getElementById(`${src}-input`).value='';
+  document.getElementById(`${src}-results`).style.display='none';
+  document.getElementById(`${src}-empty`).style.display='none';
+  state[src].qualified=[]; state[src].skipped=[];
+}
+function toggleSkipped(src) {
+  document.getElementById(`${src}-skipped`).classList.toggle('open');
+}
+function switchTab(src, el) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById(`panel-${src}`).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active-dave','active-micah','active-log'));
+  el.classList.add(`active-${src}`);
+  if (src==='log') renderLog();
+}
+</script>
+</body>
+</html>
