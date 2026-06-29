@@ -697,6 +697,30 @@ function setCardProjSource(cardKey, source) {
   window._cardProjSource[cardKey] = source;
   renderTotals();
 }
+// Flip every game card that supports it to the Combined (50/50) model at once.
+// Only sets cards that actually have BOTH a player-based total and a Pace×Eff
+// total available (otherwise "both" isn't valid for that card).
+function setAllCardsCombined() {
+  window._cardProjSource = window._cardProjSource || {};
+  const games = (typeof betstampGames !== "undefined" && Array.isArray(betstampGames)) ? betstampGames : [];
+  let n = 0;
+  games.forEach(g => {
+    const cardKey = `${g.awayAbbr}_${g.homeAbbr}`;
+    // Determine if this card can do Combined: needs a player total (RW or Dimers
+    // for the date) AND a Pace×Eff total.
+    const day = g.gameDate ? String(g.gameDate).slice(0,10) : (typeof _gameDayISO==="function" ? _gameDayISO(g) : null);
+    const dmA = (typeof getTotalsDimersTeamSum==="function") ? getTotalsDimersTeamSum(g.awayAbbr, day) : null;
+    const dmH = (typeof getTotalsDimersTeamSum==="function") ? getTotalsDimersTeamSum(g.homeAbbr, day) : null;
+    const rwA = (typeof getTotalsPageRwTeamSum==="function") ? getTotalsPageRwTeamSum(g.awayAbbr) : null;
+    const rwH = (typeof getTotalsPageRwTeamSum==="function") ? getTotalsPageRwTeamSum(g.homeAbbr) : null;
+    const hasPlayers = (dmA && dmH) || (rwA && rwH);
+    const pe = (typeof independentTotal==="function") ? independentTotal(g.awayAbbr, g.homeAbbr) : null;
+    const hasPxE = pe && pe.total != null;
+    if (hasPlayers && hasPxE) { window._cardProjSource[cardKey] = "both"; n++; }
+  });
+  renderTotals();
+  showToast(n ? `Set ${n} card${n===1?"":"s"} to Combined (50/50)` : "No cards have both models available");
+}
 // Per-game Pace × Eff season picker: 'auto' (default, Bayesian blend) | '2025' | '2026' | 'blend'
 function setCardSeason(cardKey, season) {
   window._cardSeason = window._cardSeason || {};
@@ -11145,6 +11169,17 @@ function renderTracker() {
   let filtered = openOnly ? scopedBets.filter(b => b.result === "pending") : scopedBets;
   if (search) filtered = filtered.filter(b => b.player.toLowerCase().includes(search) || b.stat.toLowerCase().includes(search) || (b.book||"").toLowerCase().includes(search));
 
+  // Most-recent-first. IDs are `Date.now()...` so the leading numeric portion
+  // sorts chronologically; fall back to gameDate/date when needed.
+  const _recencyKey = (b) => {
+    const idNum = parseInt(String(b.id || "").split("_")[0]);
+    if (!isNaN(idNum)) return idNum;
+    const d = b.gameDate || b.date || "";
+    const t = Date.parse(d);
+    return isNaN(t) ? 0 : t;
+  };
+  filtered = filtered.slice().sort((a, b) => _recencyKey(b) - _recencyKey(a));
+
   const betCards = filtered.map(b => {
     const plVal = b.result==="hit" ? `+${b.toWin.toFixed(2)}u` : b.result==="miss" ? `-${b.stake.toFixed(2)}u` : b.result==="void" ? "VOID" : "—";
     const plColor = b.result==="hit"?"#22c55e":b.result==="miss"?"#f87171":b.result==="void"?"#f59e0b":"#d4dae3";
@@ -14130,6 +14165,104 @@ function totalsClearRw() {
   showToast("Totals RW cleared");
 }
 
+// ── DIMERS totals source (date-keyed) ─────────────────────────────────────────
+// Dimers projections can be uploaded per-DATE on the Totals page, weeks ahead.
+// Stored as { "YYYY-MM-DD": { players, label, uploadedAt } } so multiple future
+// slates can be held at once. When a game's date has a Dimers file loaded, the
+// totals model prefers Dimers over RotoWire for that game.
+const TOTALS_DIMERS_STORAGE_KEY = "wnba_totals_page_dimers_v1";
+window._totalsDimersByDate = window._totalsDimersByDate || {};
+
+function _restoreTotalsDimers() {
+  try {
+    const raw = localStorage.getItem(TOTALS_DIMERS_STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data && typeof data === "object") window._totalsDimersByDate = data;
+  } catch(e) {}
+}
+_restoreTotalsDimers();
+
+function _saveTotalsDimers() {
+  try { localStorage.setItem(TOTALS_DIMERS_STORAGE_KEY, JSON.stringify(window._totalsDimersByDate || {})); } catch(e) {}
+}
+
+// Team total from the Dimers slot for a specific game date (YYYY-MM-DD).
+// Returns null if no Dimers file is loaded for that date or the team isn't in it.
+function getTotalsDimersTeamSum(teamAbbr, gameDate) {
+  if (!gameDate) return null;
+  const day = String(gameDate).slice(0, 10);
+  const slot = (window._totalsDimersByDate || {})[day];
+  if (!slot || !Array.isArray(slot.players) || !slot.players.length) return null;
+  const target = normTeamAbbr(teamAbbr);
+  let sum = 0, count = 0;
+  slot.players.forEach(p => {
+    if (!p) return;
+    if (normTeamAbbr(p.team) === target && p.pts != null) { sum += Number(p.pts) || 0; count++; }
+  });
+  return count > 0 ? { sum, count, source: "dimers", day } : null;
+}
+
+// Upload a Dimers CSV for a chosen date. The date comes from the date input
+// next to the upload button (window._totalsDimersUploadDate), defaulting today.
+function totalsHandleDimersUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const day = window._totalsDimersUploadDate || (new Date()).toISOString().slice(0,10);
+  const existing = (window._totalsDimersByDate || {})[day];
+  if (existing && existing.players && existing.players.length > 0) {
+    const ok = confirm(`Dimers already loaded for ${day} (${existing.players.length} players).\n\nReplace with the new file?`);
+    if (!ok) { input.value = ""; return; }
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const players = parseSource(e.target.result);
+    window._totalsDimersByDate = window._totalsDimersByDate || {};
+    window._totalsDimersByDate[day] = { label: file.name, players, uploadedAt: Date.now() };
+    _saveTotalsDimers();
+    renderTotals();
+    showToast(`Dimers loaded for ${day} · ${players.length} players (saved)`);
+  };
+  reader.readAsText(file);
+  input.value = "";
+}
+
+// Set the date a subsequent Dimers upload will be filed under.
+function totalsSetDimersDate(val) { window._totalsDimersUploadDate = val || null; }
+
+// Resolve a game's date to YYYY-MM-DD: prefer explicit gameDate, else infer from
+// a "Mon 8:00 PM" style time prefix (next matching weekday).
+function _gameDayISO(g) {
+  if (!g) return null;
+  if (g.gameDate) return String(g.gameDate).slice(0,10);
+  if (typeof g.time === "string") {
+    const m = g.time.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+    if (m) {
+      const target = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(m[1]);
+      const today = new Date(); today.setHours(0,0,0,0);
+      for (let off=0; off<7; off++) {
+        const probe = new Date(today.getTime()+off*86400000);
+        if (probe.getDay()===target) {
+          const y=probe.getFullYear(), mo=String(probe.getMonth()+1).padStart(2,"0"), d=String(probe.getDate()).padStart(2,"0");
+          return `${y}-${mo}-${d}`;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Clear the Dimers file for one date.
+function totalsClearDimers(day) {
+  if (!day || !(window._totalsDimersByDate || {})[day]) return;
+  const n = window._totalsDimersByDate[day].players?.length || 0;
+  if (!confirm(`Clear Dimers for ${day} (${n} players)?`)) return;
+  delete window._totalsDimersByDate[day];
+  _saveTotalsDimers();
+  renderTotals();
+  showToast(`Dimers cleared for ${day}`);
+}
+
 function copyAllTotalsProjections() {
   const games = betstampGames || [];
   if (!games.length) { showToast("No games loaded"); return; }
@@ -14355,6 +14488,159 @@ function _executeCopySpreadsByDate(dateFilter, modelOverride) {
     () => showToast(`Copied ${totalCount} spread${totalCount === 1 ? "" : "s"} across ${byDate.size} date${byDate.size === 1 ? "" : "s"}`),
     () => showToast("Copy blocked — text in console")
   );
+}
+
+// ── COPY + TRACK everything within edge thresholds (Combined model) ──────────
+// Iterates all loaded games using the Combined (50/50) projection, finds totals
+// within the 2pt edge (and spreads within 1.5pt), copies a summary to clipboard,
+// AND tracks each one silently (no per-bet confirm). De-dupes against bets
+// already tracked for the same game/date/side.
+function _silentTrackTotal(rec) {
+  const dateStr = rec.gameDate;
+  const sig = `${dateStr}|${rec.awayAbbr}/${rec.homeAbbr}|${rec.side}|${rec.line}`;
+  if (!window._bulkTrackedSig) window._bulkTrackedSig = new Set();
+  // Skip if already tracked this exact play (in this run or in saved bets).
+  const already = (bets || []).some(b => b.stat==="GAME_TOTAL" && b.gameDate===dateStr && b.team===`${rec.awayAbbr}/${rec.homeAbbr}` && (b.ou||"")===rec.side && Number(b.line)===Number(rec.line));
+  if (already || window._bulkTrackedSig.has(sig)) return false;
+  window._bulkTrackedSig.add(sig);
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}) + " " + dateStr;
+  bets.push({
+    id: Date.now().toString() + "_total_" + Math.random().toString(36).slice(2,8),
+    player: `${rec.awayAbbr} @ ${rec.homeAbbr}`,
+    team: `${rec.awayAbbr}/${rec.homeAbbr}`,
+    stat: "GAME_TOTAL",
+    line: rec.line,
+    odds: -110, stake: 1.10, toWin: 1.00,
+    book: "DK",
+    ou: rec.side,
+    result: "pending",
+    gameDate: dateStr,
+    date: (() => { const m=dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${parseInt(m[2])}/${parseInt(m[3])}/${m[1]}`:null; })(),
+    projTotal: rec.projTotal,
+    projSource: "both",
+    edge: rec.edge,
+    notes: "",
+    timestamp: timeStr,
+  });
+  return true;
+}
+function _silentTrackSpread(rec) {
+  const dateStr = rec.gameDate;
+  const sig = `${dateStr}|${rec.awayAbbr}/${rec.homeAbbr}|spread|${rec.pickTeam}|${rec.line}`;
+  if (!window._bulkTrackedSig) window._bulkTrackedSig = new Set();
+  const already = (bets || []).some(b => b.stat==="GAME_SPREAD" && b.gameDate===dateStr && b.team===`${rec.awayAbbr}/${rec.homeAbbr}` && b.pickTeam===rec.pickTeam && Number(b.line)===Number(rec.line));
+  if (already || window._bulkTrackedSig.has(sig)) return false;
+  window._bulkTrackedSig.add(sig);
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}) + " " + dateStr;
+  bets.push({
+    id: Date.now().toString() + "_spread_" + Math.random().toString(36).slice(2,8),
+    player: `${rec.awayAbbr} @ ${rec.homeAbbr}`,
+    team: `${rec.awayAbbr}/${rec.homeAbbr}`,
+    stat: "GAME_SPREAD",
+    pickTeam: rec.pickTeam,
+    line: rec.line,
+    odds: -110, stake: 1.10, toWin: 1.00,
+    book: "DK",
+    ou: "spread",
+    result: "pending",
+    gameDate: dateStr,
+    date: (() => { const m=dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${parseInt(m[2])}/${parseInt(m[3])}/${m[1]}`:null; })(),
+    projTotal: rec.projSpread,
+    projSource: "both",
+    edge: rec.edge,
+    notes: "",
+    timestamp: timeStr,
+  });
+  return true;
+}
+
+// Resolve combined per-team projections for a game (Pace×Eff + Players)/2.
+function _combinedTeamProj(g) {
+  const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
+  const peA = indep?.ptsA, peB = indep?.ptsB;
+  let plA = null, plB = null;
+  const day = g.gameDate ? String(g.gameDate).slice(0,10) : (typeof _gameDayISO==="function"?_gameDayISO(g):null);
+  const dmA = (typeof getTotalsDimersTeamSum==="function") ? getTotalsDimersTeamSum(g.awayAbbr, day) : null;
+  const dmB = (typeof getTotalsDimersTeamSum==="function") ? getTotalsDimersTeamSum(g.homeAbbr, day) : null;
+  if (dmA && dmB) { plA = dmA.sum; plB = dmB.sum; }
+  else {
+    const rwA = (typeof getTotalsPageRwTeamSum==="function") ? getTotalsPageRwTeamSum(g.awayAbbr) : null;
+    const rwB = (typeof getTotalsPageRwTeamSum==="function") ? getTotalsPageRwTeamSum(g.homeAbbr) : null;
+    if (rwA && rwB) { plA = rwA.sum; plB = rwB.sum; }
+  }
+  if (peA!=null && peB!=null && plA!=null && plB!=null) return { a:(peA+plA)/2, b:(peB+plB)/2, day };
+  if (peA!=null && peB!=null) return { a:peA, b:peB, day };
+  if (plA!=null && plB!=null) return { a:plA, b:plB, day };
+  return null;
+}
+
+function copyTrackTotalsInRange() {
+  const games = betstampGames || [];
+  if (!games.length) { showToast("No games loaded"); return; }
+  window._bulkTrackedSig = new Set();
+  const lines = []; let tracked = 0;
+  games.forEach(g => {
+    const proj = _combinedTeamProj(g);
+    if (!proj) return;
+    const projTotal = proj.a + proj.b;
+    // Market total = most common book line (same as Copy Totals).
+    let marketTotal = null;
+    if (Array.isArray(g.books) && g.books.length) {
+      const ls = g.books.map(b => b.line).filter(l => l != null);
+      if (ls.length) { const f={}; ls.forEach(l=>f[l]=(f[l]||0)+1); marketTotal = parseFloat(Object.keys(f).sort((a,b)=>f[b]-f[a])[0]); }
+    }
+    if (marketTotal == null) return;
+    const edge = projTotal - marketTotal;
+    const absEdge = Math.abs(edge);
+    if (absEdge < 2) return; // 2pt totals threshold
+    const side = edge > 0 ? "over" : "under";
+    const day = proj.day || (g.gameDate ? String(g.gameDate).slice(0,10) : null) || "";
+    const md = day ? (() => { const m=day.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${parseInt(m[2])}/${parseInt(m[3])}`:""; })() : "";
+    lines.push({ sortKey:absEdge, text:`${md} ${g.awayAbbr} @ ${g.homeAbbr}  Bet ${side.toUpperCase()} ${marketTotal} (proj ${projTotal.toFixed(1)}, edge ${absEdge.toFixed(1)})` });
+    if (_silentTrackTotal({ awayAbbr:g.awayAbbr, homeAbbr:g.homeAbbr, side, line:marketTotal, projTotal, edge:absEdge, gameDate:day })) tracked++;
+  });
+  if (!lines.length) { showToast("No totals within 2pt edge (Combined)"); return; }
+  if (tracked) { saveBets(); if (typeof renderTotals==="function") renderTotals(); }
+  lines.sort((a,b)=>b.sortKey-a.sortKey);
+  const text = "WNBA Totals (Combined, edge ≥ 2)\n" + lines.map(l=>l.text).join("\n");
+  copyTextToClipboard(text,
+    () => showToast(`Copied + tracked ${tracked} total${tracked===1?"":"s"} (${lines.length} in range)`),
+    () => showToast("Copy blocked — text in console"));
+}
+
+function copyTrackSpreadsInRange() {
+  const games = betstampGames || [];
+  if (!games.length) { showToast("No games loaded"); return; }
+  window._bulkTrackedSig = new Set();
+  const lines = []; let tracked = 0;
+  games.forEach(g => {
+    const proj = _combinedTeamProj(g);
+    if (!proj) return;
+    const projHomeMargin = proj.b - proj.a; // + = home favored
+    const marketSpread = (typeof g.spread === "number") ? g.spread : null;
+    if (marketSpread == null) return;
+    const marketHomeMargin = -marketSpread;
+    const edge = projHomeMargin - marketHomeMargin;
+    const absEdge = Math.abs(edge);
+    if (absEdge < 1.5) return; // 1.5pt spreads threshold
+    const pickAbbr = edge > 0 ? g.homeAbbr : g.awayAbbr;
+    const pickMarketSpread = pickAbbr === g.homeAbbr ? marketSpread : -marketSpread;
+    const pickProjSpread = pickAbbr === g.homeAbbr ? -projHomeMargin : projHomeMargin;
+    const day = proj.day || (g.gameDate ? String(g.gameDate).slice(0,10) : null) || "";
+    const md = day ? (() => { const m=day.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${parseInt(m[2])}/${parseInt(m[3])}`:""; })() : "";
+    const fmt = n => `${n>=0?"+":""}${n.toFixed(1)}`;
+    lines.push({ sortKey:absEdge, text:`${md} ${g.awayAbbr} @ ${g.homeAbbr}  Bet ${pickAbbr} ${fmt(pickMarketSpread)} (proj ${pickAbbr} ${fmt(pickProjSpread)}, edge ${absEdge.toFixed(1)})` });
+    if (_silentTrackSpread({ awayAbbr:g.awayAbbr, homeAbbr:g.homeAbbr, pickTeam:pickAbbr, line:pickMarketSpread, projSpread:pickProjSpread, edge:absEdge, gameDate:day })) tracked++;
+  });
+  if (!lines.length) { showToast("No spreads within 1.5pt edge (Combined)"); return; }
+  if (tracked) { saveBets(); if (typeof renderTotals==="function") renderTotals(); }
+  lines.sort((a,b)=>b.sortKey-a.sortKey);
+  const text = "WNBA Spreads (Combined, edge ≥ 1.5)\n" + lines.map(l=>l.text).join("\n");
+  copyTextToClipboard(text,
+    () => showToast(`Copied + tracked ${tracked} spread${tracked===1?"":"s"} (${lines.length} in range)`),
+    () => showToast("Copy blocked — text in console"));
 }
 
 // Render the date-picker overlay used by Copy By Date
@@ -14658,9 +14944,18 @@ function renderTotals() {
     // Uses getTotalsPageRwTeamSum so a Totals-page-specific RW file wins over slots[2].
     let blendedTotal = null;
     const perSourceGameTotal = {};
+    // Prefer Dimers for this game's DATE if a Dimers file is loaded for it
+    // (lets you build totals weeks ahead before RW is available). Otherwise RW.
+    const _gDay = g.gameDate ? String(g.gameDate).slice(0,10) : _gameDayISO(g);
+    const dmAway = getTotalsDimersTeamSum(g.awayAbbr, _gDay);
+    const dmHome = getTotalsDimersTeamSum(g.homeAbbr, _gDay);
     const rwAway = getTotalsPageRwTeamSum(g.awayAbbr);
     const rwHome = getTotalsPageRwTeamSum(g.homeAbbr);
-    if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
+    if (dmAway && dmHome && (dmAway.count + dmHome.count) > 0) {
+      const sum = dmAway.sum + dmHome.sum;
+      perSourceGameTotal["dimers"] = sum;
+      blendedTotal = sum;
+    } else if (rwAway && rwHome && (rwAway.count + rwHome.count) > 0) {
       const sum = rwAway.sum + rwHome.sum;
       perSourceGameTotal["rotowire"] = sum;
       blendedTotal = sum;
@@ -14867,8 +15162,9 @@ function renderTotals() {
     })();
 
     // Calculate models for all three projections (so we can render them)
+    const _playerSrcLabel = (perSourceGameTotal["dimers"] != null) ? "Dimers" : "RotoWire";
     const modelData = [
-      { key: "blended",  label: "RotoWire",    total: blendedTotal,  probs: probsFor(blendedTotal),  meta: "" },
+      { key: "blended",  label: _playerSrcLabel, total: blendedTotal,  probs: probsFor(blendedTotal),  meta: "" },
       { key: "paceeff",  label: "Pace × Eff",  total: paceEffTotal,   probs: probsFor(paceEffTotal),  meta: sourceYearBadge ? "" : "" },
       { key: "both",     label: "Combined",    total: bothTotal,      probs: probsFor(bothTotal),     meta: "" }
     ];
@@ -15211,11 +15507,32 @@ function renderTotals() {
           ${window._totalsPageRwSlot ? `<span style="background:#22c55e;color:#050507;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;">${window._totalsPageRwSlot.players.length}</span>` : (slots[2] ? `<span style="background:rgba(125,211,252,0.18);color:#7dd3fc;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;" title="Using Upload tab RW as fallback">via Upload (${slots[2].players.length})</span>` : '')}
         </label>
         ${window._totalsPageRwSlot ? `<button onclick="totalsClearRw()" title="Clear Totals-page RW (Upload-tab RW stays loaded)" style="background:transparent;border:1px solid #1a1d22;color:#a8b0bb;border-radius:6px;width:32px;height:32px;font-size:14px;cursor:pointer;font-family:'Inter',sans-serif;line-height:1;">×</button>` : ''}
+        <!-- Dimers totals upload — date-keyed. Pick a date, upload that day's
+             Dimers CSV. Totals model prefers Dimers over RW for any game whose
+             date has a Dimers file loaded (lets you build slates weeks ahead). -->
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#eab3081a;border:1px solid #eab30855;border-radius:6px;padding:5px 8px;">
+          <input type="date" onchange="totalsSetDimersDate(this.value)" value="${window._totalsDimersUploadDate || (new Date()).toISOString().slice(0,10)}" style="background:#070809;border:1px solid #eab30855;color:#fff;border-radius:5px;font-size:11px;font-weight:700;padding:5px 7px;font-family:'Inter',sans-serif;" title="Date this Dimers file is for"/>
+          <label style="color:#eab308;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:0.3px;display:inline-flex;align-items:center;gap:5px;" title="Dimers totals source for the chosen date">
+            ⬆ DIMERS
+            <input type="file" accept=".csv" style="display:none;" onchange="totalsHandleDimersUpload(this)"/>
+          </label>
+        </span>
+        <button onclick="setAllCardsCombined()" title="Set every eligible game card to the Combined (50/50) model at once" style="background:#7dd3fc1a;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">⚡ ALL COMBINED</button>
+        <button onclick="copyTrackTotalsInRange()" title="Copy AND track every total within the 2pt edge using the Combined (50/50) model" style="background:#22c55e1a;border:1px solid #22c55e;color:#4ade80;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">✓ TRACK TOTALS IN RANGE</button>
+        <button onclick="copyTrackSpreadsInRange()" title="Copy AND track every spread within the 1.5pt edge using the Combined (50/50) model" style="background:#22c55e1a;border:1px solid #22c55e;color:#4ade80;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">✓ TRACK SPREADS IN RANGE</button>
         <button onclick="copyAllTotalsProjections()" title="Copy a brief summary of every game's projection (with or without a line) — uses each card's active model" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY PROJECTIONS</button>
         <button onclick="copyTotalsByDate()" title="Copy totals by date with model picker — defaults to PxE+Players Combined when loaded" style="background:#0c0d10;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY TOTALS</button>
         <button onclick="copySpreadsByDate()" title="Copy projected spreads by date — same model picker as totals. Spread = home pts − away pts." style="background:#0c0d10;border:1px solid #f59e0b;color:#fbbf24;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY SPREADS</button>
       </div>
     </div>
+
+    ${(() => {
+      const byDate = window._totalsDimersByDate || {};
+      const days = Object.keys(byDate).filter(d => byDate[d] && byDate[d].players && byDate[d].players.length).sort();
+      if (!days.length) return "";
+      const chips = days.map(d => `<span style="display:inline-flex;align-items:center;gap:6px;background:#eab3081a;border:1px solid #eab30855;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;color:#eab308;">${d} · ${byDate[d].players.length}p<span onclick="totalsClearDimers('${d}')" title="Clear Dimers for ${d}" style="cursor:pointer;color:#a8b0bb;font-weight:800;">×</span></span>`).join("");
+      return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;"><span style="font-size:11px;font-weight:800;color:#eab308;letter-spacing:0.5px;">DIMERS LOADED:</span>${chips}<span style="font-size:10px;color:#d4dae3;">(used over RW for these dates)</span></div>`;
+    })()}
 
     ${noProjections && Object.keys(teamStats2025).length === 0 && Object.keys(teamStats2026).length === 0
       ? `<div style="padding:18px;background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;color:#f87171;font-size:13px;margin-bottom:16px;">Load player projections (Upload tab) OR paste team advanced stats below to enable totals analysis.</div>`
@@ -16405,12 +16722,12 @@ function renderScheduleExpandContent(summary) {
   const STAT_FROM_BET = { PTS: "pts", REB: "reb", AST: "ast", PRA: "pra", "3PM": "threepm" };
   const betActual = (b, line) => {
     // line = {pts, reb, ast, tpm}. Returns the current value for the bet's stat, or null.
-    const s = (b.stat || "").toUpperCase();
+    const s = (b.stat || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (s === "PTS") return line.pts;
     if (s === "REB") return line.reb;
     if (s === "AST") return line.ast;
     if (s === "PRA") return line.pts + line.reb + line.ast;
-    if (s === "3PM") return line.tpm;
+    if (s === "3PM" || s === "THREEPM" || s === "3P") return line.tpm;
     return null;
   };
   // LIVE / FINAL: render top performers from each team's box score
@@ -16425,8 +16742,14 @@ function renderScheduleExpandContent(summary) {
         pts: labels.findIndex(l => l === "pts"),
         reb: labels.findIndex(l => l === "reb"),
         ast: labels.findIndex(l => l === "ast"),
-        // 3-pointers come as a "3pt" column formatted "makes-attempts" (e.g. "4-9").
-        threept: labels.findIndex(l => l === "3pt" || l === "3p" || l === "fg3"),
+        // 3-pointers: ESPN labels this "3PT" (sometimes "3P"/"FG3"/"3PM"), formatted
+        // "makes-attempts" (e.g. "4-9"). Match exact known labels, then fall back
+        // to any label that starts with "3p" or contains "three".
+        threept: (() => {
+          let i = labels.findIndex(l => l === "3pt" || l === "3p" || l === "fg3" || l === "3pm");
+          if (i < 0) i = labels.findIndex(l => l.startsWith("3p") || l.includes("three"));
+          return i;
+        })(),
       };
       const athletes = stats.athletes || [];
       const players = athletes
@@ -16457,7 +16780,8 @@ function renderScheduleExpandContent(summary) {
         // Build bet pills: each shows "ou line STAT" + a hit/miss/▲ indicator.
         const betPills = myBets.map(b => {
           const actual = betActual(b, { pts: p.pts, reb: p.reb, ast: p.ast, tpm: p.tpm });
-          const statLbl = (b.stat || "").toUpperCase();
+          const _statRaw = (b.stat || "").toUpperCase();
+          const statLbl = (_statRaw === "THREEPM" || _statRaw === "3P") ? "3PM" : _statRaw;
           const ouLbl = (b.ou || "").toLowerCase() === "under" ? "u" : "o";
           let dotColor = "#7dd3fc", mark = "";
           if (actual != null) {
@@ -16467,10 +16791,10 @@ function renderScheduleExpandContent(summary) {
           }
           return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${dotColor};background:${dotColor}1a;border:1px solid ${dotColor}55;border-radius:3px;padding:1px 5px;letter-spacing:0.2px;">${ouLbl}${b.line} ${statLbl}${mark}</span>`;
         }).join("");
-        const nameColor = hasBet ? "#fde047" : "#fff";
+        const nameColor = hasBet ? "#a3e635" : "#fff";
         return `
-        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;${hasBet ? "background:rgba(253,224,71,0.05);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:4px;" : ""}">
-          <span style="flex:1;color:${nameColor};font-weight:700;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${p.starter ? '<span style="color:#7dd3fc;font-size:9px;">★</span>' : ""}${escapeHtmlBasic(p.name)}${betPills}</span>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;">
+          <span style="flex:1;color:${nameColor};font-weight:${hasBet ? 800 : 700};display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${escapeHtmlBasic(p.name)}${betPills}</span>
           <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:26px;text-align:right;">${escapeHtmlBasic(p.min)}'</span>
           <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;min-width:22px;text-align:right;">${p.pts}</span>
           <span style="font-family:'JetBrains Mono',monospace;color:#fff;font-weight:800;font-size:11px;min-width:18px;text-align:right;">${p.reb}r</span>
