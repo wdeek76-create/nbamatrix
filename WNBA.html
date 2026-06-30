@@ -4753,7 +4753,7 @@ function setBetResult(id, result) {
 
 function deleteBet(id) {
   if (!confirm("Delete this bet?")) return;
-  bets = bets.filter(b => b.id !== id);
+  bets = bets.filter(b => String(b.id) !== String(id));
   saveBets();
   renderTracker();
   if (currentTab === "totals") renderTotals();
@@ -4763,7 +4763,7 @@ function deleteBet(id) {
 // Opens a lightweight overlay with the key editable fields. Recomputes stake
 // from the (possibly new) odds using the same unit logic as saveBet.
 function editBet(id) {
-  const b = bets.find(x => x.id === id);
+  const b = bets.find(x => String(x.id) === String(id));
   if (!b) return;
   const isTotal = (b.stat || "").toUpperCase() === "GAME_TOTAL";
   const ov = document.createElement("div");
@@ -4920,6 +4920,18 @@ function formatBetCopyLine(b) {
     line = `${dateStr}${matchup}  ${ouLower} ${bestLine}${projStr}`;
     // Brief format has no book/odds — return early; alt rows aren't appended.
     return line;
+  } else if ((b.stat || "").toUpperCase() === "GAME_SPREAD") {
+    // Spread: "6/24 LAS @ CHI  CHI -3.5  (proj CHI -5.2)  -110 DK"
+    const dateStr = (() => {
+      const iso = b.gameDate || b.date || (b.timestamp || "").split(" ")[0] || "";
+      const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return "";
+      return `${parseInt(m[2])}/${parseInt(m[3])} `;
+    })();
+    const matchup = b.team && b.team.includes("/") ? b.team.split("/").join(" @ ") : (b.team || b.player);
+    const lineStr = b.line >= 0 ? `+${b.line}` : `${b.line}`;
+    const projStr = b.projTotal != null ? `  (proj ${b.pickTeam || ""} ${b.projTotal >= 0 ? "+" : ""}${b.projTotal.toFixed(1)})` : "";
+    return `${dateStr}${matchup}  ${b.pickTeam || ""} ${lineStr}${projStr}  ${oddsStr} ${b.book || ""}`.replace(/\s+/g, " ").trim();
   } else {
     const teamStr = b.team ? ` (${b.team})` : "";
     const statName = STAT_FULL_NAME[b.stat] || b.stat;
@@ -4980,7 +4992,7 @@ function copyTextToClipboard(text, onOk, onErr) {
 }
 
 function copySingleBet(id) {
-  const b = bets.find(x => x.id === id);
+  const b = bets.find(x => String(x.id) === String(id));
   if (!b) return;
   const line = formatBetCopyLine(b);
   copyTextToClipboard(line,
@@ -11306,7 +11318,7 @@ function renderTracker() {
       <!-- Top row: checkbox + player + bet headline + actions -->
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
         <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;flex:1;">
-          <input type="checkbox" data-bet-id="${b.id}" onchange="toggleBetSelected(${b.id})" ${selectedBetIds.has(b.id) ? "checked" : ""} title="Select for bulk copy" style="margin-top:3px;width:14px;height:14px;cursor:pointer;accent-color:#1e40af;flex-shrink:0;"/>
+          <input type="checkbox" data-bet-id="${b.id}" onchange="toggleBetSelected('${b.id}')" ${selectedBetIds.has(b.id) ? "checked" : ""} title="Select for bulk copy" style="margin-top:3px;width:14px;height:14px;cursor:pointer;accent-color:#1e40af;flex-shrink:0;"/>
           <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;">
             <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.2;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               ${(() => {
@@ -11321,7 +11333,7 @@ function renderTracker() {
                 }
                 return teamLogoImg(b.team, 16);
               })()}
-              <span onclick="editBet(${b.id})" style="cursor:pointer;border-bottom:1px dashed #1e40af77;" title="Click to edit">${b.player}</span> <span style="color:#7dd3fc;font-weight:600;">${b.stat === "GAME_SPREAD" ? `spread ${statLbl}` : `${b.ou} ${b.line} ${statLbl}`}</span>${(() => {
+              <span onclick="editBet('${b.id}')" style="cursor:pointer;border-bottom:1px dashed #1e40af77;" title="Click to edit">${b.player}</span> <span style="color:#7dd3fc;font-weight:600;">${b.stat === "GAME_SPREAD" ? `spread ${statLbl}` : `${b.ou} ${b.line} ${statLbl}`}</span>${(() => {
                 const ctx = b.injuryContext;
                 let badge = "";
                 if (ctx) {
@@ -11380,8 +11392,8 @@ function renderTracker() {
             const cancelBtn = `<button onclick="toggleExposeGrade(${b.id})" style="background:transparent;border:1px solid #1a1d22;color:#525a64;font-size:10px;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:'Inter',sans-serif;">×</button>`;
             return `${hitBtn}${missBtn}${voidBtn}${cancelBtn}`;
           })()}
-          <button onclick="copySingleBet(${b.id})" style="background:transparent;border:1px solid #1a1d22;color:#7dd3fc;font-size:10px;font-weight:700;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Copy this bet">COPY</button>
-          <button onclick="deleteBet(${b.id})" style="background:transparent;border:none;color:#525a64;font-size:13px;cursor:pointer;padding:0 3px;" title="Delete">✕</button>
+          <button onclick="copySingleBet('${b.id}')" style="background:transparent;border:1px solid #1a1d22;color:#7dd3fc;font-size:10px;font-weight:700;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:'Inter',sans-serif;letter-spacing:0.4px;" title="Copy this bet">COPY</button>
+          <button onclick="deleteBet('${b.id}')" style="background:transparent;border:none;color:#525a64;font-size:13px;cursor:pointer;padding:0 3px;" title="Delete">✕</button>
         </div>
       </div>
       <!-- Bottom row: metric grid -->
@@ -14230,6 +14242,9 @@ function totalsHandleDimersUpload(input) {
 // Set the date a subsequent Dimers upload will be filed under.
 function totalsSetDimersDate(val) { window._totalsDimersUploadDate = val || null; }
 
+// Toggle the Totals view between "plays" (in-range only) and "all" (full slate).
+function setTotalsView(v) { window._totalsView = v; renderTotals(); }
+
 // Resolve a game's date to YYYY-MM-DD: prefer explicit gameDate, else infer from
 // a "Mon 8:00 PM" style time prefix (next matching weekday).
 function _gameDayISO(g) {
@@ -14574,6 +14589,39 @@ function _combinedTeamProj(g) {
   if (peA!=null && peB!=null) return { a:peA, b:peB, day };
   if (plA!=null && plB!=null) return { a:plA, b:plB, day };
   return null;
+}
+
+// Count how many games qualify under each edge threshold (Combined model),
+// so the buttons can show "TRACK TOTALS (4)" etc. Mirrors the track logic.
+function _countTotalsInRange() {
+  const games = betstampGames || [];
+  let n = 0;
+  games.forEach(g => {
+    const proj = _combinedTeamProj(g);
+    if (!proj) return;
+    const projTotal = proj.a + proj.b;
+    let marketTotal = null;
+    if (Array.isArray(g.books) && g.books.length) {
+      const ls = g.books.map(b => b.line).filter(l => l != null);
+      if (ls.length) { const f={}; ls.forEach(l=>f[l]=(f[l]||0)+1); marketTotal = parseFloat(Object.keys(f).sort((a,b)=>f[b]-f[a])[0]); }
+    }
+    if (marketTotal == null) return;
+    if (Math.abs(projTotal - marketTotal) >= 2) n++;
+  });
+  return n;
+}
+function _countSpreadsInRange() {
+  const games = betstampGames || [];
+  let n = 0;
+  games.forEach(g => {
+    const proj = _combinedTeamProj(g);
+    if (!proj) return;
+    const projHomeMargin = proj.b - proj.a;
+    const marketSpread = (typeof g.spread === "number") ? g.spread : null;
+    if (marketSpread == null) return;
+    if (Math.abs(projHomeMargin - (-marketSpread)) >= 1.5) n++;
+  });
+  return n;
 }
 
 function copyTrackTotalsInRange() {
@@ -14932,7 +14980,28 @@ function renderTotals() {
     ? betstampGames
     : betstampGames.filter(g => g.gameDate === activeFilter);
 
+  // View: "plays" (only in-range games) or "all" (everything, for reference/share).
+  if (window._totalsView === undefined) window._totalsView = "plays";
+  const _totalsView = window._totalsView;
+
   const cards = filteredGames.map(g => {
+    // Determine play status up front (Combined model) so we can filter views.
+    let _isPlay = false;
+    try {
+      const _pp = _combinedTeamProj(g);
+      if (_pp) {
+        // total play?
+        let _mt = null;
+        if (Array.isArray(g.books) && g.books.length) {
+          const ls = g.books.map(b => b.line).filter(l => l != null);
+          if (ls.length) { const f={}; ls.forEach(l=>f[l]=(f[l]||0)+1); _mt = parseFloat(Object.keys(f).sort((a,b)=>f[b]-f[a])[0]); }
+        }
+        if (_mt != null && Math.abs((_pp.a+_pp.b) - _mt) >= 2) _isPlay = true;
+        // spread play?
+        if (typeof g.spread === "number" && Math.abs((_pp.b-_pp.a) - (-g.spread)) >= 1.5) _isPlay = true;
+      }
+    } catch(e) {}
+    g.__isPlay = _isPlay;
     const away = buildTeamProjection(g.awayAbbr);
     const home = buildTeamProjection(g.homeAbbr);
 
@@ -15489,7 +15558,14 @@ function renderTotals() {
         })()}
         ${bestSummary}
       </div>`;
-  }).join("");
+  });
+  // Apply the PLAYS/ALL view: in plays mode, keep only in-range games.
+  const cardsArr = cards.filter((_, i) => _totalsView === "all" ? true : filteredGames[i].__isPlay);
+  const playsCount = filteredGames.filter(g => g.__isPlay).length;
+  const cardsHtml = cardsArr.join("");
+  const emptyPlaysMsg = (_totalsView === "plays" && playsCount === 0)
+    ? `<div style="padding:30px;text-align:center;color:#d4dae3;font-size:13px;background:#0c0d10;border:1px solid #1a1d22;border-radius:10px;">No games meet the play thresholds right now. Switch to <span style="color:#7dd3fc;font-weight:700;">ALL</span> to see the full slate.</div>`
+    : "";
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;">
@@ -15517,12 +15593,12 @@ function renderTotals() {
             <input type="file" accept=".csv" style="display:none;" onchange="totalsHandleDimersUpload(this)"/>
           </label>
         </span>
-        <button onclick="setAllCardsCombined()" title="Set every eligible game card to the Combined (50/50) model at once" style="background:#7dd3fc1a;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">⚡ ALL COMBINED</button>
-        <button onclick="copyTrackTotalsInRange()" title="Copy AND track every total within the 2pt edge using the Combined (50/50) model" style="background:#22c55e1a;border:1px solid #22c55e;color:#4ade80;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">✓ TRACK TOTALS IN RANGE</button>
-        <button onclick="copyTrackSpreadsInRange()" title="Copy AND track every spread within the 1.5pt edge using the Combined (50/50) model" style="background:#22c55e1a;border:1px solid #22c55e;color:#4ade80;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">✓ TRACK SPREADS IN RANGE</button>
-        <button onclick="copyAllTotalsProjections()" title="Copy a brief summary of every game's projection (with or without a line) — uses each card's active model" style="background:#0c0d10;border:1px solid #1e40af;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY PROJECTIONS</button>
-        <button onclick="copyTotalsByDate()" title="Copy totals by date with model picker — defaults to PxE+Players Combined when loaded" style="background:#0c0d10;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY TOTALS</button>
-        <button onclick="copySpreadsByDate()" title="Copy projected spreads by date — same model picker as totals. Spread = home pts − away pts." style="background:#0c0d10;border:1px solid #f59e0b;color:#fbbf24;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY SPREADS</button>
+        <span style="display:inline-flex;border:1px solid #283041;border-radius:7px;overflow:hidden;">
+          <button onclick="setTotalsView('plays')" style="background:${_totalsView==='plays'?'#7dd3fc':'transparent'};color:${_totalsView==='plays'?'#050507':'#7dd3fc'};border:none;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">PLAYS${playsCount?` (${playsCount})`:''}</button>
+          <button onclick="setTotalsView('all')" style="background:${_totalsView==='all'?'#7dd3fc':'transparent'};color:${_totalsView==='all'?'#050507':'#7dd3fc'};border:none;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">ALL</button>
+        </span>
+        <button onclick="copyTrackTotalsInRange()" title="Copy + track every total ≥2pt edge (Combined 50/50 model). Only qualifying games are copied/tracked." style="background:#22c55e1a;border:1px solid #22c55e;color:#4ade80;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">✓ TRACK TOTALS${(() => { const c=(typeof _countTotalsInRange==="function")?_countTotalsInRange():0; return c?` (${c})`:""; })()}</button>
+        <button onclick="copyTrackSpreadsInRange()" title="Copy + track every spread ≥1.5pt edge (Combined 50/50 model). Only qualifying games are copied/tracked." style="background:#f59e0b1a;border:1px solid #f59e0b;color:#fbbf24;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">✓ TRACK SPREADS${(() => { const c=(typeof _countSpreadsInRange==="function")?_countSpreadsInRange():0; return c?` (${c})`:""; })()}</button>
       </div>
     </div>
 
@@ -15617,7 +15693,7 @@ function renderTotals() {
       </div>`;
     })()}
 
-    ${cards}`;
+    ${cardsHtml}${emptyPlaysMsg}`;
 
   // ─── Wire the Custom Matchup picker ────────────────────────────────────────
   // Populate the dropdowns from whatever team-stats are loaded (2025 + 2026 union),
@@ -16540,13 +16616,24 @@ function renderScheduleRow(ev, isToday) {
     const homeName = home.team?.displayName || home.team?.shortDisplayName || homeAbbr;
     const awayLogo = away.team?.logo || "";
     const homeLogo = home.team?.logo || "";
-    const awayRec = (away.records || []).find(r => r.type === "total")?.summary || "";
-    const homeRec = (home.records || []).find(r => r.type === "total")?.summary || "";
-    const awayScore = parseInt(away.score) || 0;
-    const homeScore = parseInt(home.score) || 0;
-    const logoImg = (url) => url
-      ? `<img src="${escapeHtmlBasic(url)}" alt="" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">`
-      : `<div style="width:28px;height:28px;background:rgba(125,211,252,0.08);border-radius:4px;flex-shrink:0;"></div>`;
+    // Records come in different shapes across ESPN feeds (schedule vs scoreboard
+    // vs summary). Try: records[type=total].summary → records[0].summary →
+    // team.record (string) → competitor.record (string/array).
+    const _recOf = (comp) => {
+      if (!comp) return "";
+      const recs = comp.records || comp.team?.records;
+      if (Array.isArray(recs) && recs.length) {
+        const tot = recs.find(r => r.type === "total" || r.name === "overall" || r.name === "All Games");
+        if (tot?.summary) return tot.summary;
+        if (recs[0]?.summary) return recs[0].summary;
+      }
+      if (typeof comp.record === "string" && comp.record) return comp.record;
+      if (typeof comp.team?.record === "string" && comp.team.record) return comp.team.record;
+      if (Array.isArray(comp.record) && comp.record[0]?.summary) return comp.record[0].summary;
+      return "";
+    };
+    const awayRec = _recOf(away);
+    const homeRec = _recOf(home);
     let rightCol = "";
     let leftAccent = "transparent";
     if (state === "in") {
@@ -16620,12 +16707,12 @@ function renderScheduleRow(ev, isToday) {
             <div style="display:flex;align-items:center;gap:10px;">
               ${logoImg(awayLogo)}
               <span style="font-size:14px;font-weight:700;color:#fff;">${escapeHtmlBasic(awayName)}</span>
-              <span style="font-size:10px;color:#525a64;font-weight:500;">${escapeHtmlBasic(awayRec)}</span>
+              <span style="font-size:10px;color:#fff;font-weight:700;">${escapeHtmlBasic(awayRec)}</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
               ${logoImg(homeLogo)}
               <span style="font-size:14px;font-weight:700;color:#fff;">${escapeHtmlBasic(homeName)}</span>
-              <span style="font-size:10px;color:#525a64;font-weight:500;">${escapeHtmlBasic(homeRec)}</span>
+              <span style="font-size:10px;color:#fff;font-weight:700;">${escapeHtmlBasic(homeRec)}</span>
             </div>
           </div>
           ${rightCol}
