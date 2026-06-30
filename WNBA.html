@@ -16634,6 +16634,11 @@ function renderScheduleRow(ev, isToday) {
     };
     const awayRec = _recOf(away);
     const homeRec = _recOf(home);
+    const awayScore = parseInt(away.score) || 0;
+    const homeScore = parseInt(home.score) || 0;
+    const logoImg = (url) => url
+      ? `<img src="${escapeHtmlBasic(url)}" alt="" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">`
+      : `<div style="width:28px;height:28px;background:rgba(125,211,252,0.08);border-radius:4px;flex-shrink:0;"></div>`;
     let rightCol = "";
     let leftAccent = "transparent";
     if (state === "in") {
