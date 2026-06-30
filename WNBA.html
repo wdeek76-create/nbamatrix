@@ -14691,6 +14691,72 @@ function copyTrackSpreadsInRange() {
     () => showToast("Copy blocked — text in console"));
 }
 
+// ── Copy-only bulk (no tracking) — respects the active PLAYS/ALL view ────────
+// PLAYS view: copies only games within the edge threshold (same as track).
+// ALL view: copies every game that has a line, regardless of edge, so you can
+// share the full slate with reference numbers included.
+function copyTotalsView() {
+  const games = betstampGames || [];
+  if (!games.length) { showToast("No games loaded"); return; }
+  const onlyInRange = window._totalsView !== "all";
+  const lines = [];
+  games.forEach(g => {
+    const proj = _combinedTeamProj(g);
+    if (!proj) return;
+    const projTotal = proj.a + proj.b;
+    let marketTotal = null;
+    if (Array.isArray(g.books) && g.books.length) {
+      const ls = g.books.map(b => b.line).filter(l => l != null);
+      if (ls.length) { const f={}; ls.forEach(l=>f[l]=(f[l]||0)+1); marketTotal = parseFloat(Object.keys(f).sort((a,b)=>f[b]-f[a])[0]); }
+    }
+    if (marketTotal == null) return;
+    const edge = projTotal - marketTotal;
+    const absEdge = Math.abs(edge);
+    if (onlyInRange && absEdge < 2) return;
+    const side = edge > 0 ? "OVER" : "UNDER";
+    const day = proj.day || (g.gameDate ? String(g.gameDate).slice(0,10) : null) || "";
+    const md = day ? (() => { const m=day.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${parseInt(m[2])}/${parseInt(m[3])}`:""; })() : "";
+    const playTag = absEdge >= 2 ? `Bet ${side} ${marketTotal}` : `${marketTotal}`;
+    lines.push({ sortKey:absEdge, text:`${md} ${g.awayAbbr} @ ${g.homeAbbr}  ${playTag} (proj ${projTotal.toFixed(1)}, edge ${absEdge.toFixed(1)}${absEdge<2?", no play":""})` });
+  });
+  if (!lines.length) { showToast(onlyInRange ? "No totals within 2pt edge (Combined)" : "No totals with a market line"); return; }
+  lines.sort((a,b)=>b.sortKey-a.sortKey);
+  const text = `WNBA Totals (Combined${onlyInRange?", edge ≥ 2":" — full slate"})\n` + lines.map(l=>l.text).join("\n");
+  copyTextToClipboard(text,
+    () => showToast(`Copied ${lines.length} total${lines.length===1?"":"s"}`),
+    () => showToast("Copy blocked — text in console"));
+}
+function copySpreadsView() {
+  const games = betstampGames || [];
+  if (!games.length) { showToast("No games loaded"); return; }
+  const onlyInRange = window._totalsView !== "all";
+  const lines = [];
+  games.forEach(g => {
+    const proj = _combinedTeamProj(g);
+    if (!proj) return;
+    const projHomeMargin = proj.b - proj.a;
+    const marketSpread = (typeof g.spread === "number") ? g.spread : null;
+    if (marketSpread == null) return;
+    const edge = projHomeMargin - (-marketSpread);
+    const absEdge = Math.abs(edge);
+    if (onlyInRange && absEdge < 1.5) return;
+    const pickAbbr = edge > 0 ? g.homeAbbr : g.awayAbbr;
+    const pickMarketSpread = pickAbbr === g.homeAbbr ? marketSpread : -marketSpread;
+    const pickProjSpread = pickAbbr === g.homeAbbr ? -projHomeMargin : projHomeMargin;
+    const day = proj.day || (g.gameDate ? String(g.gameDate).slice(0,10) : null) || "";
+    const md = day ? (() => { const m=day.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${parseInt(m[2])}/${parseInt(m[3])}`:""; })() : "";
+    const fmt = n => `${n>=0?"+":""}${n.toFixed(1)}`;
+    const playTag = absEdge >= 1.5 ? `Bet ${pickAbbr} ${fmt(pickMarketSpread)}` : `${pickAbbr} ${fmt(pickMarketSpread)}`;
+    lines.push({ sortKey:absEdge, text:`${md} ${g.awayAbbr} @ ${g.homeAbbr}  ${playTag} (proj ${pickAbbr} ${fmt(pickProjSpread)}, edge ${absEdge.toFixed(1)}${absEdge<1.5?", no play":""})` });
+  });
+  if (!lines.length) { showToast(onlyInRange ? "No spreads within 1.5pt edge (Combined)" : "No spreads with a market line"); return; }
+  lines.sort((a,b)=>b.sortKey-a.sortKey);
+  const text = `WNBA Spreads (Combined${onlyInRange?", edge ≥ 1.5":" — full slate"})\n` + lines.map(l=>l.text).join("\n");
+  copyTextToClipboard(text,
+    () => showToast(`Copied ${lines.length} spread${lines.length===1?"":"s"}`),
+    () => showToast("Copy blocked — text in console"));
+}
+
 // Render the date-picker overlay used by Copy By Date
 function _showTotalsDatePicker(dates) {
   let overlay = document.getElementById("totals-date-picker-overlay");
@@ -15598,7 +15664,9 @@ function renderTotals() {
           <button onclick="setTotalsView('all')" style="background:${_totalsView==='all'?'#7dd3fc':'transparent'};color:${_totalsView==='all'?'#050507':'#7dd3fc'};border:none;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">ALL</button>
         </span>
         <button onclick="copyTrackTotalsInRange()" title="Copy + track every total ≥2pt edge (Combined 50/50 model). Only qualifying games are copied/tracked." style="background:#22c55e1a;border:1px solid #22c55e;color:#4ade80;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">✓ TRACK TOTALS${(() => { const c=(typeof _countTotalsInRange==="function")?_countTotalsInRange():0; return c?` (${c})`:""; })()}</button>
+        <button onclick="copyTotalsView()" title="Copy totals only (no tracking) — respects the PLAYS/ALL view above" style="background:#0c0d10;border:1px solid #22c55e;color:#4ade80;border-radius:6px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY TOTALS</button>
         <button onclick="copyTrackSpreadsInRange()" title="Copy + track every spread ≥1.5pt edge (Combined 50/50 model). Only qualifying games are copied/tracked." style="background:#f59e0b1a;border:1px solid #f59e0b;color:#fbbf24;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">✓ TRACK SPREADS${(() => { const c=(typeof _countSpreadsInRange==="function")?_countSpreadsInRange():0; return c?` (${c})`:""; })()}</button>
+        <button onclick="copySpreadsView()" title="Copy spreads only (no tracking) — respects the PLAYS/ALL view above" style="background:#0c0d10;border:1px solid #f59e0b;color:#fbbf24;border-radius:6px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">📋 COPY SPREADS</button>
       </div>
     </div>
 
