@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>WNBA Today</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+:root {
+  --bg:      #070c18;
+  --navy:    #0b1424;
+  --surf:    #101c2e;
+  --surf2:   #162338;
+  --border:  #1e3050;
+  --teal:    #00d4b4;
+  --tdim:    #00d4b418;
+  --text:    #dce8f5;
+  --muted:   #5a7499;
+  --text2:   #8faac8;
+  --green:   #22c55e;
+  --gbg:     #22c55e18;
+  --red:     #f0484a;
+  --rbg:     #f0484a18;
+  --amber:   #f59e0b;
+  --abg:     #f59e0b14;
+  --push:    #7c98b8;
+  --pbg:     #7c98b814;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;}
+#app{display:flex;flex-direction:column;height:100%;height:100dvh;overflow:hidden;}
+
+/* HEADER */
+#hdr{
+  flex-shrink:0;background:var(--navy);border-bottom:1px solid var(--border);
+  padding:env(safe-area-inset-top,0) 0 0;
+}
+.hdr-row{display:flex;align-items:center;padding:10px 14px 8px;gap:8px;}
+.hdr-logo{width:26px;height:26px;background:var(--teal);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--bg);flex-shrink:0;}
+.hdr-title{font-size:15px;font-weight:900;letter-spacing:-.4px;flex:1;}
+.hdr-title em{color:var(--teal);font-style:normal;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1.2s ease infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.hdr-date{font-size:11px;color:var(--muted);font-weight:600;}
+.refresh-btn{background:var(--surf2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;color:var(--teal);cursor:pointer;flex-shrink:0;}
+
+/* PANE */
+#pane{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding:10px 12px env(safe-area-inset-bottom,14px);}
+
+/* LOADING */
+.loading{text-align:center;padding:60px 16px;color:var(--muted);}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* SECTION LABEL */
+.sec{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 6px;}
+.sec:first-child{margin-top:0;}
+
+/* ── MATCHUP CARD ── */
+.mc{
+  background:var(--surf);border:1px solid var(--border);border-radius:14px;
+  margin-bottom:10px;overflow:hidden;
+}
+
+/* top: away | center | home */
+.mc-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;}
+
+.mc-team{
+  display:flex;flex-direction:column;align-items:center;
+  padding:14px 8px 10px;gap:5px;
+}
+.mc-team.home{background:linear-gradient(140deg,var(--surf2) 0%,var(--surf) 100%);}
+
+.tlogo{width:44px;height:44px;border-radius:10px;object-fit:contain;background:var(--surf2);padding:3px;border:1px solid var(--border);}
+.tlogo-err{width:44px;height:44px;border-radius:10px;background:var(--surf2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--teal);}
+
+.mc-abbr{font-size:14px;font-weight:900;letter-spacing:-.2px;}
+.mc-record{font-size:10px;color:var(--muted);}
+.mc-score{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;line-height:1;}
+.mc-score.win{color:var(--teal);}
+
+/* center divider */
+.mc-mid{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:0 10px;gap:4px;flex-shrink:0;min-width:60px;
+}
+.mc-at{font-size:10px;color:var(--muted);font-weight:700;}
+.mc-status{font-size:11px;font-weight:700;color:var(--text2);text-align:center;line-height:1.3;}
+.mc-live{font-size:10px;font-weight:800;color:var(--red);display:flex;align-items:center;gap:3px;}
+.mc-winpct{font-size:9px;color:var(--muted);text-align:center;line-height:1.3;}
+
+/* odds strip */
+.mc-odds{
+  border-top:1px solid var(--border);
+  display:grid;grid-template-columns:1fr 1px 1fr 1px 1fr;
+  background:var(--surf2);
+}
+.mc-odds-div{background:var(--border);}
+.odds-cell{padding:7px 6px;text-align:center;}
+.odds-lbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
+.odds-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--text);}
+.odds-sub{font-size:9px;color:var(--muted);margin-top:1px;}
+.odds-ml{font-size:10px;font-weight:700;color:var(--text2);}
+
+/* result row */
+.mc-result{
+  border-top:1px solid var(--border);
+  display:grid;grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  padding:6px 10px;
+  gap:6px;
+  background:var(--surf);
+}
+.res-side{display:flex;align-items:center;gap:5px;}
+.res-side.right{flex-direction:row-reverse;}
+.res-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+.res-divider{width:1px;height:22px;background:var(--border);}
+.badge{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-size:10px;font-weight:800;padding:2px 7px;font-family:'JetBrains Mono',monospace;}
+.badge.W{background:var(--gbg);color:var(--green);}
+.badge.L{background:var(--rbg);color:var(--red);}
+.badge.P{background:var(--pbg);color:var(--push);}
+.badge.O{background:var(--gbg);color:var(--green);}
+.badge.U{background:var(--rbg);color:var(--red);}
+.badge.live-b{background:var(--rbg);color:var(--red);animation:pulse 1.2s ease infinite;}
+
+/* leaders row */
+.mc-leaders{
+  border-top:1px solid var(--border);
+  display:flex;gap:0;
+}
+.leader-cell{
+  flex:1;padding:6px 8px;
+  border-right:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;
+  overflow:hidden;
+}
+.leader-cell:last-child{border-right:none;}
+.leader-hs{width:24px;height:24px;border-radius:50%;object-fit:cover;background:var(--surf2);flex-shrink:0;}
+.leader-info{min-width:0;flex:1;}
+.leader-name{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.leader-stat{font-size:9px;color:var(--muted);}
+
+/* broadcast pill */
+.bc-pill{
+  background:var(--surf2);border:1px solid var(--border);
+  border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;color:var(--text2);
+  white-space:nowrap;
+}
+
+/* upcoming card */
+.uc{
+  background:var(--surf);border:1px solid var(--border);border-radius:14px;
+  margin-bottom:10px;overflow:hidden;
+}
+.uc-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:12px 10px;}
+.uc-team{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.uc-abbr{font-size:13px;font-weight:900;}
+.uc-rec{font-size:10px;color:var(--muted);}
+.uc-mid{text-align:center;}
+.uc-time{font-size:12px;font-weight:700;color:var(--text);}
+.uc-net{font-size:10px;color:var(--muted);margin-top:2px;}
+.uc-odds{
+  border-top:1px solid var(--border);
+  display:grid;grid-template-columns:1fr 1px 1fr 1px 1fr 1px 1fr;
+  background:var(--surf2);
+}
+.uc-div{background:var(--border);}
+.uc-ocell{padding:7px 4px;text-align:center;}
+.uc-olbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;}
+.uc-oval{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;}
+.fav{color:var(--amber);}
+.dog{color:var(--text2);}
+
+/* no games */
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty .icon{font-size:36px;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="hdr">
+  <div class="hdr-row">
+    <div class="hdr-logo">W</div>
+    <div class="hdr-title">WNBA <em>Today</em></div>
+    <div id="liveDot" class="live-dot" style="display:none"></div>
+    <div class="hdr-date" id="hdrDate"></div>
+    <div class="refresh-btn" id="refreshBtn">↻</div>
+  </div>
+</div>
+<div id="pane"><div class="loading"><div class="spinner"></div>Loading games…</div></div>
+</div>
+
+<script>
+const BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/wnba';
+let refreshTimer = null;
+
+function fmt(dt) {
+  return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function fmtTime(dt) {
+  return dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}).replace(':00','');
+}
+
+function logoEl(url, abbr, size=44) {
+  const sm = size <= 28;
+  const cls = sm ? 'tlogo' : 'tlogo';
+  if (url) return `<img class="${cls}" style="width:${size}px;height:${size}px;border-radius:${sm?6:10}px" src="${url}" onerror="this.outerHTML='<div class=tlogo-err style=width:${size}px;height:${size}px;border-radius:${sm?6:10}px>${abbr.slice(0,3)}</div>'">`;
+  return `<div class="tlogo-err" style="width:${size}px;height:${size}px;border-radius:${sm?6:10}px">${abbr?.slice(0,3)||'?'}</div>`;
+}
+
+function parseOdds(comp) {
+  const o = comp.odds?.[0];
+  if (!o) return {};
+  const ou       = o.overUnder ?? null;
+  const details  = o.details || '';
+  // Spread from pointSpread if available (richer)
+  const ps = o.pointSpread;
+  const ml = o.moneyline;
+  const tot= o.total;
+
+  let awaySpread=null, homeSpread=null, awayML=null, homeML=null, overLine=null, underLine=null;
+  let awayFav=false, homeFav=false;
+
+  if (ps) {
+    awaySpread = ps.away?.close?.line || ps.away?.open?.line || null;
+    homeSpread = ps.home?.close?.line || ps.home?.open?.line || null;
+  } else if (details && details !== 'EVEN') {
+    // e.g. "ATL -8.5" means ATL is away fav
+    const parts = details.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const num = parseFloat(parts[parts.length-1]);
+      const favAbbr = parts[0];
+      awaySpread = o.awayTeamOdds?.favorite ? (num < 0 ? `${num}` : `+${num}`) : (num > 0 ? `+${Math.abs(num)}` : `${Math.abs(num)*-1}`);
+      homeSpread = o.homeTeamOdds?.favorite ? (num < 0 ? `${num}` : `+${num}`) : null;
+    }
+  }
+  if (ml) {
+    awayML = ml.away?.close?.odds || null;
+    homeML = ml.home?.close?.odds || null;
+  }
+  if (tot) {
+    overLine  = tot.over?.close?.line  || null;
+    underLine = tot.under?.close?.line || null;
+  }
+
+  awayFav = o.awayTeamOdds?.favorite || false;
+  homeFav = o.homeTeamOdds?.favorite || false;
+
+  return { ou, details, awaySpread, homeSpread, awayML, homeML, awayFav, homeFav, overLine, underLine };
+}
+
+function calcATS(homeScore, awayScore, odds) {
+  if (!odds.awaySpread && !odds.homeSpread) return { homeATS:null, awayATS:null };
+  // awaySpread like "-8.5", homeSpread like "+8.5"
+  const aSpread = odds.awaySpread ? parseFloat(odds.awaySpread) : null;
+  const hSpread = odds.homeSpread ? parseFloat(odds.homeSpread) : null;
+  if (aSpread === null && hSpread === null) return { homeATS:null, awayATS:null };
+  const margin = homeScore - awayScore; // positive = home won
+  const sp = hSpread !== null ? hSpread : -aSpread;
+  const covered = margin + sp; // home covers if > 0
+  const homeATS = covered > 0 ? 'W' : covered < 0 ? 'L' : 'P';
+  const awayATS = covered < 0 ? 'W' : covered > 0 ? 'L' : 'P';
+  return { homeATS, awayATS };
+}
+
+function calcOU(homeScore, awayScore, ou) {
+  if (!ou) return null;
+  const tot = homeScore + awayScore;
+  return tot > ou ? 'O' : tot < ou ? 'U' : 'P';
+}
+
+function winPct(situation, homeId) {
+  const prob = situation?.lastPlay?.probability;
+  if (!prob) return null;
+  return {
+    home: Math.round(prob.homeWinPercentage * 100),
+    away: Math.round(prob.awayWinPercentage * 100),
+  };
+}
+
+function renderLeaders(comp, homeId, awayId) {
+  // Grab leaders from each competitor
+  const home = comp.competitors.find(c=>c.homeAway==='home');
+  const away = comp.competitors.find(c=>c.homeAway==='away');
+  const leaders = [];
+
+  [away, home].forEach(c => {
+    const pts = c?.leaders?.find(l=>l.name==='points');
+    const top = pts?.leaders?.[0];
+    if (top) leaders.push({ name: top.athlete?.shortName || top.athlete?.displayName, stat: top.displayValue + ' PTS', hs: top.athlete?.headshot });
+  });
+
+  if (!leaders.length) return '';
+  return `<div class="mc-leaders">${leaders.map(l=>`<div class="leader-cell">
+    ${l.hs ? `<img class="leader-hs" src="${l.hs}" onerror="this.style.display='none'">` : ''}
+    <div class="leader-info"><div class="leader-name">${l.name}</div><div class="leader-stat">${l.stat}</div></div>
+  </div>`).join('')}</div>`;
+}
+
+function renderGame(ev) {
+  const comp = ev.competitions[0];
+  const home = comp.competitors.find(c=>c.homeAway==='home');
+  const away = comp.competitors.find(c=>c.homeAway==='away');
+  const status = comp.status.type;
+  const completed = status.completed;
+  const live = status.state === 'in';
+  const pre  = status.state === 'pre';
+
+  const homeScore = parseInt(home.score)||0;
+  const awayScore = parseInt(away.score)||0;
+  const homeWon = completed && homeScore > awayScore;
+  const awayWon = completed && awayScore > homeScore;
+
+  const odds = parseOdds(comp);
+  const ats  = (completed && (odds.awaySpread||odds.homeSpread)) ? calcATS(homeScore, awayScore, odds) : {};
+  const ou   = completed ? calcOU(homeScore, awayScore, odds.ou) : null;
+  const wp   = live ? winPct(comp.situation, home.team.id) : null;
+
+  // Records
+  const homeRec = home.records?.find(r=>r.name==='overall')?.summary || '';
+  const awayRec = away.records?.find(r=>r.name==='overall')?.summary || '';
+
+  // Broadcast
+  const bc = ev.broadcasts?.find(b=>b.market==='national')?.names?.[0] || comp.broadcasts?.[0]?.names?.[0] || '';
+
+  // Quarter/period display
+  const qtr = live ? comp.status.type.shortDetail : '';
+
+  // Home/away spread display
+  const aSpread = odds.awaySpread || (odds.details && odds.awayFav ? odds.details.split(' ').slice(1).join('') : null);
+  const hSpread = odds.homeSpread || (odds.details && odds.homeFav ? odds.details.split(' ').slice(1).join('') : null);
+
+  // For display: show from perspective of each team
+  let awaySpreadDisplay = aSpread || (odds.homeSpread ? (parseFloat(odds.homeSpread)>0?`-${parseFloat(odds.homeSpread)}`:'+'+Math.abs(parseFloat(odds.homeSpread))) : null);
+  let homeSpreadDisplay = hSpread || (odds.awaySpread ? (parseFloat(odds.awaySpread)>0?`-${parseFloat(odds.awaySpread)}`:'+'+Math.abs(parseFloat(odds.awaySpread))) : null);
+
+  // Simplify: just show "DET -8.5" style
+  let spreadDisplay = odds.details || '—';
+  let ouDisplay = odds.ou ? `${odds.ou}` : '—';
+  let awayMLDisplay = odds.awayML || '—';
+  let homeMLDisplay = odds.homeML || '—';
+
+  if (pre) {
+    // UPCOMING CARD
+    const dt = new Date(ev.date);
+    return `<div class="uc">
+      <div class="uc-top">
+        <div class="uc-team">
+          ${logoEl(away.team.logo||away.team.logos?.[0]?.href, away.team.abbreviation)}
+          <div class="uc-abbr">${away.team.abbreviation}</div>
+          <div class="uc-rec">${awayRec}</div>
+        </div>
+        <div class="uc-mid">
+          <div class="uc-time">${fmtTime(dt)}</div>
+          <div class="uc-net">${bc ? `<span class="bc-pill">${bc}</span>` : ''}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">@ ${home.team.abbreviation}</div>
+        </div>
+        <div class="uc-team">
+          ${logoEl(home.team.logo||home.team.logos?.[0]?.href, home.team.abbreviation)}
+          <div class="uc-abbr">${home.team.abbreviation}</div>
+          <div class="uc-rec">${homeRec}</div>
+        </div>
+      </div>
+      ${(odds.awaySpread||odds.homeSpread||odds.awayML||odds.ou) ? `
+      <div class="uc-odds">
+        <div class="uc-ocell">
+          <div class="uc-olbl">Away Sprd</div>
+          <div class="uc-oval ${odds.awayFav?'fav':'dog'}">${awaySpreadDisplay||'—'}</div>
+        </div>
+        <div class="uc-div"></div>
+        <div class="uc-ocell">
+          <div class="uc-olbl">Away ML</div>
+          <div class="uc-oval">${awayMLDisplay}</div>
+        </div>
+        <div class="uc-div"></div>
+        <div class="uc-ocell">
+          <div class="uc-olbl">O/U</div>
+          <div class="uc-oval">${ouDisplay}</div>
+        </div>
+        <div class="uc-div"></div>
+        <div class="uc-ocell">
+          <div class="uc-olbl">Home ML</div>
+          <div class="uc-oval">${homeMLDisplay}</div>
+        </div>
+      </div>` : `<div style="padding:7px 12px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);background:var(--surf2)">Odds not yet available</div>`}
+    </div>`;
+  }
+
+  // LIVE or COMPLETED CARD
+  return `<div class="mc">
+    <div class="mc-top">
+      <!-- AWAY -->
+      <div class="mc-team away">
+        ${logoEl(away.team.logo||away.team.logos?.[0]?.href, away.team.abbreviation)}
+        <div class="mc-abbr">${away.team.abbreviation}</div>
+        <div class="mc-record">${awayRec}</div>
+        ${live||completed ? `<div class="mc-score ${awayWon?'win':''}">${awayScore}</div>` : ''}
+      </div>
+      <!-- MID -->
+      <div class="mc-mid">
+        ${live ? `<div class="mc-live"><span style="width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1.2s ease infinite;display:inline-block"></span>${qtr}</div>` : ''}
+        ${completed ? `<div class="mc-status">Final</div>` : ''}
+        <div class="mc-at">@</div>
+        ${bc ? `<span class="bc-pill">${bc}</span>` : ''}
+        ${wp ? `<div class="mc-winpct"><span style="color:var(--teal)">${wp.away}%</span> · <span style="color:var(--text2)">${wp.home}%</span></div>` : ''}
+      </div>
+      <!-- HOME -->
+      <div class="mc-team home">
+        ${logoEl(home.team.logo||home.team.logos?.[0]?.href, home.team.abbreviation)}
+        <div class="mc-abbr">${home.team.abbreviation}</div>
+        <div class="mc-record">${homeRec}</div>
+        ${live||completed ? `<div class="mc-score ${homeWon?'win':''}">${homeScore}</div>` : ''}
+      </div>
+    </div>
+
+    <!-- ODDS STRIP -->
+    <div class="mc-odds">
+      <div class="odds-cell">
+        <div class="odds-lbl">Spread</div>
+        <div class="odds-val">${spreadDisplay}</div>
+      </div>
+      <div class="mc-odds-div"></div>
+      <div class="odds-cell">
+        <div class="odds-lbl">O/U Line</div>
+        <div class="odds-val">${ouDisplay}</div>
+        ${completed ? `<div class="odds-sub">${homeScore+awayScore} scored</div>` : ''}
+      </div>
+      <div class="mc-odds-div"></div>
+      <div class="odds-cell">
+        <div class="odds-lbl">Away ML</div>
+        <div class="odds-val odds-ml">${awayMLDisplay}</div>
+      </div>
+      <div class="mc-odds-div"></div>
+      <div class="odds-cell">
+        <div class="odds-lbl">Home ML</div>
+        <div class="odds-val odds-ml">${homeMLDisplay}</div>
+      </div>
+    </div>
+
+    <!-- RESULT ROW (completed) -->
+    ${completed ? `
+    <div class="mc-result">
+      <div class="res-side">
+        ${logoEl(away.team.logo||away.team.logos?.[0]?.href, away.team.abbreviation, 22)}
+        <span style="font-size:11px;font-weight:700">${away.team.abbreviation}</span>
+        <span class="res-label">ATS</span>
+        ${ats.awayATS ? `<span class="badge ${ats.awayATS}">${ats.awayATS}</span>` : `<span style="color:var(--muted);font-size:10px">—</span>`}
+      </div>
+      <div class="res-divider"></div>
+      <div class="res-side right">
+        ${ou ? `<span class="badge ${ou}">${ou}</span>` : `<span style="color:var(--muted);font-size:10px">—</span>`}
+        <span class="res-label">O/U</span>
+        ${logoEl(home.team.logo||home.team.logos?.[0]?.href, home.team.abbreviation, 22)}
+        <span style="font-size:11px;font-weight:700">${home.team.abbreviation}</span>
+        <span class="res-label">ATS</span>
+        ${ats.homeATS ? `<span class="badge ${ats.homeATS}">${ats.homeATS}</span>` : `<span style="color:var(--muted);font-size:10px">—</span>`}
+      </div>
+    </div>` : ''}
+
+    <!-- LEADERS (live/completed) -->
+    ${renderLeaders(comp)}
+  </div>`;
+}
+
+async function load() {
+  document.getElementById('pane').innerHTML = `<div class="loading"><div class="spinner"></div>Loading games…</div>`;
+  try {
+    const r = await fetch(`${BASE}/scoreboard`);
+    const d = await r.json();
+    const events = d.events || [];
+
+    // Date
+    const now = new Date();
+    document.getElementById('hdrDate').textContent = fmt(now);
+
+    const live = events.filter(ev => ev.competitions[0].status.type.state === 'in');
+    const comp = events.filter(ev => ev.competitions[0].status.type.completed);
+    const pre  = events.filter(ev => ev.competitions[0].status.type.state === 'pre');
+
+    // Show live dot if any live games
+    document.getElementById('liveDot').style.display = live.length ? 'block' : 'none';
+
+    if (!events.length) {
+      document.getElementById('pane').innerHTML = `<div class="empty"><div class="icon">🏀</div><div style="font-size:13px;font-weight:600;margin-bottom:4px">No games today</div><div>Check back on game days</div></div>`;
+      return;
+    }
+
+    let html = '';
+    if (live.length) {
+      html += `<div class="sec">🔴 Live · ${live.length} game${live.length>1?'s':''}</div>`;
+      html += live.map(renderGame).join('');
+    }
+    if (pre.length) {
+      html += `<div class="sec">Upcoming · ${pre.length} game${pre.length>1?'s':''}</div>`;
+      html += pre.map(renderGame).join('');
+    }
+    if (comp.length) {
+      html += `<div class="sec">Final · ${comp.length} game${comp.length>1?'s':''}</div>`;
+      html += comp.map(renderGame).join('');
+    }
+
+    document.getElementById('pane').innerHTML = html;
+
+    // Auto-refresh every 30s if live games
+    if (refreshTimer) clearTimeout(refreshTimer);
+    if (live.length) refreshTimer = setTimeout(load, 30000);
+  } catch(e) {
+    document.getElementById('pane').innerHTML = `<div style="color:var(--red);text-align:center;padding:40px 16px;font-size:12px">Error loading games:<br>${e.message}</div>`;
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>
