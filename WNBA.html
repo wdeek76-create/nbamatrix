@@ -593,7 +593,8 @@ table colgroup col.avg-col{width:16%;}
         <button id="export-matrix-pra-btn" onclick="doExportMatrixPRA()" title="PRA-only — players whose sources agree on the PRA total within the trained 12% threshold. Writes their PTS/REB/AST through so PRA reconstructs on upload." style="background:#0c0d10;border:1px solid #a855f7;color:#c084fc;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:700;letter-spacing:0.3px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;">PRA Matrix</button>
         <button onclick="clearTrackedProps()" title="Clear all ✓ TRACKED pills from Projections. Does NOT affect your actual tracked bets in the Tracker." style="background:#0c0d10;border:1px solid #1a1d22;color:#a8b0bb;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;">CLEAR TRACKED</button>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-bottom:8px;">
+        <span id="tracked-counter" style="color:#a3e635;font-size:12px;font-weight:800;letter-spacing:0.3px;font-family:'Inter',sans-serif;display:${sessionTrackedProps.size > 0 ? "inline" : "none"};">${sessionTrackedProps.size} Prop${sessionTrackedProps.size === 1 ? "" : "s"} Tracked</span>
         <div style="position:relative;display:inline-block;">
           <input type="text" id="search-box" placeholder="Search player..." oninput="renderTable()" onkeydown="searchEnterCopy(event)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="padding-right:28px;"/>
           <button onclick="clearSearch()" title="Clear search" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#d4dae3;cursor:pointer;padding:2px 6px;font-size:14px;font-family:'Inter',sans-serif;line-height:1;">✕</button>
@@ -1416,6 +1417,15 @@ function renderTable() {
   const rows = getRowsForRender();
 
   document.getElementById("shown-count").textContent = `${rows.length} shown`;
+  // Live-update the "N Props Tracked" counter next to the search bar — this
+  // fires on every renderTable() call, which includes right after a bet is
+  // tracked (see trackProp's saveBets/renderTable sequence).
+  const _trackedCounterEl = document.getElementById("tracked-counter");
+  if (_trackedCounterEl) {
+    const n = sessionTrackedProps.size;
+    _trackedCounterEl.textContent = `${n} Prop${n === 1 ? "" : "s"} Tracked`;
+    _trackedCounterEl.style.display = n > 0 ? "inline" : "none";
+  }
 
   const head = document.getElementById("table-head");
   head.innerHTML = `<tr style="border-bottom:1px solid #252525">
@@ -11638,36 +11648,49 @@ function renderTracker() {
     ${(hasSourceHistory || hasCfHistory) ? `
     <div class="tracker-section">
       <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Model Performance</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-4px 0 10px 0;line-height:1.4;">Each model's record on bets where it agreed with your pick (≥50% win prob). Higher ROI = better when confident.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        ${(() => {
-          // Per-model compact pill. Source: sourceBreak (which model tag was on the bet)
-          // vs cfBreak (which models AGREED with the bet at track time). cfBreak is the
-          // more useful signal — it's what we predicted, vs what hit — so we lead with that.
-          const models = [
-            { key: "blended",  label: "PlayerBased", data: cfBreak.blended  },
-            { key: "paceeff",  label: "Pace × Eff",  data: cfBreak.paceeff  },
-            { key: "both",     label: "Combined",    data: cfBreak.both     }
-          ];
-          return models.filter(m => m.data && m.data.total > 0).map(m => {
-            const v = m.data;
-            const hitPct = v.total > 0 ? Math.round((v.hits/v.total)*100) : 0;
-            const roi = v.staked > 0 ? ((v.pl/v.staked)*100).toFixed(1) : "—";
-            const plColor = v.pl >= 0 ? "#22c55e" : "#f87171";
-            const roiColor = Number(roi) >= 0 ? "#7dd3fc" : "#f87171";
-            const hitColor = hitPct >= 55 ? "#22c55e" : hitPct >= 45 ? "#d4dae3" : "#f87171";
-            return `<div style="background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:8px 12px;min-width:170px;flex:1;">
-              <div style="font-size:10px;color:#a8b0bb;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">${m.label}</div>
-              <div style="display:flex;align-items:baseline;gap:10px;">
-                <span style="font-size:18px;font-weight:800;color:${hitColor};letter-spacing:-0.5px;">${hitPct}%</span>
-                <span style="font-size:11px;color:#d4dae3;">${v.hits}-${v.total - v.hits}</span>
-                <span style="font-size:11px;color:${plColor};font-weight:700;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</span>
-                <span style="font-size:11px;color:${roiColor};font-weight:700;margin-left:auto;">ROI ${roi}${roi!=="—"?'%':''}</span>
+      <p style="font-size:10px;color:#a8b0bb;margin:-4px 0 10px 0;line-height:1.4;">Each model's record on bets where it agreed with your pick (≥50% win prob). Higher ROI = better when confident. <span style="color:#7dd3fc;font-weight:700;">Combined</span> is the primary model — Player and Pace×Eff shown as supporting context.</p>
+      ${(() => {
+        // Combined is the main anchor: bigger featured card shown first/full-width.
+        // Player and Pace×Eff render smaller underneath as secondary reference.
+        const models = [
+          { key: "both",     label: "Combined",    data: cfBreak.both,     featured: true  },
+          { key: "blended",  label: "PlayerBased", data: cfBreak.blended,  featured: false },
+          { key: "paceeff",  label: "Pace × Eff",  data: cfBreak.paceeff,  featured: false }
+        ];
+        const pill = (m) => {
+          const v = m.data;
+          const hitPct = v.total > 0 ? Math.round((v.hits/v.total)*100) : 0;
+          const roi = v.staked > 0 ? ((v.pl/v.staked)*100).toFixed(1) : "—";
+          const plColor = v.pl >= 0 ? "#22c55e" : "#f87171";
+          const roiColor = Number(roi) >= 0 ? "#7dd3fc" : "#f87171";
+          const hitColor = hitPct >= 55 ? "#22c55e" : hitPct >= 45 ? "#d4dae3" : "#f87171";
+          if (m.featured) {
+            return `<div style="background:#050507;border:1px solid #7dd3fc55;border-radius:8px;padding:14px 16px;box-shadow:0 0 0 1px rgba(125,211,252,0.06),0 4px 18px rgba(125,211,252,0.06);margin-bottom:8px;">
+              <div style="font-size:11px;color:#7dd3fc;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">★ ${m.label} <span style="color:#a8b0bb;font-weight:600;text-transform:none;letter-spacing:0;">— primary model</span></div>
+              <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
+                <span style="font-size:26px;font-weight:800;color:${hitColor};letter-spacing:-0.5px;">${hitPct}%</span>
+                <span style="font-size:13px;color:#d4dae3;">${v.hits}-${v.total - v.hits}</span>
+                <span style="font-size:13px;color:${plColor};font-weight:700;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</span>
+                <span style="font-size:13px;color:${roiColor};font-weight:700;margin-left:auto;">ROI ${roi}${roi!=="—"?'%':''}</span>
               </div>
             </div>`;
-          }).join("");
-        })()}
-      </div>
+          }
+          return `<div style="background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:8px 12px;min-width:170px;flex:1;">
+            <div style="font-size:10px;color:#a8b0bb;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">${m.label}</div>
+            <div style="display:flex;align-items:baseline;gap:10px;">
+              <span style="font-size:18px;font-weight:800;color:${hitColor};letter-spacing:-0.5px;">${hitPct}%</span>
+              <span style="font-size:11px;color:#d4dae3;">${v.hits}-${v.total - v.hits}</span>
+              <span style="font-size:11px;color:${plColor};font-weight:700;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</span>
+              <span style="font-size:11px;color:${roiColor};font-weight:700;margin-left:auto;">ROI ${roi}${roi!=="—"?'%':''}</span>
+            </div>
+          </div>`;
+        };
+        const withData = models.filter(m => m.data && m.data.total > 0);
+        const featuredCard = withData.find(m => m.featured);
+        const supportCards = withData.filter(m => !m.featured);
+        return (featuredCard ? pill(featuredCard) : "") +
+          (supportCards.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;">${supportCards.map(pill).join("")}</div>` : "");
+      })()}
     </div>` : ""}
 
     <div class="tracker-section">
@@ -14644,7 +14667,30 @@ function _silentTrackSpread(rec) {
 }
 
 // Resolve combined per-team projections for a game (Pace×Eff + Players)/2.
+// Memoized: _combinedTeamProj was being called 3+ times per game on every
+// single renderTotals() (once for the totals count, once for the spreads
+// count, once for play-detection, again if a copy/track button fires) — each
+// call re-running independentTotal's pace/efficiency math from scratch. That
+// redundant recomputation across a full slate was the main cause of totals-tab
+// jank. Cache keyed by game + a version stamp so it invalidates whenever the
+// underlying data (bets loaded, model toggled, Dimers/RW uploaded) changes.
+window._combinedProjCache = window._combinedProjCache || { stamp: null, map: new Map() };
+function _combinedProjStamp() {
+  const dm = window._totalsDimersByDate ? Object.keys(window._totalsDimersByDate).length : 0;
+  const rw = window._totalsPageRwSlot ? (window._totalsPageRwSlot.players || []).length : 0;
+  return `${(betstampGames||[]).length}|${dm}|${rw}|${merged ? 1 : 0}`;
+}
 function _combinedTeamProj(g) {
+  const cache = window._combinedProjCache;
+  const stamp = _combinedProjStamp();
+  if (cache.stamp !== stamp) { cache.stamp = stamp; cache.map = new Map(); }
+  const key = `${g.awayAbbr}_${g.homeAbbr}_${g.gameDate || ""}`;
+  if (cache.map.has(key)) return cache.map.get(key);
+  const result = _combinedTeamProjUncached(g);
+  cache.map.set(key, result);
+  return result;
+}
+function _combinedTeamProjUncached(g) {
   const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
   const peA = indep?.ptsA, peB = indep?.ptsB;
   let plA = null, plB = null;
@@ -15088,8 +15134,17 @@ function renderTotals() {
       // b.team was stored as "AWAY/HOME" by trackTotal()
       const sig = `${b.team}|${b.ou}|${b.line}|${b.book}`;
       trackedTotalsSig.add(sig);
-      // Game-level dedup key — date + team pair
-      const gameKey = `${b.date || ""}|${b.team || ""}`;
+      // Game-level dedup key — date + team pair. Use the ISO gameDate (same
+      // format the card uses) so this reliably matches regardless of which
+      // model (Player/Pace×Eff/Combined) the bet was originally tracked under.
+      // Falls back to the legacy M/D/YYYY `date` field for older bets that
+      // predate gameDate being stored, converting it to ISO for a fair match.
+      let _bDay = b.gameDate ? String(b.gameDate).slice(0, 10) : "";
+      if (!_bDay && b.date) {
+        const m = String(b.date).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) _bDay = `${m[3]}-${m[1].padStart(2,"0")}-${m[2].padStart(2,"0")}`;
+      }
+      const gameKey = `${_bDay}|${b.team || ""}`;
       if (!trackedTotalsByGame.has(gameKey)) trackedTotalsByGame.set(gameKey, []);
       trackedTotalsByGame.get(gameKey).push(b);
     } else if (b.stat === "GAME_SPREAD") {
@@ -15119,7 +15174,7 @@ function renderTotals() {
     : betstampGames.filter(g => g.gameDate === activeFilter);
 
   // View: "plays" (only in-range games) or "all" (everything, for reference/share).
-  if (window._totalsView === undefined) window._totalsView = "plays";
+  if (window._totalsView === undefined) window._totalsView = "all";
   const _totalsView = window._totalsView;
 
   const cards = filteredGames.map(g => {
