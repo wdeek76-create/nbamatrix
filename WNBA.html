@@ -401,22 +401,6 @@ table colgroup col.avg-col{width:16%;}
     <div id="slots-container"></div>
     <button id="merge-btn" onclick="runMerge(true)">RUN BLEND - 0/3 SOURCES LOADED</button>
 
-    <!-- Dimers Trends — paste-based reference data. Refreshed daily by user.
-         Shown in the bet modal next to matching props (purple pill). Does NOT
-         affect projections, EV, or any math — purely informational overlay. -->
-    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-top:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Recent Form</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button onclick="pasteTrends()" style="background:#a78bfa;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">PARSE</button>
-          <button onclick="clearTrendsAndRender()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
-        </div>
-      </div>
-      <textarea id="trends-paste" placeholder="Paste here..." spellcheck="false"
-        style="width:100%;min-height:80px;background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:10px 12px;color:#e2e8f0;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;outline:none;resize:vertical;"></textarea>
-      <div id="trends-status" style="font-size:11px;margin-top:8px;color:#525a64;"></div>
-    </div>
-
     <!-- Matchup Data — uploaded CSV (Rotowire opp-avg) drives the per-bet
          "vs OPP · +12% favorable" row in the bet modal. Doesn't affect projections
          directly — purely informational, but snapshots onto each bet for backtest. -->
@@ -18213,6 +18197,19 @@ document.addEventListener("DOMContentLoaded", () => {
     <!-- Compact advanced stats signal bar — shown above alt books -->
     <div id="modal-adv-bar" style="display:none;margin-top:8px;margin-bottom:2px;"></div>
 
+    <!-- Splits panel — L5/L10/Season averages from the ESPN season logs.
+         When user types a line in shorthand (e.g. "u17.5"), also shows hit
+         rates at that line across each window. Populated by updateSplitsInModal.
+         Moved above Alt Books per Brian's request — it's the signal he wants
+         to see first, right after the shorthand line entry. -->
+    <div id="modal-splits" style="margin-top:10px;display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <div style="font-size:10px;color:#fff;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Splits</div>
+        <div id="modal-splits-summary" style="font-size:10px;color:#fff;font-family:'JetBrains Mono','Menlo',monospace;font-weight:700;letter-spacing:0.3px;"></div>
+      </div>
+      <div id="modal-splits-grid"></div>
+    </div>
+
     <!-- Alt books (book + odds pairs) -->
     <div style="margin-top:4px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -18287,20 +18284,6 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
     <!-- Splits panel — L5/L10/Season averages from the ESPN season logs.
          When user types a line in shorthand (e.g. "u17.5"), also shows hit
          rates at that line across each window. Populated by updateSplitsInModal. -->
-    <div id="modal-splits" style="margin-top:10px;display:none;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-        <div style="font-size:10px;color:#fff;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">Splits</div>
-        <div id="modal-splits-summary" style="font-size:10px;color:#fff;font-family:'JetBrains Mono','Menlo',monospace;font-weight:700;letter-spacing:0.3px;"></div>
-      </div>
-      <div id="modal-splits-grid"></div>
-    </div>
-    <!-- Dimers trends — compact horizontal bars showing recent hit rates.
-         Populated by updateTrendsInModal() when the modal opens or after
-         paste/clear of the trends data. -->
-    <div id="modal-trends" style="margin-top:10px;display:none;">
-      <div style="font-size:10px;color:#8b93a0;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">Recent Form</div>
-      <div id="modal-trends-list" style="display:flex;flex-direction:column;gap:5px;"></div>
-    </div>
     <div id="modal-stake-preview"></div>
     <div id="modal-ev-preview" style="margin-top:6px;font-size:13px;font-weight:700;"></div>
 
