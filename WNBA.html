@@ -4228,16 +4228,21 @@ async function _teamLogoAsDataUri(abbr) {
 function buildAltBookList() {
   const list = document.getElementById("modal-altbooks-list");
   if (!list) return;
+  // tabindex starts at 2 (shorthand input is 1) so Tab from Quick Entry always
+  // lands on the first alt-book row next, regardless of what non-focusable
+  // content (like Splits) sits between them in the DOM.
+  let _tabIdx = 2;
   list.innerHTML = getVisibleAltBooks().map(book => {
     const logo = logoFor(book);
     const logoEl = logo
       ? `<img src="${logo}" alt="${book}" style="width:18px;height:18px;border-radius:4px;object-fit:cover;flex:0 0 auto;"/>`
       : `<span style="width:18px;height:18px;border-radius:4px;background:#1a1d22;color:#d4dae3;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;letter-spacing:-0.3px;">${book.slice(0,2).toUpperCase()}</span>`;
+    const rowTab = _tabIdx++;
     return `
     <div class="alt-row" data-book="${book}" style="display:flex;gap:6px;align-items:center;">
       ${logoEl}
       <span style="font-size:11px;color:#d4dae3;font-weight:600;letter-spacing:0.2px;width:80px;flex:0 0 auto;">${book}</span>
-      <input type="text" class="alt-input" data-book="${book}" placeholder="-110  or  u19.5 -110 11.7" title="odds  OR  altLine odds EV%" style="flex:1;background:#050507;border:1px solid #1a1d22;color:#e2e8f0;border-radius:5px;padding:5px 8px;font-size:12px;font-family:'Inter',sans-serif;" autocomplete="off" spellcheck="false"/>
+      <input type="text" class="alt-input" data-book="${book}" tabindex="${rowTab}" placeholder="-110  or  u19.5 -110 11.7" title="odds  OR  altLine odds EV%" style="flex:1;background:#050507;border:1px solid #1a1d22;color:#e2e8f0;border-radius:5px;padding:5px 8px;font-size:12px;font-family:'Inter',sans-serif;" autocomplete="off" spellcheck="false"/>
     </div>`;
   }).join("");
 }
@@ -6450,6 +6455,25 @@ function updateStatsSignalBorder() {
     input.style.boxShadow = "none";
   }
   if (btn) btn.textContent = "Track Bet ↗";
+
+  // Explicit combined-signal badge — same score as the button glow above,
+  // just shown as readable text: does Advanced Stats + Matchup agree with
+  // the bet direction you typed?
+  const badgeEl = document.getElementById("modal-combined-signal");
+  if (badgeEl) {
+    if (signals === 0 || !label) {
+      badgeEl.style.display = "none";
+    } else {
+      badgeEl.style.display = "block";
+      const bg = color === "#16a34a" ? "rgba(22,163,74,0.12)" : color === "#dc2626" ? "rgba(220,38,38,0.12)" : "rgba(217,119,6,0.12)";
+      const border = color === "#16a34a" ? "rgba(22,163,74,0.4)" : color === "#dc2626" ? "rgba(220,38,38,0.4)" : "rgba(217,119,6,0.4)";
+      const txt = color === "#16a34a" ? "#4ade80" : color === "#dc2626" ? "#f87171" : "#fbbf24";
+      badgeEl.innerHTML = `<div style="display:inline-flex;align-items:center;gap:6px;background:${bg};border:1px solid ${border};border-radius:6px;padding:5px 10px;font-family:'Inter',sans-serif;">
+        <span style="font-size:11px;font-weight:800;color:${txt};letter-spacing:0.3px;">${label}</span>
+        <span style="font-size:9.5px;font-weight:600;color:#d4dae3;">— Advanced Stats + Matchup (${signals} signal${signals===1?"":"s"})</span>
+      </div>`;
+    }
+  }
 }
 
 function _advRoleSummary(adv) {
@@ -18180,7 +18204,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
       <div class="modal-field" style="flex:1;">
         <label>Quick Entry</label>
-        <input type="text" id="modal-shorthand" placeholder="u17.5 +111 fd 11.77"
+        <input type="text" id="modal-shorthand" placeholder="u17.5 +111 fd 11.77" tabindex="1"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           oninput="parseShorthand(this); if(typeof updateStatsSignalBorder==='function') updateStatsSignalBorder(); if(typeof updateAdvBar==='function') updateAdvBar();"
           onkeydown="if(event.key==='Enter'){event.preventDefault();saveBet();}"/>
@@ -18280,6 +18304,12 @@ or one per line — book shorthand + odds (+ optional line + ev%)" spellcheck="f
       </div>
       <div id="modal-matchup-row"></div>
     </div>
+    <!-- Combined signal badge — surfaces the SAME agree/conflict score that
+         already colors the Save button glow (updateStatsSignalBorder), just
+         as explicit text so it's not something you have to notice as a color
+         change. Combines Advanced Stats (USG%/TS%/AST% etc) + Matchup into
+         one read: do they point the same direction as your bet? -->
+    <div id="modal-combined-signal" style="margin-top:8px;display:none;"></div>
     <div id="modal-bbref-adv" style="margin-top:10px;display:none;"></div>
     <!-- Splits panel — L5/L10/Season averages from the ESPN season logs.
          When user types a line in shorthand (e.g. "u17.5"), also shows hit
