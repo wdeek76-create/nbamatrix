@@ -6515,6 +6515,30 @@ function _decorateBlurb(text) {
   return out;
 }
 
+// Shared by updateAdvBar (top pill row) and updateMatchupInModal (full
+// Matchup section below) — resolves tonight's opponent from the cached
+// ESPN scoreboard and returns the matchup adjustment for a given stat/side.
+// Kept as one function so both displays can never drift out of sync.
+function _resolveOpponentAndAdj(team, stat, ou) {
+  if (!team || !stat) return null;
+  let oppTeam = null;
+  if (typeof _tickerCachedEvents !== "undefined" && Array.isArray(_tickerCachedEvents)) {
+    const espnTeam = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[team]) || team;
+    for (const ev of _tickerCachedEvents) {
+      const comp = ev.competitions?.[0];
+      if (!comp) continue;
+      const aw = comp.competitors?.find(c => c.homeAway === "away")?.team?.abbreviation;
+      const hm = comp.competitors?.find(c => c.homeAway === "home")?.team?.abbreviation;
+      if (aw === team || aw === espnTeam) { oppTeam = hm; break; }
+      if (hm === team || hm === espnTeam) { oppTeam = aw; break; }
+    }
+  }
+  if (!oppTeam) return null;
+  const adj = getMatchupAdjustment(oppTeam, stat, ou);
+  if (!adj) return { oppTeam, adj: null };
+  return { oppTeam, adj };
+}
+
 function updateAdvBar() {
   const bar = document.getElementById("modal-adv-bar");
   if (!bar) return;
@@ -6658,6 +6682,37 @@ function updateAdvBar() {
     }
     const s = section("Shooting", shPills);
     if (s) rows.push(s);
+  }
+
+  // ── MATCHUP RANK — opponent's rank on this exact stat, right up top ──
+  // Requested spot: next to the other stats pills instead of buried in the
+  // Matchup section below. Same underlying data (opp-avg CSV), just surfaced
+  // here too for visibility.
+  {
+    const teamAbbr = window._modalTeam || "";
+    const resolved = teamAbbr ? _resolveOpponentAndAdj(teamAbbr, stat, ou) : null;
+    if (resolved && resolved.adj) {
+      const { oppTeam, adj } = resolved;
+      const mData = (typeof getMatchupData === "function") ? getMatchupData() : null;
+      let rankStr = null;
+      if (mData && mData.teams) {
+        const col = (typeof BET_STAT_TO_OPP_COL !== "undefined" && BET_STAT_TO_OPP_COL[stat]) || stat;
+        const allVals = Object.values(mData.teams).map(t => t[col]).filter(v => v != null);
+        if (allVals.length >= 2) {
+          const sorted = [...allVals].sort((a, b) => b - a);
+          const rank = sorted.findIndex(v => v === adj.oppValue) + 1;
+          if (rank > 0) rankStr = `#${rank}/${sorted.length}`;
+        }
+      }
+      if (rankStr) {
+        // Same favorable/headwind color logic as the Matchup section below —
+        // green if this ranks in the pick's favor, red if it doesn't.
+        const fav = adj.favorable;
+        const rankColor = fav >= 10 ? "#4ade80" : fav <= -5 ? "#f87171" : "#d4dae3";
+        const matchupSection = section("Matchup", [pill(`vs ${oppTeam}`, `${rankStr} allowed`, rankColor)]);
+        if (matchupSection) rows.push(matchupSection);
+      }
+    }
   }
 
   if (!rows.length) { bar.style.display = "none"; return; }
@@ -6940,6 +6995,17 @@ function updateMatchupInModal() {
   // Get team count behind the league avg so user knows the baseline's sample size
   const data = getMatchupData();
   const teamCount = data && data.teams ? Object.keys(data.teams).length : 0;
+  // Rank tonight's specific opponent on THIS specific stat among every team
+  // loaded in the opp-avg CSV — 1 = allows the most (most exploitable).
+  let rankStr = "";
+  if (data && data.teams && teamCount >= 2) {
+    const allVals = Object.values(data.teams).map(t => t[col]).filter(v => v != null);
+    if (allVals.length >= 2) {
+      const sorted = [...allVals].sort((a, b) => b - a);
+      const rank = sorted.findIndex(v => v === adj.oppValue) + 1;
+      if (rank > 0) rankStr = ` <span style="opacity:0.7;font-weight:700;">(#${rank}/${sorted.length} most allowed)</span>`;
+    }
+  }
   row.innerHTML = `<div style="font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:8px 10px;">
     <!-- Top row: matches the volatility bar layout (label + value + bar) -->
     <div style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;font-size:10px;line-height:1;">
@@ -6953,7 +7019,7 @@ function updateMatchupInModal() {
     </div>
     <!-- Explanation block: always visible, white-bold for the key numbers -->
     <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);font-size:10.5px;line-height:1.55;color:#fff;letter-spacing:0.2px;">
-      <div style="margin-bottom:3px;"><span style="font-weight:800;">${adj.opp}</span> allows <span style="font-weight:800;">${adj.oppValue}</span> ${col} per game</div>
+      <div style="margin-bottom:3px;"><span style="font-weight:800;">${adj.opp}</span> allows <span style="font-weight:800;">${adj.oppValue}</span> ${col} per game${rankStr}</div>
       <div style="margin-bottom:3px;">league avg <span style="font-weight:800;">${adj.leagueAvg}</span> <span style="opacity:0.55;font-size:9.5px;">(${teamCount} team${teamCount===1?"":"s"} uploaded)</span></div>
       <div style="color:${color};font-weight:800;">→ ${tierLabel} for ${directionWord}</div>
     </div>
@@ -15774,6 +15840,135 @@ function renderTotals() {
       if (parts.length) bestSummary = `<div style="margin-top:10px;padding:10px 12px;background:#1a1530;border:1px solid #1e40af55;border-radius:6px;font-size:13px;">${parts.join(" &nbsp;|&nbsp; ")}</div>`;
     }
 
+    // DEF stats reference — pulls each team's opponent-allowed averages from
+    // the uploaded opp-avg CSV (Upload tab), shown for quick context on why
+    // a total is projected high/low. Purely informational, doesn't affect
+    // any math on the card. Hidden entirely if no opp-avg data is loaded.
+    // Which side (over/under) this card's projection currently favors — used
+    // to color DEF stats by whether they SUPPORT that edge, not just by raw
+    // high/low. A defense allowing more than average supports an OVER edge
+    // (red = bad for unders / good for overs is backwards framing, so we key
+    // strictly off "does this number agree with our lean").
+    const cardLeansOver = (bestOver?.edge ?? -Infinity) >= (bestUnder?.edge ?? -Infinity);
+    const hasEdgeLean = (bestOver?.edge != null || bestUnder?.edge != null);
+
+    let defStatsRef = "";
+    if (typeof getMatchupData === "function") {
+      const mData = getMatchupData();
+      if (mData && mData.teams && mData.leagueAvg) {
+        // PRA dropped intentionally — it's PTS+REB+AST summed at the team
+        // level, which washes out real signal (a defense could be terrible
+        // on assists but great on the boards and PRA would just look
+        // "average," hiding both). PTS/REB/AST/3PM are the real, direct
+        // opponent-allowed numbers, so those are what's shown.
+        const DEF_REF_STATS = ["PTS", "REB", "AST", "3PM"];
+        const teamRow = (abbr) => {
+          const key = (typeof _matchupKey === "function") ? _matchupKey(abbr) : abbr;
+          if (mData.teams[key]) return mData.teams[key];
+          const match = Object.keys(mData.teams).find(k => (typeof _matchupKey === "function" ? _matchupKey(k) : k) === key);
+          return match ? mData.teams[match] : null;
+        };
+        const awayRow = teamRow(g.awayAbbr);
+        const homeRow = teamRow(g.homeAbbr);
+        if (awayRow || homeRow) {
+          // Rank a team's allowed value for a stat against every other loaded
+          // team — 1 = allows the MOST (most exploitable for overs).
+          const rankFor = (col, val) => {
+            if (val == null) return null;
+            const allVals = Object.values(mData.teams).map(t => t[col]).filter(v => v != null);
+            if (allVals.length < 2) return null;
+            const sorted = [...allVals].sort((a, b) => b - a); // descending: allows-most first
+            const rank = sorted.findIndex(v => v === val) + 1;
+            return { rank, of: sorted.length };
+          };
+          const statCell = (row, statKey) => {
+            const col = BET_STAT_TO_OPP_COL[statKey] || statKey;
+            const val = row ? row[col] : null;
+            const avg = mData.leagueAvg[col];
+            if (val == null) return `<span style="color:#525a64;">—</span>`;
+            const diff = avg != null && avg !== 0 ? ((val / avg - 1) * 100) : null;
+            // Color = does this number SUPPORT the card's current edge lean?
+            // Team allows more than avg (diff>0) supports an OVER lean;
+            // allows less than avg (diff<0) supports an UNDER lean. Compare
+            // against cardLeansOver to decide green (supports) vs red
+            // (contradicts). No lean yet (no market line) → neutral grey.
+            let numColor = "#fff";
+            if (hasEdgeLean && diff != null && Math.abs(diff) > 2) {
+              const statSupportsOver = diff > 0;
+              const supportsEdge = statSupportsOver === cardLeansOver;
+              numColor = supportsEdge ? "#4ade80" : "#f87171";
+            }
+            const diffStr = diff != null ? ` <span style="color:${numColor};font-size:9px;opacity:0.85;">${diff>=0?'+':''}${diff.toFixed(0)}%</span>` : "";
+            const rk = rankFor(col, val);
+            const rankStr = rk ? `<div style="font-size:8px;color:#525a64;margin-top:1px;">#${rk.rank}/${rk.of}</div>` : "";
+            return `<span style="color:${numColor};font-weight:700;">${val.toFixed(1)}</span>${diffStr}${rankStr}`;
+          };
+          const rowHtml = (abbr, row) => `
+            <div style="display:flex;align-items:start;gap:8px;padding:5px 0;">
+              <span style="font-size:10px;font-weight:800;color:#7dd3fc;letter-spacing:0.3px;min-width:34px;padding-top:2px;">${abbr}</span>
+              ${DEF_REF_STATS.map(s => `<span style="flex:1;text-align:center;font-size:11px;">${statCell(row, s)}</span>`).join("")}
+            </div>`;
+
+          // ── Injury warning — visual only, same "any named player matters"
+          // spirit as the CEILING/FLOOR system, but scoped to THIS game's two
+          // teams and only surfaced when relevant to today. Flags OUT/GTD
+          // players who carry real usage, since a high-usage absence moves a
+          // team total more than a bench player's.
+          let injuryWarning = "";
+          if (typeof injuriesCache !== "undefined" && injuriesCache && injuriesCache.size) {
+            const gameTeams = new Set([g.awayAbbr, g.homeAbbr].map(a => (typeof _matchupKey === "function" ? _matchupKey(a) : a)));
+            const flagged = [];
+            injuriesCache.forEach(rec => {
+              if (!rec || !rec.team) return;
+              const recTeamKey = (typeof _matchupKey === "function") ? _matchupKey(rec.team) : rec.team;
+              if (!gameTeams.has(recTeamKey)) return;
+              const status = (rec.status || "").toUpperCase();
+              const isOutOrQuestionable = status.includes("OUT") || status.includes("QUESTIONABLE") || status === "GTD" || status === "DTD";
+              if (!isOutOrQuestionable) return;
+              const isOngoing = (typeof _injuryIsOngoing === "function") && _injuryIsOngoing(rec);
+              const isToday = (typeof _injuryIsForToday === "function") && _injuryIsForToday(rec);
+              if (!isOngoing && !isToday) return;
+              // Try to find usage rate from loaded team stats / merged projections
+              // so we only warn on players who'd actually move the total.
+              let usg = null;
+              if (typeof merged !== "undefined" && merged) {
+                const mRow = merged.find(r => r.rawName && norm(r.rawName) === norm(rec.name));
+                if (mRow && mRow.usg != null) usg = mRow.usg;
+              }
+              // High-usage threshold ~20%+ (rough — a full-time rotation
+              // player carrying real offensive load). If we can't determine
+              // usage at all, still flag OUT (not questionable) players since
+              // an OUT starter is worth a warning regardless.
+              const isHighUsage = usg != null ? usg >= 20 : status.includes("OUT");
+              if (isHighUsage) flagged.push({ name: rec.name, status, usg });
+            });
+            if (flagged.length) {
+              const lines = flagged.map(f => {
+                const usgStr = f.usg != null ? ` (${f.usg.toFixed(0)}% usg)` : "";
+                return `⚠ ${f.name}${usgStr} — ${f.status}`;
+              });
+              injuryWarning = `
+                <div style="margin-top:6px;padding-top:6px;border-top:1px solid #1a1d22;">
+                  ${lines.map(l => `<div style="font-size:10px;color:#fbbf24;font-weight:700;">${l}</div>`).join("")}
+                </div>`;
+            }
+          }
+
+          defStatsRef = `
+            <div style="margin-top:10px;padding:9px 12px;background:#050507;border:1px solid #1a1d22;border-radius:6px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;padding-bottom:4px;border-bottom:1px solid #1a1d22;">
+                <span style="font-size:9px;font-weight:800;color:#a8b0bb;letter-spacing:0.6px;text-transform:uppercase;min-width:34px;">DEF vs</span>
+                ${DEF_REF_STATS.map(s => `<span style="flex:1;text-align:center;font-size:9px;font-weight:700;color:#a8b0bb;letter-spacing:0.4px;">${s}</span>`).join("")}
+              </div>
+              ${rowHtml(g.awayAbbr, awayRow)}
+              ${rowHtml(g.homeAbbr, homeRow)}
+              <div style="font-size:8.5px;color:#525a64;margin-top:3px;">Opponent-allowed avg · rank among loaded teams · green = supports current edge</div>
+              ${injuryWarning}
+            </div>`;
+        }
+      }
+    }
+
     // Build the right-side display: picker + selected total + comparison
     const fmtTotal = (v, color="#fff", glow=false) => v != null
       ? `<span style="color:${color};font-weight:700;${glow?'text-shadow:0 0 16px rgba(125,211,252,0.6);':''}">${v.toFixed(1)}</span>`
@@ -16137,6 +16332,7 @@ function renderTotals() {
           </div>`;
         })()}
         ${bestSummary}
+        ${defStatsRef}
       </div>`;
   });
   // Apply the PLAYS/ALL view: in plays mode, keep only in-range games.
