@@ -13519,6 +13519,25 @@ function updateInjuryPanel() {
       if (!rosterNames.has(n)) rosterNames.set(n, entry.name);
     });
   }
+  // Also add every BENEFICIARY name (players merely mentioned in someone
+  // else's blurb, not themselves injured) — these are extracted straight
+  // from blurb text by _rebuildBeneficiariesCache and won't be in `merged`
+  // or `injuriesCache` if they have no projections loaded and aren't
+  // injured themselves. Without this, a name like "Marine Johannes" in
+  // "...increased involvement from Marine Johannes..." wouldn't highlight
+  // at all when her team's CSV isn't loaded — the actual bug Brian hit.
+  if (typeof beneficiariesCache !== "undefined" && beneficiariesCache) {
+    beneficiariesCache.forEach((entries, normName) => {
+      if (!rosterNames.has(normName) && entries && entries.length) {
+        // We don't have the properly-cased display name here (only the
+        // normalized key), so fall back to Title Case of the key itself —
+        // good enough for bolding purposes; the actual text in the blurb
+        // keeps its original casing since we match by normalized form.
+        const guessName = normName.split(" ").map(w => w ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
+        rosterNames.set(normName, guessName);
+      }
+    });
+  }
   // Decorates an analysis blurb: bolds roster players, highlights key signal words.
   function decorateAnalysis(text) {
     if (!text) return "";
@@ -13549,44 +13568,40 @@ function updateInjuryPanel() {
         out = out.replace(p.re, m => `<span style="background:${p.color}22;color:${p.color};font-weight:700;padding:0 3px;border-radius:2px;">${m}</span>`);
       }
     });
-    // Bold roster players. Look for full names first (most specific), then unambiguous last names.
-    // To avoid double-wrapping, only match words not already inside existing <span>.
-    //
-    // Diacritic-aware matching: blurbs often spell names without accents
-    // (e.g. "Janelle Salaun") while the roster has the proper form ("Janelle Salaün").
-    // We walk through 1-2-3 word spans in the text, normalize each, and compare
-    // against the normalized roster — catches all the encoding variants in one pass.
-    // Always try to highlight — rosterNames includes injuriesCache players
+    // Bold ANY capitalized name-looking run of words in the blurb — no
+    // roster/projections lookup required. The rule is simply: if a name
+    // appears in the text you're reading, highlight it. Checking against
+    // rosterNames (loaded projections + injuriesCache) was the actual bug —
+    // it silently skipped anyone whose team's CSV wasn't loaded and who
+    // wasn't separately injured themselves, even though they were sitting
+    // right there in the sentence. Beneficiaries (already known via
+    // beneficiariesCache, which itself just scans blurb text for names)
+    // still get the stronger green-pill treatment; everyone else gets
+    // plain blue bold.
     {
-      // Beneficiaries (in beneficiariesCache) get a stronger green-pill treatment —
-      // they're the names that matter for betting decisions. Regular roster
-      // names get the standard blue-bold.
       const beneficiarySet = new Set();
       if (typeof beneficiariesCache !== "undefined" && beneficiariesCache) {
         beneficiariesCache.forEach((_, normName) => beneficiarySet.add(normName));
       }
+      // Common non-name capitalized words that would otherwise get bolded —
+      // sentence-starting words, days, months, team-city words, etc. Kept
+      // short and conservative; false negatives (a real name that happens to
+      // match) are far less costly than the old false-negative-by-default.
+      const NOT_A_NAME = new Set(["the","she","her","he","his","a","an","this","that","these","those",
+        "sunday","monday","tuesday","wednesday","thursday","friday","saturday",
+        "january","february","march","april","may","june","july","august","september","october","november","december",
+        "analysis","while","with","if","after","before","following","despite","however","additionally","meanwhile"]);
       const NAME_RUN_RE = /\b[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ']+(?:-[A-Za-zà-öø-ÿ']+)*(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ']+(?:-[A-Za-zà-öø-ÿ']+)*){0,3}\b(?![^<]*<\/span>)/g;
       out = out.replace(NAME_RUN_RE, (run) => {
         if (run.indexOf("<strong") !== -1) return run;
+        const firstWord = run.split(/\s+/)[0].toLowerCase();
+        if (NOT_A_NAME.has(firstWord)) return run;
+        const fullNorm = norm(run);
         const wrap = (text, isBeneficiary) =>
           isBeneficiary
             ? `<strong style="background:#22c55e22;color:#4ade80;padding:1px 6px;border-radius:4px;border:1px solid #22c55e55;font-weight:800;">${text}</strong>`
             : `<strong style="color:#7dd3fc;">${text}</strong>`;
-        const fullNorm = norm(run);
-        if (rosterNames.has(fullNorm)) {
-          return wrap(run, beneficiarySet.has(fullNorm));
-        }
-        const words = run.split(/\s+/);
-        if (words.length >= 2) {
-          const lastTwo = words.slice(-2).join(" ");
-          const lastTwoNorm = norm(lastTwo);
-          if (rosterNames.has(lastTwoNorm)) {
-            const prefix = words.slice(0, -2).join(" ");
-            const wrapped = wrap(lastTwo, beneficiarySet.has(lastTwoNorm));
-            return prefix ? `${prefix} ${wrapped}` : wrapped;
-          }
-        }
-        return run;
+        return wrap(run, beneficiarySet.has(fullNorm));
       });
     }
     return out;
