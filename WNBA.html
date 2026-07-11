@@ -12611,20 +12611,31 @@ function _rebuildBeneficiariesCache() {
         // Extract the sentence containing this name for context
         const sentences = blurb.split(/(?<=[.!?])\s+/);
         const nameSentence = sentences.find(s => s.toLowerCase().includes(run.toLowerCase())) || "";
-        // Classify reason based on context keywords
+        // Classify reason based on context keywords — but this is BEST-EFFORT
+        // labeling only. The actual rule (per Brian) is simpler and doesn't
+        // depend on catching every phrasing: if another roster player is
+        // named in someone's injury blurb at all, that's the signal — tag
+        // them. The label just describes it as accurately as we can guess.
         let reason;
         const ctx = nameSentence.toLowerCase();
-        const injStatus = (rec.status || "").toLowerCase();
-        const isReturning = injStatus === "probable" || injStatus === "questionable" ||
-          /expected to play|set to return|return to|making.*debut|season debut|return.*floor/.test(ctx);
+        // NOTE: previously this checked `injStatus === "questionable"` alone,
+        // which meant ANY teammate mentioned in a "Questionable" player's
+        // blurb got mislabeled "returning → floor risk" regardless of what
+        // the sentence actually said — backwards for blurbs like "if she
+        // can't play, X and Y would see more involvement." Now requires
+        // actual returning-language in the sentence, not just the injured
+        // player's own status.
+        const isReturning = /expected to play|set to return|return to|making.*debut|season debut|return.*floor|is (?:probable|questionable) but expected/.test(ctx);
         if (isReturning) {
           reason = `${rec.name} returning → floor risk`;
         } else if (/cut into|cut.*playing time|limit.*minutes|reduce.*role|fewer minutes/.test(ctx)) {
           reason = `${rec.name} out → floor risk (losing minutes)`;
-        } else if (/pick up.*slack|absorb|increased.*role|increased.*involvement|expanded.*role|larger.*role|more.*minutes|see.*more|step up|start|replace|fill in|boost|benefit|open.*minutes|open the door|opens the door|playing time.*open|candidates?.*increased|increased.*usage|increased.*workload|increased.*opportunit/.test(ctx)) {
+        } else if (/pick up.*slack|absorb|increased.*role|increased.*involvement|expanded.*role|larger.*role|more.*minutes|see.*more|step up|start|replace|fill in|boost|benefit|open.*minutes|open the door|opens the door|playing time.*open|candidates?.*increased|increased.*usage|increased.*workload|increased.*opportunit|more involved|greater.*role|primary.*option|featured.*role|see.*increase|increase.*in.*(?:touches|shots|usage|minutes|role)|heavier.*workload|elevated.*role|could see.*uptick|uptick in/.test(ctx)) {
           reason = `${rec.name} out → ceiling (usage boost)`;
         } else {
-          reason = `${rec.name} out → mentioned in report`;
+          // Fallback: still tag the player — the mention itself is the
+          // signal, even when we can't confidently classify the direction.
+          reason = `${rec.name} (${rec.status || "injury"}) → mentioned in report`;
         }
         if (!beneficiariesCache.has(cand)) beneficiariesCache.set(cand, []);
         beneficiariesCache.get(cand).push({
