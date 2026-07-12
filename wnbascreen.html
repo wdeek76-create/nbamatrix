@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WNBA Odds Screen</title>
+<title>WNBA Odds</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -14,7 +14,6 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-size:13px;min-height:100vh}
-/* layout */
 .hdr{background:var(--sur);border-bottom:1px solid var(--bdr);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
 .logo{font-size:15px;font-weight:900;letter-spacing:-.5px;color:var(--teal);text-transform:uppercase}
 .logo span{color:var(--txt)}
@@ -22,18 +21,15 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .btn{background:var(--tdim);color:var(--teal);border:1px solid var(--teal);padding:5px 12px;border-radius:6px;cursor:pointer;font:600 11px Inter,sans-serif;transition:.15s}
 .btn:hover{background:var(--teal);color:#000}
 .btn:disabled{opacity:.4;cursor:not-allowed}
-/* status */
 .sbar{padding:4px 14px;background:var(--sur);border-bottom:1px solid var(--bdr);display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--mu)}
 .sdot{width:5px;height:5px;border-radius:50%;background:var(--grn);display:inline-block;margin-right:3px;animation:pu 2s infinite}
 @keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
 .si strong{color:var(--txt);font-weight:600}
-/* tabs */
 .tabs{display:flex;padding:8px 14px 0;background:var(--sur);border-bottom:1px solid var(--bdr);overflow-x:auto;scrollbar-width:none;gap:2px}
 .tabs::-webkit-scrollbar{display:none}
 .tab{padding:6px 13px;border-radius:5px 5px 0 0;cursor:pointer;font:600 12px Inter,sans-serif;color:var(--mu);border:1px solid transparent;border-bottom:none;white-space:nowrap;background:transparent;transition:.15s}
 .tab.on{background:var(--bg);color:var(--teal);border-color:var(--bdr)}
 .tab:not(.on):hover{color:var(--txt)}
-/* filters */
 .fbar{padding:8px 14px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--bdr)}
 .fl{font-size:9px;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
 .pill{background:var(--sur);color:var(--mu2);border:1px solid var(--bdr);padding:3px 9px;border-radius:20px;cursor:pointer;font:600 11px Inter,sans-serif;transition:.12s}
@@ -42,17 +38,15 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .srch{background:var(--sur);border:1px solid var(--bdr);color:var(--txt);padding:3px 10px;border-radius:6px;font:12px Inter,sans-serif;width:130px;outline:none}
 .srch:focus{border-color:var(--teal)}
 .srch::placeholder{color:var(--mu)}
-/* pages */
 .pg{display:none}.pg.on{display:block}
 .main{padding:12px 14px}
-/* progress */
-.prog{padding:20px 14px}
-.plbl{font-size:11px;color:var(--mu2);margin-bottom:6px}
-.pbar{height:3px;background:var(--sur2);border-radius:2px;overflow:hidden}
-.pfil{height:100%;background:var(--teal);border-radius:2px;transition:width .3s}
+/* fixed progress bar — survives innerHTML changes */
+#prog-ov{position:fixed;bottom:0;left:0;right:0;background:var(--sur);border-top:1px solid var(--bdr);padding:10px 14px;z-index:200;display:none}
+#prog-lbl{font-size:11px;color:var(--mu2);margin-bottom:5px}
+#prog-bar-wrap{height:3px;background:var(--sur3);border-radius:2px;overflow:hidden}
+#prog-bar{height:100%;background:var(--teal);border-radius:2px;transition:width .3s;width:0%}
 /* game row */
 .grow{background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:9px 13px;margin-bottom:9px;display:flex;align-items:center;gap:8px}
-.glogos{display:flex;align-items:center;gap:4px;flex-shrink:0}
 .gi{flex:1;min-width:0}
 .gtit{font-weight:700;font-size:13px}
 .gmet{font-size:10px;color:var(--mu2);margin-top:1px}
@@ -63,13 +57,10 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .pc{background:var(--sur);border:1px solid var(--bdr);border-radius:9px;margin-bottom:8px;overflow:hidden;transition:border-color .15s}
 .pc:hover{border-color:rgba(0,201,167,.3)}
 .pch{display:flex;align-items:center;padding:9px 13px;gap:9px;cursor:pointer;user-select:none}
-/* avatar */
 .aw{position:relative;flex-shrink:0;width:44px;height:44px}
-.ai{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--bdr);background:var(--sur3)}
+.ai{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--bdr);background:var(--sur3);display:block}
 .afb{width:44px;height:44px;border-radius:50%;background:var(--sur3);border:2px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:var(--teal)}
 .tbadge{position:absolute;bottom:-1px;right:-3px;width:17px;height:17px;border-radius:50%;background:var(--sur);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;overflow:hidden}
-.tbadge img{width:12px;height:12px;object-fit:contain}
-.tbfb{font-size:6px;font-weight:700;color:var(--teal)}
 .pi{flex:1;min-width:0}
 .pn{font-weight:700;font-size:13px;color:var(--txt)}
 .pm{font-size:10px;color:var(--mu2);margin-top:1px}
@@ -79,7 +70,6 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .pc.op .exp{transform:rotate(180deg)}
 .pbdg{background:var(--tdim);color:var(--teal);border:1px solid rgba(0,201,167,.3);padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700}
 .itag{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);padding:1px 5px;border-radius:4px;font-size:9px;font-weight:700}
-/* prop body */
 .pbdy{border-top:1px solid var(--bdr)}
 .psec{padding:9px 13px;border-bottom:1px solid var(--bdr)}
 .psec:last-child{border-bottom:none}
@@ -89,7 +79,6 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .lmv{font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;margin-left:5px}
 .lmv.up{background:rgba(239,68,68,.2);color:var(--red)}
 .lmv.dn{background:rgba(34,197,94,.2);color:var(--grn)}
-/* alt lines */
 .alts{margin-bottom:7px}
 .altl{font-size:9px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;display:flex;justify-content:space-between}
 .altsc{display:flex;gap:3px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin;scrollbar-color:var(--bdr) transparent}
@@ -101,7 +90,6 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .ab.ml{border-color:rgba(251,191,36,.4)}
 .mld{display:none;position:absolute;top:2px;right:3px;width:4px;height:4px;border-radius:50%;background:var(--ylw)}
 .ab.ml .mld{display:block}
-/* book chips */
 .brow{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
 .bc{background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;padding:3px 7px;display:flex;flex-direction:column;align-items:center;min-width:52px;position:relative}
 .bc.bo{border-color:var(--grn);background:rgba(34,197,94,.07)}
@@ -114,13 +102,11 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .btg{position:absolute;top:-5px;right:2px;font-size:7px;font-weight:700;padding:1px 3px;border-radius:3px;text-transform:uppercase}
 .btg.o{background:var(--grn);color:#000}
 .btg.u{background:var(--red);color:#fff}
-/* consensus bar */
 .cbar{background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;padding:4px 9px;margin-top:5px;display:flex;align-items:center;gap:7px}
 .clb{font-size:9px;color:var(--mu);width:50px;flex-shrink:0}
 .ctr{flex:1;height:4px;background:var(--sur3);border-radius:2px;overflow:hidden}
 .cfi{height:100%;border-radius:2px;background:var(--grn)}
 .cvl{font:600 10px 'JetBrains Mono',monospace;width:36px;text-align:right;flex-shrink:0}
-/* recent log */
 .rlog{display:flex;gap:3px;margin-top:5px;overflow-x:auto;scrollbar-width:none}
 .rlog::-webkit-scrollbar{display:none}
 .rg{background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;flex-shrink:0;text-align:center;min-width:40px}
@@ -128,7 +114,6 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .ro{font-size:7px;color:var(--mu);margin-top:1px}
 .rg.h{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.06)}
 .rg.m{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)}
-/* stats panel */
 .sp{background:var(--sur2);margin:0 13px 9px;border-radius:7px;border:1px solid var(--bdr);overflow:hidden}
 .stbs{display:flex;border-bottom:1px solid var(--bdr);background:var(--sur3);overflow-x:auto;scrollbar-width:none}
 .stbs::-webkit-scrollbar{display:none}
@@ -140,7 +125,6 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .sbl{font-size:8px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
 .sbv{font:700 14px 'JetBrains Mono',monospace;color:var(--txt);margin-top:1px}
 .sbs{font-size:8px;color:var(--mu2);margin-top:1px}
-/* tables */
 .tbl{width:100%;border-collapse:collapse;font-size:11px}
 .tbl th{text-align:left;padding:7px;color:var(--mu);font-size:9px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--bdr);font-weight:600}
 .tbl th:not(:first-child){text-align:center}
@@ -148,11 +132,11 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
 .tbl td:not(:first-child){text-align:center;font:600 11px 'JetBrains Mono',monospace}
 .tbl tr:last-child td{border-bottom:none}
 .tlc{display:flex;align-items:center;gap:6px}
-/* injury card */
 .ic{background:var(--sur);border:1px solid var(--bdr);border-radius:7px;padding:9px 13px;margin-bottom:7px;display:flex;gap:9px;align-items:flex-start}
-/* misc */
+/* logo placeholder — JS upgrades to real img */
+.lph{border-radius:50%;background:var(--sur3);border:1px solid var(--bdr);display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--teal);flex-shrink:0}
 .empty{text-align:center;padding:40px 20px;color:var(--mu)}
-.empty .ic2{font-size:28px;margin-bottom:8px}
+.empty .ei{font-size:28px;margin-bottom:8px}
 .empty h3{font-size:14px;color:var(--mu2);margin-bottom:4px}
 .wbox{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:6px;padding:8px 11px;margin-bottom:9px;font-size:11px;color:var(--ylw);line-height:1.5}
 @media(max-width:480px){.sgr{grid-template-columns:repeat(3,1fr)}}
@@ -174,11 +158,11 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
   <span class="si">🕐 <strong id="sT">—</strong></span>
 </div>
 <div class="tabs">
-  <button class="tab on"  onclick="pg('props',this)">Props</button>
-  <button class="tab"     onclick="pg('mu',this)">Matchups</button>
-  <button class="tab"     onclick="pg('def',this)">Def Ranks</button>
-  <button class="tab"     onclick="pg('inj',this)">Injuries</button>
-  <button class="tab"     onclick="pg('std',this)">Standings</button>
+  <button class="tab on" onclick="pg('props',this)">Props</button>
+  <button class="tab"    onclick="pg('mu',this)">Matchups</button>
+  <button class="tab"    onclick="pg('def',this)">Def Ranks</button>
+  <button class="tab"    onclick="pg('inj',this)">Injuries</button>
+  <button class="tab"    onclick="pg('std',this)">Standings</button>
 </div>
 <div class="fbar">
   <span class="fl">Mkt</span>
@@ -192,55 +176,63 @@ body{background:var(--bg);color:var(--txt);font-family:Inter,sans-serif;font-siz
   <button class="pill"    data-m="rebounds_assists"        onclick="fm(this)">R+A</button>
   <button class="pill"    data-m="threes"                  onclick="fm(this)">3PM</button>
   <button class="pill"    data-m="double_double"           onclick="fm(this)">DD</button>
-  <input  class="srch" id="srch" placeholder="Search player…" oninput="rProps()">
+  <input class="srch" id="srch" placeholder="Search player…" oninput="rProps()">
 </div>
 
-<div id="pg-props" class="pg on"><div class="main" id="cProps"><div class="prog"><div class="plbl" id="plbl">Loading…</div><div class="pbar"><div class="pfil" id="pfil" style="width:0%"></div></div></div></div></div>
-<div id="pg-mu"    class="pg"><div class="main" id="cMu"></div></div>
-<div id="pg-def"   class="pg"><div class="main" id="cDef"></div></div>
-<div id="pg-inj"   class="pg"><div class="main" id="cInj"></div></div>
-<div id="pg-std"   class="pg"><div class="main" id="cStd"></div></div>
+<!-- fixed progress — lives outside page content so innerHTML never kills it -->
+<div id="prog-ov">
+  <div id="prog-lbl">Loading…</div>
+  <div id="prog-bar-wrap"><div id="prog-bar"></div></div>
+</div>
+
+<div id="pg-props" class="pg on"><div class="main" id="cProps"><div style="padding:20px;color:var(--mu2);font-size:12px">Initializing…</div></div></div>
+<div id="pg-mu"   class="pg"><div class="main" id="cMu"></div></div>
+<div id="pg-def"  class="pg"><div class="main" id="cDef"></div></div>
+<div id="pg-inj"  class="pg"><div class="main" id="cInj"></div></div>
+<div id="pg-std"  class="pg"><div class="main" id="cStd"></div></div>
 
 <script>
-// ── CONFIG ──
 const BASE='https://api.balldontlie.io/wnba/v1';
 const KEY='9cdb249f-9635-4cca-a998-37c7b98a9372';
 
-// ── STATE ──
 let G=[],PL={},PR={},OP={},SS={},RS={},INJ=[],GO={},STD=[],TSS=[];
 let mkt='all', sel={}, warns=[];
 
-// ── ESPN HEADSHOT IDs (verified) ──
+// ── PROGRESS (fixed overlay, never inside page content) ──
+function prog(p,l){
+  const ov=document.getElementById('prog-ov');
+  const bar=document.getElementById('prog-bar');
+  const lbl=document.getElementById('prog-lbl');
+  if(!ov) return;
+  ov.style.display='block';
+  if(p!=null) bar.style.width=p+'%';
+  if(l) lbl.textContent=l;
+  if(p>=100) setTimeout(()=>{ ov.style.display='none'; },600);
+}
+
+// ── ESPN IDs ──
 const EH={
   "A'ja Wilson":'4066453',"Chelsea Gray":'2529074',"Kelsey Plum":'3149390',
   "Jackie Young":'4066446',"Dearica Hamby":'3918296',"Alysha Clark":'2529065',
   "Breanna Stewart":'3149391',"Sabrina Ionescu":'4066430',"Jonquel Jones":'3918299',
-  "Courtney Vandersloot":'2961238',"Nyara Sabally":'4432657',
-  "Caitlin Clark":'4432650',"Aliyah Boston":'4432642',"NaLyssa Smith":'4432648',
-  "Kelsey Mitchell":'4066438',"Lexie Hull":'4432645',"Erica Wheeler":'2961235',
+  "Courtney Vandersloot":'2961238',"Caitlin Clark":'4432650',"Aliyah Boston":'4432642',
+  "NaLyssa Smith":'4432648',"Kelsey Mitchell":'4066438',"Lexie Hull":'4432645',
   "Angel Reese":'4573096',"Kahleah Copper":'3918295',"Marina Mabrey":'4066441',
-  "Courtney Williams":'3918301',"Elizabeth Williams":'2961240',
-  "Napheesa Collier":'4066440',"Kayla McBride":'2529077',"Diamond Miller":'4573095',
-  "Arike Ogunbowale":'4066447',"Satou Sabally":'4066449',"Teaira McCowan":'4066439',
-  "Odyssey Sims":'2529080',"Rhyne Howard":'4432641',"Allisha Gray":'4066431',
-  "Tiffany Hayes":'2529071',"Jewell Loyd":'3149395',"Nneka Ogwumike":'2529070',
-  "Skylar Diggins-Smith":'2529072',"Diana Taurasi":'313232',"Brittney Griner":'2472778',
-  "Sophie Cunningham":'4066429',"Natasha Cloud":'3918294',"DeWanna Bonner":'313239',
-  "Alyssa Thomas":'2961236',"DiJonai Carrington":'4432643',"Brionna Jones":'4066432',
-  "Elena Delle Donne":'2489651',"Ariel Atkins":'4066428',"Shakira Austin":'4432640',
-  "Layshia Clarendon":'2961239',
+  "Courtney Williams":'3918301',"Napheesa Collier":'4066440',"Kayla McBride":'2529077',
+  "Diamond Miller":'4573095',"Arike Ogunbowale":'4066447',"Satou Sabally":'4066449',
+  "Rhyne Howard":'4432641',"Allisha Gray":'4066431',"Tiffany Hayes":'2529071',
+  "Jewell Loyd":'3149395',"Nneka Ogwumike":'2529070',"Skylar Diggins-Smith":'2529072',
+  "Diana Taurasi":'313232',"Brittney Griner":'2472778',"DeWanna Bonner":'313239',
+  "Alyssa Thomas":'2961236',"DiJonai Carrington":'4432643',"Elena Delle Donne":'2489651',
+  "Ariel Atkins":'4066428',"Shakira Austin":'4432640',
 };
-
-// ── ESPN TEAM LOGO IDs (verified from wehoop 2026-05-30) ──
-// BDL uses these abbreviations: ATL CHI CON DAL GS IND LV LA MIN NY PHX POR SEA TOR WAS
+// BDL abbr → ESPN team numeric ID (verified)
 const ET={
   ATL:'20',CHI:'19',CON:'18',DAL:'3',GS:'129689',GLD:'129689',
   IND:'5',LV:'17',LA:'6',MIN:'8',NY:'9',PHX:'11',
   POR:'132052',SEA:'15',TOR:'130093',WAS:'16',
-  LVA:'17',LAX:'6',NYL:'9', // BDL alternates
+  LVA:'17',LAX:'6',NYL:'9',
 };
-
-// ── BOOK DISPLAY ──
 const BK={
   fanduel:{l:'FD',c:'#0077c8'},draftkings:{l:'DK',c:'#61b232'},
   caesars:{l:'CZR',c:'#006341'},betrivers:{l:'BRV',c:'#1d4ed8'},
@@ -252,205 +244,181 @@ const PL2={
   points_assists:'Pts+Ast',rebounds_assists:'Reb+Ast',
   threes:'3-Pointers',double_double:'Dbl-Dbl',triple_double:'Triple-Dbl',
 };
-const PE={
-  points:'🔥',rebounds:'💪',assists:'🎯',points_rebounds_assists:'🏆',
+const PE={points:'🔥',rebounds:'💪',assists:'🎯',points_rebounds_assists:'🏆',
   points_rebounds:'📊',points_assists:'📊',rebounds_assists:'📊',
-  threes:'🎯',double_double:'⭐',triple_double:'🌟',
-};
+  threes:'🎯',double_double:'⭐',triple_double:'🌟'};
 
 // ── UTILS ──
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function prog(p,l){
-  const f=document.getElementById('pfil'),lb=document.getElementById('plbl');
-  if(f&&p!=null)f.style.width=p+'%';
-  if(lb&&l)lb.textContent=l;
-}
-function fmt(o){return o==null?'—':o>0?'+'+o:''+o;}
-function impl(a){return a>0?100/(a+100)*100:Math.abs(a)/(Math.abs(a)+100)*100;}
-function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
-function fn(n,d=1){return n!=null&&!isNaN(n)?Number(n).toFixed(d):'—';}
-function gtime(s){try{return new Date(s).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'});}catch{return s||'—';}}
+const fmt=o=>o==null?'—':o>0?'+'+o:''+o;
+const impl=a=>a>0?100/(a+100)*100:Math.abs(a)/(Math.abs(a)+100)*100;
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const fn=(n,d=1)=>n!=null&&!isNaN(n)?Number(n).toFixed(d):'—';
+const gtime=s=>{try{return new Date(s).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'});}catch{return s||'—';}};
 
-// ── ESPN IMAGES ──
-// headshot: straightforward, no fallback issues
-function ehead(name){const id=EH[name];return id?`https://a.espncdn.com/i/headshots/wnba/players/full/${id}.png`:null;}
-
-// team logo: build img element using JS DOM to avoid any HTML-string escaping issues
-function logoEl(abbr,sz){
-  sz=sz||26;
+// ── ESPN LOGOS — JS-only, zero innerHTML string injection ──
+function makeLogoImg(abbr, sz){
   const id=ET[(abbr||'').toUpperCase()];
-  if(!id){
-    // no ID — return text fallback div as HTML string (safe, no img involved)
-    return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:var(--sur3);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--teal);flex-shrink:0">${abbr||''}</div>`;
-  }
-  // Use a placeholder div with data attrs — JS will swap in the real img after render
-  return `<div class="logo-ph" data-id="${id}" data-abbr="${abbr||''}" data-sz="${sz}" style="width:${sz}px;height:${sz}px;border-radius:50%;background:var(--sur3);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--teal);flex-shrink:0">${abbr||''}</div>`;
+  const div=document.createElement('div');
+  div.className='lph';
+  div.style.cssText=`width:${sz}px;height:${sz}px`;
+  div.textContent=abbr||'';
+  if(!id) return div;
+  const img=document.createElement('img');
+  img.src=`https://a.espncdn.com/i/teamlogos/wnba/500/${id}.png`;
+  img.style.cssText=`width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0`;
+  img.loading='lazy';
+  img.onerror=()=>img.replaceWith(div);
+  return img;
 }
-
-// After any innerHTML set, call this to upgrade logo placeholders to real imgs
-function upgLogos(root){
-  (root||document).querySelectorAll('.logo-ph').forEach(el=>{
-    const id=el.dataset.id, sz=el.dataset.sz||26;
-    const img=document.createElement('img');
-    img.src=`https://a.espncdn.com/i/teamlogos/wnba/500/${id}.png`;
-    img.style.cssText=`width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0`;
-    img.loading='lazy';
-    img.onerror=function(){this.replaceWith(el.cloneNode(true));};
-    el.replaceWith(img);
+// Attach logos after a container's innerHTML is set
+function attachLogos(container){
+  container.querySelectorAll('[data-logo]').forEach(slot=>{
+    const abbr=slot.dataset.logo, sz=parseInt(slot.dataset.sz||'26');
+    slot.replaceWith(makeLogoImg(abbr,sz));
   });
 }
+// Lightweight logo placeholder — just a data-attr span, replaced by attachLogos()
+const L=(abbr,sz=26)=>`<span data-logo="${abbr||''}" data-sz="${sz}"></span>`;
 
 // ── API ──
-async function bdl(path,tries=3){
+async function bdl(path, tries=3){
   for(let i=0;i<tries;i++){
-    const r=await fetch(BASE+path,{headers:{Authorization:KEY}});
-    if(r.status===429){await sleep(1500*(i+1));continue;}
-    if(!r.ok)throw new Error(`BDL ${r.status} ${path}`);
+    let r;
+    try{ r=await fetch(BASE+path,{headers:{Authorization:KEY}}); }
+    catch(e){ if(i===tries-1) throw new Error('Network error: '+e.message); await sleep(1000*(i+1)); continue; }
+    if(r.status===429){ prog(null,`Rate limit — retrying in ${i+2}s…`); await sleep(1200*(i+1)); continue; }
+    if(!r.ok) throw new Error(`BDL ${r.status}`);
     return r.json();
   }
-  throw new Error('BDL rate limit');
+  throw new Error('BDL failed after retries');
 }
-async function safe(path){try{return await bdl(path);}catch{return {data:[]};}}
+const safe=async p=>{try{return await bdl(p);}catch(e){console.warn('safe fail:',p,e.message);return {data:[]};};};
 
-// ── LOAD ──
+// ── BOOT ──
 async function boot(){
   const btn=document.getElementById('refreshBtn');
   btn.disabled=true; btn.textContent='⟳ Loading…';
   sel={}; warns=[];
-  document.getElementById('cProps').innerHTML='<div class="prog"><div class="plbl" id="plbl">Loading games…</div><div class="pbar"><div class="pfil" id="pfil" style="width:5%"></div></div></div>';
+  document.getElementById('cProps').innerHTML='<div style="padding:16px;color:var(--mu2);font-size:12px">Fetching today\'s data…</div>';
+  prog(5,'Connecting to BDL…');
   try{
-    await load();
-    rAll();
+    await loadAll();
+    renderAll();
     rStatus();
   }catch(e){
-    document.getElementById('cProps').innerHTML=`<div class="empty"><div class="ic2">❌</div><h3>Error</h3><p>${e.message}</p></div>`;
+    prog(100);
+    document.getElementById('cProps').innerHTML=`<div class="empty"><div class="ei">❌</div><h3>Error</h3><p style="font-size:11px">${e.message}</p></div>`;
+    console.error(e);
   }
   btn.disabled=false; btn.textContent='⟳ Refresh';
 }
 
-async function load(){
+async function loadAll(){
   const today=new Date().toISOString().slice(0,10);
   const yr=new Date().getFullYear();
 
-  // 1. games
-  prog(8,'Loading games…');
+  // 1. Games
+  prog(10,'Loading games…');
   const gd=await bdl(`/games?dates[]=${today}&per_page=100`);
   G=gd.data||[];
-  if(!G.length) return;
+  if(!G.length){ prog(100,'No games today.'); return; }
 
-  const gids=G.map(g=>g.id);
-  prog(15,'Loading game odds…');
-
-  // 2. game odds
+  // 2. Game odds
+  prog(16,'Loading game odds…');
   const od=await safe(`/odds?dates[]=${today}&per_page=100`);
   GO={};
   (od.data||[]).forEach(o=>{if(!GO[o.game_id])GO[o.game_id]=[];GO[o.game_id].push(o);});
-  await sleep(250);
+  await sleep(300);
 
-  // 3. props per game (sequential)
+  // 3. Props + opening lines per game
   PR={}; OP={};
   const pids=new Set();
-  for(let i=0;i<gids.length;i++){
-    const gid=gids[i];
-    prog(18+Math.round(i/gids.length*18),`Props ${i+1}/${gids.length}…`);
+  for(let i=0;i<G.length;i++){
+    const gid=G[i].id;
+    prog(18+Math.round(i/G.length*20),`Props game ${i+1}/${G.length}…`);
     const pd=await safe(`/odds/player_props?game_id=${gid}`);
-    (pd.data||[]).forEach(p=>{
-      pids.add(p.player_id);
-      if(!PR[p.player_id])PR[p.player_id]={};
-      if(!PR[p.player_id][p.prop_type])PR[p.player_id][p.prop_type]={};
-      if(!PR[p.player_id][p.prop_type][p.vendor])PR[p.player_id][p.prop_type][p.vendor]=[];
-      PR[p.player_id][p.prop_type][p.vendor].push({
-        line:parseFloat(p.line_value),
-        over:p.market?.over_odds??null,
-        under:p.market?.under_odds??null,
-        odds:p.market?.odds??null,
-        type:p.market?.type,
-      });
-      PR[p.player_id][p.prop_type][p.vendor].sort((a,b)=>a.line-b.line);
+    (pd.data||[]).forEach(row=>{
+      pids.add(row.player_id);
+      const p=PR[row.player_id]||(PR[row.player_id]={});
+      const t=p[row.prop_type]||(p[row.prop_type]={});
+      const v=t[row.vendor]||(t[row.vendor]=[]);
+      v.push({line:parseFloat(row.line_value),over:row.market?.over_odds??null,under:row.market?.under_odds??null,odds:row.market?.odds??null,type:row.market?.type});
+      v.sort((a,b)=>a.line-b.line);
     });
-    await sleep(250);
-    // opening lines
+    await sleep(300);
     const op=await safe(`/odds/player_props/opening?game_id=${gid}`);
-    (op.data||[]).forEach(p=>{ OP[`${p.player_id}_${p.prop_type}_${p.vendor}`]=parseFloat(p.line_value); });
-    await sleep(250);
+    (op.data||[]).forEach(row=>{ OP[`${row.player_id}_${row.prop_type}_${row.vendor}`]=parseFloat(row.line_value); });
+    await sleep(300);
   }
+  if(!pids.size) warns.push('No props posted yet — check back closer to tip-off (usually 2-4 hrs before game time).');
 
-  if(!pids.size){
-    warns.push("No props posted yet — books typically post WNBA lines 2-4 hrs before tip. Check back later.");
-  }
-
-  // batch helper
   const ids=[...pids];
-  const chunks=[];
-  for(let i=0;i<ids.length;i+=40)chunks.push(ids.slice(i,i+40));
+  if(!ids.length){
+    // still load injuries + standings even with no props
+    prog(85,'Loading injuries…');
+    INJ=(await safe('/player_injuries?per_page=100')).data||[];
+    await sleep(300);
+    STD=(await safe(`/standings?season=${yr}`)).data||[];
+    prog(100,'Done');
+    return;
+  }
 
-  // 4. player info
-  prog(40,'Loading player info…');
+  const chunks=[];
+  for(let i=0;i<ids.length;i+=40) chunks.push(ids.slice(i,i+40));
+
+  // 4. Player info
+  prog(42,'Loading player info…');
   PL={};
   for(const ch of chunks){
-    const qs=ch.map(x=>`player_ids[]=${x}`).join('&');
-    const d=await safe(`/players?${qs}&per_page=100`);
+    const d=await safe(`/players?${ch.map(x=>`player_ids[]=${x}`).join('&')}&per_page=100`);
     d.data?.forEach(p=>PL[p.id]=p);
-    await sleep(250);
+    await sleep(300);
   }
 
-  // 5. season stats (current year, then prior year for missing)
-  prog(55,'Loading season stats…');
+  // 5. Season stats
+  prog(56,'Loading season stats…');
   SS={};
   for(const ch of chunks){
-    const qs=ch.map(x=>`player_ids[]=${x}`).join('&');
-    const d=await safe(`/player_season_stats?${qs}&season=${yr}&per_page=100`);
+    const d=await safe(`/player_season_stats?${ch.map(x=>`player_ids[]=${x}`).join('&')}&season=${yr}&per_page=100`);
     d.data?.forEach(s=>SS[s.player.id]=s);
-    await sleep(250);
+    await sleep(300);
   }
+  // fallback to prior year
   const miss=ids.filter(x=>!SS[x]);
   if(miss.length){
     const mc=[];
-    for(let i=0;i<miss.length;i+=40)mc.push(miss.slice(i,i+40));
+    for(let i=0;i<miss.length;i+=40) mc.push(miss.slice(i,i+40));
     for(const ch of mc){
-      const qs=ch.map(x=>`player_ids[]=${x}`).join('&');
-      const d=await safe(`/player_season_stats?${qs}&season=${yr-1}&per_page=100`);
-      d.data?.forEach(s=>{ if(!SS[s.player.id])SS[s.player.id]=s; });
-      await sleep(250);
+      const d=await safe(`/player_season_stats?${ch.map(x=>`player_ids[]=${x}`).join('&')}&season=${yr-1}&per_page=100`);
+      d.data?.forEach(s=>{if(!SS[s.player.id])SS[s.player.id]=s;});
+      await sleep(300);
     }
   }
 
-  // 6. recent game logs
-  prog(68,'Loading recent games…');
+  // 6. Recent games
+  prog(70,'Loading recent game logs…');
   RS={};
   for(const ch of chunks){
-    const qs=ch.map(x=>`player_ids[]=${x}`).join('&');
-    const d=await safe(`/player_stats?${qs}&seasons[]=${yr}&per_page=100`);
-    d.data?.forEach(s=>{
-      if(!RS[s.player.id])RS[s.player.id]=[];
-      RS[s.player.id].push(s);
-    });
-    await sleep(250);
+    const d=await safe(`/player_stats?${ch.map(x=>`player_ids[]=${x}`).join('&')}&seasons[]=${yr}&per_page=100`);
+    d.data?.forEach(s=>{(RS[s.player.id]||(RS[s.player.id]=[])).push(s);});
+    await sleep(300);
   }
   Object.values(RS).forEach(a=>a.sort((a,b)=>new Date(b.game.date)-new Date(a.game.date)));
 
-  // 7. injuries
-  prog(80,'Loading injuries…');
-  const inj=await safe('/player_injuries?per_page=100');
-  INJ=inj.data||[];
-  await sleep(250);
-
-  // 8. standings
-  prog(87,'Loading standings…');
-  const st=await safe(`/standings?season=${yr}`);
-  STD=st.data||[];
-  await sleep(250);
-
-  // 9. team season stats
-  prog(93,'Loading team stats…');
-  const ts=await safe(`/team_season_stats?season=${yr}&per_page=100`);
-  TSS=ts.data||[];
+  // 7. Injuries, standings, team stats
+  prog(82,'Loading injuries & standings…');
+  INJ=(await safe('/player_injuries?per_page=100')).data||[];
+  await sleep(300);
+  STD=(await safe(`/standings?season=${yr}`)).data||[];
+  await sleep(300);
+  TSS=(await safe(`/team_season_stats?season=${yr}&per_page=100`)).data||[];
 
   prog(100,'Ready!');
 }
 
 // ── RENDER ALL ──
-function rAll(){ rProps(); rMu(); rDef(); rInj(); rStd(); }
+function renderAll(){ rProps(); rMu(); rDef(); rInj(); rStd(); }
 
 // ── PROPS ──
 function rProps(){
@@ -458,42 +426,38 @@ function rProps(){
   if(!G.length) return;
   const srch=(document.getElementById('srch')?.value||'').toLowerCase();
   let html='', tot=0;
-
   if(warns.length) html+=`<div class="wbox">⚠️ ${warns.join('<br>')}</div>`;
 
   G.forEach(g=>{
     const hA=g.home_team?.abbreviation||'', aA=g.visitor_team?.abbreviation||'';
-    const gplayers=Object.keys(PR).map(Number).filter(pid=>{
+    const gps=Object.keys(PR).map(Number).filter(pid=>{
       const p=PL[pid]; if(!p) return false;
       if(p.team?.id!==g.home_team?.id&&p.team?.id!==g.visitor_team?.id) return false;
-      if(srch&&!`${p.first_name} ${p.last_name}`.toLowerCase().includes(srch)&&
-         !(p.team?.abbreviation||'').toLowerCase().includes(srch)) return false;
+      if(srch&&!`${p.first_name} ${p.last_name}`.toLowerCase().includes(srch)&&!(p.team?.abbreviation||'').toLowerCase().includes(srch)) return false;
       if(mkt!=='all'&&!PR[pid]?.[mkt]) return false;
       return true;
     });
-
-    const go=GO[g.id]||[];
-    const fd=go.find(o=>o.vendor==='fanduel')||go[0];
+    const go=GO[g.id]||[], fd=go.find(o=>o.vendor==='fanduel')||go[0];
     const total=fd?.total_value||'—';
     const spread=fd?.spread_home_value!=null?`${fd.spread_home_value>0?'+':''}${fd.spread_home_value}`:'—';
     const live=g.status==='in_progress'?'🔴 LIVE':(g.period>0?`Q${g.period} ${g.time||''}`:gtime(g.date));
 
     html+=`<div class="grow">
-      <div class="glogos">${logoEl(aA,26)}<span style="font-size:9px;color:var(--mu);font-weight:700;margin:0 2px">@</span>${logoEl(hA,26)}</div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">${L(aA,26)}<span style="font-size:9px;color:var(--mu);font-weight:700;margin:0 2px">@</span>${L(hA,26)}</div>
       <div class="gi"><div class="gtit">${aA} @ ${hA}</div><div class="gmet">${live} · ${hA} ${spread}</div></div>
       <div class="gtot"><div class="gtv">${total}</div><div class="gtl">Total</div></div>
     </div>`;
 
-    if(!gplayers.length){
-      html+=`<div style="font-size:11px;color:var(--mu);padding:6px 4px 12px">No props posted for this game yet.</div>`;
+    if(!gps.length){
+      html+=`<div style="font-size:11px;color:var(--mu);padding:4px 2px 12px">No props posted yet for this game.</div>`;
     } else {
-      gplayers.forEach(pid=>{ tot+=Object.keys(PR[pid]||{}).length; html+=rCard(pid,g); });
+      gps.forEach(pid=>{ tot+=Object.keys(PR[pid]||{}).length; html+=rCard(pid,g); });
     }
   });
 
   document.getElementById('sP').textContent=tot;
-  c.innerHTML=html||'<div class="empty"><div class="ic2">🔍</div><h3>No props match</h3></div>';
-  upgLogos(c);
+  c.innerHTML=html||'<div class="empty"><div class="ei">🔍</div><h3>No props match</h3></div>';
+  attachLogos(c);
 }
 
 function rCard(pid,game){
@@ -507,16 +471,14 @@ function rCard(pid,game){
   const pp=PR[pid]||{};
   const keys=mkt==='all'?Object.keys(pp):[mkt].filter(m=>pp[m]);
 
-  // headshot — use data-pid attr, JS will wire it after
-  const hsUrl=ehead(name);
+  // headshot
+  const hsId=EH[name];
+  const hsUrl=hsId?`https://a.espncdn.com/i/headshots/wnba/players/full/${hsId}.png`:null;
   const avaHtml=hsUrl
-    ? `<img class="ai" src="${hsUrl}" data-pid="${pid}" onerror="hsErr(this)" loading="lazy"><div class="afb" id="afb${pid}" style="display:none">${ini}</div>`
-    : `<div class="afb">${ini}</div>`;
+    ?`<img class="ai" src="${hsUrl}" onerror="this.style.display='none';var f=document.getElementById('afb${pid}');if(f)f.style.display='flex'" loading="lazy"><div class="afb" id="afb${pid}" style="display:none">${ini}</div>`
+    :`<div class="afb">${ini}</div>`;
 
-  // team badge on avatar — use same logo-ph approach
-  const badgeHtml=`<div class="tbadge">${logoEl(abbr,12)}</div>`;
-
-  // build prop sections
+  // prop sections
   let ph='';
   keys.forEach(mk=>{
     const vm=pp[mk];
@@ -530,12 +492,12 @@ function rCard(pid,game){
     // line movement
     let mv='';
     const fv=Object.keys(vm)[0];
-    if(fv){ const op=OP[`${pid}_${mk}_${fv}`]; if(op!=null&&op!==sv){ const d=(sv-op).toFixed(1); mv=`<span class="lmv ${d>0?'up':'dn'}">${d>0?'▲':'▼'}${Math.abs(d)}</span>`;} }
+    if(fv){ const op=OP[`${pid}_${mk}_${fv}`]; if(op!=null&&op!==sv){ const d=(sv-op).toFixed(1); mv=`<span class="lmv ${parseFloat(d)>0?'up':'dn'}">${parseFloat(d)>0?'▲':'▼'}${Math.abs(parseFloat(d))}</span>`;} }
 
     // alt buttons
     const abs=lines.map(l=>`<button class="ab${l===sv?' sel':''}${l===ml?' ml':''}" onclick="pickL('${k}',${l},${pid})">${l}<span class="mld"></span></button>`).join('');
 
-    // chips at selected line
+    // book chips
     let bO=-Infinity,bOk=null,bU=-Infinity,bUk=null;
     const bat={};
     Object.entries(vm).forEach(([v,a])=>{
@@ -553,21 +515,15 @@ function rCard(pid,game){
       chips+=`<div class="bc${iO?' bo':iU?' bu':''}">${tg}<span class="bn" style="color:${bk.c}">${bk.l}</span><span class="bl">${e.line}</span><div class="bods">${isM?`<span class="boo">${fmt(e.odds)}</span>`:`<span class="boo">${fmt(e.over)}</span><span class="bou">${fmt(e.under)}</span>`}</div></div>`;
     });
 
-    // consensus
     const oo=Object.values(bat).map(e=>e.over).filter(x=>x!=null);
     const imp=oo.length?impl(avg(oo)):null;
     const cb=imp!=null?`<div class="cbar"><span class="clb">Over imp%</span><div class="ctr"><div class="cfi" style="width:${Math.min(imp,100)}%"></div></div><span class="cvl" style="color:${imp>52?'var(--grn)':'var(--mu2)'}">${imp.toFixed(1)}%</span></div>`:'';
 
-    // recent log
     const sk={points:'pts',rebounds:'reb',assists:'ast'}[mk];
     let rl='';
     if(sk&&RS[pid]?.length){
       rl='<div class="rlog">';
-      RS[pid].slice(0,5).forEach(g=>{
-        const v=g[sk]; if(v==null) return;
-        const h=v>=sv;
-        rl+=`<div class="rg ${h?'h':'m'}"><div class="rv" style="color:${h?'var(--grn)':'var(--red)'}">${v}</div><div class="ro">${g.team?.abbreviation||'?'}</div></div>`;
-      });
+      RS[pid].slice(0,5).forEach(g=>{ const v=g[sk]; if(v==null)return; const h=v>=sv; rl+=`<div class="rg ${h?'h':'m'}"><div class="rv" style="color:${h?'var(--grn)':'var(--red)'}">${v}</div><div class="ro">${g.team?.abbreviation||'?'}</div></div>`; });
       rl+='</div>';
     }
 
@@ -584,7 +540,7 @@ function rCard(pid,game){
 
   return `<div class="pc" id="pc${pid}">
     <div class="pch" onclick="tc(${pid})">
-      <div class="aw">${avaHtml}${badgeHtml}</div>
+      <div class="aw">${avaHtml}<div class="tbadge">${L(abbr,12)}</div></div>
       <div class="pi">
         <div class="pn">${name}${inj?` <span class="itag">${inj.status||'INJ'}</span>`:''}</div>
         <div class="pm">${p.position||''} · ${abbr} <span class="opp">vs ${opp||'?'}</span> · ${pts}/${reb}/${ast}${szn}</div>
@@ -612,7 +568,7 @@ function rCard(pid,game){
           ${sb('FT%',ss?.ft_pct!=null?fn(ss.ft_pct,1)+'%':'—','')}
           ${sb('FGM',fn(ss?.fgm),'avg')}${sb('FGA',fn(ss?.fga),'avg')}${sb('GP',ss?.games_played??'—','games')}
         </div></div>
-        <div id="rl${pid}" class="sc" style="display:none">${rLast5(pid)}</div>
+        <div id="rl${pid}" class="sc" style="display:none">${rL5(pid)}</div>
         <div id="bi${pid}" class="sc" style="display:none">
           <div class="sgr">${sb('#',p.jersey_number??'—','')}${sb('Age',p.age??'—','')}${sb('Pos',p.position??'—','')}</div>
           <div style="font-size:10px;color:var(--mu2);margin-top:7px;line-height:1.7">${p.height?`📏 ${p.height}&emsp;`:''}${p.weight?`⚖️ ${p.weight}&emsp;`:''}${p.college?`🎓 ${p.college}`:''}</div>
@@ -621,13 +577,8 @@ function rCard(pid,game){
     </div>
   </div>`;
 }
-function hsErr(img){
-  const pid=img.dataset.pid;
-  img.style.display='none';
-  const fb=document.getElementById('afb'+pid);
-  if(fb) fb.style.display='flex';
-}
-function rLast5(pid){
+
+function rL5(pid){
   const gs=(RS[pid]||[]).slice(0,5);
   if(!gs.length) return '<div style="color:var(--mu);font-size:11px">No recent data.</div>';
   return `<div style="display:flex;flex-direction:column;gap:3px">${gs.map(g=>{
@@ -635,7 +586,7 @@ function rLast5(pid){
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--bdr);font-size:10px">
       <span style="color:var(--mu);min-width:32px">${d}</span>
       <div style="display:flex;gap:8px">
-        ${['PTS','pts'],['REB','reb'],['AST','ast'],['STL','stl'],['BLK','blk']}.map(([l,k])=>`<span><span style="color:var(--mu)">${l}</span> <strong style="font-family:'JetBrains Mono',monospace">${g[k]??'—'}</strong></span>`).join('')}
+        ${[['PTS','pts'],['REB','reb'],['AST','ast'],['STL','stl'],['BLK','blk']].map(([l,k])=>`<span><span style="color:var(--mu)">${l}</span> <strong style="font-family:'JetBrains Mono',monospace">${g[k]??'—'}</strong></span>`).join('')}
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -645,42 +596,41 @@ function sb(l,v,s){return `<div class="sb"><div class="sbl">${l}</div><div class
 // ── MATCHUPS ──
 function rMu(){
   const c=document.getElementById('cMu');
-  if(!G.length){c.innerHTML='<div class="empty"><div class="ic2">⚔️</div><h3>No games</h3></div>';return;}
+  if(!G.length){c.innerHTML='<div class="empty"><div class="ei">⚔️</div><h3>No games</h3></div>';return;}
   let html='';
   G.forEach(g=>{
-    const hA=g.home_team?.abbreviation||'', aA=g.visitor_team?.abbreviation||'';
-    const go=GO[g.id]||[], fd=go.find(o=>o.vendor==='fanduel')||go[0];
+    const hA=g.home_team?.abbreviation||'',aA=g.visitor_team?.abbreviation||'';
+    const go=GO[g.id]||[],fd=go.find(o=>o.vendor==='fanduel')||go[0];
     const prow=tid=>Object.keys(PR).map(Number).filter(pid=>PL[pid]?.team?.id===tid).slice(0,5).map(pid=>{
-      const pl=PL[pid], s=SS[pid];
-      const hs=ehead(`${pl.first_name} ${pl.last_name}`);
-      const av=hs?`<img src="${hs}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);flex-shrink:0" onerror="this.style.display='none'" loading="lazy">`:
+      const pl=PL[pid],s=SS[pid];
+      const hsId=EH[`${pl.first_name} ${pl.last_name}`];
+      const av=hsId?`<img src="https://a.espncdn.com/i/headshots/wnba/players/full/${hsId}.png" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr);flex-shrink:0" onerror="this.style.display='none'" loading="lazy">`:
         `<div style="width:18px;height:18px;border-radius:50%;background:var(--sur3);display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:var(--teal);flex-shrink:0">${pl.first_name?.[0]||''}${pl.last_name?.[0]||''}</div>`;
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid var(--bdr);font-size:10px">
         <span style="display:flex;align-items:center;gap:4px;color:var(--mu2)">${av}${pl.last_name}</span>
         <span style="font-family:'JetBrains Mono',monospace;font-weight:600">${fn(s?.pts)}/${fn(s?.reb)}/${fn(s?.ast)}</span>
       </div>`;
-    }).join('')||'<div style="color:var(--mu);font-size:10px;padding:3px 0">No prop players</div>';
+    }).join('')||'<div style="color:var(--mu);font-size:10px;padding:3px 0">No prop data</div>';
 
     html+=`<div style="background:var(--sur);border:1px solid var(--bdr);border-radius:9px;margin-bottom:10px;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-bottom:1px solid var(--bdr)">
-        <div style="display:flex;align-items:center;gap:6px">${logoEl(aA,20)}<strong>${aA}</strong><span style="color:var(--mu)">@</span><strong>${hA}</strong>${logoEl(hA,20)}<span style="font-size:10px;color:var(--mu2);margin-left:4px">${gtime(g.date)}</span></div>
+        <div style="display:flex;align-items:center;gap:6px">${L(aA,20)}<strong>${aA}</strong><span style="color:var(--mu)">@</span><strong>${hA}</strong>${L(hA,20)}<span style="font-size:10px;color:var(--mu2);margin-left:4px">${gtime(g.date)}</span></div>
         <div style="text-align:right"><div class="gtv" style="font-size:14px">${fd?.total_value||'—'}</div><div class="gtl">O/U</div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr">
-        <div style="padding:9px 13px;border-right:1px solid var(--bdr)"><div style="font-size:8px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px">${logoEl(aA,13)} ${aA}</div>${prow(g.visitor_team?.id)}</div>
-        <div style="padding:9px 13px"><div style="font-size:8px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px">${logoEl(hA,13)} ${hA}</div>${prow(g.home_team?.id)}</div>
+        <div style="padding:9px 13px;border-right:1px solid var(--bdr)"><div style="font-size:8px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px">${L(aA,13)} ${aA}</div>${prow(g.visitor_team?.id)}</div>
+        <div style="padding:9px 13px"><div style="font-size:8px;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px">${L(hA,13)} ${hA}</div>${prow(g.home_team?.id)}</div>
       </div>
       ${go.length?`<div style="padding:6px 13px;border-top:1px solid var(--bdr);display:flex;gap:4px;flex-wrap:wrap">${go.map(o=>{const bk=BK[o.vendor]||{l:o.vendor,c:'#888'};return `<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:4px;padding:2px 7px;font-size:10px"><strong style="color:${bk.c}">${bk.l}</strong> <span style="color:var(--mu2)">${hA} ${o.spread_home_value>0?'+':''}${o.spread_home_value} · O/U ${o.total_value}</span></div>`;}).join('')}</div>`:''}
     </div>`;
   });
-  c.innerHTML=html;
-  upgLogos(c);
+  c.innerHTML=html; attachLogos(c);
 }
 
 // ── DEF RANKS ──
 function rDef(){
   const c=document.getElementById('cDef');
-  if(!G.length){c.innerHTML='<div class="empty"><div class="ic2">🛡️</div><h3>No games</h3></div>';return;}
+  if(!G.length){c.innerHTML='<div class="empty"><div class="ei">🛡️</div><h3>No games</h3></div>';return;}
   const td={};
   G.forEach(g=>{
     [[g.home_team,g.visitor_team],[g.visitor_team,g.home_team]].forEach(([def,off])=>{
@@ -698,39 +648,31 @@ function rDef(){
     });
   });
   const af=a=>a.length?fn(avg(a)):'—';
-  const rows=Object.values(td).map(t=>`<tr>
-    <td><div class="tlc">${logoEl(t.a,18)}<strong style="color:var(--teal)">${t.a}</strong></div></td>
-    <td>${af(t.pts)}</td><td>${af(t.reb)}</td><td>${af(t.ast)}</td><td>${af(t.blk)}</td><td>${af(t.stl)}</td><td style="color:var(--mu2)">${t.pts.length}</td>
-  </tr>`).join('');
-  const tsRows=TSS.map(t=>`<tr>
-    <td><div class="tlc">${logoEl(t.team?.abbreviation,18)}<strong style="color:var(--teal)">${t.team?.abbreviation}</strong></div></td>
-    <td>${fn(t.pts)}</td><td>${fn(t.reb)}</td><td>${fn(t.ast)}</td><td>${fn(t.blk)}</td><td>${fn(t.stl)}</td><td style="color:var(--mu2)">${t.games_played||'—'}</td>
-  </tr>`).join('');
+  const rows=Object.values(td).map(t=>`<tr><td><div class="tlc">${L(t.a,18)}<strong style="color:var(--teal)">${t.a}</strong></div></td><td>${af(t.pts)}</td><td>${af(t.reb)}</td><td>${af(t.ast)}</td><td>${af(t.blk)}</td><td>${af(t.stl)}</td><td style="color:var(--mu2)">${t.pts.length}</td></tr>`).join('');
+  const tsRows=TSS.map(t=>`<tr><td><div class="tlc">${L(t.team?.abbreviation,18)}<strong style="color:var(--teal)">${t.team?.abbreviation}</strong></div></td><td>${fn(t.pts)}</td><td>${fn(t.reb)}</td><td>${fn(t.ast)}</td><td>${fn(t.blk)}</td><td>${fn(t.stl)}</td><td style="color:var(--mu2)">${t.games_played||'—'}</td></tr>`).join('');
   c.innerHTML=`
     <div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.5px;padding:3px 0 7px">Today's Matchups — Avg Allowed</div>
-    <table class="tbl" style="margin-bottom:16px">
-      <thead><tr><th>Defense</th><th>PTS</th><th>REB</th><th>AST</th><th>BLK</th><th>STL</th><th>N</th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="7" style="color:var(--mu);text-align:center;padding:14px">No player data yet</td></tr>'}</tbody>
-    </table>
+    <table class="tbl" style="margin-bottom:16px"><thead><tr><th>Defense</th><th>PTS</th><th>REB</th><th>AST</th><th>BLK</th><th>STL</th><th>N</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="7" style="color:var(--mu);text-align:center;padding:14px">No data yet</td></tr>'}</tbody></table>
     ${tsRows?`<div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.5px;padding:3px 0 7px">Team Season Averages</div>
     <table class="tbl"><thead><tr><th>Team</th><th>PTS</th><th>REB</th><th>AST</th><th>BLK</th><th>STL</th><th>GP</th></tr></thead>
     <tbody>${tsRows}</tbody></table>`:''}
-    <div style="font-size:9px;color:var(--mu);padding:8px 0;line-height:1.5">Top: season avgs of today's prop players facing each defense.</div>`;
-  upgLogos(c);
+    <div style="font-size:9px;color:var(--mu);padding:8px 0">Top: season avgs of today's prop players vs each defense.</div>`;
+  attachLogos(c);
 }
 
 // ── INJURIES ──
 function rInj(){
   const c=document.getElementById('cInj');
-  if(!INJ.length){c.innerHTML='<div class="empty"><div class="ic2">✅</div><h3>No injuries reported</h3></div>';return;}
+  if(!INJ.length){c.innerHTML='<div class="empty"><div class="ei">✅</div><h3>No injuries reported</h3></div>';return;}
   c.innerHTML=INJ.map(i=>{
     const p=i.player, name=`${p.first_name} ${p.last_name}`, abbr=p.team?.abbreviation||'';
-    const hs=ehead(name);
-    const av=hs?`<img src="${hs}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr)" onerror="this.style.display='none'" loading="lazy">`:
+    const hsId=EH[name];
+    const av=hsId?`<img src="https://a.espncdn.com/i/headshots/wnba/players/full/${hsId}.png" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid var(--bdr)" onerror="this.style.display='none'" loading="lazy">`:
       `<div style="width:32px;height:32px;border-radius:50%;background:var(--sur3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--teal)">${p.first_name?.[0]||''}${p.last_name?.[0]||''}</div>`;
     const sc=i.status==='Out'?'var(--red)':i.status==='Doubtful'?'var(--ylw)':'var(--mu2)';
     return `<div class="ic">
-      <div style="position:relative;flex-shrink:0">${av}<div style="position:absolute;bottom:-1px;right:-3px;width:15px;height:15px;border-radius:50%;background:var(--sur);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;overflow:hidden">${logoEl(abbr,11)}</div></div>
+      <div style="position:relative;flex-shrink:0">${av}<div style="position:absolute;bottom:-1px;right:-3px;width:15px;height:15px;border-radius:50%;background:var(--sur);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;overflow:hidden">${L(abbr,11)}</div></div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:12px">${name} <span style="color:${sc};font-size:10px;font-weight:600">${i.status||''}</span></div>
         <div style="font-size:10px;color:var(--mu2);margin-top:1px">${abbr}${p.position?` · ${p.position}`:''}${i.return_date?` · Return: ${i.return_date}`:''}</div>
@@ -738,46 +680,37 @@ function rInj(){
       </div>
     </div>`;
   }).join('');
-  upgLogos(c);
+  attachLogos(c);
 }
 
 // ── STANDINGS ──
 function rStd(){
   const c=document.getElementById('cStd');
-  if(!STD.length){c.innerHTML='<div class="empty"><div class="ic2">🏆</div><h3>No standings data</h3></div>';return;}
+  if(!STD.length){c.innerHTML='<div class="empty"><div class="ei">🏆</div><h3>No standings data</h3></div>';return;}
   const E=STD.filter(s=>s.conference?.includes('Eastern')).sort((a,b)=>(a.playoff_seed||99)-(b.playoff_seed||99));
   const W=STD.filter(s=>s.conference?.includes('Western')).sort((a,b)=>(a.playoff_seed||99)-(b.playoff_seed||99));
-  const conf=(t,teams)=>`
-    <div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.5px;padding:3px 0 7px">${t}</div>
-    <table class="tbl" style="margin-bottom:16px">
-      <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>H</th><th>A</th></tr></thead>
-      <tbody>${teams.map(s=>`<tr>
-        <td style="color:var(--mu)">${s.playoff_seed||'—'}</td>
-        <td><div class="tlc">${logoEl(s.team?.abbreviation,16)}<span style="font-weight:700">${s.team?.abbreviation}</span></div></td>
-        <td style="color:var(--grn)">${s.wins}</td>
-        <td style="color:var(--red)">${s.losses}</td>
-        <td>${fn(s.win_percentage,3)}</td>
-        <td style="color:var(--mu2)">${s.games_behind||'—'}</td>
-        <td style="color:var(--mu2);font-size:10px">${s.home_record||'—'}</td>
-        <td style="color:var(--mu2);font-size:10px">${s.away_record||'—'}</td>
-      </tr>`).join('')}</tbody>
-    </table>`;
+  const conf=(t,teams)=>`<div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.5px;padding:3px 0 7px">${t}</div>
+    <table class="tbl" style="margin-bottom:16px"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>H</th><th>A</th></tr></thead>
+    <tbody>${teams.map(s=>`<tr>
+      <td style="color:var(--mu)">${s.playoff_seed||'—'}</td>
+      <td><div class="tlc">${L(s.team?.abbreviation,16)}<span style="font-weight:700">${s.team?.abbreviation}</span></div></td>
+      <td style="color:var(--grn)">${s.wins}</td><td style="color:var(--red)">${s.losses}</td>
+      <td>${fn(s.win_percentage,3)}</td><td style="color:var(--mu2)">${s.games_behind||'—'}</td>
+      <td style="color:var(--mu2);font-size:10px">${s.home_record||'—'}</td>
+      <td style="color:var(--mu2);font-size:10px">${s.away_record||'—'}</td>
+    </tr>`).join('')}</tbody></table>`;
   c.innerHTML=conf('Eastern Conference',E)+conf('Western Conference',W);
-  upgLogos(c);
+  attachLogos(c);
 }
 
-// ── UI INTERACTIONS ──
+// ── INTERACTIONS ──
 function pickL(k,line,pid){
-  sel[k]=line;
-  rProps();
-  requestAnimationFrame(()=>{
-    const b=document.getElementById('pb'+pid), card=document.getElementById('pc'+pid);
-    if(b&&card){b.style.display='block';card.classList.add('op');}
-  });
+  sel[k]=line; rProps();
+  requestAnimationFrame(()=>{ const b=document.getElementById('pb'+pid),card=document.getElementById('pc'+pid); if(b&&card){b.style.display='block';card.classList.add('op');} });
 }
 function tc(pid){
-  const card=document.getElementById('pc'+pid), body=document.getElementById('pb'+pid);
-  if(!card||!body) return;
+  const card=document.getElementById('pc'+pid),body=document.getElementById('pb'+pid);
+  if(!card||!body)return;
   body.style.display=card.classList.toggle('op')?'block':'none';
 }
 function stab(pid,t,btn){
