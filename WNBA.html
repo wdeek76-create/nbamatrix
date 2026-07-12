@@ -4826,6 +4826,18 @@ function saveBet() {
     // whichever line actually settled. Empty/missing sources stay null.
     if (window._modalSrcVals && Object.keys(window._modalSrcVals).length) {
       bet.srcProjs = { ...window._modalSrcVals };
+      // Snapshot average expected minutes at track time too (same calc PROJ
+      // STATS uses live) — without this, the Min: field in that copy button
+      // silently disappears the moment the source CSVs get replaced/cleared
+      // later in the day, even though the bet itself is still open.
+      try {
+        if (typeof getSlotLookups === "function") {
+          const _lk = getSlotLookups();
+          const _n = norm(bet.player);
+          const _vals = _lk.map(l => { const m = l && l[_n]; return (m && m.min != null && m.min > 0) ? m.min : null; }).filter(v => v != null);
+          if (_vals.length) bet.expMin = _vals.reduce((a, b) => a + b, 0) / _vals.length;
+        }
+      } catch (e) { /* minutes snapshot is non-critical */ }
       // Per-source edge snapshot — each source's individual EV% derived from
       // its projection alone vs the bet's line + odds. Lets analytics track
       // each source's standalone forecast strength independently of consensus.
@@ -11165,19 +11177,23 @@ function copyProjStats() {
     return ESPN_TO_FULL_LOCAL[espn] || abbr;
   };
   // Live-computed average expected minutes across currently loaded sources —
-  // same lookup the Projections table's EXM pill uses. Only available while
-  // that player's projections are still loaded; shows nothing if not.
+  // same lookup the Projections table's EXM pill uses. Falls back to the
+  // snapshot taken at track time (bet.expMin) if that player's projections
+  // aren't currently loaded, so this doesn't silently go blank just because
+  // the source CSVs changed since the bet was tracked.
   const lookups = (typeof getSlotLookups === "function") ? getSlotLookups() : [];
-  const avgMinFor = (playerName) => {
-    if (!playerName || !lookups.length) return null;
-    const n = norm(playerName);
-    const vals = lookups.map(lk => {
-      if (!lk) return null;
-      const m = lk[n];
-      return (m && m.min != null && m.min > 0) ? m.min : null;
-    }).filter(v => v != null);
-    if (!vals.length) return null;
-    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  const avgMinFor = (bet) => {
+    const playerName = bet.player;
+    if (playerName && lookups.length) {
+      const n = norm(playerName);
+      const vals = lookups.map(lk => {
+        if (!lk) return null;
+        const m = lk[n];
+        return (m && m.min != null && m.min > 0) ? m.min : null;
+      }).filter(v => v != null);
+      if (vals.length) return vals.reduce((a, b) => a + b, 0) / vals.length;
+    }
+    return bet.expMin != null ? bet.expMin : null;
   };
   // Sort by player then stat for predictable scanning
   const STAT_ORDER_LOCAL = { "PTS":1, "REB":2, "AST":3, "PRA":4, "3PM":5, "PR":6, "PA":7, "RA":8 };
@@ -11196,7 +11212,7 @@ function copyProjStats() {
     // Decider proj: prefer the explicit decider field, fall back to b.proj
     const projVal = (b.deciderProj != null) ? b.deciderProj : b.proj;
     const projStr = (projVal != null) ? `Proj: ${projVal.toFixed(2)}` : `Proj: —`;
-    const avgMin = avgMinFor(b.player);
+    const avgMin = avgMinFor(b);
     const minStr = avgMin != null ? ` Min: ${avgMin.toFixed(2)}` : "";
     return `${b.player}${teamStr}   ${lineStr}   ${projStr}${minStr}`;
   });
