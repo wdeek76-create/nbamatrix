@@ -377,6 +377,7 @@ table colgroup col.avg-col{width:16%;}
   <button class="tab-btn active" onclick="switchTab('upload')">UPLOAD</button>
   <button class="tab-btn" onclick="switchTab('results')">PROJECTIONS</button>
   <button class="tab-btn" onclick="switchTab('tracker')">TRACKER</button>
+  <button class="tab-btn" onclick="switchTab('gamelog')">GAME LOG</button>
   <button class="tab-btn" onclick="switchTab('expected')">EXPECTED</button>
   <button class="tab-btn" onclick="switchTab('totals')">TOTALS</button>
   <button class="tab-btn" onclick="switchTab('srcanalytics')">SOURCE ANALYTICS</button>
@@ -498,6 +499,7 @@ table colgroup col.avg-col{width:16%;}
   </div>
 
   <div id="tracker-tab" style="display:none;"></div>
+  <div id="gamelog-tab" style="display:none;"></div>
 
   <div id="srcanalytics-tab" style="display:none;"></div>
   <div id="expected-tab" style="display:none;"></div>
@@ -1310,6 +1312,7 @@ function switchTab(tab) {
   document.getElementById("results-tab").style.display = tab==="results"?"block":"none";
   document.getElementById("totals-tab").style.display = tab==="totals"?"block":"none";
   document.getElementById("tracker-tab").style.display = tab==="tracker"?"block":"none";
+  document.getElementById("gamelog-tab").style.display = tab==="gamelog"?"block":"none";
   // Tracker page reads cleaner without the wave/gradient overlay — toggle via class
   document.body.classList.toggle("tracker-active", tab === "tracker");
   document.getElementById("srcanalytics-tab").style.display = tab==="srcanalytics"?"block":"none";
@@ -1319,6 +1322,7 @@ function switchTab(tab) {
   document.getElementById("cap-tool-tab").style.display = tab==="captool"?"block":"none";
   document.getElementById("pace-tab").style.display = tab==="pace"?"block":"none";
   if (tab==="tracker") renderTracker();
+  if (tab==="gamelog") renderGameLog();
   if (tab==="expected") renderExpected();
   if (tab==="srcanalytics") renderSrcAnalytics();
   if (tab==="playeranalytics") renderPlayerAnalytics();
@@ -4836,6 +4840,18 @@ function saveBet() {
           const _n = norm(bet.player);
           const _vals = _lk.map(l => { const m = l && l[_n]; return (m && m.min != null && m.min > 0) ? m.min : null; }).filter(v => v != null);
           if (_vals.length) bet.expMin = _vals.reduce((a, b) => a + b, 0) / _vals.length;
+          // Per-source minutes snapshot (RG/RW/DIMERS/SABER individually) so
+          // we can later grade which source's minutes projection ended up
+          // closest to what the player actually played. Same slot ordering
+          // as SOURCES (roto/dimers/rotowire/saber).
+          bet.srcMin = {};
+          if (typeof SOURCES !== "undefined" && Array.isArray(SOURCES)) {
+            SOURCES.forEach((s, i) => {
+              const lk = _lk[i];
+              const m = lk && lk[_n];
+              bet.srcMin[s.key] = (m && m.min != null && m.min > 0) ? m.min : null;
+            });
+          }
         }
       } catch (e) { /* minutes snapshot is non-critical */ }
       // Per-source edge snapshot — each source's individual EV% derived from
@@ -4887,21 +4903,6 @@ function saveBet() {
         if (Object.keys(ctx).length) bet.injuryContext = ctx;
       }
     } catch (e) { /* injury snapshot is non-critical */ }
-    // Snapshot any Dimers trends that match THIS bet (same player + stat + side).
-    // Stored as an array of {line, hits, games, rate} so analytics can show how
-    // trend-confirmed bets perform vs unmatched ones over time.
-    try {
-      if (typeof getTrendsForPlayer === "function" && bet.player && bet.stat && bet.ou) {
-        const all = getTrendsForPlayer(bet.player, bet.stat);
-        const matched = all.filter(t => t.ou === bet.ou);
-        if (matched.length > 0) {
-          bet.trendMatches = matched.map(t => ({
-            line: t.line, hits: t.hits, games: t.games,
-            rate: +((t.hits / t.games) * 100).toFixed(1),
-          }));
-        }
-      }
-    } catch (e) { /* trend snapshot is non-critical */ }
     // Snapshot ESPN-derived splits at save time: avg, volatility (stdev/CV),
     // hit rate at this line, and the signed line margin in stdevs. Lets Source
     // Analytics later evaluate "which signals predicted hits" and surface
@@ -6727,6 +6728,52 @@ function updateAdvBar() {
     }
   }
 
+  // ── RECORD — how has THIS player, THIS stat, THIS direction done before ──
+  // e.g. "u21.5 PTS on Paige Bueckers: 6-2  +3.85u  ROI +48%" — pulled
+  // straight from settled bets in the tracker. Same row as Matchup so both
+  // quick-glance signals sit together up top.
+  {
+    try { loadBets(); } catch (e) {}
+    if (player && stat && typeof bets !== "undefined" && Array.isArray(bets)) {
+      const pNorm = norm(player);
+      const matching = bets.filter(b =>
+        b.result && (b.result === "hit" || b.result === "miss") &&
+        b.player && norm(b.player) === pNorm &&
+        (b.stat || "").toUpperCase() === stat &&
+        (b.ou || "").toLowerCase() === ou
+      );
+      if (matching.length > 0) {
+        const wins = matching.filter(b => b.result === "hit").length;
+        const losses = matching.length - wins;
+        const winPct = (wins / matching.length) * 100;
+        const recordColor = winPct >= 60 ? "#4ade80" : winPct <= 40 ? "#f87171" : "#d4dae3";
+        const ouLabel = ou === "under" ? "U" : "O";
+        // Same P&L convention as the tracker: stake defaults to 1u, hit pays
+        // out at the bet's American odds, miss loses the stake.
+        let pl = 0, staked = 0;
+        matching.forEach(b => {
+          const stake = b.stake != null ? Number(b.stake) : 1;
+          staked += stake;
+          if (b.result === "hit") {
+            const odds = Number(b.odds || 0);
+            pl += stake * (odds > 0 ? odds / 100 : 100 / Math.abs(odds));
+          } else {
+            pl -= stake;
+          }
+        });
+        const roi = staked > 0 ? (pl / staked) * 100 : null;
+        const plStr = `${pl >= 0 ? "+" : ""}${pl.toFixed(2)}u`;
+        const roiStr = roi != null ? ` · ROI ${roi >= 0 ? "+" : ""}${roi.toFixed(0)}%` : "";
+        const plPillColor = pl >= 0 ? "#4ade80" : "#f87171";
+        const recordSection = section("Record", [
+          pill(`${ouLabel} ${stat}`, `${wins}-${losses}`, recordColor),
+          pill("P&L", `${plStr}${roiStr}`, plPillColor),
+        ]);
+        if (recordSection) rows.push(recordSection);
+      }
+    }
+  }
+
   if (!rows.length) { bar.style.display = "none"; return; }
 
   bar.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;padding:8px 2px;">
@@ -7186,13 +7233,20 @@ async function gradeBet(b) {
   // Sum across all matches that actually played (rare: multi-game days)
   let total = 0;
   matches.filter(m => !m.dnp).forEach(m => { total += getStatValueForESPN(m, b.stat); });
+  // Actual minutes played — used to grade which SOURCE's pre-game minutes
+  // projection was closest (see Source Analytics minutes-accuracy block).
+  let actualMin = null;
+  const playedMatches = matches.filter(m => !m.dnp);
+  if (playedMatches.length) {
+    actualMin = playedMatches.reduce((sum, m) => sum + (m.stats?.min || 0), 0);
+  }
 
   const line = b.line, ou = b.ou;
   let result;
   if (Math.abs(total - line) < 0.001) result = "void";
   else if (ou === "over") result = total > line ? "hit" : "miss";
   else result = total < line ? "hit" : "miss";
-  return { ok: true, result, total };
+  return { ok: true, result, total, actualMin };
 }
 
 function logGrade(msg, kind) {
@@ -7243,6 +7297,7 @@ async function gradeAllPending(mode) {
           target.finalHomeAbbr = r.homeAbbr;
           target.coverMargin = r.coverMargin;
         }
+        if (r.actualMin != null) target.actualMin = r.actualMin;
         graded++;
         if (didChange) changed++;
         if (r.result === "hit") hit++;
@@ -7699,6 +7754,9 @@ async function gradeOneBet(id) {
       b.finalHomeAbbr = r.homeAbbr;
       b.coverMargin = r.coverMargin;
     }
+    // Actual minutes played — powers the minutes-accuracy comparison
+    // (which source's pre-game projection was closest).
+    if (r.actualMin != null) b.actualMin = r.actualMin;
     saveBets();
     renderTracker();
     showToast(`${b.player} ${b.stat}: ${r.total} → ${r.result.toUpperCase()}`);
@@ -9660,6 +9718,49 @@ function renderSrcAnalytics() {
     }
   }
 
+  // ── MINUTES ACCURACY: which source's pre-game minutes projection lands ──
+  // closest to actual minutes played, over the whole tracked history. Uses
+  // bet.srcMin (per-source snapshot at track time) vs bet.actualMin (real
+  // minutes from the box score at grading time) — both only present on bets
+  // tracked/graded after this feature shipped, so older bets are silently
+  // skipped rather than counted with missing data.
+  const minAccumBySource = {}; // key -> { n, sumAbsDiff, closestCount }
+  let minAccumTotal = 0;
+  settled.forEach(b => {
+    if (!b.srcMin || b.actualMin == null) return;
+    const entries = Object.entries(b.srcMin).filter(([, v]) => v != null);
+    if (!entries.length) return;
+    minAccumTotal++;
+    const withDiff = entries.map(([key, val]) => ({ key, diff: Math.abs(val - b.actualMin) }));
+    const minDiff = Math.min(...withDiff.map(e => e.diff));
+    withDiff.forEach(e => {
+      if (!minAccumBySource[e.key]) minAccumBySource[e.key] = { n: 0, sumAbsDiff: 0, closestCount: 0 };
+      const acc = minAccumBySource[e.key];
+      acc.n++;
+      acc.sumAbsDiff += e.diff;
+      if (e.diff === minDiff) acc.closestCount++;
+    });
+  });
+  const minAccumRows = Object.entries(minAccumBySource)
+    .sort((a, b) => (b[1].closestCount / b[1].n) - (a[1].closestCount / a[1].n))
+    .map(([key, acc]) => {
+      const label = (typeof SOURCES !== "undefined" ? SOURCES.find(s => s.key === key)?.label : null) || key;
+      const avgOff = acc.n > 0 ? acc.sumAbsDiff / acc.n : 0;
+      const closestPct = acc.n > 0 ? (acc.closestCount / acc.n) * 100 : 0;
+      return `<tr style="border-bottom:1px solid #15181d;">
+        <td style="padding:9px 12px;font-size:12px;font-weight:700;color:#fff;">${label}</td>
+        <td style="padding:9px 12px;font-size:12px;color:#fff;text-align:center;font-family:'JetBrains Mono',monospace;">${acc.n}</td>
+        <td style="padding:9px 12px;font-size:12px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:${closestPct>=40?"#4ade80":"#d4dae3"};">${closestPct.toFixed(0)}%</td>
+        <td style="padding:9px 12px;font-size:12px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:${avgOff<=3?"#4ade80":avgOff>=6?"#f87171":"#d4dae3"};">${avgOff.toFixed(1)} min</td>
+      </tr>`;
+    }).join("");
+  const minAccumTableHead = `<tr style="border-bottom:1px solid #283041;">
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:left;">Source</th>
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:center;">Bets</th>
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:center;">Closest %</th>
+    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:right;">Avg Off</th>
+  </tr>`;
+
   // ── LADDERS: same player, same game, same direction, 2+ different stats ──
   // e.g. u22.5 PTS + u3.5 AST + u6.5 REB + u32.5 PRA tracked together on one
   // player in one game. Groups settled props by player+game+direction, and for
@@ -9961,21 +10062,26 @@ function renderSrcAnalytics() {
     if (ctx.floor   && side === "under") accum(b, injCtx.floorUnder);
   });
 
-  // Section: trend buckets — bucketed by strongest matching trend rate.
+  // Section: splits-strength buckets — bucketed by season hit-rate at the
+  // line that was bet (from bet.splitsSnap, snapshotted at track time).
+  // Replaces the old Dimers-trends bucket analysis (that data source was
+  // removed) with the same shape of question using real, live Splits data:
+  // do bets perform better when the historical hit-rate signal was strong?
   const trendBuckets = {
-    matched: emptyStats(),    // any trend lined up
+    matched: emptyStats(),    // any splits data available
     strong60: emptyStats(),
     strong70: emptyStats(),
     strong80: emptyStats(),
-    unmatched: emptyStats(),  // no trend lined up
+    unmatched: emptyStats(),  // no splits data available
   };
   settled.forEach(b => {
-    if (Array.isArray(b.trendMatches) && b.trendMatches.length > 0) {
-      const topRate = Math.max(...b.trendMatches.map(t => t.rate));
+    const sp = b.splitsSnap;
+    const sznRate = (sp && sp.games > 0 && sp.seasonHits != null) ? (sp.seasonHits / sp.games) * 100 : null;
+    if (sznRate != null) {
       accum(b, trendBuckets.matched);
-      if (topRate >= 60) accum(b, trendBuckets.strong60);
-      if (topRate >= 70) accum(b, trendBuckets.strong70);
-      if (topRate >= 80) accum(b, trendBuckets.strong80);
+      if (sznRate >= 60) accum(b, trendBuckets.strong60);
+      if (sznRate >= 70) accum(b, trendBuckets.strong70);
+      if (sznRate >= 80) accum(b, trendBuckets.strong80);
     } else {
       accum(b, trendBuckets.unmatched);
     }
@@ -10075,11 +10181,11 @@ function renderSrcAnalytics() {
 
   // SIGNALS — trends + injury context together
   const signalRows = [
-    trendBuckets.matched.total ? row(`<span style="color:#a78bfa;">●</span> Trend matched`, trendBuckets.matched) : "",
-    trendBuckets.strong60.total ? row(`<span style="color:#a78bfa;">●●</span> ≥60% trend`, trendBuckets.strong60) : "",
-    trendBuckets.strong70.total ? row(`<span style="color:#a78bfa;">●●●</span> ≥70% trend`, trendBuckets.strong70) : "",
-    trendBuckets.strong80.total ? row(`<span style="color:#a78bfa;">●●●●</span> ≥80% trend`, trendBuckets.strong80, { featured: true }) : "",
-    trendBuckets.unmatched.total ? row(`<span style="color:#525a64;">○</span> No trend`, trendBuckets.unmatched, { dim: true }) : "",
+    trendBuckets.matched.total ? row(`<span style="color:#7dd3fc;">●</span> Splits data available`, trendBuckets.matched) : "",
+    trendBuckets.strong60.total ? row(`<span style="color:#7dd3fc;">●●</span> ≥60% season rate`, trendBuckets.strong60) : "",
+    trendBuckets.strong70.total ? row(`<span style="color:#7dd3fc;">●●●</span> ≥70% season rate`, trendBuckets.strong70) : "",
+    trendBuckets.strong80.total ? row(`<span style="color:#7dd3fc;">●●●●</span> ≥80% season rate`, trendBuckets.strong80, { featured: true }) : "",
+    trendBuckets.unmatched.total ? row(`<span style="color:#525a64;">○</span> No splits data`, trendBuckets.unmatched, { dim: true }) : "",
     injCtx.ceilingOver.total ? row(`<span style="color:#22c55e;">↑</span> Ceiling · overs`, injCtx.ceilingOver) : "",
     injCtx.ceilingUnder.total ? row(`<span style="color:#22c55e;">↑</span> Ceiling · unders`, injCtx.ceilingUnder) : "",
     injCtx.floorOver.total ? row(`<span style="color:#f87171;">↓</span> Floor · overs`, injCtx.floorOver) : "",
@@ -10120,17 +10226,13 @@ function renderSrcAnalytics() {
       else if (sp.lineMarginStdev < 0.5 && sp.lineMarginStdev >= 0) accum(b, splitBuckets.marginThin);
       else if (sp.lineMarginStdev < 0) accum(b, splitBuckets.marginNeg);
     }
-    // Agreement combos require BOTH trends & splits snapshots to be present.
-    // Trends agree with pick = best trend rate ≥60% (snapshot already filtered by direction).
-    // Splits agree with pick = L10 hit rate at line ≥60%.
-    const hasTrends = Array.isArray(b.trendMatches) && b.trendMatches.length > 0;
-    if (hasTrends && sp.l10Games > 0) {
-      const trendsAgree = b.trendMatches.some(t => t.rate >= 60);
+    // Agreement combo (splits ≥60% L10 hit rate at the line) — this used to
+    // also cross-check against Dimers trends, but that data source was
+    // removed, so it's now just a straightforward "did splits favor the
+    // pick" flag rather than a 2-signal agreement comparison.
+    if (sp.l10Games > 0) {
       const splitsAgree = (sp.l10Hits / sp.l10Games) >= 0.60;
-      if (trendsAgree && splitsAgree)        accum(b, splitBuckets.bothAgree);
-      else if (trendsAgree && !splitsAgree)  accum(b, splitBuckets.trendsOnly);
-      else if (!trendsAgree && splitsAgree)  accum(b, splitBuckets.splitsOnly);
-      else                                    accum(b, splitBuckets.bothOppose);
+      if (splitsAgree) accum(b, splitBuckets.splitsOnly);
     }
   });
 
@@ -10143,10 +10245,7 @@ function renderSrcAnalytics() {
     splitBuckets.marginSafe.total ? row(`<span style="color:#4ade80;">+</span> Safe line margin (≥1σ favorable)`, splitBuckets.marginSafe) : "",
     splitBuckets.marginThin.total ? row(`<span style="color:#fbbf24;">~</span> Thin line margin (&lt;0.5σ)`, splitBuckets.marginThin) : "",
     splitBuckets.marginNeg.total ? row(`<span style="color:#f87171;">−</span> Line on wrong side of mean`, splitBuckets.marginNeg, { dim: true }) : "",
-    splitBuckets.bothAgree.total ? row(`<span style="color:#22c55e;">✓✓</span> Trends + Splits both agree with pick`, splitBuckets.bothAgree, { featured: true }) : "",
-    splitBuckets.trendsOnly.total ? row(`<span style="color:#fbbf24;">⊝</span> Trends agree, Splits disagree`, splitBuckets.trendsOnly) : "",
-    splitBuckets.splitsOnly.total ? row(`<span style="color:#fbbf24;">⊝</span> Splits agree, Trends disagree`, splitBuckets.splitsOnly) : "",
-    splitBuckets.bothOppose.total ? row(`<span style="color:#f87171;">✗✗</span> Both signals oppose pick`, splitBuckets.bothOppose, { dim: true }) : "",
+    splitBuckets.splitsOnly.total ? row(`<span style="color:#22c55e;">✓</span> Splits agree with pick (L10 ≥60%)`, splitBuckets.splitsOnly, { featured: true }) : "",
   ].join("");
 
   // ── MATCHUP — buckets by snapshotted opponent favorability (uses bet.matchupSnap) ──
@@ -10157,7 +10256,7 @@ function renderSrcAnalytics() {
     favorable: emptyStats(),   // ≥ +10% — mild tailwind
     headwind:  emptyStats(),   // ≤ −10% — unfavorable
     strongHw:  emptyStats(),   // ≤ −15% — strong unfavorable (trap candidates)
-    tripleAgree: emptyStats(), // trends + splits + matchup all confirm the pick
+    doubleAgree: emptyStats(), // splits + matchup both confirm the pick
   };
   let matchupWithSnap = 0;
   settled.forEach(b => {
@@ -10168,14 +10267,14 @@ function renderSrcAnalytics() {
     if (m.favorable >= 10)  accum(b, matchupBuckets.favorable);
     if (m.favorable <= -10) accum(b, matchupBuckets.headwind);
     if (m.favorable <= -15) accum(b, matchupBuckets.strongHw);
-    // Triple-agree: all three signals confirm the pick direction
+    // Double-agree: both live signals (splits + matchup) confirm the pick
+    // direction. Used to be a 3-way check including Dimers trends, but that
+    // data source was removed.
     const sp = b.splitsSnap;
-    const hasTrends = Array.isArray(b.trendMatches) && b.trendMatches.length > 0;
-    if (sp && sp.l10Games > 0 && hasTrends) {
-      const trendsAgree = b.trendMatches.some(t => t.rate >= 60);
+    if (sp && sp.l10Games > 0) {
       const splitsAgree = (sp.l10Hits / sp.l10Games) >= 0.60;
       const matchupAgree = m.favorable >= 10;
-      if (trendsAgree && splitsAgree && matchupAgree) accum(b, matchupBuckets.tripleAgree);
+      if (splitsAgree && matchupAgree) accum(b, matchupBuckets.doubleAgree);
     }
   });
 
@@ -10184,7 +10283,7 @@ function renderSrcAnalytics() {
     matchupBuckets.favorable.total ? row(`<span style="color:#4ade80;">★</span> Favorable matchup (≥+10%)`, matchupBuckets.favorable) : "",
     matchupBuckets.headwind.total ? row(`<span style="color:#f87171;">↓</span> Matchup headwind (≤−10%)`, matchupBuckets.headwind) : "",
     matchupBuckets.strongHw.total ? row(`<span style="color:#f87171;">↓↓</span> Strong matchup headwind (≤−15%)`, matchupBuckets.strongHw, { dim: true }) : "",
-    matchupBuckets.tripleAgree.total ? row(`<span style="color:#22c55e;">✓✓✓</span> Trends + Splits + Matchup all agree`, matchupBuckets.tripleAgree, { featured: true }) : "",
+    matchupBuckets.doubleAgree.total ? row(`<span style="color:#22c55e;">✓✓</span> Splits + Matchup both agree`, matchupBuckets.doubleAgree, { featured: true }) : "",
   ].join("");
   const matchupSummary = summarize([
     { label: "strong tailwind (≥+15%)", stats: matchupBuckets.strongFav },
@@ -10320,6 +10419,7 @@ function renderSrcAnalytics() {
     </div>
 
     ${section("Sources · Solo", `${SRC_KEYS.length} sources`, tableShell(soloRows, { labelHead: "Source" }), true)}
+    ${minAccumTotal > 0 ? section("Minutes Accuracy", `${minAccumTotal} graded prop${minAccumTotal===1?"":"s"} with a minutes comparison · who's closer to actual more often`, `<table style="width:100%;border-collapse:collapse;">${minAccumTableHead}${minAccumRows}</table>`, true) : ""}
     ${ladders.length > 0 ? section("Ladders", `${ladders.length} ladder${ladders.length===1?"":"s"} · same player, same game, same direction, 2+ stats`, tableShell(ladderRows, { labelHead: "Ladder Breakdown" }) + tableShell(ladderUnitRows, { labelHead: "Unit Outcome (all legs)" }) + (ladderPlayerRows ? `<div style="padding:8px 10px 2px;font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">Most Laddered Players</div>` + tableShell(ladderPlayerRows, { labelHead: "Player" }) : ""), true) : ""}
     ${section("Sources · Combos", `${sortedCombos.length} combos · sorted by P/L`, tableShell(comboRows, { labelHead: "Combination" }))}
     ${section("Sources · Fade", "When source disagreed with your pick", tableShell(fadeRows, { labelHead: "Fade" }))}
@@ -11866,10 +11966,24 @@ function renderTracker() {
                     badge += ` <span title="${tip}" style="background:#22c55e22;border:1px solid #22c55e77;color:#22c55e;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">CEILING ↑</span>`;
                   }
                 }
-                if (Array.isArray(b.trendMatches) && b.trendMatches.length > 0) {
-                  const top = b.trendMatches.reduce((a,c) => c.rate > a.rate ? c : a, b.trendMatches[0]);
-                  const tip = b.trendMatches.map(t => `${t.hits}/${t.games} (${t.rate}%)`).join(" · ").replace(/"/g,"'");
-                  badge += ` <span title="Dimers trend at save: ${tip}" style="background:#7dd3fc22;border:1px solid #7dd3fc77;color:#7dd3fc;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">TREND ${Math.round(top.rate)}%</span>`;
+                if (b.splitsSnap && b.splitsSnap.games > 0) {
+                  const sp = b.splitsSnap;
+                  // Same L5/L10/Season hit-rate data already shown live in
+                  // the bet modal's Splits panel — snapshotted at track time
+                  // so it stays accurate to what was known when you bet it,
+                  // not recalculated against data that's since moved on.
+                  const pct = (hits, games) => (games > 0) ? Math.round((hits / games) * 100) : null;
+                  const l5Pct = pct(sp.l5Hits, sp.l5Games);
+                  const l10Pct = pct(sp.l10Hits, sp.l10Games);
+                  const sznPct = pct(sp.seasonHits, sp.games);
+                  const parts = [];
+                  if (l5Pct != null) parts.push(`L5 ${l5Pct}%`);
+                  if (l10Pct != null) parts.push(`L10 ${l10Pct}%`);
+                  if (sznPct != null) parts.push(`Szn ${sznPct}%`);
+                  if (parts.length) {
+                    const tip = `Splits at save (hit rate at this line): ${parts.join(" · ")}`.replace(/"/g,"'");
+                    badge += ` <span title="${tip}" style="background:#7dd3fc22;border:1px solid #7dd3fc77;color:#7dd3fc;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:3px;padding:1px 5px;">${parts.join(" · ")}</span>`;
+                  }
                 }
                 return badge;
               })()}
@@ -11938,6 +12052,25 @@ function renderTracker() {
         ${isSpreadBet && b.coverMargin != null
           ? stat("Cover", `${b.pickTeam} ${b.coverMargin > 0 ? "+" : ""}${b.coverMargin.toFixed(1)}`, b.coverMargin > 0 ? "#22c55e" : b.coverMargin < 0 ? "#f87171" : "#f59e0b")
           : ""}
+        ${(() => {
+          // Minutes accuracy — only for player props with both a per-source
+          // snapshot and an actual minutes result. Shows each source's
+          // pre-game projection next to the real minutes played, with the
+          // closest source highlighted green so you can see at a glance who
+          // called it right tonight.
+          if (isTotal || isSpreadBet || !b.srcMin || b.actualMin == null) return "";
+          const entries = Object.entries(b.srcMin).filter(([, v]) => v != null);
+          if (!entries.length) return "";
+          const withDiff = entries.map(([key, val]) => ({ key, val, diff: Math.abs(val - b.actualMin) }));
+          const minDiff = Math.min(...withDiff.map(e => e.diff));
+          const labelFor = (key) => (typeof SOURCES !== "undefined" ? (SOURCES.find(s => s.key === key)?.label || key) : key);
+          const parts = withDiff.map(e => {
+            const isClosest = e.diff === minDiff;
+            const color = isClosest ? "#4ade80" : "#d4dae3";
+            return `<span style="color:${color};font-weight:${isClosest?800:600};">${labelFor(e.key)} ${e.val.toFixed(0)}</span>`;
+          }).join(" · ");
+          return stat("Min (proj → actual)", `${parts} → <span style="color:#fff;font-weight:800;">${b.actualMin.toFixed(0)}</span>`, "#d4dae3");
+        })()}
         ${stat("Stake", `${b.stake.toFixed(2)}u`, "#fff")}
         ${stat("P&L", plVal, plColor)}
         ${stat("Book", `${logoEl}${b.book||"—"}`, "#dde2e9")}
@@ -12169,6 +12302,184 @@ function renderTracker() {
   if (typeof renderSeasonLogsStatus === "function") {
     try { renderSeasonLogsStatus(); } catch (e) { /* non-critical */ }
   }
+}
+
+// ── GAME LOG ─────────────────────────────────────────────────────────────
+// Groups settled player props by date + matchup (like a Pikkit slip view):
+// each game shows its overall record/units, then breaks down player by
+// player underneath — "Caitlin Clark 4-4 +.82u", "Sophie Cunningham 1-0
+// +1u", etc. Game totals/spreads are excluded (they're not tied to one
+// player's game log the same way).
+function _gameLogMatchupFor(b) {
+  // Resolve the away/home matchup for a prop bet's team on its game date.
+  // PRIMARY: _espnGameCountCache[iso].games — populated by fetchESPNStatsForDate,
+  // which gradeBet() already calls for every settled bet, so by the time a bet
+  // is graded this almost always has that date's real matchup data (unlike the
+  // live ticker cache, which only covers today/recent — the actual reason most
+  // historical games were falling back to a single team instead of a matchup).
+  // FALLBACK: live ticker cache, for today's bets graded before the date cache
+  // populated. LAST RESORT: bare team, if neither has the date.
+  const team = b.team || "";
+  const iso = getBetISODate(b);
+  const espnTeam = (typeof INTERNAL_TO_ESPN_ABBR !== "undefined" && INTERNAL_TO_ESPN_ABBR[team]) || team;
+
+  if (iso && typeof _espnGameCountCache !== "undefined" && _espnGameCountCache[iso] && _espnGameCountCache[iso].games) {
+    for (const g of _espnGameCountCache[iso].games) {
+      if (!g.awayAbbr || !g.homeAbbr) continue;
+      if (g.awayAbbr === team || g.awayAbbr === espnTeam || g.homeAbbr === team || g.homeAbbr === espnTeam) {
+        return { key: `${iso}|${g.awayAbbr}/${g.homeAbbr}`, label: `${g.awayAbbr} @ ${g.homeAbbr}`, iso };
+      }
+    }
+  }
+  if (typeof _tickerCachedEvents !== "undefined" && Array.isArray(_tickerCachedEvents) && team) {
+    for (const ev of _tickerCachedEvents) {
+      const comp = ev.competitions?.[0];
+      if (!comp) continue;
+      const aw = comp.competitors?.find(c => c.homeAway === "away")?.team?.abbreviation;
+      const hm = comp.competitors?.find(c => c.homeAway === "home")?.team?.abbreviation;
+      if (aw === team || aw === espnTeam) return { key: `${iso}|${aw}/${hm}`, label: `${aw} @ ${hm}`, iso };
+      if (hm === team || hm === espnTeam) return { key: `${iso}|${aw}/${hm}`, label: `${aw} @ ${hm}`, iso };
+    }
+  }
+  return { key: `${iso}|${team}`, label: team || "Unknown matchup", iso };
+}
+
+function renderGameLog() {
+  const el = document.getElementById("gamelog-tab");
+  if (!el) return;
+  try { loadBets(); } catch (e) {}
+  const all = (typeof bets !== "undefined" && Array.isArray(bets)) ? bets : [];
+  const isPropBet = b => {
+    const s = (b.stat || "").toUpperCase();
+    return s !== "GAME_TOTAL" && s !== "GAME_SPREAD";
+  };
+  const settled = all.filter(b => isPropBet(b) && (b.result === "hit" || b.result === "miss"));
+
+  const plOf = b => {
+    const stake = b.stake != null ? Number(b.stake) : 1;
+    if (b.result === "hit") { const o = Number(b.odds || 0); return stake * (o > 0 ? o / 100 : 100 / Math.abs(o)); }
+    return -stake;
+  };
+
+  // Group by game (date + matchup), then by player within each game.
+  const games = new Map(); // key -> { label, iso, bets: [] }
+  settled.forEach(b => {
+    const m = _gameLogMatchupFor(b);
+    if (!games.has(m.key)) games.set(m.key, { label: m.label, iso: m.iso, bets: [] });
+    games.get(m.key).bets.push(b);
+  });
+
+  // Sort games most-recent-first.
+  const sortedGames = [...games.entries()].sort((a, b) => {
+    const da = a[1].iso || "", db = b[1].iso || "";
+    return db.localeCompare(da);
+  });
+
+  if (!sortedGames.length) {
+    el.innerHTML = `<div style="max-width:720px;margin:0 auto;padding:40px 20px;text-align:center;color:#d4dae3;font-family:'Inter',sans-serif;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#fff;">No settled props yet</div>
+      <div style="font-size:13px;">Once props are graded, this tab breaks your results down game by game — overall record and units per game, then each player's individual record within it.</div>
+    </div>`;
+    return;
+  }
+
+  const fmtU = v => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "u";
+  const col = v => v > 0 ? "#4ade80" : v < 0 ? "#f87171" : "#d4dae3";
+  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  // Clear date: "Sat, Jun 28" instead of a bare "6/28" — day-of-week makes it
+  // much faster to place a game in time while scanning a long history.
+  const fmtDateFull = (iso) => {
+    if (!iso) return "Unknown date";
+    const mth = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!mth) return iso;
+    const y = +mth[1], mo = +mth[2], d = +mth[3];
+    const dt = new Date(y, mo - 1, d);
+    return `${DOW[dt.getDay()]}, ${MON[mo-1]} ${d}`;
+  };
+  // Section header grouping key: "Jun 2026" — lets us drop a month divider
+  // whenever the games cross into a new month, so a long scroll has visual
+  // breaks instead of being one undifferentiated wall of cards.
+  const monthKeyOf = (iso) => {
+    if (!iso) return "Unknown";
+    const mth = iso.match(/^(\d{4})-(\d{2})/);
+    if (!mth) return "Unknown";
+    return `${MON[+mth[2]-1]} ${mth[1]}`;
+  };
+
+  let lastMonthKey = null;
+  const gameCards = sortedGames.map(([key, g]) => {
+    const w = g.bets.filter(b => b.result === "hit").length;
+    const l = g.bets.length - w;
+    const pl = g.bets.reduce((sum, b) => sum + plOf(b), 0);
+
+    // Group this game's bets by player.
+    const byPlayer = new Map();
+    g.bets.forEach(b => {
+      const key2 = b.player || "—";
+      if (!byPlayer.has(key2)) byPlayer.set(key2, []);
+      byPlayer.get(key2).push(b);
+    });
+    // Sort players by |P&L| descending so the biggest movers (best and worst) stand out first.
+    const playerRows = [...byPlayer.entries()]
+      .map(([player, pBets]) => {
+        const pw = pBets.filter(b => b.result === "hit").length;
+        const pl2 = pBets.length - pw;
+        const ppl = pBets.reduce((sum, b) => sum + plOf(b), 0);
+        return { player, pw, pl2, ppl };
+      })
+      .sort((a, b) => Math.abs(b.ppl) - Math.abs(a.ppl));
+
+    const playerRowsHtml = playerRows.map(p => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-radius:4px;">
+        <span style="font-size:11.5px;font-weight:700;color:#fff;">${p.player}</span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:10.5px;font-weight:700;color:#a8b0bb;font-family:'JetBrains Mono',monospace;">${p.pw}-${p.pl2}</span>
+          <span style="font-size:11.5px;font-weight:800;font-family:'JetBrains Mono',monospace;color:${col(p.ppl)};min-width:52px;text-align:right;">${fmtU(p.ppl)}</span>
+        </span>
+      </div>`).join("");
+
+    // Drop a month divider whenever we cross into a new month while scanning
+    // down the most-recent-first list.
+    const mKey = monthKeyOf(g.iso);
+    let monthDivider = "";
+    if (mKey !== lastMonthKey) {
+      monthDivider = `<div style="font-size:10px;font-weight:800;color:#525a64;letter-spacing:1px;text-transform:uppercase;margin:${lastMonthKey===null?"0":"14px"} 0 8px;">${mKey}</div>`;
+      lastMonthKey = mKey;
+    }
+
+    return `${monthDivider}
+    <div style="background:#0a0b0d;border:1px solid #1e2530;border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #171b22;">
+        <div>
+          <div style="font-size:12.5px;font-weight:800;color:#fff;">${g.label}</div>
+          <div style="font-size:9.5px;font-weight:700;color:#7dd3fc;margin-top:1px;">${fmtDateFull(g.iso)} · ${g.bets.length} prop${g.bets.length===1?"":"s"}</div>
+        </div>
+        <div style="text-align:right;">
+          <span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#a8b0bb;margin-right:8px;">${w}-${l}</span>
+          <span style="font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace;color:${col(pl)};">${fmtU(pl)}</span>
+        </div>
+      </div>
+      ${playerRowsHtml}
+    </div>`;
+  });
+
+  // Overall summary across every game shown.
+  const totalW = settled.filter(b => b.result === "hit").length;
+  const totalL = settled.length - totalW;
+  const totalPL = settled.reduce((sum, b) => sum + plOf(b), 0);
+
+  el.innerHTML = `
+  <div style="max-width:680px;margin:0 auto;padding:16px 14px 60px;font-family:'Inter',sans-serif;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-size:10.5px;font-weight:700;color:#a8b0bb;">${sortedGames.length} game${sortedGames.length===1?"":"s"} · ${settled.length} settled props</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#a8b0bb;">${totalW}-${totalL}</span>
+        <span style="font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace;color:${col(totalPL)};">${fmtU(totalPL)}</span>
+      </div>
+    </div>
+    ${gameCards.join("")}
+  </div>`;
 }
 
 function filterBetRows(val) {
