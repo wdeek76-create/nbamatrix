@@ -7330,6 +7330,27 @@ async function gradeAllPending(mode) {
   if (skipped) toastBits.push(`${skipped} not final`);
   if (failed) toastBits.push(`${failed} failed`);
   showToast(toastBits.join(" • "));
+
+  // Auto-sync Splits (season logs) after grading, so L5/L10/Season hit rates
+  // reflect the games that were JUST graded instead of going stale until the
+  // next manual sync. Fire-and-forget on purpose: this must never block or
+  // fail the grading flow above, which already completed successfully by
+  // this point. syncSeasonLogs() is incremental (only fetches new dates
+  // since the last sync) and already has its own internal error handling,
+  // so this is a cheap, safe call — but we still wrap it defensively here
+  // in case something upstream changes later.
+  if (graded > 0 && typeof syncSeasonLogs === "function") {
+    (async () => {
+      try {
+        await syncSeasonLogs({});
+        if (typeof renderSeasonLogsStatus === "function") renderSeasonLogsStatus();
+        logGrade("Splits synced.", "info");
+      } catch (e) {
+        // Non-critical — grading already succeeded above regardless of this.
+        console.warn("Post-grade splits sync failed:", e);
+      }
+    })();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -9732,6 +9753,10 @@ function renderSrcAnalytics() {
     if (!entries.length) return;
     minAccumTotal++;
     const withDiff = entries.map(([key, val]) => ({ key, diff: Math.abs(val - b.actualMin) }));
+    // Include the blended "Expected" (average of whichever sources had data)
+    // as its own candidate in the same comparison — answers "does averaging
+    // beat picking one source alone," not just "which single source wins."
+    if (b.expMin != null) withDiff.push({ key: "__expected", diff: Math.abs(b.expMin - b.actualMin) });
     const minDiff = Math.min(...withDiff.map(e => e.diff));
     withDiff.forEach(e => {
       if (!minAccumBySource[e.key]) minAccumBySource[e.key] = { n: 0, sumAbsDiff: 0, closestCount: 0 };
@@ -9744,11 +9769,15 @@ function renderSrcAnalytics() {
   const minAccumRows = Object.entries(minAccumBySource)
     .sort((a, b) => (b[1].closestCount / b[1].n) - (a[1].closestCount / a[1].n))
     .map(([key, acc]) => {
-      const label = (typeof SOURCES !== "undefined" ? SOURCES.find(s => s.key === key)?.label : null) || key;
+      const isExpected = key === "__expected";
+      const label = isExpected
+        ? "Expected (avg)"
+        : (typeof SOURCES !== "undefined" ? SOURCES.find(s => s.key === key)?.label : null) || key;
       const avgOff = acc.n > 0 ? acc.sumAbsDiff / acc.n : 0;
       const closestPct = acc.n > 0 ? (acc.closestCount / acc.n) * 100 : 0;
-      return `<tr style="border-bottom:1px solid #15181d;">
-        <td style="padding:9px 12px;font-size:12px;font-weight:700;color:#fff;">${label}</td>
+      const labelColor = isExpected ? "#7dd3fc" : "#fff";
+      return `<tr style="border-bottom:1px solid #15181d;${isExpected?"background:rgba(125,211,252,0.04);":""}">
+        <td style="padding:9px 12px;font-size:12px;font-weight:700;color:${labelColor};">${label}</td>
         <td style="padding:9px 12px;font-size:12px;color:#fff;text-align:center;font-family:'JetBrains Mono',monospace;">${acc.n}</td>
         <td style="padding:9px 12px;font-size:12px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:${closestPct>=40?"#4ade80":"#d4dae3"};">${closestPct.toFixed(0)}%</td>
         <td style="padding:9px 12px;font-size:12px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:${avgOff<=3?"#4ade80":avgOff>=6?"#f87171":"#d4dae3"};">${avgOff.toFixed(1)} min</td>
@@ -12062,8 +12091,11 @@ function renderTracker() {
           const entries = Object.entries(b.srcMin).filter(([, v]) => v != null);
           if (!entries.length) return "";
           const withDiff = entries.map(([key, val]) => ({ key, val, diff: Math.abs(val - b.actualMin) }));
+          // Include the blended Expected (average across sources) as its own
+          // candidate alongside the individual sources.
+          if (b.expMin != null) withDiff.push({ key: "__expected", val: b.expMin, diff: Math.abs(b.expMin - b.actualMin) });
           const minDiff = Math.min(...withDiff.map(e => e.diff));
-          const labelFor = (key) => (typeof SOURCES !== "undefined" ? (SOURCES.find(s => s.key === key)?.label || key) : key);
+          const labelFor = (key) => key === "__expected" ? "Exp" : (typeof SOURCES !== "undefined" ? (SOURCES.find(s => s.key === key)?.label || key) : key);
           const parts = withDiff.map(e => {
             const isClosest = e.diff === minDiff;
             const color = isClosest ? "#4ade80" : "#d4dae3";
