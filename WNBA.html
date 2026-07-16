@@ -12265,17 +12265,24 @@ function renderTracker() {
       ${Object.entries(bookBreak).length === 0 ? '<p style="color:#525a64;font-size:13px;padding:8px 0;">No settled bets yet</p>' : `<div class="overview-strip" style="flex-wrap:wrap;">${Object.entries(bookBreak).sort((a,b)=>b[1].pl-a[1].pl).map(([k,v])=>card(k,v,{book:true})).join("")}</div>`}
     </div>
 
-    ${(hasSourceHistory || hasCfHistory) ? `
+    ${hasSourceHistory ? `
     <div class="tracker-section">
       <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Model Performance</h4>
-      <p style="font-size:10px;color:#a8b0bb;margin:-4px 0 10px 0;line-height:1.4;">Each model's record on bets where it agreed with your pick (≥50% win prob). Higher ROI = better when confident. <span style="color:#7dd3fc;font-weight:700;">Combined</span> is the primary model — Player and Pace×Eff shown as supporting context.</p>
+      <p style="font-size:10px;color:#a8b0bb;margin:-4px 0 10px 0;line-height:1.4;">Your record broken down by which model each total was TRACKED on — these three add up to your total settled count above. <span style="color:#7dd3fc;font-weight:700;">Combined</span> is the primary model — Player and Pace×Eff shown as supporting context.</p>
       ${(() => {
         // Combined is the main anchor: bigger featured card shown first/full-width.
         // Player and Pace×Eff render smaller underneath as secondary reference.
+        // Uses sourceBreak (which model the bet was actually TRACKED on) — these
+        // buckets are mutually exclusive and sum to the total settled count.
+        // (Previously showed cfBreak — a counterfactual "did each model's
+        // implied probability also agree with this pick" — which double-counts
+        // bets across models and made the numbers look broken next to the
+        // 108-settled total up top. That counterfactual view still exists
+        // below as its own clearly-labeled section.)
         const models = [
-          { key: "both",     label: "Combined",    data: cfBreak.both,     featured: true  },
-          { key: "blended",  label: "PlayerBased", data: cfBreak.blended,  featured: false },
-          { key: "paceeff",  label: "Pace × Eff",  data: cfBreak.paceeff,  featured: false }
+          { key: "both",     label: "Combined",    data: sourceBreak.both,     featured: true  },
+          { key: "blended",  label: "PlayerBased", data: sourceBreak.blended,  featured: false },
+          { key: "paceeff",  label: "Pace × Eff",  data: sourceBreak.paceeff,  featured: false }
         ];
         const pill = (m) => {
           const v = m.data;
@@ -12311,6 +12318,38 @@ function renderTracker() {
         return (featuredCard ? pill(featuredCard) : "") +
           (supportCards.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;">${supportCards.map(pill).join("")}</div>` : "");
       })()}
+    </div>` : ""}
+
+    ${hasCfHistory ? `
+    <div class="tracker-section">
+      <h4 style="font-size:11px;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;font-weight:700;border:none;padding-bottom:0;margin-bottom:8px;">Model Agreement (counterfactual)</h4>
+      <p style="font-size:10px;color:#a8b0bb;margin:-4px 0 10px 0;line-height:1.4;">A different question from the section above: regardless of which model you actually tracked the bet on, how did each model's OWN projection do on the bets where its implied win probability also favored your side (≥50%)? Since multiple models can agree on the same bet, these three numbers overlap and won't sum to your total settled count — that's expected here.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${(() => {
+          const models = [
+            { key: "both",     label: "Combined",    data: cfBreak.both     },
+            { key: "blended",  label: "PlayerBased", data: cfBreak.blended  },
+            { key: "paceeff",  label: "Pace × Eff",  data: cfBreak.paceeff  },
+          ];
+          return models.filter(m => m.data && m.data.total > 0).map(m => {
+            const v = m.data;
+            const hitPct = v.total > 0 ? Math.round((v.hits/v.total)*100) : 0;
+            const roi = v.staked > 0 ? ((v.pl/v.staked)*100).toFixed(1) : "—";
+            const plColor = v.pl >= 0 ? "#22c55e" : "#f87171";
+            const roiColor = Number(roi) >= 0 ? "#7dd3fc" : "#f87171";
+            const hitColor = hitPct >= 55 ? "#22c55e" : hitPct >= 45 ? "#d4dae3" : "#f87171";
+            return `<div style="background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:8px 12px;min-width:170px;flex:1;">
+              <div style="font-size:10px;color:#a8b0bb;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">${m.label}</div>
+              <div style="display:flex;align-items:baseline;gap:10px;">
+                <span style="font-size:18px;font-weight:800;color:${hitColor};letter-spacing:-0.5px;">${hitPct}%</span>
+                <span style="font-size:11px;color:#d4dae3;">${v.hits}-${v.total - v.hits}</span>
+                <span style="font-size:11px;color:${plColor};font-weight:700;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</span>
+                <span style="font-size:11px;color:${roiColor};font-weight:700;margin-left:auto;">ROI ${roi}${roi!=="—"?'%':''}</span>
+              </div>
+            </div>`;
+          }).join("");
+        })()}
+      </div>
     </div>` : ""}
 
     <div class="tracker-section">
