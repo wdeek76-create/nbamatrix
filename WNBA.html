@@ -10755,10 +10755,20 @@ async function screenshotPerfPanel() {
 // history). Returns the HTML string and registers hover handlers in a
 // micro-tick after the DOM is updated by renderTracker.
 function buildPerformancePanel(scopedBets) {
+  // When viewing TOTALS scope specifically, the performance chart should
+  // reflect the Combined model (Pace×Eff blended with Player-based) since
+  // that's the primary totals model — not mixed in with Player-only or
+  // Pace×Eff-only totals bets that happen to also be in totals scope. This
+  // only affects the chart/performance panel below; record counts, W-L, and
+  // everything else in the tracker tab still show ALL totals bets as before.
+  const isTotalsScope = (typeof betKindFilter !== "undefined") && betKindFilter === "totals";
+  const chartScopedBets = isTotalsScope
+    ? scopedBets.filter(b => (b.projSource || "both") === "both")
+    : scopedBets;
   // 1. Get settled bets (hit/miss only — voids ignore), compute P/L, sort by date.
   // Keep ALL bets — even outliers contribute to lifetime totals. We adjust the
   // chart's visual start range later, not the underlying data.
-  const settledForChart = scopedBets
+  const settledForChart = chartScopedBets
     .filter(b => b.result === "hit" || b.result === "miss")
     .map(b => {
       const dateStr = b.gameDate || b.date || b.timestamp;
@@ -11415,8 +11425,10 @@ function copyStatBreakdown() {
   const kind = (typeof betKindFilter !== "undefined") ? betKindFilter : "all";
   const scopedBets = bets.filter(b => {
     if (!b || !b.result || b.result === "pending") return false;
-    if (kind === "props")  return (b.stat || "").toUpperCase() !== "GAME_TOTAL";
-    if (kind === "totals") return (b.stat || "").toUpperCase() === "GAME_TOTAL";
+    const s = (b.stat || "").toUpperCase();
+    if (kind === "props")  return s !== "GAME_TOTAL" && s !== "GAME_SPREAD";
+    if (kind === "totals") return s === "GAME_TOTAL";
+    if (kind === "spreads") return s === "GAME_SPREAD";
     return true;
   });
   const settled = scopedBets.filter(b => b.result === "hit" || b.result === "miss");
@@ -11463,7 +11475,7 @@ function copyStatBreakdown() {
   });
   // Build the header summary block — overall + over/under for the active filter
   const lines = [];
-  const headerKind = kind === "props" ? "props" : kind === "totals" ? "totals" : "all-time";
+  const headerKind = kind === "props" ? "props" : kind === "totals" ? "totals" : kind === "spreads" ? "spreads" : "all-time";
   lines.push(`WNBA ${headerKind}`);
   const overallLosses = overall.total - overall.hits;
   const overallRoi = overall.staked > 0 ? (overall.pl / overall.staked * 100) : null;
@@ -11487,11 +11499,12 @@ function copyStatBreakdown() {
     lines.push(`Under ${overall.under.hits}-${uL} ${uPl}${uRoiStr}`);
   }
   lines.push("");  // blank line before per-stat blocks
-  // Per-stat blocks — sorted by P&L desc. GAME_TOTAL is always excluded from
-  // per-stat blocks: on props/all it would be wrong to mix in, and on totals-solo
+  // Per-stat blocks — sorted by P&L desc. GAME_TOTAL and GAME_SPREAD are
+  // always excluded from per-stat blocks: on props/all scope they don't
+  // belong mixed in with real stat props, and on totals/spreads-solo scope
   // the header summary already covers it, so a per-stat block just duplicates.
   const sortedStats = Object.entries(statBreak)
-    .filter(([code]) => code !== "GAME_TOTAL")
+    .filter(([code]) => code !== "GAME_TOTAL" && code !== "GAME_SPREAD")
     .sort((a, b) => b[1].pl - a[1].pl);
   sortedStats.forEach(([code, v]) => {
     const name = STAT_FULL_NAMES[code] || code;
