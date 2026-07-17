@@ -1552,9 +1552,16 @@ function renderTable() {
             // minutes). Adjacent to the injury pill, smaller, complementary tone.
             // OUT players are excluded: their floor isn't projection-relevant
             // because they don't play at all (you wouldn't bet them anyway).
-            // DTD excluded per request — labeled "Day-to-Day" but typically means
-            // managing through a known recurring issue, not start-of-game uncertainty.
-            const isFloorRisk = label === "Q" || label === "GTD";
+            // DTD excluded by default — labeled "Day-to-Day" but typically means
+            // managing through a known recurring issue, not start-of-game
+            // uncertainty. EXCEPTION: if the blurb itself leans toward her not
+            // playing (season debut still pending, explicitly trending toward
+            // sitting, etc.), the label alone is hiding real signal — so those
+            // specific DTD cases still get flagged. This only reads the text
+            // that's already being shown, it doesn't change what DTD means by
+            // default.
+            const dtdBlurbLeansOut = label === "DTD" && /season debut|has not (?:yet )?made her season debut|remains sidelined|trending toward|leaning toward|expected to (?:sit|miss)|unlikely to play|will not play|ruled out|hasn't practiced|not (?:yet )?cleared/i.test(`${inj.comment||""} ${inj.longComment||""}`);
+            const isFloorRisk = label === "Q" || label === "GTD" || dtdBlurbLeansOut;
             const floorPill = isFloorRisk
               ? `<span data-tip="${tipAttr}" style="background:#f8717122;border:1px solid #f8717177;color:#f87171;font-size:9px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:1px 6px;cursor:help;">FLOOR ↓</span>`
               : '';
@@ -11780,7 +11787,7 @@ function renderTracker() {
   const agOpen = existingAg ? existingAg.open : pending.length > 0;
 
   // Projection source comparison: which projection model produced the bet
-  const sourceBreak = { blended: empty(), paceeff: empty(), both: empty(), unknown: empty() };
+  const sourceBreak = { blended: emptyWithSplit(), paceeff: emptyWithSplit(), both: emptyWithSplit(), unknown: emptyWithSplit() };
   // Counter-factual: how would EACH model have called this bet at track time?
   // Uses the bet.projSnapshots (frozen at track-click). For each settled bet, ask:
   // "Did this model think the side that won was more likely than 50%?"
@@ -11789,6 +11796,7 @@ function renderTracker() {
     if (b.stat !== "GAME_TOTAL") return;
     const sk = b.projSource === "blended" || b.projSource === "paceeff" || b.projSource === "both" ? b.projSource : "unknown";
     accum(sourceBreak[sk], b);
+    if (b.ou === "over" || b.ou === "under") accum(sourceBreak[sk][b.ou], b);
     // For counterfactual: for each snapshot model, count it as a "call" only if its
     // win prob for this bet's side was >= 50%. Then accum based on the actual result.
     if (b.projSnapshots) {
@@ -12291,6 +12299,23 @@ function renderTracker() {
           const plColor = v.pl >= 0 ? "#22c55e" : "#f87171";
           const roiColor = Number(roi) >= 0 ? "#7dd3fc" : "#f87171";
           const hitColor = hitPct >= 55 ? "#22c55e" : hitPct >= 45 ? "#d4dae3" : "#f87171";
+          // Over/under split line — shown when there's at least one settled
+          // bet on that side for this model.
+          const ouLine = (size) => {
+            const parts = [];
+            if (v.over && v.over.total > 0) {
+              const oL = v.over.total - v.over.hits;
+              const oColor = v.over.pl >= 0 ? "#22c55e" : "#f87171";
+              parts.push(`<span style="color:#d4dae3;">O</span> <span style="color:#fff;">${v.over.hits}-${oL}</span> <span style="color:${oColor};">${v.over.pl>=0?'+':''}${v.over.pl.toFixed(2)}u</span>`);
+            }
+            if (v.under && v.under.total > 0) {
+              const uL = v.under.total - v.under.hits;
+              const uColor = v.under.pl >= 0 ? "#22c55e" : "#f87171";
+              parts.push(`<span style="color:#d4dae3;">U</span> <span style="color:#fff;">${v.under.hits}-${uL}</span> <span style="color:${uColor};">${v.under.pl>=0?'+':''}${v.under.pl.toFixed(2)}u</span>`);
+            }
+            if (!parts.length) return "";
+            return `<div style="display:flex;gap:12px;margin-top:${size==='lg'?8:6}px;padding-top:${size==='lg'?8:6}px;border-top:1px solid #1a1d22;font-size:${size==='lg'?11:10}px;font-weight:700;">${parts.join("")}</div>`;
+          };
           if (m.featured) {
             return `<div style="background:#050507;border:1px solid #7dd3fc55;border-radius:8px;padding:14px 16px;box-shadow:0 0 0 1px rgba(125,211,252,0.06),0 4px 18px rgba(125,211,252,0.06);margin-bottom:8px;">
               <div style="font-size:11px;color:#7dd3fc;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">★ ${m.label} <span style="color:#a8b0bb;font-weight:600;text-transform:none;letter-spacing:0;">— primary model</span></div>
@@ -12300,6 +12325,7 @@ function renderTracker() {
                 <span style="font-size:13px;color:${plColor};font-weight:700;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</span>
                 <span style="font-size:13px;color:${roiColor};font-weight:700;margin-left:auto;">ROI ${roi}${roi!=="—"?'%':''}</span>
               </div>
+              ${ouLine('lg')}
             </div>`;
           }
           return `<div style="background:#050507;border:1px solid #1a1d22;border-radius:6px;padding:8px 12px;min-width:170px;flex:1;">
@@ -12310,6 +12336,7 @@ function renderTracker() {
               <span style="font-size:11px;color:${plColor};font-weight:700;">${v.pl>=0?'+':''}${v.pl.toFixed(2)}u</span>
               <span style="font-size:11px;color:${roiColor};font-weight:700;margin-left:auto;">ROI ${roi}${roi!=="—"?'%':''}</span>
             </div>
+            ${ouLine('sm')}
           </div>`;
         };
         const withData = models.filter(m => m.data && m.data.total > 0);
