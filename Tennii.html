@@ -238,6 +238,9 @@
     padding: 8px 16px;
     cursor: pointer;
     text-transform: uppercase;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
     letter-spacing: 0.05em;
     transition: all 0.15s;
   }
@@ -605,6 +608,9 @@
     cursor: pointer;
     transition: all 0.15s;
     padding: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
   .sofa-btn:hover {
     border-color: #4a64e8;
@@ -859,7 +865,7 @@
           <option value="bPM">Polymarket</option>
         </select>
       </div>
-      <div class="field" style="flex:0 0 200px;position:relative">
+      <div class="field" style="flex:1 1 130px;min-width:100px;position:relative">
         <label>Odds</label>
         <input type="text" inputmode="numeric" id="iMktOdds" placeholder="" style="font-size:17px;font-weight:600;text-align:center;padding-right:26px">
         <button type="button" onclick="clearInputField('iMktOdds')" title="Clear" style="position:absolute;right:6px;bottom:9px;background:transparent;border:none;color:var(--text3);font-size:14px;padding:2px 6px;cursor:pointer;line-height:1;border-radius:4px">×</button>
