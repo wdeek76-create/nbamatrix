@@ -488,6 +488,20 @@
     .cal-day .cal-pnl { font-size: 9px; }
   }
 
+  @media (max-width: 430px) {
+    main { padding: 6px 6px 40px; }
+    .panel { padding: 8px 8px; }
+    body { font-size: 13px; }
+    .tab-bar { padding: 0 4px; gap: 2px; }
+    .tab-btn { padding: 8px 6px; font-size: 11px; letter-spacing: 0; }
+    input, select, textarea { font-size: 16px; padding: 7px 8px; }
+    button { font-size: 12px; padding: 7px 10px; }
+    .field-label { font-size: 10px; }
+    .panel-label { font-size: 10px; }
+    .book-logo { width: 28px; height: 28px; }
+    .book-odds { font-size: 11px; }
+  }
+
   .grade-btn.gb-open { background: rgba(122,158,130,0.12); border-color: rgba(122,158,130,0.35); color: var(--text2); }
 
   button.copied {
@@ -923,9 +937,6 @@
           <tr>
             <th style="width:60px">Date</th>
             <th>Bet</th>
-            <th style="width:70px;text-align:center">Win%</th>
-            <th style="width:80px;text-align:center">Odds</th>
-            <th style="width:70px;text-align:center">EV%</th>
           </tr>
         </thead>
         <tbody id="logBody"></tbody>
@@ -4465,16 +4476,13 @@ function renderLog(){
           <button class="row-copy-btn" title="Copy play" onclick="copyBetById(${b.id})">Copy</button>
           ${gradeBtns}
         </div>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:8px;font-family:var(--mono)">
+          <span style="font-size:12px;font-weight:700;color:#fff">Win%&nbsp;<span style="font-size:13px;font-weight:700;font-family:var(--mono);color:#fff">${b.winPct.toFixed(1)}%</span></span>
+          <span style="font-size:12px;font-weight:700;color:#fff">Odds&nbsp;<span id="odds-disp-${b.id}" style="font-size:13px;font-weight:700;font-family:var(--mono);color:#fff;text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer" onclick="inlineEditOdds(${b.id})" title="Tap to edit odds">${b.mktOdds>=0?'+':''}${b.mktOdds}</span>${(()=>{ const dec=b.mktOdds>=0?(b.mktOdds/100+1):(100/Math.abs(b.mktOdds)+1); const netB=dec-1; if(netB<=0||!isFinite(netB)) return ''; const rootU=1/Math.sqrt(netB); return `<span style="font-size:10px;color:#8ab4f8;opacity:.75;margin-left:3px">${rootU.toFixed(2)}u</span>`; })()}</span>
+          <span style="font-size:12px;font-weight:700;color:#fff">EV&nbsp;<span class="${evCls}" style="font-size:13px;font-weight:700;font-family:var(--mono)">${live.evPct>=0?'+':''}${live.evPct.toFixed(1)}%</span></span>
+        </div>
       </td>
-      <td class="mono" style="text-align:center;font-size:13px;vertical-align:top;padding-top:14px">${b.winPct.toFixed(1)}%</td>
-      <td class="mono" style="text-align:center;font-weight:600;font-size:14px;vertical-align:top;padding-top:14px">${b.mktOdds>=0?'+':''}${b.mktOdds}${(()=>{
-        const dec = b.mktOdds>=0 ? (b.mktOdds/100+1) : (100/Math.abs(b.mktOdds)+1);
-        const netB = dec - 1;
-        if(netB<=0 || !isFinite(netB)) return '';
-        const rootU = 1/Math.sqrt(netB);
-        return `<div style="font-size:10px;font-weight:500;color:#8ab4f8;opacity:.75;margin-top:3px;letter-spacing:.02em" title="Root-unit stake — Pinnacle/Abrams 1u÷√b">${rootU.toFixed(2)}u root</div>`;
-      })()}</td>
-      <td class="${evCls}" style="text-align:center;font-weight:700;font-size:13px;vertical-align:top;padding-top:14px">${live.evPct>=0?'+':''}${live.evPct.toFixed(1)}%</td>
+
     </tr>`;
   }).join('');
   renderSummary(bets);
@@ -4906,6 +4914,8 @@ function copySofa(id){
     if(btn){
       btn.classList.add('locked');
       btn.title = 'Locked in SofaScore — click to unlock';
+      // Show "Copied!" toast
+      showToast('Copied!', btn);
     }
   } else {
     // Unlocked: just remove the visual state, no copy
@@ -4914,6 +4924,60 @@ function copySofa(id){
       btn.title = 'Copy for SofaScore (locks in)';
     }
   }
+}
+
+// ── Inline odds edit ─────────────────────────────────────────────────────
+function inlineEditOdds(id){
+  const b = bets.find(x=>x.id===id); if(!b) return;
+  const span = document.getElementById('odds-disp-'+id); if(!span) return;
+  const current = b.mktOdds;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current >= 0 ? '+'+current : String(current);
+  input.style.cssText = 'width:64px;font-size:13px;font-weight:700;font-family:var(--mono);background:var(--surface2);border:1px solid var(--teal);border-radius:5px;color:var(--text);padding:1px 5px;text-align:center;outline:none';
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  const commit = () => {
+    const raw = input.value.trim().replace(/[^0-9+\-]/g,'');
+    const val = parseInt(raw, 10);
+    if(!isNaN(val) && (val >= 100 || val <= -100)){
+      b.mktOdds = val;
+      save();
+      showToast('Odds updated!', input);
+    }
+    renderLog();
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+    if(e.key === 'Escape'){ renderLog(); }
+  });
+}
+
+// ── Toast notification ───────────────────────────────────────────────────
+function showToast(msg, anchorEl){
+  let t = document.getElementById('_toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = '_toast';
+    t.style.cssText = 'position:fixed;background:#4ade80;color:#070d08;font-family:var(--body);font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;opacity:0;transition:opacity 0.15s,transform 0.15s;z-index:9999;pointer-events:none;white-space:nowrap';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  // Position next to the button
+  if(anchorEl){
+    const r = anchorEl.getBoundingClientRect();
+    t.style.top = (r.top + window.scrollY - 30) + 'px';
+    t.style.left = (r.left + window.scrollX + r.width/2) + 'px';
+    t.style.transform = 'translateX(-50%) translateY(4px)';
+  }
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{
+    t.style.opacity = '0';
+  }, 1400);
 }
 
 // ── Settle modal — set per-bet unit at flag time, edit later ──────────────
