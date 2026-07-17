@@ -6514,6 +6514,382 @@ function renderSummary(allBets){
       </div>`;
     }
 
+    // ── Top Systems summary ─────────────────────────────────────────────────
+    function topSystemsBlock(arr){
+      const MIN = 50; // minimum settled bets to qualify
+
+      // ── dimension filter helpers ──────────────────────────────────────────
+      const ed = b => b.winPct - amerToImplied(b.mktOdds)*100;
+      const surf = b => {
+        const t = (b.tourney||'').toLowerCase();
+        if(t.includes('clay'))   return 'Clay';
+        if(t.includes('grass'))  return 'Grass';
+        if(t.includes('hard'))   return 'Hard';
+        if(t.includes('carpet')) return 'Carpet';
+        if(t.includes('indoor')) return 'Indoor';
+        return null;
+      };
+      const surfaces = ['Clay','Hard','Grass','Carpet','Indoor'];
+
+      // Odds buckets (coarse — 4 groups)
+      const oddsBkt = b => {
+        if(b.mktOdds <= -301) return '-301 or worse';
+        if(b.mktOdds <= -150) return '-150 to -300';
+        if(b.mktOdds <= 149)  return 'Pick/Near-even';
+        if(b.mktOdds <= 300)  return '+150 to +300';
+        return '+301+';
+      };
+      const oddsGroups = ['-301 or worse','-150 to -300','Pick/Near-even','+150 to +300','+301+'];
+
+      // Edge buckets (coarse — 3 groups)
+      const edgeBkt = b => {
+        const e = ed(b);
+        if(e >= 8)  return '8%+ edge';
+        if(e >= 5)  return '5–8% edge';
+        if(e >= 3)  return '3–5% edge';
+        return null;
+      };
+      const edgeGroups = ['3–5% edge','5–8% edge','8%+ edge'];
+
+      // Model Win% buckets (coarse — 4 groups)
+      const winPctBkt = b => {
+        if(b.winPct >= 80) return '80%+ model';
+        if(b.winPct >= 65) return '65–80% model';
+        if(b.winPct >= 50) return '50–65% model';
+        if(b.winPct >= 35) return '35–50% model';
+        return null;
+      };
+      const winPctGroups = ['35–50% model','50–65% model','65–80% model','80%+ model'];
+
+      // ── Gather all named buckets across every dimension ───────────────────
+      const allBuckets = [];
+
+      function addBuckets(label, rows){
+        rows.forEach(row => {
+          const st = rowStats(row.arr);
+          if(st.settled < MIN) return;
+          if(st.roi == null) return;
+          allBuckets.push({ system: label, bucket: row.label, sub: row.sub||'', st });
+        });
+      }
+
+      // Gender split within this segment
+      const isMens   = b => !(b.tourney||'').toLowerCase().startsWith('womens');
+      const isWomens = b => (b.tourney||'').toLowerCase().startsWith('womens');
+      const genders  = [
+        { key: 'Mens',   fn: isMens   },
+        { key: 'Womens', fn: isWomens },
+      ];
+
+      // Single-dimension
+      addBuckets('EV', evBands(arr));
+      addBuckets('Edge', edgeBands(arr));
+      addBuckets('Odds', oddsBands(arr, 'short'));
+      addBuckets('Model %', impliedBands(arr, 'short'));
+      addBuckets('Surface', surfaceBands(arr));
+      addBuckets('Book', bookBands(arr));
+      // Gender alone (useful on All segment)
+      genders.forEach(g => {
+        const sub = arr.filter(g.fn);
+        const st = rowStats(sub);
+        if(st.settled < MIN || st.roi == null) return;
+        allBuckets.push({ system: 'Gender', bucket: g.key, sub: '', st });
+      });
+
+      // 2-way combos: Gender × Surface
+      genders.forEach(g => {
+        surfaces.forEach(s => {
+          const sub = arr.filter(b => g.fn(b) && surf(b)===s);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Gender × Surface', bucket: `${g.key} / ${s}`, sub: '', st });
+        });
+      });
+
+      // 2-way combos: Gender × Odds
+      genders.forEach(g => {
+        oddsGroups.forEach(og => {
+          const sub = arr.filter(b => g.fn(b) && oddsBkt(b)===og);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Gender × Odds', bucket: `${g.key} / ${og}`, sub: '', st });
+        });
+      });
+
+      // 2-way combos: Gender × Edge
+      genders.forEach(g => {
+        edgeGroups.forEach(eg => {
+          const sub = arr.filter(b => g.fn(b) && edgeBkt(b)===eg);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Gender × Edge', bucket: `${g.key} / ${eg}`, sub: '', st });
+        });
+      });
+
+      // 2-way combos: Gender × Model%
+      genders.forEach(g => {
+        winPctGroups.forEach(wg => {
+          const sub = arr.filter(b => g.fn(b) && winPctBkt(b)===wg);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Gender × Model%', bucket: `${g.key} / ${wg}`, sub: '', st });
+        });
+      });
+
+      // 2-way combos: Surface × Odds
+      surfaces.forEach(s => {
+        oddsGroups.forEach(og => {
+          const sub = arr.filter(b => surf(b)===s && oddsBkt(b)===og);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Surface × Odds', bucket: `${s} / ${og}`, sub: '', st });
+        });
+      });
+
+      // 2-way combos: Surface × Edge
+      surfaces.forEach(s => {
+        edgeGroups.forEach(eg => {
+          const sub = arr.filter(b => surf(b)===s && edgeBkt(b)===eg);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Surface × Edge', bucket: `${s} / ${eg}`, sub: '', st });
+        });
+      });
+
+      // 2-way combos: Surface × Win%
+      surfaces.forEach(s => {
+        winPctGroups.forEach(wg => {
+          const sub = arr.filter(b => surf(b)===s && winPctBkt(b)===wg);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Surface × Model%', bucket: `${s} / ${wg}`, sub: '', st });
+        });
+      });
+
+      // 2-way combos: Odds × Edge
+      oddsGroups.forEach(og => {
+        edgeGroups.forEach(eg => {
+          const sub = arr.filter(b => oddsBkt(b)===og && edgeBkt(b)===eg);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Odds × Edge', bucket: `${og} / ${eg}`, sub: '', st });
+        });
+      });
+
+      // 2-way combos: Odds × Win%
+      oddsGroups.forEach(og => {
+        winPctGroups.forEach(wg => {
+          const sub = arr.filter(b => oddsBkt(b)===og && winPctBkt(b)===wg);
+          const st = rowStats(sub);
+          if(st.settled < MIN || st.roi == null) return;
+          allBuckets.push({ system: 'Odds × Model%', bucket: `${og} / ${wg}`, sub: '', st });
+        });
+      });
+
+      // 3-way combos: Gender × Surface × Odds
+      genders.forEach(g => {
+        surfaces.forEach(s => {
+          oddsGroups.forEach(og => {
+            const sub = arr.filter(b => g.fn(b) && surf(b)===s && oddsBkt(b)===og);
+            const st = rowStats(sub);
+            if(st.settled < MIN || st.roi == null) return;
+            allBuckets.push({ system: '3-way', bucket: `${g.key} / ${s} / ${og}`, sub: '', st });
+          });
+        });
+      });
+
+      // 3-way combos: Gender × Surface × Edge
+      genders.forEach(g => {
+        surfaces.forEach(s => {
+          edgeGroups.forEach(eg => {
+            const sub = arr.filter(b => g.fn(b) && surf(b)===s && edgeBkt(b)===eg);
+            const st = rowStats(sub);
+            if(st.settled < MIN || st.roi == null) return;
+            allBuckets.push({ system: '3-way', bucket: `${g.key} / ${s} / ${eg}`, sub: '', st });
+          });
+        });
+      });
+
+      // 3-way combos: Gender × Surface × Win%
+      genders.forEach(g => {
+        surfaces.forEach(s => {
+          winPctGroups.forEach(wg => {
+            const sub = arr.filter(b => g.fn(b) && surf(b)===s && winPctBkt(b)===wg);
+            const st = rowStats(sub);
+            if(st.settled < MIN || st.roi == null) return;
+            allBuckets.push({ system: '3-way', bucket: `${g.key} / ${s} / ${wg}`, sub: '', st });
+          });
+        });
+      });
+
+      // 3-way combos: Gender × Odds × Edge
+      genders.forEach(g => {
+        oddsGroups.forEach(og => {
+          edgeGroups.forEach(eg => {
+            const sub = arr.filter(b => g.fn(b) && oddsBkt(b)===og && edgeBkt(b)===eg);
+            const st = rowStats(sub);
+            if(st.settled < MIN || st.roi == null) return;
+            allBuckets.push({ system: '3-way', bucket: `${g.key} / ${og} / ${eg}`, sub: '', st });
+          });
+        });
+      });
+
+      // 3-way combos: Gender × Odds × Win%
+      genders.forEach(g => {
+        oddsGroups.forEach(og => {
+          winPctGroups.forEach(wg => {
+            const sub = arr.filter(b => g.fn(b) && oddsBkt(b)===og && winPctBkt(b)===wg);
+            const st = rowStats(sub);
+            if(st.settled < MIN || st.roi == null) return;
+            allBuckets.push({ system: '3-way', bucket: `${g.key} / ${og} / ${wg}`, sub: '', st });
+          });
+        });
+      });
+
+      // 3-way combos: Surface × Odds × Edge
+      surfaces.forEach(s => {
+        oddsGroups.forEach(og => {
+          edgeGroups.forEach(eg => {
+            const sub = arr.filter(b => surf(b)===s && oddsBkt(b)===og && edgeBkt(b)===eg);
+            const st = rowStats(sub);
+            if(st.settled < MIN || st.roi == null) return;
+            allBuckets.push({ system: '3-way', bucket: `${s} / ${og} / ${eg}`, sub: '', st });
+          });
+        });
+      });
+
+      // 3-way combos: Surface × Odds × Win%
+      surfaces.forEach(s => {
+        oddsGroups.forEach(og => {
+          winPctGroups.forEach(wg => {
+            const sub = arr.filter(b => surf(b)===s && oddsBkt(b)===og && winPctBkt(b)===wg);
+            const st = rowStats(sub);
+            if(st.settled < MIN || st.roi == null) return;
+            allBuckets.push({ system: '3-way', bucket: `${s} / ${og} / ${wg}`, sub: '', st });
+          });
+        });
+      });
+
+      // 4-way combos: Gender × Surface × Odds × Edge
+      genders.forEach(g => {
+        surfaces.forEach(s => {
+          oddsGroups.forEach(og => {
+            edgeGroups.forEach(eg => {
+              const sub = arr.filter(b => g.fn(b) && surf(b)===s && oddsBkt(b)===og && edgeBkt(b)===eg);
+              const st = rowStats(sub);
+              if(st.settled < MIN || st.roi == null) return;
+              allBuckets.push({ system: '4-way', bucket: `${g.key} / ${s} / ${og} / ${eg}`, sub: '', st });
+            });
+          });
+        });
+      });
+
+      // 4-way combos: Gender × Surface × Odds × Win%
+      genders.forEach(g => {
+        surfaces.forEach(s => {
+          oddsGroups.forEach(og => {
+            winPctGroups.forEach(wg => {
+              const sub = arr.filter(b => g.fn(b) && surf(b)===s && oddsBkt(b)===og && winPctBkt(b)===wg);
+              const st = rowStats(sub);
+              if(st.settled < MIN || st.roi == null) return;
+              allBuckets.push({ system: '4-way', bucket: `${g.key} / ${s} / ${og} / ${wg}`, sub: '', st });
+            });
+          });
+        });
+      });
+
+      if(!allBuckets.length){
+        return `<div class="dash-block">
+          <div class="dash-block-title">🔬 Where Your Edge Lives <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">(needs ${MIN}+ settled per slot)</span></div>
+          <div style="color:var(--text3);font-size:12px;padding:10px 0">Not enough data yet — keep logging. Patterns will emerge once buckets hit ${MIN}+ settled bets.</div>
+        </div>`;
+      }
+
+      // Deduplicate: if a combo fully contains a single-dim bucket at same ROI, prefer the more specific one
+      // Sort by ROI desc
+      allBuckets.sort((a,b) => b.st.roi - a.st.roi);
+
+      function makeRow(item, rank){
+        const st = item.st;
+        const roiCol = st.roi >= 20 ? '#4ade80' : st.roi >= 10 ? '#8ae98a' : st.roi >= 0 ? 'var(--amber)' : 'var(--red)';
+        const pCol = pColorOf(st.pnl);
+        const rankStr = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `<span style="font-size:11px;color:var(--text3)">${rank}.</span>`;
+        const wr = st.settled ? Math.round(st.w/st.settled*100) : 0;
+        // system tag — make it readable
+        const sysTag = item.system;
+        const sysColor = sysTag.includes('4-way') ? '#c084fc'
+                       : sysTag.includes('3-way') ? '#818cf8'
+                       : sysTag.includes('×')     ? '#60a5fa'
+                       : 'var(--text3)';
+        return `<tr>
+          <td class="lead">
+            <span style="margin-right:5px">${rankStr}</span>${item.bucket}
+            <span style="display:block;font-size:9px;font-weight:600;margin-top:3px;letter-spacing:.05em;text-transform:uppercase;color:${sysColor}">${sysTag}</span>
+          </td>
+          <td class="num count" style="font-size:12px">${st.settled}</td>
+          <td class="num" style="font-size:12px">${st.w}–${st.l}<span style="display:block;font-size:10px;opacity:.55">${wr}% WR</span></td>
+          <td class="num" style="color:${pCol};font-weight:700;font-size:12px">${fmtPnlU(st.pnl)}</td>
+          <td class="num" style="color:${roiCol};font-weight:800;font-size:14px">${(st.roi>=0?'+':'')+st.roi.toFixed(1)}%</td>
+        </tr>`;
+      }
+
+      function makeAvoidRow(item){
+        const st = item.st;
+        const pCol = pColorOf(st.pnl);
+        const wr = st.settled ? Math.round(st.w/st.settled*100) : 0;
+        const sysTag = item.system;
+        const sysColor = sysTag.includes('4-way') ? '#c084fc'
+                       : sysTag.includes('3-way') ? '#818cf8'
+                       : sysTag.includes('×')     ? '#60a5fa'
+                       : 'var(--text3)';
+        return `<tr>
+          <td class="lead">
+            ${item.bucket}
+            <span style="display:block;font-size:9px;font-weight:600;margin-top:3px;letter-spacing:.05em;text-transform:uppercase;color:${sysColor}">${sysTag}</span>
+          </td>
+          <td class="num count" style="font-size:12px">${st.settled}</td>
+          <td class="num" style="font-size:12px">${st.w}–${st.l}<span style="display:block;font-size:10px;opacity:.55">${wr}% WR</span></td>
+          <td class="num" style="color:${pCol};font-weight:700;font-size:12px">${fmtPnlU(st.pnl)}</td>
+          <td class="num" style="color:var(--red);font-weight:800;font-size:14px">${(st.roi>=0?'+':'')+st.roi.toFixed(1)}%</td>
+        </tr>`;
+      }
+
+      const top    = allBuckets.slice(0, 12);
+      const bottom = allBuckets.slice().sort((a,b) => a.st.roi - b.st.roi)
+                       .filter(x => x.st.roi < 0) // only genuinely negative
+                       .slice(0, 8);
+
+      const topRows    = top.map((item, i) => makeRow(item, i+1)).join('');
+      const bottomRows = bottom.map(item => makeAvoidRow(item)).join('');
+
+      const legend = `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">
+        <span style="color:var(--text3)">■ Single dim</span>
+        <span style="color:#60a5fa">■ 2-way combo</span>
+        <span style="color:#818cf8">■ 3-way combo</span>
+        <span style="color:#c084fc">■ 4-way combo</span>
+      </div>`;
+
+      const tableHead = `<thead><tr>
+        <th>Bucket</th>
+        <th class="num">Settled</th>
+        <th class="num">Record</th>
+        <th class="num">P/L</th>
+        <th class="num">ROI</th>
+      </tr></thead>`;
+
+      return `<div class="dash-block" style="border:1px solid rgba(74,222,128,0.15);border-radius:12px;padding:16px 18px;background:rgba(74,222,128,0.03)">
+        <div class="dash-block-title" style="margin-bottom:4px">🔬 Where Your Edge Lives <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">${MIN}+ settled · ranked by ROI</span></div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Cross-cuts every dimension + combo to show exactly where the model is working — and where it's leaking. Gets more precise as sample grows.</div>
+        ${legend}
+        <table class="dash-table"><${tableHead}<tbody>${topRows}</tbody></table>
+        ${bottomRows ? `
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">⚠️ Leaking — Negative ROI spots (${MIN}+ settled)</div>
+          <table class="dash-table">${tableHead}<tbody>${bottomRows}</tbody></table>
+        </div>` : ''}
+      </div>`;
+    }
+
     return `
       ${heroStrip(arr, accent)}
       ${discordTop}
@@ -6548,6 +6924,7 @@ function renderSummary(allBets){
         <div class="dash-block-title">By book</div>
         ${buildBreakdownTable(bookBands(arr), {alwaysShow:false})}
       </div>
+      ${topSystemsBlock(arr)}
     `;
   }
 
