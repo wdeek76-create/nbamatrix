@@ -1103,6 +1103,31 @@
   </div>
   </div><!-- end tab-players -->
   <div class="tab-panel" id="tab-dashboard">
+  <style>
+  @media(max-width:430px){
+    #breakdownGrid .dash-hero{grid-template-columns:repeat(5,1fr)!important;gap:4px!important}
+    #breakdownGrid .dash-hero-card{padding:6px 4px!important;overflow:hidden!important}
+    #breakdownGrid .h-lbl{font-size:7px!important;letter-spacing:.02em!important;margin-bottom:2px!important}
+    #breakdownGrid .h-val{font-size:12px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #breakdownGrid .h-sub{font-size:7px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #breakdownGrid .dash-block{padding:8px 6px!important;overflow-x:auto!important}
+    #breakdownGrid .dash-block-title{font-size:9px!important;margin-bottom:6px!important}
+    #breakdownGrid .dash-table th{font-size:7px!important;padding:0 3px 5px!important}
+    #breakdownGrid .dash-table td{font-size:10px!important;padding:5px 3px!important}
+    #breakdownGrid .dash-table td.count{font-size:11px!important}
+    #breakdownGrid [style*="font-size:13px"]{font-size:10px!important}
+    #breakdownGrid [style*="font-size:14px"]{font-size:11px!important}
+    #breakdownGrid [style*="font-size:15px"]{font-size:11px!important}
+    #breakdownGrid [style*="font-size:16px"]{font-size:12px!important}
+    #breakdownGrid [style*="font-size:26px"]{font-size:14px!important}
+    #breakdownGrid [style*="font-size:28px"]{font-size:16px!important}
+    #breakdownGrid [style*="padding:14px 16px"]{padding:8px 6px!important}
+    #breakdownGrid [style*="padding:16px 18px"]{padding:8px 6px!important}
+    #breakdownGrid [style*="padding:14px"]{padding:8px 6px!important}
+    #segTabBar{gap:4px!important;flex-wrap:wrap!important}
+    #segTabBar button{font-size:9px!important;padding:4px 6px!important}
+  }
+  </style>
   <div class="panel" style="overflow:hidden">
     <div class="summary-grid" id="summaryGrid"></div>
     <div id="breakdownSection" style="display:none">
