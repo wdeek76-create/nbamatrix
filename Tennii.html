@@ -504,10 +504,7 @@
 
     /* General */
     body { font-size: 13px; }
-    .panel { padding: 8px 8px; max-width: 100%; overflow-x: hidden; }
-    #tab-dashboard .panel { overflow: hidden; }
-    #breakdownGrid, #breakdownGrid * { max-width: 100%; box-sizing: border-box; }
-    .dash-block { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+    .panel { padding: 8px 8px; }
     .panel-label { font-size: 10px; }
     .field-label { font-size: 10px; }
     .tab-bar { padding: 0 4px; gap: 2px; }
@@ -539,25 +536,17 @@
     .cal-day .cal-pnl { font-size: 7px; }
     .cal-day.has-open::after { width: 4px; height: 4px; bottom: 3px; left: 3px; }
 
-    /* Dashboard — everything smaller on mobile */
-    #tab-dashboard { font-size: 10px !important; }
-    #tab-dashboard .dash-hero { grid-template-columns:repeat(5,1fr) !important; gap:4px !important; }
-    #tab-dashboard .dash-hero-card { padding:6px 4px !important; border-radius:6px !important; overflow:hidden !important; }
-    #tab-dashboard .h-lbl { font-size:7px !important; letter-spacing:.02em !important; margin-bottom:2px !important; }
-    #tab-dashboard .h-val { font-size:13px !important; letter-spacing:-.01em !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    #tab-dashboard .h-sub { font-size:7px !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    #tab-dashboard .dash-block { padding:8px 6px !important; overflow-x:auto !important; -webkit-overflow-scrolling:touch; }
-    #tab-dashboard .dash-block-title { font-size:9px !important; letter-spacing:.05em !important; margin-bottom:6px !important; }
-    #tab-dashboard .dash-table th { font-size:7px !important; padding:0 4px 5px !important; }
-    #tab-dashboard .dash-table td { font-size:10px !important; padding:5px 4px !important; }
-    #tab-dashboard .dash-table td.count { font-size:11px !important; }
-    #tab-dashboard .dash-table td.lead { font-size:10px !important; }
-    #tab-dashboard .bk .lbl { font-size:8px !important; }
-    #tab-dashboard .bk .val { font-size:12px !important; }
-    #tab-dashboard .bk .sub { font-size:8px !important; }
-    #tab-dashboard #segTabBar button { font-size:9px !important; padding:4px 7px !important; }
-    #tab-dashboard .sc .val { font-size:15px !important; }
-    #tab-dashboard .sc .lbl { font-size:8px !important; }
+    /* Dashboard — scroll sideways per block, nothing clips */
+    #breakdownGrid { overflow-x: visible; }
+    #breakdownGrid .dash-block,
+    #breakdownGrid .dash-hero,
+    #summaryGrid { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    #segTabBar { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+    #segTabBar button { flex-shrink: 0; }
+    .dash-table th { font-size:8px !important; padding:0 5px 6px !important; letter-spacing:.02em !important; }
+    .dash-table td { font-size:11px !important; padding:7px 5px !important; }
+    .dash-table td.count { font-size:12px !important; }
+    .dash-table td.lead { font-size:11px !important; }
     /* Dashboard summary stat cards */
     .summary-grid { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
     .sc { padding: 10px 10px 8px !important; border-radius: 10px !important; }
@@ -746,9 +735,9 @@
   .dash-block { background:var(--surface2); border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin-bottom:12px; }
   .dash-block-title { font-family:var(--body); font-size:11px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.12em; margin-bottom:12px; }
   .dash-table { width:100%; border-collapse:collapse; }
-  .dash-table th { font-family:var(--body); font-size:10px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.08em; padding:0 12px 10px; text-align:left; border-bottom:1px solid var(--border); opacity:.7; }
+  .dash-table th { font-family:var(--body); font-size:10px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.08em; padding:0 8px 10px; text-align:left; border-bottom:1px solid var(--border); opacity:.7; }
   .dash-table th.num { text-align:right; }
-  .dash-table td { font-family:var(--body); font-size:13px; color:var(--text); padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  .dash-table td { font-family:var(--body); font-size:13px; color:var(--text); padding:9px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
   .dash-table td.num { text-align:right; font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
   .dash-table td.lead { font-weight:700; color:var(--text); }
   .dash-table td.lead .sub-rng { display:block; font-size:10px; font-weight:500; color:var(--text); opacity:.55; margin-top:2px; letter-spacing:.02em; }
@@ -895,7 +884,7 @@
       </div>
       <div class="field" style="flex:0 0 130px;position:relative">
         <label>Win %</label>
-        <input type="text" inputmode="decimal" id="iWinPct" placeholder="" style="font-size:17px;font-weight:600;text-align:center;padding-right:26px">
+        <input type="text" inputmode="decimal" id="iWinPct" placeholder="" style="font-size:17px;font-weight:600;text-align:center;padding-right:26px" readonly onfocus="this.removeAttribute('readonly')">
         <button type="button" onclick="clearInputField('iWinPct')" title="Clear" style="position:absolute;right:6px;bottom:9px;background:transparent;border:none;color:var(--text3);font-size:14px;padding:2px 6px;cursor:pointer;line-height:1;border-radius:4px">×</button>
       </div>
       <div class="field" style="flex:0 0 auto">
@@ -1103,20 +1092,8 @@
   </div>
   </div><!-- end tab-players -->
   <div class="tab-panel" id="tab-dashboard">
-  <style>
-  @media(max-width:430px){
-    /* Each dashboard block scrolls horizontally — no content gets clipped */
-    #breakdownGrid .dash-block { overflow-x:auto!important; -webkit-overflow-scrolling:touch; }
-    #breakdownGrid .dash-hero  { overflow-x:auto!important; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; }
-    #summaryGrid               { overflow-x:auto!important; -webkit-overflow-scrolling:touch; }
-    #segTabBar                 { overflow-x:auto!important; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; gap:4px!important; }
-    #segTabBar button          { flex-shrink:0; }
-    /* Panel itself must NOT clip */
-    #tab-dashboard .panel      { overflow:visible!important; }
-    #tab-dashboard             { overflow-x:auto!important; -webkit-overflow-scrolling:touch; }
-  }
-  </style>
-  <div class="panel" style="overflow:hidden">
+
+  <div class="panel">
     <div class="summary-grid" id="summaryGrid"></div>
     <div id="breakdownSection" style="display:none">
       <div class="divider"></div>
@@ -2379,7 +2356,7 @@ function renderBooksGrid(){
     .filter(b => b.visible !== false)
     .map(b => {
       const logo = logoMap[b.id] ? `<img src="${logoMap[b.id]}" style="width:12px;height:12px;border-radius:2px;object-fit:contain">` : '';
-      return `<div class="field"><label style="display:flex;align-items:center;justify-content:center;gap:3px">${logo}${b.label}</label><input type="text" inputmode="numeric" id="${b.id}"  class="book-input" style="text-align:center"></div>`;
+      return `<div class="field"><label style="display:flex;align-items:center;justify-content:center;gap:3px">${logo}${b.label}</label><input type="text" inputmode="decimal" id="${b.id}" class="book-input" style="text-align:center" onfocus="this.removeAttribute('readonly')" readonly></div>`;
     }).join('');
 }
 
@@ -4177,7 +4154,9 @@ function clearChecked(){
 }
 
 function clearForm(){
-  ['iName','iOpp','iWinPct','iMktOdds','iTourney','iPlayTime'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['iName','iOpp','iWinPct','iMktOdds','iTourney','iPlayTime'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.value=''; el.setAttribute('readonly',''); } });
+  // Also restore readonly on all book inputs
+  document.querySelectorAll('.book-input').forEach(el=>{ el.value=''; el.setAttribute('readonly',''); });
   // Reset book combo display to current select value
   const _sel = document.getElementById('iMktBook');
   const _combo = document.getElementById('iBookCombo');
@@ -6335,7 +6314,7 @@ function renderSummary(allBets){
       </tr>`;
     }).filter(Boolean).join('');
     if(!body) return '<div style="color:var(--text);opacity:.5;font-size:12px;padding:8px 0">No data</div>';
-    return `<table class="dash-table">
+    return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="dash-table">
       <thead><tr>
         <th>Bucket</th>
         <th class="num">Bets</th>
@@ -6345,7 +6324,7 @@ function renderSummary(allBets){
         <th class="num">Avg EV</th>
       </tr></thead>
       <tbody>${body}</tbody>
-    </table>`;
+    </table></div>`;
   }
 
   // Bucket definitions — kept here so they're consistent across segments
@@ -6966,11 +6945,11 @@ function renderSummary(allBets){
         <div class="dash-block-title" style="margin-bottom:4px">🔬 Where Your Edge Lives <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">${MIN}+ settled · ranked by ROI</span></div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Cross-cuts every dimension + combo to show exactly where the model is working — and where it's leaking. Gets more precise as sample grows.</div>
         ${legend}
-        <table class="dash-table"><${tableHead}<tbody>${topRows}</tbody></table>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="dash-table"><${tableHead}<tbody>${topRows}</tbody></table></div>
         ${bottomRows ? `
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
           <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">⚠️ Leaking — Negative ROI spots (${MIN}+ settled)</div>
-          <table class="dash-table">${tableHead}<tbody>${bottomRows}</tbody></table>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="dash-table">${tableHead}<tbody>${bottomRows}</tbody></table></div>
         </div>` : ''}
       </div>`;
     }
