@@ -504,7 +504,10 @@
 
     /* General */
     body { font-size: 13px; }
-    .panel { padding: 8px 8px; }
+    .panel { padding: 8px 8px; max-width: 100%; overflow-x: hidden; }
+    #tab-dashboard .panel { overflow: hidden; }
+    #breakdownGrid, #breakdownGrid * { max-width: 100%; box-sizing: border-box; }
+    .dash-block { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
     .panel-label { font-size: 10px; }
     .field-label { font-size: 10px; }
     .tab-bar { padding: 0 4px; gap: 2px; }
@@ -536,12 +539,25 @@
     .cal-day .cal-pnl { font-size: 7px; }
     .cal-day.has-open::after { width: 4px; height: 4px; bottom: 3px; left: 3px; }
 
-    /* Dashboard hero strip */
-    .dash-hero { gap:6px !important; }
-    .dash-hero-card { padding:10px 10px !important; border-radius:8px !important; }
-    .dash-hero-card .h-val { font-size:18px !important; }
-    .dash-hero-card .h-lbl { font-size:9px !important; margin-bottom:4px !important; }
-    .dash-hero-card .h-sub { font-size:9px !important; }
+    /* Dashboard — everything smaller on mobile */
+    #tab-dashboard { font-size: 10px !important; }
+    #tab-dashboard .dash-hero { grid-template-columns:repeat(5,1fr) !important; gap:4px !important; }
+    #tab-dashboard .dash-hero-card { padding:6px 4px !important; border-radius:6px !important; overflow:hidden !important; }
+    #tab-dashboard .h-lbl { font-size:7px !important; letter-spacing:.02em !important; margin-bottom:2px !important; }
+    #tab-dashboard .h-val { font-size:13px !important; letter-spacing:-.01em !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #tab-dashboard .h-sub { font-size:7px !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #tab-dashboard .dash-block { padding:8px 6px !important; overflow-x:auto !important; -webkit-overflow-scrolling:touch; }
+    #tab-dashboard .dash-block-title { font-size:9px !important; letter-spacing:.05em !important; margin-bottom:6px !important; }
+    #tab-dashboard .dash-table th { font-size:7px !important; padding:0 4px 5px !important; }
+    #tab-dashboard .dash-table td { font-size:10px !important; padding:5px 4px !important; }
+    #tab-dashboard .dash-table td.count { font-size:11px !important; }
+    #tab-dashboard .dash-table td.lead { font-size:10px !important; }
+    #tab-dashboard .bk .lbl { font-size:8px !important; }
+    #tab-dashboard .bk .val { font-size:12px !important; }
+    #tab-dashboard .bk .sub { font-size:8px !important; }
+    #tab-dashboard #segTabBar button { font-size:9px !important; padding:4px 7px !important; }
+    #tab-dashboard .sc .val { font-size:15px !important; }
+    #tab-dashboard .sc .lbl { font-size:8px !important; }
     /* Dashboard summary stat cards */
     .summary-grid { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
     .sc { padding: 10px 10px 8px !important; border-radius: 10px !important; }
@@ -556,12 +572,13 @@
     .bk .sub { font-size: 10px !important; }
 
     /* Dashboard tables */
-    .dash-block { padding: 10px 10px !important; margin-bottom: 8px !important; }
-    .dash-block-title { font-size: 10px !important; margin-bottom: 8px !important; letter-spacing: .08em !important; }
-    .dash-table th { font-size: 9px !important; padding: 0 6px 8px !important; letter-spacing: .04em !important; }
-    .dash-table td { font-size: 12px !important; padding: 7px 6px !important; }
-    .dash-table td.count { font-size: 13px !important; }
-    .dash-table td.lead { font-size: 12px !important; }
+    .dash-block { padding: 10px 8px !important; margin-bottom: 8px !important; }
+    .dash-block-title { font-size: 10px !important; margin-bottom: 8px !important; letter-spacing: .06em !important; }
+    .dash-table th { font-size: 8px !important; padding: 0 4px 6px !important; letter-spacing: .03em !important; }
+    .dash-table td { font-size: 11px !important; padding: 6px 4px !important; }
+    .dash-table td.count { font-size: 12px !important; }
+    .dash-table td.lead { font-size: 11px !important; }
+    .dash-table td.num { font-size: 11px !important; }
 
     /* Dashboard segment tab bar */
     #segTabBar { gap: 4px !important; flex-wrap: wrap !important; }
@@ -720,11 +737,11 @@
   .dash-seg-tab .seg-n { font-size:11px; font-weight:700; color:var(--text); opacity:.7; }
   .dash-seg-tab.active .seg-n { opacity:1; }
 
-  .dash-hero { display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:8px; margin-bottom:16px; overflow:hidden; }
-  .dash-hero-card { background:var(--surface2); border:1px solid var(--border); border-radius:11px; padding:14px 16px; min-width:0; }
-  .dash-hero-card .h-lbl { font-family:var(--body); font-size:10px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.1em; margin-bottom:8px; opacity:.7; }
-  .dash-hero-card .h-val { font-family:var(--body); font-size:26px; font-weight:800; color:var(--text); letter-spacing:-0.02em; line-height:1.05; }
-  .dash-hero-card .h-sub { font-family:var(--body); font-size:11px; color:var(--text); margin-top:5px; opacity:.75; }
+  .dash-hero { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:12px; }
+  .dash-hero-card { background:var(--surface2); border:1px solid var(--border); border-radius:9px; padding:10px 8px; min-width:0; overflow:hidden; }
+  .dash-hero-card .h-lbl { font-family:var(--body); font-size:9px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; opacity:.7; }
+  .dash-hero-card .h-val { font-family:var(--body); font-size:20px; font-weight:800; color:var(--text); letter-spacing:-0.02em; line-height:1.05; }
+  .dash-hero-card .h-sub { font-family:var(--body); font-size:9px; color:var(--text); margin-top:3px; opacity:.75; }
 
   .dash-block { background:var(--surface2); border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin-bottom:12px; }
   .dash-block-title { font-family:var(--body); font-size:11px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.12em; margin-bottom:12px; }
