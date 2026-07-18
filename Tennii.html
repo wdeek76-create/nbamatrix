@@ -536,6 +536,12 @@
     .cal-day .cal-pnl { font-size: 7px; }
     .cal-day.has-open::after { width: 4px; height: 4px; bottom: 3px; left: 3px; }
 
+    /* Dashboard hero strip */
+    .dash-hero { gap:6px !important; }
+    .dash-hero-card { padding:10px 10px !important; border-radius:8px !important; }
+    .dash-hero-card .h-val { font-size:18px !important; }
+    .dash-hero-card .h-lbl { font-size:9px !important; margin-bottom:4px !important; }
+    .dash-hero-card .h-sub { font-size:9px !important; }
     /* Dashboard summary stat cards */
     .summary-grid { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
     .sc { padding: 10px 10px 8px !important; border-radius: 10px !important; }
@@ -714,8 +720,8 @@
   .dash-seg-tab .seg-n { font-size:11px; font-weight:700; color:var(--text); opacity:.7; }
   .dash-seg-tab.active .seg-n { opacity:1; }
 
-  .dash-hero { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:16px; }
-  .dash-hero-card { background:var(--surface2); border:1px solid var(--border); border-radius:11px; padding:14px 16px; }
+  .dash-hero { display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:8px; margin-bottom:16px; overflow:hidden; }
+  .dash-hero-card { background:var(--surface2); border:1px solid var(--border); border-radius:11px; padding:14px 16px; min-width:0; }
   .dash-hero-card .h-lbl { font-family:var(--body); font-size:10px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.1em; margin-bottom:8px; opacity:.7; }
   .dash-hero-card .h-val { font-family:var(--body); font-size:26px; font-weight:800; color:var(--text); letter-spacing:-0.02em; line-height:1.05; }
   .dash-hero-card .h-sub { font-family:var(--body); font-size:11px; color:var(--text); margin-top:5px; opacity:.75; }
@@ -1080,7 +1086,7 @@
   </div>
   </div><!-- end tab-players -->
   <div class="tab-panel" id="tab-dashboard">
-  <div class="panel">
+  <div class="panel" style="overflow:hidden">
     <div class="summary-grid" id="summaryGrid"></div>
     <div id="breakdownSection" style="display:none">
       <div class="divider"></div>
