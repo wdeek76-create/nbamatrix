@@ -383,6 +383,7 @@ table colgroup col.avg-col{width:16%;}
   <button class="tab-btn" onclick="switchTab('srcanalytics')">SOURCE ANALYTICS</button>
   <button class="tab-btn" onclick="switchTab('playeranalytics')">PLAYER ANALYTICS</button>
   <button class="tab-btn" onclick="switchTab('captool')">CAP TOOL</button>
+  <button class="tab-btn" onclick="switchTab('evcalc')">EV CALC</button>
   <button class="tab-btn" onclick="switchTab('autograde')" style="display:none;">AUTO GRADE</button>
   <button class="tab-btn" onclick="switchTab('pace')" style="display:none;">PACE</button>
 </div>
@@ -508,6 +509,7 @@ table colgroup col.avg-col{width:16%;}
   <div id="autograde-tab" style="display:none;"></div>
 
   <div id="cap-tool-tab" style="display:none;"></div>
+  <div id="evcalc-tab" style="display:none;"></div>
 
   <div id="pace-tab" style="display:none;"></div>
 
@@ -1320,6 +1322,7 @@ function switchTab(tab) {
   document.getElementById("playeranalytics-tab").style.display = tab==="playeranalytics"?"block":"none";
   document.getElementById("autograde-tab").style.display = tab==="autograde"?"block":"none";
   document.getElementById("cap-tool-tab").style.display = tab==="captool"?"block":"none";
+  document.getElementById("evcalc-tab").style.display = tab==="evcalc"?"block":"none";
   document.getElementById("pace-tab").style.display = tab==="pace"?"block":"none";
   if (tab==="tracker") renderTracker();
   if (tab==="gamelog") renderGameLog();
@@ -1331,6 +1334,7 @@ function switchTab(tab) {
   if (tab==="results" && typeof updateInjuryPanel === "function") updateInjuryPanel();
   if (tab==="pace") renderPace();
   if (tab==="captool") renderCapTool();
+  if (tab==="evcalc") renderEvCalc();
 }
 
 function toggleConOnly() {
@@ -3224,6 +3228,26 @@ function parseShorthand(el) {
       evPct = parseFloat(t);
       window._modalEvTyped = evPct;
     }
+  }
+
+  // If no book was typed in QUICK ENTRY, default to whichever of FanDuel /
+  // Prop Builder already has the better price sitting in the alt-books rows
+  // (pre-filled from the odds upload). Saves having to go back and manually
+  // fix the book every time it's forgotten while typing fast in the modal.
+  // Only kicks in when a book truly wasn't specified — never overrides an
+  // explicitly typed book.
+  if (!bookVal) {
+    const DEFAULT_BOOK_CANDIDATES = ["FanDuel", "Prop Builder"];
+    let bestCandidate = null, bestDecimal = -Infinity;
+    DEFAULT_BOOK_CANDIDATES.forEach(bk => {
+      const inp = document.querySelector(`input.alt-input[data-book="${bk}"]`);
+      if (!inp || !inp.value) return;
+      const n = parseInt(inp.value.replace(/^\+/, ""));
+      if (!n || isNaN(n)) return;
+      const dec = (typeof oddsToDecimal === "function") ? oddsToDecimal(n) : null;
+      if (dec != null && dec > bestDecimal) { bestDecimal = dec; bestCandidate = bk; }
+    });
+    if (bestCandidate) bookVal = bestCandidate;
   }
 
   // Apply book if specified — write to hidden modal-book field
@@ -6719,7 +6743,7 @@ function updateAdvBar() {
         const col = (typeof BET_STAT_TO_OPP_COL !== "undefined" && BET_STAT_TO_OPP_COL[stat]) || stat;
         const allVals = Object.values(mData.teams).map(t => t[col]).filter(v => v != null);
         if (allVals.length >= 2) {
-          const sorted = [...allVals].sort((a, b) => b - a);
+          const sorted = [...allVals].sort((a, b) => a - b);
           const rank = sorted.findIndex(v => v === adj.oppValue) + 1;
           if (rank > 0) rankStr = `#${rank}/${sorted.length}`;
         }
@@ -7062,14 +7086,15 @@ function updateMatchupInModal() {
   const data = getMatchupData();
   const teamCount = data && data.teams ? Object.keys(data.teams).length : 0;
   // Rank tonight's specific opponent on THIS specific stat among every team
-  // loaded in the opp-avg CSV — 1 = allows the most (most exploitable).
+  // loaded in the opp-avg CSV — standard convention: #1 = stingiest defense
+  // (allows the LEAST). Ascending sort.
   let rankStr = "";
   if (data && data.teams && teamCount >= 2) {
     const allVals = Object.values(data.teams).map(t => t[col]).filter(v => v != null);
     if (allVals.length >= 2) {
-      const sorted = [...allVals].sort((a, b) => b - a);
+      const sorted = [...allVals].sort((a, b) => a - b);
       const rank = sorted.findIndex(v => v === adj.oppValue) + 1;
-      if (rank > 0) rankStr = ` <span style="opacity:0.7;font-weight:700;">(#${rank}/${sorted.length} most allowed)</span>`;
+      if (rank > 0) rankStr = ` <span style="opacity:0.7;font-weight:700;">(#${rank}/${sorted.length} allowed)</span>`;
     }
   }
   row.innerHTML = `<div style="font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:3px;padding:8px 10px;">
@@ -16311,12 +16336,14 @@ function renderTotals() {
         const homeRow = teamRow(g.homeAbbr);
         if (awayRow || homeRow) {
           // Rank a team's allowed value for a stat against every other loaded
-          // team — 1 = allows the MOST (most exploitable for overs).
+          // team, using the STANDARD DEF rank convention (matches theprop.shop
+          // and the EV Calc tab): #1 = the stingiest defense, allowing the
+          // LEAST of this stat. Ascending sort.
           const rankFor = (col, val) => {
             if (val == null) return null;
             const allVals = Object.values(mData.teams).map(t => t[col]).filter(v => v != null);
             if (allVals.length < 2) return null;
-            const sorted = [...allVals].sort((a, b) => b - a); // descending: allows-most first
+            const sorted = [...allVals].sort((a, b) => a - b);
             const rank = sorted.findIndex(v => v === val) + 1;
             return { rank, of: sorted.length };
           };
@@ -16354,13 +16381,13 @@ function renderTotals() {
             const rankBadge = rk ? `#${rk.rank}/${rk.of}` : null;
             const compareWord = diff == null ? "" : diff >= 0 ? "more" : "less";
             const tipText = `${abbr} allows ${val.toFixed(1)} ${statKey} per game` +
-              (avg != null ? ` (league avg ${avg.toFixed(1)}${rankBadge ? `, ${rankBadge} most allowed` : ""}).` : ".") +
+              (avg != null ? ` (league avg ${avg.toFixed(1)}${rankBadge ? `, ranked ${rankBadge} on defense` : ""}).` : ".") +
               (diff != null ? ` That's ${Math.abs(diff).toFixed(0)}% ${compareWord} ${fullStatName} than an average team allows — ${verdict}.` : "");
             const diffStr = diff != null
               ? `<div style="font-size:10px;font-weight:800;color:${cellColor};margin-top:2px;">${diff>=0?'+':''}${diff.toFixed(0)}% vs avg</div>`
               : "";
             const rankStr = rankBadge
-              ? `<div style="font-size:9px;font-weight:700;color:#fff;margin-top:1px;">${rankBadge} most allowed</div>`
+              ? `<div style="font-size:9px;font-weight:700;color:#fff;margin-top:1px;">${rankBadge} DEF rank</div>`
               : "";
             return `<div class="tip" data-tip="${tipText.replace(/"/g,'&quot;')}" style="flex:1;text-align:center;cursor:help;">
               <div style="font-size:16px;font-weight:800;color:${cellColor};">${val.toFixed(1)}</div>
@@ -19207,6 +19234,381 @@ document.addEventListener("DOMContentLoaded", () => {
     showToast(`Removed ${removed} · ${kept.length} WNBA players remain`);
   };
 })();
+
+// ══════════════════════════════════════════════════════════════════════════
+// EV CALC — daily standalone EV calculator (its own top-level tab).
+// Pick any player + stat, type a line and offered odds, and see the EV%
+// against each source's projection (RG/RW/DIMERS) plus the blended average
+// — same math the bet modal uses (modelWinProb → probToAmerican → calcEdge),
+// just without needing to open a bet or type anything into Quick Entry.
+//
+// "Daily" by design: hitting REFRESH inside the tool snapshots whatever's
+// currently loaded in the source CSVs (via getSlotLookups()) into
+// window._evCalcSnapshot. That snapshot sticks around across tab switches
+// for the rest of the session — it just doesn't survive a full page reload,
+// and you control exactly when it updates via the REFRESH button. Nothing
+// new is persisted to localStorage; this is meant to be regenerated fresh
+// each day, same as the Projections table.
+// ══════════════════════════════════════════════════════════════════════════
+
+window._evCalcSnapshot = window._evCalcSnapshot || null; // { takenAt, players: {normName: {rawName, team, bySource: {roto:{...}, ...}}} }
+
+function evCalcRefreshSnapshot() {
+  if (typeof merged === "undefined" || !merged || !merged.length) {
+    showToast("Load projections first (Upload tab)");
+    return;
+  }
+  const lookups = (typeof getSlotLookups === "function") ? getSlotLookups() : [];
+  const players = {};
+  merged.forEach(r => {
+    if (!r.rawName) return;
+    const n = norm(r.rawName);
+    const bySource = {};
+    SOURCES.forEach((s, i) => {
+      const lk = lookups[i];
+      const m = lk && lk[n];
+      if (!m) return;
+      // Grab every stat we can price: pts/reb/ast/threepm/pra + min for context.
+      bySource[s.key] = {
+        pts: m.pts ?? null, reb: m.reb ?? null, ast: m.ast ?? null,
+        threepm: m.threepm ?? null, pra: m.pra ?? null, min: m.min ?? null,
+      };
+    });
+    if (Object.keys(bySource).length === 0) return; // no source had this player
+    players[n] = { rawName: r.rawName, team: r.team || "", pos: r.pos || "", bySource };
+  });
+  window._evCalcSnapshot = { takenAt: Date.now(), players };
+  showToast(`Snapshot refreshed · ${Object.keys(players).length} players`);
+  renderEvCalc();
+}
+
+// Resolve a source's raw projection for player+stat into a number, same
+// STAT key convention as the rest of the app (pts/reb/ast/threepm/pra).
+function _evCalcStatVal(srcData, statKey) {
+  if (!srcData) return null;
+  const k = statKey.toLowerCase();
+  if (k === "3pm" || k === "threepm") return srcData.threepm;
+  if (k === "pra") return srcData.pra;
+  return srcData[k] ?? null;
+}
+
+function renderEvCalc() {
+  const el = document.getElementById("evcalc-tab");
+  if (!el) return;
+  const snap = window._evCalcSnapshot;
+  const takenAgo = snap ? Math.round((Date.now() - snap.takenAt) / 60000) : null;
+  const takenLabel = snap ? (takenAgo < 1 ? "just now" : takenAgo < 60 ? `${takenAgo}m ago` : `${Math.round(takenAgo/60)}h ago`) : "never";
+
+  const playerCount = snap ? Object.keys(snap.players).length : 0;
+  const selectedPlayer = window._evCalcPlayer || "";
+  const selectedStat = window._evCalcStat || "PTS";
+  const STAT_OPTIONS = ["PTS", "REB", "AST", "3PM", "PRA"];
+
+  // Search box results — only show a dropdown while typing, same UX pattern
+  // as the Projections table search.
+  const searchQuery = (window._evCalcSearch || "").toLowerCase().trim();
+  let searchResults = [];
+  if (snap && searchQuery.length >= 1) {
+    searchResults = Object.values(snap.players)
+      .filter(p => p.rawName.toLowerCase().includes(searchQuery))
+      .slice(0, 8);
+  }
+
+  const playerRow = snap && selectedPlayer ? snap.players[norm(selectedPlayer)] : null;
+
+  // Compute the EV panel for the currently selected player+stat+line+odds.
+  let evPanelHtml = "";
+  if (playerRow) {
+    const line = window._evCalcLine;
+    const odds = window._evCalcOdds;
+    const side = window._evCalcSide || "over";
+    const rows = SOURCES.filter(s => playerRow.bySource[s.key]).map(s => {
+      const proj = _evCalcStatVal(playerRow.bySource[s.key], selectedStat);
+      if (proj == null) return { label: s.label, proj: null };
+      return { label: s.label, proj };
+    });
+    // Blended average across whichever sources have this stat.
+    const validProjs = rows.filter(r => r.proj != null).map(r => r.proj);
+    const avgProj = validProjs.length ? validProjs.reduce((a,b)=>a+b,0)/validProjs.length : null;
+    if (avgProj != null) rows.push({ label: "AVG", proj: avgProj, isAvg: true });
+
+    const evCards = rows.map(r => {
+      if (r.proj == null) {
+        return `<div style="background:#050507;border:1px solid #1a1d22;border-radius:8px;padding:12px 14px;opacity:0.4;">
+          <div style="font-size:10px;font-weight:800;color:#a8b0bb;letter-spacing:0.5px;text-transform:uppercase;">${r.label}</div>
+          <div style="font-size:12px;color:#525a64;margin-top:4px;">no data</div>
+        </div>`;
+      }
+      let evHtml = `<div style="font-size:11px;color:#525a64;margin-top:4px;">enter line + odds</div>`;
+      if (line != null && odds != null) {
+        const p = modelWinProb(r.proj, line, side, selectedStat);
+        const fairOdds = p != null ? probToAmerican(p) : null;
+        const ev = (fairOdds != null) ? calcEdge(odds, fairOdds) : null;
+        if (ev != null) {
+          const evColor = ev >= 5 ? "#4ade80" : ev >= 0 ? "#7dd3fc" : "#f87171";
+          const fairStr = fairOdds != null ? `${fairOdds>=0?"+":""}${fairOdds}` : "—";
+          evHtml = `<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;">
+            <span style="font-size:20px;font-weight:800;color:${evColor};">${ev>=0?"+":""}${ev.toFixed(1)}%</span>
+            <span style="font-size:10px;color:#a8b0bb;">fair ${fairStr}</span>
+          </div>`;
+        }
+      }
+      return `<div style="background:#050507;border:1px solid ${r.isAvg ? '#7dd3fc55' : '#1a1d22'};border-radius:8px;padding:12px 14px;${r.isAvg ? 'box-shadow:0 0 0 1px rgba(125,211,252,0.06);' : ''}">
+        <div style="font-size:10px;font-weight:800;color:${r.isAvg ? '#7dd3fc' : '#a8b0bb'};letter-spacing:0.5px;text-transform:uppercase;">${r.label}</div>
+        <div style="font-size:15px;font-weight:800;color:#fff;margin-top:2px;">${r.proj.toFixed(2)}</div>
+        ${evHtml}
+      </div>`;
+    }).join("");
+
+    evPanelHtml = `
+      <div style="margin-top:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+          <span style="font-size:15px;font-weight:800;color:#fff;">${playerRow.rawName}</span>
+          ${playerRow.team ? `<span style="background:#7dd3fc1a;border:1px solid #7dd3fc55;color:#7dd3fc;font-size:10px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:2px 7px;">${playerRow.team}</span>` : ""}
+          <span style="background:rgba(125,211,252,0.10);border:1px solid rgba(125,211,252,0.25);color:#7dd3fc;font-size:11px;font-weight:800;letter-spacing:0.5px;border-radius:14px;padding:3px 10px;">${side.toUpperCase()} ${line ?? "—"} ${selectedStat}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;">
+          ${evCards}
+        </div>
+        ${evCalcBuildContextBlock(playerRow, selectedStat)}
+      </div>`;
+  }
+
+  el.innerHTML = `
+  <div style="max-width:820px;margin:0 auto;padding:18px 16px 60px;font-family:'Inter',sans-serif;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:#fff;">EV Calculator</div>
+        <div style="font-size:11px;font-weight:600;color:#a8b0bb;margin-top:2px;">
+          ${snap ? `${playerCount} players snapshotted · updated ${takenLabel}` : "No snapshot yet — hit refresh to capture today's projections"}
+        </div>
+      </div>
+      <button onclick="evCalcRefreshSnapshot()" style="background:#7dd3fc1a;border:1px solid #7dd3fc;color:#7dd3fc;border-radius:6px;padding:9px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.3px;">⟳ REFRESH SNAPSHOT</button>
+    </div>
+
+    ${!snap ? `
+    <div style="padding:30px;text-align:center;background:#0a0b0d;border:1px solid #1a1d22;border-radius:10px;color:#a8b0bb;font-size:13px;">
+      Load player projections on the Upload tab, then hit REFRESH SNAPSHOT above to capture today's numbers.<br>
+      This snapshot stays put across tab switches — you control when it updates.
+    </div>` : `
+    <div style="background:#0a0b0d;border:1px solid #283041;border-radius:10px;padding:16px;">
+      <div style="position:relative;margin-bottom:12px;">
+        <input type="text" id="evcalc-search-input" placeholder="Search player..." value="${(window._evCalcSearch||"").replace(/"/g,"&quot;")}"
+          oninput="window._evCalcSearch=this.value; evCalcUpdateSearchDropdown();"
+          style="width:100%;background:#050507;border:1px solid #1a1d22;color:#fff;border-radius:6px;padding:10px 12px;font-size:13px;font-family:'Inter',sans-serif;box-sizing:border-box;" autocomplete="off"/>
+        <div id="evcalc-search-dropdown">${searchResults.length ? `
+        <div style="position:absolute;top:100%;left:0;right:0;background:#0c0d10;border:1px solid #283041;border-radius:6px;margin-top:4px;z-index:20;max-height:220px;overflow-y:auto;">
+          ${searchResults.map(p => `
+            <div onclick="window._evCalcPlayer='${p.rawName.replace(/'/g,"\\'")}'; window._evCalcSearch=''; renderEvCalc();"
+              style="padding:9px 12px;cursor:pointer;font-size:12px;color:#fff;border-bottom:1px solid #1a1d22;display:flex;justify-content:space-between;">
+              <span>${p.rawName}</span><span style="color:#7dd3fc;font-size:10px;font-weight:700;">${p.team||""}</span>
+            </div>`).join("")}
+        </div>` : ""}</div>
+      </div>
+
+      ${playerRow ? `
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;gap:4px;">
+          ${STAT_OPTIONS.map(s => `<button onclick="window._evCalcStat='${s}'; renderEvCalc();"
+            style="background:${selectedStat===s?'#7dd3fc':'#050507'};color:${selectedStat===s?'#050507':'#d4dae3'};border:1px solid ${selectedStat===s?'#7dd3fc':'#1a1d22'};border-radius:5px;padding:6px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">${s}</button>`).join("")}
+        </div>
+        <div style="display:flex;gap:4px;margin-left:8px;">
+          <button onclick="window._evCalcSide='over'; renderEvCalc();" style="background:${(window._evCalcSide||'over')==='over'?'#22c55e':'#050507'};color:${(window._evCalcSide||'over')==='over'?'#050507':'#d4dae3'};border:1px solid ${(window._evCalcSide||'over')==='over'?'#22c55e':'#1a1d22'};border-radius:5px;padding:6px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">OVER</button>
+          <button onclick="window._evCalcSide='under'; renderEvCalc();" style="background:${window._evCalcSide==='under'?'#f87171':'#050507'};color:${window._evCalcSide==='under'?'#050507':'#d4dae3'};border:1px solid ${window._evCalcSide==='under'?'#f87171':'#1a1d22'};border-radius:5px;padding:6px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;">UNDER</button>
+        </div>
+        <input type="number" step="0.5" id="evcalc-line-input" placeholder="Line" value="${window._evCalcLine ?? ""}"
+          oninput="window._evCalcLine=this.value===''?null:parseFloat(this.value); evCalcUpdateEvPanel();"
+          style="width:80px;background:#050507;border:1px solid #1a1d22;color:#fff;border-radius:5px;padding:7px 10px;font-size:12px;font-family:'JetBrains Mono',monospace;text-align:center;margin-left:8px;"/>
+        <input type="number" id="evcalc-odds-input" placeholder="Odds" value="${window._evCalcOdds ?? ""}"
+          oninput="window._evCalcOdds=this.value===''?null:parseInt(this.value); evCalcUpdateEvPanel();"
+          style="width:80px;background:#050507;border:1px solid #1a1d22;color:#fff;border-radius:5px;padding:7px 10px;font-size:12px;font-family:'JetBrains Mono',monospace;text-align:center;"/>
+      </div>` : `<div style="font-size:12px;color:#a8b0bb;padding:10px 0;">Search and select a player above to start.</div>`}
+
+      <div id="evcalc-ev-panel">${evPanelHtml}</div>
+    </div>`}
+  </div>`;
+}
+
+// Lightweight update for the search dropdown only — avoids re-rendering the
+// whole tab (and thus recreating the <input> DOM node) on every keystroke,
+// which was resetting cursor position and making typing feel like it "skips."
+function evCalcUpdateSearchDropdown() {
+  const dd = document.getElementById("evcalc-search-dropdown");
+  if (!dd) return;
+  const snap = window._evCalcSnapshot;
+  const searchQuery = (window._evCalcSearch || "").toLowerCase().trim();
+  let searchResults = [];
+  if (snap && searchQuery.length >= 1) {
+    searchResults = Object.values(snap.players)
+      .filter(p => p.rawName.toLowerCase().includes(searchQuery))
+      .slice(0, 8);
+  }
+  dd.innerHTML = searchResults.length ? `
+    <div style="position:absolute;top:100%;left:0;right:0;background:#0c0d10;border:1px solid #283041;border-radius:6px;margin-top:4px;z-index:20;max-height:220px;overflow-y:auto;">
+      ${searchResults.map(p => `
+        <div onclick="window._evCalcPlayer='${p.rawName.replace(/'/g,"\\'")}'; window._evCalcSearch=''; renderEvCalc();"
+          style="padding:9px 12px;cursor:pointer;font-size:12px;color:#fff;border-bottom:1px solid #1a1d22;display:flex;justify-content:space-between;">
+          <span>${p.rawName}</span><span style="color:#7dd3fc;font-size:10px;font-weight:700;">${p.team||""}</span>
+        </div>`).join("")}
+    </div>` : "";
+}
+
+// Lightweight update for just the EV cards — fires while typing the line or
+// odds inputs, without touching the input elements themselves (so focus and
+// cursor position are never disturbed).
+// Builds the "DEF vs" + advanced-stats context block for the EV Calc — same
+// real data sources the bet modal already uses (opp-avg CSV + BBRef advanced
+// stats), just laid out as one clean grid instead of scattered pills.
+//
+// HONEST SCOPE NOTE: this only shows signals we actually have real data for —
+// opponent-allowed rank per stat (PTS/REB/AST/STL/BLK/3PM/TO from your opp-avg
+// upload), USG%/TS%, and Expected Minutes (live source average). It does NOT
+// include H2H, Closing Line, Back-to-Back, Play-Type/Shot-Zone/Assist-Zone,
+// or Points-in-Paint splits — those need data sources (shot-location feeds,
+// schedule/rest tracking, line-movement history) this tool doesn't have.
+// Building fake versions of those would just be misleading in a betting tool,
+// so they're left out rather than faked.
+function evCalcBuildContextBlock(playerRow, statKey) {
+  if (!playerRow) return "";
+  const parts = [];
+
+  // ── Opponent resolution (who do they play tonight) ──
+  const resolved = typeof _resolveOpponentAndAdj === "function"
+    ? _resolveOpponentAndAdj(playerRow.team, statKey, window._evCalcSide || "over")
+    : null;
+
+  // ── DEF vs — opponent-allowed rank across every stat we have opp-avg data
+  // for, not just the one currently selected. Lower rank = allows less
+  // (tougher matchup); higher rank = allows more (softer matchup). ──
+  const mData = (typeof getMatchupData === "function") ? getMatchupData() : null;
+  if (resolved && resolved.oppTeam && mData && mData.teams) {
+    const DEF_STATS = ["PTS", "REB", "AST", "STL", "BLK", "3PM", "TO"];
+    const oppKey = (typeof _matchupKey === "function") ? _matchupKey(resolved.oppTeam) : resolved.oppTeam;
+    let teamRow = mData.teams[oppKey];
+    if (!teamRow) {
+      const match = Object.keys(mData.teams).find(k => (typeof _matchupKey === "function" ? _matchupKey(k) : k) === oppKey);
+      if (match) teamRow = mData.teams[match];
+    }
+    if (teamRow) {
+      const cells = DEF_STATS.map(s => {
+        const col = BET_STAT_TO_OPP_COL[s] || s;
+        const val = teamRow[col];
+        if (val == null) return `<div style="text-align:center;opacity:0.35;"><div style="font-size:9px;font-weight:800;color:#a8b0bb;">${s}</div><div style="font-size:12px;color:#525a64;">—</div></div>`;
+        const allVals = Object.values(mData.teams).map(t => t[col]).filter(v => v != null);
+        let rankStr = "";
+        if (allVals.length >= 2) {
+          // Standard DEF rank convention (matches theprop.shop and every other
+          // tool): #1 = the stingiest defense, allowing the LEAST of this stat.
+          // Ascending sort — lower allowed value = lower (better) rank number.
+          const sorted = [...allVals].sort((a,b) => a - b);
+          const rank = sorted.findIndex(v => v === val) + 1;
+          rankStr = `<div style="font-size:8.5px;font-weight:700;color:#7dd3fc;margin-top:1px;">#${rank}/${sorted.length}</div>`;
+        }
+        const isSelected = s === statKey || (statKey === "3PM" && s === "3PM");
+        return `<div style="text-align:center;${isSelected?'background:rgba(125,211,252,0.08);border-radius:6px;padding:4px 2px;':''}">
+          <div style="font-size:9px;font-weight:800;color:${isSelected?'#7dd3fc':'#a8b0bb'};">${s}</div>
+          <div style="font-size:13px;font-weight:800;color:#fff;margin-top:2px;">${val.toFixed(1)}</div>
+          ${rankStr}
+        </div>`;
+      }).join("");
+      parts.push(`
+        <div>
+          <div style="font-size:10px;font-weight:800;color:#fff;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:2px;">DEF vs ${resolved.oppTeam}</div>
+          <div style="font-size:9px;color:#a8b0bb;margin-bottom:8px;">Opponent allowed per game · rank #1 = stingiest defense (allows least) among loaded teams</div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:#050507;border:1px solid #1a1d22;border-radius:8px;padding:10px 6px;">
+            ${cells}
+          </div>
+        </div>`);
+    }
+  }
+
+  // ── Advanced stats + Expected Minutes ──
+  const adv = (typeof getBBRefAdvForPlayer === "function") ? getBBRefAdvForPlayer(playerRow.rawName) : null;
+  const lookups = (typeof getSlotLookups === "function") ? getSlotLookups() : [];
+  const n = (typeof norm === "function") ? norm(playerRow.rawName) : playerRow.rawName.toLowerCase();
+  const minVals = lookups.map(lk => { const m = lk && lk[n]; return (m && m.min != null && m.min > 0) ? m.min : null; }).filter(v => v != null);
+  const expMin = minVals.length ? minVals.reduce((a,b)=>a+b,0)/minVals.length : null;
+
+  const advPills = [];
+  if (adv && adv.usg != null) advPills.push({ label: "USG%", val: `${adv.usg.toFixed(1)}%` });
+  if (adv && adv.ts != null) advPills.push({ label: "TS%", val: `${(adv.ts*100).toFixed(1)}%` });
+  if (expMin != null) advPills.push({ label: "Exp. MIN", val: expMin.toFixed(1), accent: true });
+  if (advPills.length) {
+    parts.push(`
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${advPills.map(p => `<div style="background:#050507;border:1px solid ${p.accent?'#ec489966':'#1a1d22'};border-radius:8px;padding:8px 14px;">
+          <div style="font-size:9px;font-weight:800;color:${p.accent?'#ec4899':'#a8b0bb'};letter-spacing:0.5px;">${p.label}</div>
+          <div style="font-size:14px;font-weight:800;color:#fff;margin-top:2px;">${p.val}</div>
+        </div>`).join("")}
+      </div>`);
+  }
+
+  if (!parts.length) return "";
+  return `<div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">${parts.join("")}</div>`;
+}
+
+function evCalcUpdateEvPanel() {
+  const panel = document.getElementById("evcalc-ev-panel");
+  if (!panel) return;
+  const snap = window._evCalcSnapshot;
+  const selectedPlayer = window._evCalcPlayer || "";
+  const selectedStat = window._evCalcStat || "PTS";
+  const playerRow = snap && selectedPlayer ? snap.players[norm(selectedPlayer)] : null;
+  if (!playerRow) { panel.innerHTML = ""; return; }
+
+  const line = window._evCalcLine;
+  const odds = window._evCalcOdds;
+  const side = window._evCalcSide || "over";
+  const rows = SOURCES.filter(s => playerRow.bySource[s.key]).map(s => {
+    const proj = _evCalcStatVal(playerRow.bySource[s.key], selectedStat);
+    return { label: s.label, proj };
+  });
+  const validProjs = rows.filter(r => r.proj != null).map(r => r.proj);
+  const avgProj = validProjs.length ? validProjs.reduce((a,b)=>a+b,0)/validProjs.length : null;
+  if (avgProj != null) rows.push({ label: "AVG", proj: avgProj, isAvg: true });
+
+  const evCards = rows.map(r => {
+    if (r.proj == null) {
+      return `<div style="background:#050507;border:1px solid #1a1d22;border-radius:8px;padding:12px 14px;opacity:0.4;">
+        <div style="font-size:10px;font-weight:800;color:#a8b0bb;letter-spacing:0.5px;text-transform:uppercase;">${r.label}</div>
+        <div style="font-size:12px;color:#525a64;margin-top:4px;">no data</div>
+      </div>`;
+    }
+    let evHtml = `<div style="font-size:11px;color:#525a64;margin-top:4px;">enter line + odds</div>`;
+    if (line != null && odds != null && !isNaN(line) && !isNaN(odds)) {
+      const p = modelWinProb(r.proj, line, side, selectedStat);
+      const fairOdds = p != null ? probToAmerican(p) : null;
+      const ev = (fairOdds != null) ? calcEdge(odds, fairOdds) : null;
+      if (ev != null) {
+        const evColor = ev >= 5 ? "#4ade80" : ev >= 0 ? "#7dd3fc" : "#f87171";
+        const fairStr = fairOdds != null ? `${fairOdds>=0?"+":""}${fairOdds}` : "—";
+        evHtml = `<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;">
+          <span style="font-size:20px;font-weight:800;color:${evColor};">${ev>=0?"+":""}${ev.toFixed(1)}%</span>
+          <span style="font-size:10px;color:#a8b0bb;">fair ${fairStr}</span>
+        </div>`;
+      }
+    }
+    return `<div style="background:#050507;border:1px solid ${r.isAvg ? '#7dd3fc55' : '#1a1d22'};border-radius:8px;padding:12px 14px;${r.isAvg ? 'box-shadow:0 0 0 1px rgba(125,211,252,0.06);' : ''}">
+      <div style="font-size:10px;font-weight:800;color:${r.isAvg ? '#7dd3fc' : '#a8b0bb'};letter-spacing:0.5px;text-transform:uppercase;">${r.label}</div>
+      <div style="font-size:15px;font-weight:800;color:#fff;margin-top:2px;">${r.proj.toFixed(2)}</div>
+      ${evHtml}
+    </div>`;
+  }).join("");
+
+  const sideEl = window._evCalcSide || "over";
+  panel.innerHTML = `
+    <div style="margin-top:16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+        <span style="font-size:15px;font-weight:800;color:#fff;">${playerRow.rawName}</span>
+        ${playerRow.team ? `<span style="background:#7dd3fc1a;border:1px solid #7dd3fc55;color:#7dd3fc;font-size:10px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:2px 7px;">${playerRow.team}</span>` : ""}
+        <span style="background:rgba(125,211,252,0.10);border:1px solid rgba(125,211,252,0.25);color:#7dd3fc;font-size:11px;font-weight:800;letter-spacing:0.5px;border-radius:14px;padding:3px 10px;">${sideEl.toUpperCase()} ${line ?? "—"} ${selectedStat}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;">
+        ${evCards}
+      </div>
+      ${evCalcBuildContextBlock(playerRow, selectedStat)}
+    </div>`;
+}
 </script>
 <!-- TRACK MODAL -->
 <div id="track-modal" onclick="if(event.target===this)closeTrackModal()">
