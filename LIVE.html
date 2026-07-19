@@ -764,6 +764,8 @@ function selectWindow(idx) {
     }, 50);
   }
 }
+
+function computeWindows(games) {
   const relevant = games.filter(g => g.bucket !== 'final');
   if (!relevant.length) return [];
 
