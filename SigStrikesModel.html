@@ -2968,16 +2968,26 @@ function renderLog() {
                       : b.result === 'void' ? 'var(--purple)'
                       : 'transparent';
 
-    // Compact result badge next to fighter name so it's still visible
+    // Result badge next to fighter name (state only, no number — number lives on its own line below)
     const resultBadge = b.result === 'open' ? '' :
-      `<span class="pill-result ${b.result}" style="margin-left:8px;vertical-align:middle;">${b.result}${b.actual!==null&&b.actual!==undefined?' · '+b.actual:''}</span>`;
+      `<span class="pill-result ${b.result}" style="margin-left:8px;vertical-align:middle;">${b.result}</span>`;
 
-    // Rebuild fighter cell with inline result
+    // Actual sig strikes line — lives with the bet info on the LEFT so it never collides with Edge column
+    const actualLine = (b.actual !== null && b.actual !== undefined)
+      ? `<div class="lt-sub" style="color:var(--accent);font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11.5px;margin-top:4px;">actual · ${b.actual}</div>`
+      : '';
+
+    // Rebuild fighter cell with inline result badge and actual line
     const fighterCellWithResult = `<div class="lt-name">${escHTML(b.fighter)}${autoPill}${resultBadge}</div>` +
       (b.opp ? `<div class="lt-sub">vs ${escHTML(b.opp)}</div>` : '') +
       `<div class="lt-sub">${escHTML(b.market)}${b.line!==null && b.line!==undefined ? ' · '+b.line : ''}</div>` +
+      actualLine +
       projLine +
       edgePillsLine;
+
+    // Grade input on the right: ONLY show when bet is still open (SS Over/Under only)
+    // Once settled, no need for input — actual displays on the left with the bet info
+    const showGradeInput = isOpen && (b.market === 'SS Over' || b.market === 'SS Under');
 
     return `<tr style="box-shadow: inset 3px 0 0 ${stripeColor};">
       <td style="color:#0a0a0a;font-size:11px;padding-left:16px;white-space:nowrap;">${b.date}</td>
@@ -2987,12 +2997,12 @@ function renderLog() {
       <td style="text-align:right;font-family:'JetBrains Mono',monospace;" class="lt-edge ${edgeCls}">${edgeStr}</td>
       <td style="padding-right:16px;">
         <div class="grade-row">
-          ${(b.market === 'SS Over' || b.market === 'SS Under')
+          ${showGradeInput
             ? `<input type="text" inputmode="decimal" class="grade-actual"
                  placeholder="SS"
-                 value="${b.actual !== null && b.actual !== undefined ? b.actual : ''}"
+                 value=""
                  onchange="setActual('${b.id}', this.value)"
-                 title="Actual sig strikes (auto-grades vs line)" />`
+                 title="Type actual sig strikes to auto-grade" />`
             : ''}
           <button class="grade-btn ${b.result==='win'?'gb-win':''}"   onclick="setResult('${b.id}','win')"  title="Win">W</button>
           <button class="grade-btn ${b.result==='loss'?'gb-loss':''}" onclick="setResult('${b.id}','loss')" title="Loss">L</button>
