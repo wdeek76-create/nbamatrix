@@ -271,69 +271,36 @@
   .out-dot.filled { background: var(--amber); border-color: var(--amber); }
   /* SVG diamond rendered inline — sized via width/height attrs */
 
-  /* ── PEAK WINDOWS ── */
-  #windows-wrap { padding: 0 16px 2px; }
+  /* ── ACTION WINDOWS ── */
+  #windows-wrap { padding: 0 16px 10px; }
   .windows-label {
-    font-size: 13px; font-weight: 900; text-transform: uppercase;
-    letter-spacing: 2px; color: #fff; margin-bottom: 10px;
-    display: flex; align-items: center; gap: 10px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: rgba(255,255,255,0.4); margin-bottom: 8px;
   }
-  .windows-label::after { content:''; flex:1; height:1px; background:var(--border); }
-
-  .window-card {
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    padding: 11px 14px; margin-bottom: 8px;
-    display: flex; align-items: center; gap: 12px;
-    position: relative; overflow: hidden;
-    cursor: pointer; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
-    -webkit-tap-highlight-color: transparent;
-    background: var(--card);
+  .windows-strip {
+    display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
   }
-  .window-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:#333; }
-
-  /* ACTIVE (happening now or within range) */
-  .window-card.w-active {
-    border-color: rgba(39,192,113,0.5);
-    background: linear-gradient(135deg, rgba(39,192,113,0.12) 0%, rgba(39,192,113,0.03) 100%);
-    box-shadow: 0 0 0 1px rgba(39,192,113,0.2), 0 4px 16px rgba(39,192,113,0.1);
+  .windows-strip::-webkit-scrollbar { display: none; }
+  .win-chip {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 7px 14px; border-radius: 20px; flex-shrink: 0;
+    border: 1.5px solid var(--border); background: var(--card);
+    cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    gap: 2px;
   }
-  .window-card.w-active::before { background: var(--green); width: 4px; box-shadow: 0 0 8px rgba(39,192,113,0.8); }
-  .window-card.w-active .win-time { color: #fff; font-weight: 800; }
-  .window-card.w-active .win-leagues { color: var(--green); }
+  .win-chip.now   { border-color: var(--red); background: rgba(255,59,59,0.08); }
+  .win-chip.active { border-color: rgba(39,192,113,0.5); background: rgba(39,192,113,0.08); }
+  .win-chip.done  { opacity: 0.3; }
+  .win-chip.selected { border-color: var(--green); background: rgba(39,192,113,0.15); }
+  .win-chip-time  { font-size: 12px; font-weight: 800; color: #fff; letter-spacing: -0.3px; white-space: nowrap; }
+  .win-chip.now   .win-chip-time { color: var(--red); }
+  .win-chip.active .win-chip-time { color: var(--green); }
+  .win-chip-count { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.4); }
+  .win-chip.now   .win-chip-count { color: rgba(255,59,59,0.7); }
+  .win-chip.active .win-chip-count { color: var(--green); }
 
-  /* SELECTED */
-  .window-card.w-selected {
-    border-color: rgba(39,192,113,0.8) !important;
-    background: linear-gradient(135deg, rgba(39,192,113,0.22) 0%, rgba(39,192,113,0.06) 100%) !important;
-    box-shadow: 0 0 0 1px rgba(39,192,113,0.4), 0 6px 20px rgba(39,192,113,0.15) !important;
-  }
-  .window-card.w-selected::before { background: var(--green) !important; width: 4px !important; box-shadow: 0 0 10px rgba(39,192,113,1) !important; }
-
-  .win-count { font-size: 28px; font-weight: 900; letter-spacing: -2px; line-height: 1; flex-shrink: 0; min-width: 32px; color: rgba(255,255,255,0.3); }
-  .window-card.w-active   .win-count { color: var(--green); text-shadow: 0 0 12px rgba(39,192,113,0.8), 0 0 24px rgba(39,192,113,0.4); animation: greenPulse 2s ease-in-out infinite; }
-  .window-card.w-selected .win-count { color: var(--green); text-shadow: 0 0 16px rgba(39,192,113,1), 0 0 32px rgba(39,192,113,0.5); }
-
-  .win-info { flex: 1; min-width: 0; }
-  .win-time   { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.6); letter-spacing: -0.3px; }
-  .win-leagues { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45); margin-top: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
-  .win-badge { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; background: rgba(39,192,113,0.12); color: var(--green); }
-  .win-badge.now {
-    background: var(--red); color: #fff;
-    animation: blink 1.3s infinite;
-    box-shadow: 0 0 8px rgba(255,59,59,0.5);
-    font-size: 10px; padding: 3px 10px;
-  }
-
-  .window-card.w-done {
-    opacity: 0.35;
-    border-color: var(--border);
-    background: var(--card);
-  }
-  .window-card.w-done::before { background: #333; }
-  .win-badge-done { background: rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.3) !important; }
   .game-row.win-highlight {
-    background: linear-gradient(90deg, rgba(39,192,113,0.13) 0%, rgba(39,192,113,0.03) 100%) !important;
+    background: rgba(39,192,113,0.08) !important;
   }
   .game-row.win-highlight::before { background: var(--green) !important; }
 
@@ -939,8 +906,8 @@ async function selectWindow(idx) {
   document.querySelectorAll('.game-row').forEach(row => {
     row.classList.toggle('win-highlight', !!(selectedWindowIds && selectedWindowIds.has(row.dataset.gameid)));
   });
-  document.querySelectorAll('.window-card').forEach((card, i) => {
-    card.classList.toggle('w-selected', !!(selectedWindowIds && i === idx));
+  document.querySelectorAll('.win-chip').forEach((chip, i) => {
+    chip.classList.toggle('selected', !!(selectedWindowIds && i === idx));
   });
 
   // Open popup
@@ -966,7 +933,7 @@ function gameEndMs(g) {
 function computeWindows(games) {
   if (!games.length) return [];
   const sorted = [...games].sort((a,b) => a.startTime - b.startTime);
-  const CLUSTER_MS = 45 * 60000;
+  const CLUSTER_MS = 60 * 60000;
   const clusters = [];
   let cur = null;
   for (const g of sorted) {
@@ -1007,37 +974,22 @@ function renderWindows(games) {
   const nowMs = Date.now();
   const fmt = ms => new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
 
-  const cards = currentWindows.map((w, i) => {
-    const allDone = w.games.every(g => g.bucket === 'final');
-    const isActive = !allDone && nowMs >= w.start - 10*60000 && nowMs <= w.liveEnd;
-    const cls = allDone ? 'w-done' : isActive ? 'w-active' : 'w-inactive';
+  const chips = currentWindows.map((w, i) => {
+    const allDone    = w.games.every(g => g.bucket === 'final');
+    const isNow      = !allDone && nowMs >= w.start - 10*60000 && nowMs <= w.liveEnd;
+    const isActive   = !allDone && !isNow && nowMs < w.start;
+    const cls        = allDone ? 'done' : isNow ? 'now' : isActive ? 'active' : '';
+    const liveCount  = w.games.filter(g => g.bucket === 'live').length;
+    const countLabel = allDone ? 'done' : isNow && liveCount > 0 ? `${liveCount} live` : `${w.count} games`;
+    const timeLabel  = w.start === w.end ? fmt(w.start) : `${fmt(w.start)}`;
 
-    // Live count: games currently in progress or not yet final in this window
-    const liveNow = w.games.filter(g => g.bucket === 'live').length;
-    const stillActive = w.games.filter(g => g.bucket !== 'final').length;
-    const displayCount = isActive ? stillActive : w.count;
-
-    const timeRange = `${fmt(w.start)} – ${fmt(w.end)}`;
-    const leagueStr = [...new Set(w.peakGames.map(g => g.league))].join(' · ');
-    const badge = allDone
-      ? `<span class="win-badge win-badge-done">DONE</span>`
-      : isActive
-        ? `<span class="win-badge now">${liveNow > 0 ? `${liveNow} LIVE` : 'NOW'}</span>`
-        : `<span class="win-badge">${w.total} games</span>`;
-
-    return { html: `<div class="window-card ${cls}" onclick="selectWindow(${i})">
-      <span class="win-count">${displayCount}</span>
-      <div class="win-info">
-        <div class="win-time">${timeRange}</div>
-        <div class="win-leagues">${leagueStr}</div>
-      </div>
-      ${badge}
-    </div>`, done: allDone };
+    return `<div class="win-chip ${cls}" onclick="selectWindow(${i})">
+      <span class="win-chip-time">${timeLabel}</span>
+      <span class="win-chip-count">${countLabel}</span>
+    </div>`;
   });
 
-  // Active/upcoming first, done ones at bottom
-  const ordered = [...cards.filter(c => !c.done), ...cards.filter(c => c.done)];
-  wrap.innerHTML = `<div class="windows-label">Action Windows</div>${ordered.map(c => c.html).join('')}`;
+  wrap.innerHTML = `<div class="windows-label">Action Windows</div><div class="windows-strip">${chips.join('')}</div>`;
   wrap.style.display = 'block';
 }
 
