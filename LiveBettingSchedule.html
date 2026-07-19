@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -306,7 +306,13 @@
     font-size: 10px; padding: 3px 10px;
   }
 
-  /* green gradient on row highlight */
+  .window-card.w-done {
+    opacity: 0.35;
+    border-color: var(--border);
+    background: var(--card);
+  }
+  .window-card.w-done::before { background: #333; }
+  .win-badge-done { background: rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.3) !important; }
   .game-row.win-highlight {
     background: linear-gradient(90deg, rgba(39,192,113,0.13) 0%, rgba(39,192,113,0.03) 100%) !important;
   }
@@ -884,56 +890,24 @@ async function selectWindow(idx) {
   const timeRange = w.start === w.end ? fmt(w.start) : `${fmt(w.start)} – ${fmt(w.end)}`;
   document.getElementById('popup-title').textContent = `${w.leagues.join(' · ')} Window`;
   document.getElementById('popup-time').textContent = timeRange;
-  document.getElementById('popup-body').innerHTML = `<div class="popup-loading"><div class="popup-spinner"></div>Analyzing window...</div>`;
+  document.getElementById('popup-body').innerHTML = '';
   document.getElementById('win-popup-overlay').classList.add('open');
 
-  // Build game list for the prompt
-  const gameList = w.games.map(g => {
-    const st = g.startTime.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-    const status = g.bucket === 'live'
-      ? `LIVE (${g.stateDesc||'in progress'})`
-      : `starting ${st}`;
-    return `- ${g.away.abbr} (${g.away.record}) @ ${g.home.abbr} (${g.home.record}) [${g.league}] — ${status}`;
-  }).join('\n');
-
-  const prompt = `You are a sharp live sports bettor. Here is an action window of ${w.count} games between ${timeRange}:
-
-${gameList}
-
-In 2-3 sentences max, what should a live bettor focus on during this window? Be specific about which matchups are most interesting for live betting and why — think line movement, pace, momentum, totals. Keep it punchy, no fluff.`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await res.json();
-    const text = data.content?.[0]?.text || 'Unable to generate analysis.';
-    document.getElementById('popup-body').textContent = text;
-  } catch(e) {
-    document.getElementById('popup-body').textContent = 'Could not load analysis — check your connection.';
-  }
+  // Generate summary from local game data
+  const summary = buildWindowSummary(w, timeRange);
+  document.getElementById('popup-body').textContent = summary;
 }
 
 function computeWindows(games) {
-  const relevant = games.filter(g => g.bucket !== 'final');
-  if (!relevant.length) return [];
-
-  const sorted = [...relevant].sort((a,b) => a.startTime - b.startTime);
+  // Include ALL games (even finals) so we can show done windows dimmed
+  const all = [...games].sort((a,b) => a.startTime - b.startTime);
+  if (!all.length) return [];
 
   const CLUSTER_MS = 45 * 60000;
   const clusters = [];
   let cur = null;
 
-  for (const g of sorted) {
+  for (const g of all) {
     if (!cur || g.startTime - cur.anchorMs > CLUSTER_MS) {
       cur = { anchorMs: g.startTime.getTime(), games: [g] };
       clusters.push(cur);
@@ -970,28 +944,32 @@ function renderWindows(games) {
   const fmt = ms => new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
 
   const cards = currentWindows.map((w, i) => {
-    const isActive = nowMs >= w.start - 30*60000 && nowMs <= w.end + 180*60000;
-    const cls = isActive ? 'w-active' : 'w-inactive';
-    const isNow = nowMs >= w.start - 10*60000 && nowMs <= w.end + 120*60000;
-    const timeRange = w.start === w.end
-      ? fmt(w.start)
-      : `${fmt(w.start)} – ${fmt(w.end)}`;
+    // A window is "done" if all its games are finished
+    const allDone = w.games.every(g => g.bucket === 'final');
+    const isActive = !allDone && nowMs >= w.start - 30*60000 && nowMs <= w.end + 180*60000;
+    const isNow = !allDone && nowMs >= w.start - 10*60000 && nowMs <= w.end + 120*60000;
+    const cls = allDone ? 'w-done' : isActive ? 'w-active' : 'w-inactive';
+    const timeRange = w.start === w.end ? fmt(w.start) : `${fmt(w.start)} – ${fmt(w.end)}`;
     const leagueStr = w.leagues.join(' · ');
-    const badge = isNow
-      ? `<span class="win-badge now">NOW</span>`
-      : `<span class="win-badge">${w.count} games</span>`;
+    const badge = allDone
+      ? `<span class="win-badge win-badge-done">DONE</span>`
+      : isNow
+        ? `<span class="win-badge now">NOW</span>`
+        : `<span class="win-badge">${w.count} games</span>`;
 
-    return `<div class="window-card ${cls}" onclick="selectWindow(${i})">
+    return { html: `<div class="window-card ${cls}" onclick="selectWindow(${i})">
       <span class="win-count">${w.count}</span>
       <div class="win-info">
         <div class="win-time">${timeRange}</div>
         <div class="win-leagues">${leagueStr}</div>
       </div>
       ${badge}
-    </div>`;
+    </div>`, done: allDone };
   });
 
-  wrap.innerHTML = `<div class="windows-label">Action Windows</div>${cards.join('')}`;
+  // Active/upcoming first, done ones at bottom
+  const ordered = [...cards.filter(c => !c.done), ...cards.filter(c => c.done)];
+  wrap.innerHTML = `<div class="windows-label">Action Windows</div>${ordered.map(c => c.html).join('')}`;
   wrap.style.display = 'block';
 }
 
