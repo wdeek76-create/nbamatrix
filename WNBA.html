@@ -9702,13 +9702,13 @@ function renderPlayerAnalytics() {
         <div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.2px;">Player Analytics</div>
         <div style="font-size:11px;color:#8b93a0;margin-top:2px;">${settled.length} settled bets · ${playerCount} unique players · ${eligible} with ≥${MIN_PLAYER_BETS} bets · kind: ${kind}</div>
       </div>
-      ${section("Best Players", `Top by P&L · min ${MIN_PLAYER_BETS} settled bets`, tableShell(buildRows(topPlayers)))}
-      ${section("Worst Players", `Bottom by P&L · min ${MIN_PLAYER_BETS} settled bets · fade-or-skip candidates`, tableShell(buildRows(worstPlayers)))}
-      ${section("Best Player + Stat Combos", `Top by P&L · min ${MIN_COMBO_BETS} bets per combo`, tableShell(buildComboRows(topCombos)))}
-      ${section("Worst Player + Stat Combos", `Bottom by P&L · min ${MIN_COMBO_BETS} bets per combo`, tableShell(buildComboRows(worstCombos)))}
-      ${section("By Line Bucket", "Stat-relative groupings with Over/Under split — finds which line ranges you nail vs. miss and which direction", tableShell(buildLineRows(lineRows)))}
-      ${section("By Odds Bucket", "How you perform across pricing tiers — are you better at favorites or dogs?", tableShell(oddsRows.length ? oddsRows.map(s => row(s, { featured: s.pl >= 5, dim: s.pl <= -3 })).join("") : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;">No buckets with ≥3 bets.</td></tr>`))}
-      ${section("By Stat Type", "Worst stats first — where your edge is weakest", tableShell(statRows.length ? statRows.map(s => row(s, { featured: s.pl >= 8, dim: s.pl <= -3 })).join("") : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;">No stat buckets with ≥3 bets.</td></tr>`))}
+      ${section("Best Players", `Top by P&L · min ${MIN_PLAYER_BETS} settled bets`, tableShell(buildRows(topPlayers)), false, `Your most profitable players across every settled prop, regardless of stat or direction. Needs at least ${MIN_PLAYER_BETS} settled bets on a player before they qualify — small samples get filtered out so one lucky night doesn't make the list.`)}
+      ${section("Worst Players", `Bottom by P&L · min ${MIN_PLAYER_BETS} settled bets · fade-or-skip candidates`, tableShell(buildRows(worstPlayers)), false, `Your least profitable players. Not necessarily "bad players" — could mean you're consistently betting the wrong side, wrong stat, or the market's already priced them efficiently. Worth a look if the same name keeps costing you.`)}
+      ${section("Best Player + Stat Combos", `Top by P&L · min ${MIN_COMBO_BETS} bets per combo`, tableShell(buildComboRows(topCombos)), false, `Narrower than "Best Players" — this is a specific player AND specific stat together (e.g. "Clark · AST"), so it can surface an edge that gets washed out when you look at a player's overall record across all their stats.`)}
+      ${section("Worst Player + Stat Combos", `Bottom by P&L · min ${MIN_COMBO_BETS} bets per combo`, tableShell(buildComboRows(worstCombos)), false, `Same idea in reverse — specific player+stat pairings that have cost you money. A player can be profitable overall but still have one bad combo dragging on their record (e.g. great on PTS, bad on AST).`)}
+      ${section("By Line Bucket", "Stat-relative groupings with Over/Under split — finds which line ranges you nail vs. miss and which direction", tableShell(buildLineRows(lineRows)), false, `Groups bets by how big the number you bet was, relative to what's typical for that stat (small lines vs. large lines), then splits each group by over/under. Answers questions like "am I better betting unders on high lines than low lines."`)}
+      ${section("By Odds Bucket", "How you perform across pricing tiers — are you better at favorites or dogs?", tableShell(oddsRows.length ? oddsRows.map(s => row(s, { featured: s.pl >= 5, dim: s.pl <= -3 })).join("") : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;">No buckets with ≥3 bets.</td></tr>`), false, `Groups bets by the odds you got — heavy favorites (like -200) vs. plus-money longshots. Some bettors are sharper picking obvious favorites; others find more value in underdog-priced lines. This shows which side of that you actually land on.`)}
+      ${section("By Stat Type", "Worst stats first — where your edge is weakest", tableShell(statRows.length ? statRows.map(s => row(s, { featured: s.pl >= 8, dim: s.pl <= -3 })).join("") : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#525a64;font-size:11px;">No stat buckets with ≥3 bets.</td></tr>`), false, `Your full record broken down by PTS/REB/AST/3PM/PRA. Sorted worst-first on purpose — this is meant to flag which stat category is dragging on your overall results, not to celebrate your best one (see "By Player" above for that).`)}
     </div>
   `;
 }
@@ -9792,15 +9792,23 @@ function renderSrcAnalytics() {
     // beat picking one source alone," not just "which single source wins."
     if (b.expMin != null) withDiff.push({ key: "__expected", diff: Math.abs(b.expMin - b.actualMin) });
     const minDiff = Math.min(...withDiff.map(e => e.diff));
+    // Ties: if 2+ sources land the exact same distance from actual on a bet,
+    // split the "closest" credit evenly between them instead of crediting
+    // each one fully — otherwise Closest % across all sources sums to well
+    // over 100% (this was the actual bug: RG+RW+Expected summing to 141%
+    // because rounded projections tie often, and every tied source was
+    // getting a full point instead of a fair share).
+    const tiedKeys = withDiff.filter(e => e.diff === minDiff);
+    const creditPerTie = 1 / tiedKeys.length;
     withDiff.forEach(e => {
       if (!minAccumBySource[e.key]) minAccumBySource[e.key] = { n: 0, sumAbsDiff: 0, closestCount: 0 };
       const acc = minAccumBySource[e.key];
       acc.n++;
       acc.sumAbsDiff += e.diff;
-      if (e.diff === minDiff) acc.closestCount++;
+      if (e.diff === minDiff) acc.closestCount += creditPerTie;
     });
   });
-  const minAccumRows = Object.entries(minAccumBySource)
+  const minAccumRanked = Object.entries(minAccumBySource)
     .sort((a, b) => (b[1].closestCount / b[1].n) - (a[1].closestCount / a[1].n))
     .map(([key, acc]) => {
       const isExpected = key === "__expected";
@@ -9809,20 +9817,39 @@ function renderSrcAnalytics() {
         : (typeof SOURCES !== "undefined" ? SOURCES.find(s => s.key === key)?.label : null) || key;
       const avgOff = acc.n > 0 ? acc.sumAbsDiff / acc.n : 0;
       const closestPct = acc.n > 0 ? (acc.closestCount / acc.n) * 100 : 0;
-      const labelColor = isExpected ? "#7dd3fc" : "#fff";
-      return `<tr style="border-bottom:1px solid #15181d;${isExpected?"background:rgba(125,211,252,0.04);":""}">
-        <td style="padding:9px 12px;font-size:12px;font-weight:700;color:${labelColor};">${label}</td>
-        <td style="padding:9px 12px;font-size:12px;color:#fff;text-align:center;font-family:'JetBrains Mono',monospace;">${acc.n}</td>
-        <td style="padding:9px 12px;font-size:12px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:${closestPct>=40?"#4ade80":"#d4dae3"};">${closestPct.toFixed(0)}%</td>
-        <td style="padding:9px 12px;font-size:12px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:${avgOff<=3?"#4ade80":avgOff>=6?"#f87171":"#d4dae3"};">${avgOff.toFixed(1)} min</td>
-      </tr>`;
-    }).join("");
-  const minAccumTableHead = `<tr style="border-bottom:1px solid #283041;">
-    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:left;">Source</th>
-    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:center;">Bets</th>
-    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:center;">Closest %</th>
-    <th style="padding:8px 12px;font-size:9px;font-weight:800;letter-spacing:0.6px;color:#7dd3fc;text-transform:uppercase;text-align:right;">Avg Off</th>
-  </tr>`;
+      return { key, label, isExpected, avgOff, closestPct, n: acc.n };
+    });
+  const minAccumWinner = minAccumRanked[0] || null;
+
+  // Plain-English headline naming the winner directly, instead of leaving it
+  // to be inferred from a table of numbers.
+  const minAccumHeadline = minAccumWinner
+    ? `<span style="color:#4ade80;font-weight:800;">${minAccumWinner.label}</span> has been closest to actual minutes most often — ${minAccumWinner.closestPct.toFixed(0)}% of the time, off by an average of ${minAccumWinner.avgOff.toFixed(1)} min.`
+    : "";
+
+  // Each source gets a ranked row: name, a filled bar showing its share of
+  // "closest" wins relative to the top source, the win % as a number, and
+  // the average-minutes-off as a plain sentence fragment — reads like a
+  // summary, not a spreadsheet.
+  const maxPct = minAccumWinner ? minAccumWinner.closestPct : 1;
+  const minAccumRows = minAccumRanked.map((r, i) => {
+    const barPct = maxPct > 0 ? Math.max(4, (r.closestPct / maxPct) * 100) : 4;
+    const barColor = i === 0 ? "#4ade80" : r.isExpected ? "#7dd3fc" : "#a8b0bb";
+    const nameColor = r.isExpected ? "#7dd3fc" : "#fff";
+    return `
+      <div style="padding:10px 14px;${i===0 ? 'background:rgba(74,222,128,0.05);border-left:2px solid #4ade80;' : r.isExpected ? 'background:rgba(125,211,252,0.04);' : ''}">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px;">
+          <span style="font-size:13px;font-weight:800;color:${nameColor};">${i===0 ? "🏆 " : ""}${r.label}</span>
+          <span style="font-size:12px;color:#a8b0bb;">
+            closest <span style="color:#fff;font-weight:700;">${r.closestPct.toFixed(0)}%</span> of ${r.n}
+            &nbsp;·&nbsp; off by <span style="color:#fff;font-weight:700;">${r.avgOff.toFixed(1)} min</span> on average
+          </span>
+        </div>
+        <div style="height:6px;background:#050507;border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${barPct}%;background:${barColor};border-radius:3px;"></div>
+        </div>
+      </div>`;
+  }).join("");
 
   // ── LADDERS: same player, same game, same direction, 2+ different stats ──
   // e.g. u22.5 PTS + u3.5 AST + u6.5 REB + u32.5 PRA tracked together on one
@@ -10059,7 +10086,7 @@ function renderSrcAnalytics() {
       <tbody>${rows}</tbody>
     </table>`;
   }
-  function section(title, subtitle, contentHtml, defaultOpen) {
+  function section(title, subtitle, contentHtml, defaultOpen, explainer) {
     if (!contentHtml || !contentHtml.trim()) return "";
     return `<details ${defaultOpen ? "open" : ""} style="background:#0c0d10;border:1px solid #1a1d22;border-radius:6px;margin-bottom:8px;overflow:hidden;">
       <summary style="cursor:pointer;list-style:none;padding:12px 14px;display:flex;align-items:center;gap:10px;user-select:none;">
@@ -10067,7 +10094,10 @@ function renderSrcAnalytics() {
         ${subtitle ? `<span style="font-size:10px;color:#525a64;">${subtitle}</span>` : ""}
         <span style="color:#525a64;font-size:11px;transition:transform 0.2s;">▾</span>
       </summary>
-      <div style="border-top:1px solid #1a1d22;">${contentHtml}</div>
+      <div style="border-top:1px solid #1a1d22;">
+        ${explainer ? `<div style="padding:10px 14px;background:rgba(125,211,252,0.03);border-bottom:1px solid #1a1d22;font-size:11px;color:#a8b0bb;line-height:1.5;">${explainer}</div>` : ""}
+        ${contentHtml}
+      </div>
     </details>`;
   }
   function comboLabel(srcs) { return srcs.map(k => SRC_LABELS[k]).join(" + "); }
@@ -10481,20 +10511,20 @@ function renderSrcAnalytics() {
       </div>
     </div>
 
-    ${section("Sources · Solo", `${SRC_KEYS.length} sources`, tableShell(soloRows, { labelHead: "Source" }), true)}
-    ${minAccumTotal > 0 ? section("Minutes Accuracy", `${minAccumTotal} graded prop${minAccumTotal===1?"":"s"} with a minutes comparison · who's closer to actual more often`, `<table style="width:100%;border-collapse:collapse;">${minAccumTableHead}${minAccumRows}</table>`, true) : ""}
-    ${ladders.length > 0 ? section("Ladders", `${ladders.length} ladder${ladders.length===1?"":"s"} · same player, same game, same direction, 2+ stats`, tableShell(ladderRows, { labelHead: "Ladder Breakdown" }) + tableShell(ladderUnitRows, { labelHead: "Unit Outcome (all legs)" }) + (ladderPlayerRows ? `<div style="padding:8px 10px 2px;font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">Most Laddered Players</div>` + tableShell(ladderPlayerRows, { labelHead: "Player" }) : ""), true) : ""}
-    ${section("Sources · Combos", `${sortedCombos.length} combos · sorted by P/L`, tableShell(comboRows, { labelHead: "Combination" }))}
-    ${section("Sources · Fade", "When source disagreed with your pick", tableShell(fadeRows, { labelHead: "Fade" }))}
-    ${section("By Market", "Source records per stat (overs/unders)", tableShell(byMarketRows, { labelHead: "Stat · Source" }))}
-    ${section("Combos · By Market", "Exclusive combo records sliced per stat", tableShell(combosByMarketRows, { labelHead: "Stat · Combo" }))}
-    ${section("Edge Magnitude", "Per-source EV buckets at save time", tableShell(edgeRows, { labelHead: "Source · Edge" }))}
-    ${section("By Direction", "Solo source records split by overs vs unders", tableShell(bySideRows, { labelHead: "Direction · Source" }))}
-    ${section("Signals · Trends & Injury", `${totalTrendMatched} matched · ${totalUnmatched} unmatched`, tableShell(signalRows, { labelHead: "Signal" }))}
-    ${splitsWithSnap > 0 ? section("Signals · Splits & Disagreement", `${splitsWithSnap} bet${splitsWithSnap===1?"":"s"} with snapshots · grows as you place new picks`, tableShell(splitsRows, { labelHead: "Signal" })) : ""}
-    ${matchupWithSnap > 0 ? section("Signals · Matchup", `${matchupWithSnap} bet${matchupWithSnap===1?"":"s"} with matchup data`, matchupSummary + tableShell(matchupRows, { labelHead: "Signal" })) : ""}
+    ${section("Sources · Solo", `${SRC_KEYS.length} sources`, tableShell(soloRows, { labelHead: "Source" }), true, `How each individual source (RG/RW/DIMERS/etc) has done on bets where THAT source alone agreed with your pick — not whether you tracked the bet using that source, but whether its projection happened to favor your side. Shows which source's opinion is most worth trusting when you're deciding between conflicting numbers.`)}
+    ${minAccumTotal > 0 ? section("Minutes Accuracy", minAccumHeadline || `${minAccumTotal} graded prop${minAccumTotal===1?"":"s"} with a minutes comparison`, `<div style="display:flex;flex-direction:column;gap:2px;">${minAccumRows}</div>`, true, `Compares each source's pre-game minutes PROJECTION against the REAL minutes the player ended up playing. Tells you which source is more reliable specifically for predicting playing time — separate from whether their stat projections are accurate, since a good minutes call is often the foundation everything else is built on.`) : ""}
+    ${ladders.length > 0 ? section("Ladders", `${ladders.length} ladder${ladders.length===1?"":"s"} · same player, same game, same direction, 2+ stats`, tableShell(ladderRows, { labelHead: "Ladder Breakdown" }) + tableShell(ladderUnitRows, { labelHead: "Unit Outcome (all legs)" }) + (ladderPlayerRows ? `<div style="padding:8px 10px 2px;font-size:9px;color:#525a64;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">Most Laddered Players</div>` + tableShell(ladderPlayerRows, { labelHead: "Player" }) : ""), true, `Catches whenever you stacked 2+ props on the same player, same game, same direction (e.g. u22.5 PTS + u3.5 AST + u6.5 REB on one player). "Ladder Breakdown" shows how each individual leg performed; "Unit Outcome" treats the whole stack as one all-or-nothing parlay — did EVERY leg hit together, which is the real test of whether stacking that player was worth it.`) : ""}
+    ${section("Sources · Combos", `${sortedCombos.length} combos · sorted by P/L`, tableShell(comboRows, { labelHead: "Combination" }), false, `When TWO OR MORE sources agree on the same pick, how has that combo done? A "RG + RW" combo record separate from either source alone — the idea being that agreement between independent sources should be a stronger signal than any one source by itself.`)}
+    ${section("Sources · Fade", "When source disagreed with your pick", tableShell(fadeRows, { labelHead: "Fade" }), false, `The opposite question — how have your bets done specifically when a source's projection DISAGREED with the side you took? A source with a good "Fade" record here suggests you might want to weigh it more heavily, or reconsider betting against it so often.`)}
+    ${section("By Market", "Source records per stat (overs/unders)", tableShell(byMarketRows, { labelHead: "Stat · Source" }), false, `Breaks "Sources · Solo" down further — each source's agreement record split out by individual stat (PTS/REB/AST/etc) and side. Answers "is RG more reliable on assists specifically, even if its overall record is mixed."`)}
+    ${section("Combos · By Market", "Exclusive combo records sliced per stat", tableShell(combosByMarketRows, { labelHead: "Stat · Combo" }), false, `Same idea as "Sources · Combos," but split by stat — does multi-source agreement matter more for some stats than others?`)}
+    ${section("Edge Magnitude", "Per-source EV buckets at save time", tableShell(edgeRows, { labelHead: "Source · Edge" }), false, `Groups bets by how big the EV% was at the moment you tracked them (small edge vs. large edge), per source. Tests the basic assumption that a bigger calculated edge should mean a better result — this shows whether that's actually held up in your real record.`)}
+    ${section("By Direction", "Solo source records split by overs vs unders", tableShell(bySideRows, { labelHead: "Direction · Source" }), false, `Each source's solo agreement record, split into over-bets vs under-bets. A source might be sharp on overs but not unders (or vice versa) — this is where that would show up.`)}
+    ${section("Signals · Trends & Injury", `${totalTrendMatched} matched · ${totalUnmatched} unmatched`, tableShell(signalRows, { labelHead: "Signal" }), false, `Compares bets where an injury/beneficiary signal was flagged (e.g. a teammate ruled out) against bets with no such signal present. Shows whether those injury-driven "ceiling/floor" calls have actually translated into better results.`)}
+    ${splitsWithSnap > 0 ? section("Signals · Splits & Disagreement", `${splitsWithSnap} bet${splitsWithSnap===1?"":"s"} with snapshots · grows as you place new picks`, tableShell(splitsRows, { labelHead: "Signal" }), false, `Uses the L5/L10/Season hit-rate data snapshotted at track time — did the historical hit rate at that exact line agree with your pick, and how'd it go? This is the same Splits data shown live in the bet modal, just aggregated across your whole history here.`) : ""}
+    ${matchupWithSnap > 0 ? section("Signals · Matchup", `${matchupWithSnap} bet${matchupWithSnap===1?"":"s"} with matchup data`, matchupSummary + tableShell(matchupRows, { labelHead: "Signal" }), false, `Uses the opponent-allowed matchup data (opp-avg CSV) snapshotted at track time to see if the matchup favored your side. Tests whether the DEF-rank signal in the bet modal is a real predictor.`) : ""}
     ${advWithSnap > 0 ? section("Advanced Stats · USG% & Efficiency", `${advWithSnap} bet${advWithSnap===1?"":"s"} with BBRef snapshot`, advSummary + tableShell(advRows, { labelHead: "Player Profile" })) : ""}
-    ${edgeMatch.both.total + edgeMatch.player.total + edgeMatch.def.total + edgeMatch.neither.total > 0 ? section("Player Edge × Matchup", "Does your record peak when the player's stats AND the defense both favor your side?", edgeMatchSummary + tableShell(advMatchupRows, { labelHead: "Alignment" })) : ""}
+    ${edgeMatch.both.total + edgeMatch.player.total + edgeMatch.def.total + edgeMatch.neither.total > 0 ? section("Player Edge × Matchup", "Does your record peak when the player's stats AND the defense both favor your side?", edgeMatchSummary + tableShell(advMatchupRows, { labelHead: "Alignment" }), false, `Combines the player's own advanced stats (USG%/role) AND the matchup/DEF-rank data into one alignment check — the real test of whether stacking multiple signals together performs better than either alone.`) : ""}
     ${(() => {
       // Per Game analytics — bucket by whether season avg was above/below the line
       const above = emptyStats(), below = emptyStats(), noData = emptyStats();
