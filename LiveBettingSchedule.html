@@ -212,8 +212,7 @@
   .soon-row  .game-league { color: rgba(245,166,35,0.6); }
 
   /* window highlight */
-  .game-row.win-highlight { background: rgba(39,192,113,0.07) !important; }
-  .game-row.win-highlight::before { background: var(--green) !important; }
+  /* win-highlight handled below with gradient */
 
   /* divider between teams — removed, use row gap instead */
   .teams-divider { display: none; }
@@ -599,58 +598,10 @@ function render() {
   renderWindows(f);
   let html = '';
 
-  if (live.length) {
-    // Build a "next up" map: for each league with a live game, find the next upcoming game
-    const liveLeagues = new Set(live.map(g => g.league));
-    const nextUpByLeague = {};
-    liveLeagues.forEach(league => {
-      const next = [...soon, ...sched]
-        .filter(g => g.league === league)
-        .sort((a,b) => a.startTime - b.startTime)[0];
-      if (next) nextUpByLeague[league] = next;
-    });
-
-    // Group live games by league, inject next-up after each league's live block
-    const leagueOrder = ['NBA','WNBA','NFL','MLB','NHL'];
-    const liveByLeague = {};
-    live.forEach(g => { (liveByLeague[g.league]||=[]).push(g); });
-
-    html += `<div class="section-sep"></div>
-    <div class="section-label">
-      <div class="section-dot live"></div>
-      <span class="section-name">● Live</span>
-      <span class="section-n">${live.length}</span>
-    </div>`;
-
-    leagueOrder.forEach(league => {
-      if (!liveByLeague[league]) return;
-      html += `<div class="games-list">`;
-      html += liveByLeague[league].map(liveRow).join('');
-      html += `</div>`;
-      // Inject next upcoming game for this league right below
-      if (nextUpByLeague[league]) {
-        const n = nextUpByLeague[league];
-        html += `<div class="next-up-row" data-gameid="${n.id}">
-          <span class="next-up-label">NEXT · ${n.league}</span>
-          <span class="next-up-teams">${n.away.abbr} vs ${n.home.abbr}</span>
-          <span class="gs-cd next-up-cd" data-ms="${n.startTime.getTime()}">--:--</span>
-        </div>`;
-      }
-    });
-  }
-
-  // Remaining soon/sched/final not already shown as next-up
-  const shownAsNextUp = new Set(
-    live.map(g => g.league).flatMap(league =>
-      [...soon, ...sched].filter(g => g.league === league).sort((a,b)=>a.startTime-b.startTime).slice(0,1).map(g=>g.id)
-    )
-  );
-  const remainingSoon = soon.filter(g => !shownAsNextUp.has(g.id));
-  const remainingSched = sched.filter(g => !shownAsNextUp.has(g.id));
-
-  if (remainingSoon.length)  html += section('soon',  'Starting Soon', remainingSoon, soonRow);
-  if (remainingSched.length) html += section('sched', 'Later Today',   remainingSched, schedRow);
-  if (final.length)          html += section('final', 'Final',         final, finalRow);
+  if (live.length)  html += section('live',  'Live',          live,  liveRow);
+  if (soon.length)  html += section('soon',  'Starting Soon', soon,  soonRow);
+  if (sched.length) html += section('sched', 'Later Today',   sched, schedRow);
+  if (final.length) html += section('final', 'Final',         final, finalRow);
   out.innerHTML = html;
 }
 
@@ -943,27 +894,53 @@ function computeWindows(games) {
     .slice(0, 3);
 }
 
-function selectWindow(idx, windows) {
-  const w = windows[idx];
-  // Toggle off if already selected
-  if (selectedWindowIds && [...selectedWindowIds].every(id => w.ids.has(id)) && selectedWindowIds.size === w.ids.size) {
-    selectedWindowIds = null;
-  } else {
-    selectedWindowIds = w.ids;
-  }
-  // Re-highlight rows
+function closePopup(e) {
+  if (e && e.target !== document.getElementById('win-popup-overlay')) return;
+  document.getElementById('win-popup-overlay').classList.remove('open');
+}
+
+async function selectWindow(idx) {
+  const w = currentWindows[idx];
+  if (!w) return;
+
+  // Highlight rows
+  const alreadySelected = selectedWindowIds && selectedWindowIds.size === w.ids.size &&
+    [...w.ids].every(id => selectedWindowIds.has(id));
+  selectedWindowIds = alreadySelected ? null : w.ids;
+
   document.querySelectorAll('.game-row').forEach(row => {
-    const id = row.dataset.gameid;
-    row.classList.toggle('win-highlight', !!(selectedWindowIds && id && selectedWindowIds.has(id)));
+    row.classList.toggle('win-highlight', !!(selectedWindowIds && selectedWindowIds.has(row.dataset.gameid)));
   });
-  // Update card selected state
   document.querySelectorAll('.window-card').forEach((card, i) => {
     card.classList.toggle('w-selected', !!(selectedWindowIds && i === idx));
   });
-  // Scroll to first highlighted row
-  if (selectedWindowIds) {
-    const first = document.querySelector('.game-row.win-highlight');
-    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Open popup with AI summary
+  const fmt = ms => new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  const timeRange = w.start === w.end ? fmt(w.start) : `${fmt(w.start)} – ${fmt(w.end)}`;
+  document.getElementById('popup-title').textContent = `${w.leagues.join(' · ')}`;
+  document.getElementById('popup-time').textContent = timeRange;
+  document.getElementById('popup-body').innerHTML = `<div class="popup-loading"><div class="popup-spinner"></div>Loading...</div>`;
+  document.getElementById('win-popup-overlay').classList.add('open');
+
+  const gameList = w.games.map(g => {
+    const status = g.bucket === 'live' ? `LIVE (${g.stateDesc||'in progress'}, ${g.away.score}-${g.home.score})` : `starting ${fmt(g.startTime.getTime())}`;
+    return `${g.away.abbr} @ ${g.home.abbr} [${g.league}] — ${status}`;
+  }).join('\n');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 1000,
+        messages: [{ role: 'user', content: `Sharp live bettor. ${w.count} games in this window (${timeRange}):\n${gameList}\n\n2-3 sentences on what to focus on for live betting. Be specific, punchy, no fluff.` }]
+      })
+    });
+    const data = await res.json();
+    document.getElementById('popup-body').textContent = data.content?.[0]?.text || 'No analysis available.';
+  } catch(e) {
+    document.getElementById('popup-body').textContent = 'Could not load — check connection.';
   }
 }
 
@@ -1004,19 +981,20 @@ function renderWindows(games) {
 
 fetchAll();
 </script>
+
 <div id="win-popup-overlay" onclick="closePopup(event)">
   <div id="win-popup">
     <div class="popup-handle"></div>
     <div class="popup-header">
-      <span class="popup-title" id="popup-title">Action Window</span>
+      <span class="popup-title" id="popup-title"></span>
       <div style="display:flex;align-items:center;gap:12px">
         <span class="popup-time" id="popup-time"></span>
         <button class="popup-close" onclick="closePopup()">×</button>
       </div>
     </div>
-    <div class="popup-body" id="popup-body">
-      <div class="popup-loading"><div class="popup-spinner"></div>Analyzing window...</div>
-    </div>
+    <div class="popup-body" id="popup-body"></div>
   </div>
 </div>
+
+</body>
 </html>
