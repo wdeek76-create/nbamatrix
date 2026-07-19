@@ -6,7 +6,7 @@
 <title>UFC Significant Strikes Model</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -50,11 +50,13 @@
 html {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
 }
 body {
   min-height: 100vh;
@@ -76,7 +78,7 @@ header { margin-bottom: 28px; }
 }
 .header-main { display: flex; flex-direction: column; gap: 6px; }
 .header-main h1 {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -85,7 +87,7 @@ header { margin-bottom: 28px; }
 .header-main h1 .ufc { color: var(--accent); }
 .header-main h1 .strikes { color: #fff; }
 .header-main .model-word {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   letter-spacing: 0.20em;
   text-transform: uppercase;
@@ -135,7 +137,7 @@ header { margin-bottom: 28px; }
   border-radius: 8px;
   padding: 5px 10px;
   cursor: pointer;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 700;
   color: #fff;
@@ -161,7 +163,7 @@ header { margin-bottom: 28px; }
   border-bottom: 2px solid transparent;
   color: #fff;
   opacity: 1;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.10em;
@@ -198,7 +200,7 @@ header { margin-bottom: 28px; }
   gap: 12px;
 }
 .matchup-group-title {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 14px;
   font-weight: 700;
   color: #fff;
@@ -252,7 +254,7 @@ header { margin-bottom: 28px; }
 }
 .input-section:last-of-type { border-bottom: none; }
 .sec-label {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   font-weight: 700;
   color: var(--accent);
@@ -267,7 +269,7 @@ header { margin-bottom: 28px; }
 }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   font-weight: 400;
   color: #fff;
@@ -280,7 +282,7 @@ header { margin-bottom: 28px; }
   border: 1px solid var(--border2);
   border-radius: 8px;
   padding: 9px 11px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 13px;
   color: #fff;
   font-weight: 700;
@@ -347,7 +349,7 @@ input.fighter-name-input,
 }
 
 .sr-proj {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 18px;
   font-weight: 700;
   color: #fff;
@@ -482,7 +484,7 @@ input.fighter-name-input,
   flex-wrap: wrap;
 }
 .vs-side-label {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 13px;
   font-weight: 700;
   color: #fff;
@@ -491,7 +493,7 @@ input.fighter-name-input,
 .vs-side-label .arrow { color: var(--accent); margin-right: 4px; }
 .vs-side-label.under .arrow { color: var(--amber); }
 .vs-edge-big {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -531,7 +533,7 @@ input.fighter-name-input,
   text-transform: uppercase;
 }
 .vs-blend-fair-strip .val {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 14px;
   font-weight: 700;
   color: var(--accent);
@@ -540,7 +542,7 @@ input.fighter-name-input,
 /* Aligned flag — subtle */
 .aligned-flag {
   display: inline-block;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   font-weight: 700;
   color: var(--accent);
@@ -557,7 +559,7 @@ input.fighter-name-input,
 /* Gate badge */
 .gate-badge {
   display: inline-block;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   font-weight: 700;
   padding: 3px 9px;
@@ -574,7 +576,7 @@ input.fighter-name-input,
 .src-pill {
   display: inline-flex;
   align-items: center;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   font-weight: 700;
   padding: 3px 8px;
@@ -594,7 +596,7 @@ input.fighter-name-input,
   border: none;
   border-radius: 6px;
   padding: 8px 14px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.10em;
@@ -613,7 +615,7 @@ input.fighter-name-input,
 
 /* Pending hints */
 .pending, .src-pending {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   color: #fff;
   opacity: 1;
@@ -641,7 +643,7 @@ input.fighter-name-input,
   border: 1px solid var(--border2);
   border-radius: 8px;
   padding: 9px 14px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 12px;
   color: #fff;
   outline: none;
@@ -654,7 +656,7 @@ input.fighter-name-input,
   border: 1px solid var(--border2);
   border-radius: 8px;
   padding: 8px 14px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   color: #fff;
   cursor: pointer;
@@ -679,7 +681,7 @@ input.fighter-name-input,
   border: none;
   border-radius: 8px;
   padding: 10px 18px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -699,14 +701,14 @@ input.fighter-name-input,
   gap: 16px;
 }
 .summary-title {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 16px;
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.01em;
 }
 .edge-count {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 11px;
   color: #fff;
   opacity: 1;
@@ -728,21 +730,21 @@ input.fighter-name-input,
 }
 .edge-item:first-child { border-top: none; }
 .edge-name {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 14px;
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.005em;
 }
 .edge-bet {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 11px;
   color: #fff;
   opacity: 1;
   margin-top: 2px;
 }
 .edge-ev {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -752,7 +754,7 @@ input.fighter-name-input,
 .edge-empty {
   padding: 60px 20px;
   text-align: center;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 12px;
   color: #fff;
   opacity: 1;
@@ -765,7 +767,7 @@ input.fighter-name-input,
   border: 1px solid var(--accent-border);
   color: var(--accent);
   padding: 8px 16px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.10em;
@@ -780,7 +782,7 @@ input.fighter-name-input,
   border: 1px solid var(--border2);
   border-radius: 10px;
   padding: 14px 18px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 12px;
   color: #fff;
   line-height: 1.7;
@@ -804,7 +806,7 @@ input.fighter-name-input,
   border: 1px solid var(--border2);
   border-radius: 6px;
   padding: 6px 12px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 700;
   color: #fff;
@@ -825,7 +827,7 @@ input.fighter-name-input,
   border: 1px solid var(--border2);
   border-radius: 6px;
   padding: 6px 10px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 11px;
   color: #fff;
   outline: none;
@@ -836,7 +838,7 @@ input.fighter-name-input,
 .log-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-width: 780px;
   table-layout: fixed;
 }
@@ -893,7 +895,7 @@ input.fighter-name-input,
 .log-table .lt-edge.neg { color: var(--red); font-weight: 700; }
 .pill-result {
   display: inline-block;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   font-weight: 700;
   padding: 3px 8px;
@@ -919,7 +921,7 @@ input.fighter-name-input,
   border: 1px solid var(--border2);
   color: #fff;
   opacity: 1;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 11px;
   font-weight: 700;
   padding: 5px 0;
@@ -942,7 +944,7 @@ input.fighter-name-input,
   border: 1px solid var(--border2);
   border-radius: 5px;
   color: #fff;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   outline: none;
   font-weight: 700;
 }
@@ -965,7 +967,7 @@ input.fighter-name-input,
   padding: 16px 18px;
 }
 .dash-card .dc-lbl {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   font-weight: 700;
   color: #fff;
@@ -975,14 +977,14 @@ input.fighter-name-input,
   margin-bottom: 8px;
 }
 .dash-card .dc-val {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 24px;
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.01em;
 }
 .dash-card .dc-sub {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   color: #fff;
   opacity: 1;
@@ -1000,7 +1002,7 @@ input.fighter-name-input,
   margin-bottom: 12px;
 }
 .bk-section-title {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1011,7 +1013,7 @@ input.fighter-name-input,
 .bk-section-title.under { color: var(--amber); }
 .bk-section-title.most  { color: var(--purple); }
 .bk-title {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 700;
   color: #fff;
@@ -1033,7 +1035,7 @@ input.fighter-name-input,
   padding: 12px 14px;
 }
 .bk-cell .bkl {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   color: #fff;
   opacity: 1;
@@ -1042,13 +1044,13 @@ input.fighter-name-input,
   margin-bottom: 5px;
 }
 .bk-cell .bkv {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 16px;
   font-weight: 700;
   color: #fff;
 }
 .bk-cell .bks {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   color: #fff;
   opacity: 1;
@@ -1070,7 +1072,7 @@ input.fighter-name-input,
   border: 1px solid var(--border2);
   border-radius: 6px;
   padding: 7px 14px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 700;
   color: #fff;
@@ -1094,7 +1096,7 @@ input.fighter-name-input,
   gap: 8px;
 }
 .summary-preview-out {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 12px;
   color: #fff;
   line-height: 1.7;
@@ -1114,7 +1116,7 @@ input.fighter-name-input,
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 6px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 12px;
   border: 1px solid var(--border);
 }
@@ -1141,7 +1143,7 @@ input.fighter-name-input,
   background: var(--surface);
 }
 .fc-label {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   color: #fff;
   opacity: 1;
@@ -1150,7 +1152,7 @@ input.fighter-name-input,
   margin-bottom: 4px;
 }
 .fc-val {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 16px;
   font-weight: 700;
   color: #fff;
@@ -1160,7 +1162,7 @@ input.fighter-name-input,
 /* Prob chips (still emitted by chips() helper) */
 .prob-row { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
 .prob-chip {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   padding: 4px 9px;
   border-radius: 5px;
@@ -1173,7 +1175,7 @@ input.fighter-name-input,
 
 /* PP implied note — light usage */
 .pp-implied {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   color: #fff;
   opacity: 1;
@@ -1189,7 +1191,7 @@ footer {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 10px;
   color: #fff;
   opacity: 1;
@@ -1199,7 +1201,7 @@ footer {
 
 /* Eyebrow / generic small labels still in use */
 .eyebrow {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 9px;
   color: var(--accent);
   letter-spacing: 0.20em;
@@ -1239,6 +1241,175 @@ footer {
   .dash-grid { grid-template-columns: repeat(2, 1fr); }
   .vs-blend-fair-strip { grid-template-columns: 1fr; }
 }
+/* =========================================================
+   TYPOGRAPHY POLISH — readability overrides
+   ========================================================= */
+
+/* Numbers get JetBrains Mono for perfect alignment */
+.sr-proj, .sr-fair, .vs-edge-big, .vs-blend-fair-strip .val,
+.edge-ev, .dash-card .dc-val, .bk-cell .bkv,
+.log-table td:nth-child(3), .log-table td:nth-child(4), .log-table td:nth-child(5),
+.log-table .lt-edge, .grade-actual, .grade-btn,
+.field input, .field select,
+.mode-toggle, .sort-state, .edge-count,
+.gate-badge, .src-pill, .pill-result, .auto-pill,
+.log-toolbar select, .log-toolbar input[type="text"],
+.search-input {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace !important;
+}
+
+/* Kill excessive letter-spacing — Inter needs almost none */
+.tab-btn, .sec-label, .field label, .hs-lbl, .header-sub,
+.sr-label, .sr-label .sr-sub, .sr-proj-sub, .sr-fair-lbl,
+.vs-label, .vs-fair, .vs-blend-fair-strip .lbl,
+.gate-badge, .src-pill, .auto-pill, .aligned-flag, .pill-result,
+.log-table th, .lt-sub, .dash-card .dc-lbl, .dash-card .dc-sub,
+.bk-cell .bkl, .bk-cell .bks, .bk-section-title, .bk-title,
+.edge-count, .edge-bet, .filter-pill, .sort-btn, .sort-state,
+#addBtn, .add-btn, .foot-label, footer, .eyebrow,
+.log-bet-btn, .copy-btn, .grade-btn,
+.summary-strip .ss-btn, .mode-toggle {
+  letter-spacing: 0.02em !important;
+}
+
+/* Body prose is comfortable */
+body, .fighter-card, .matchup-group, .verdict-strip,
+.src-row, .src-grid, .fields, .field, .log-table td,
+.dash-card, .bk-cell, .edge-item, .summary-preview-out {
+  letter-spacing: -0.005em;
+}
+
+/* BIG headings — no letter-spacing at all */
+.header-main h1, .summary-title, .matchup-group-title,
+.edge-name, .dash-card .dc-val, .bk-cell .bkv,
+.vs-side-label, .vs-edge-big, .sr-proj,
+.dc-val, .log-table .lt-name {
+  letter-spacing: -0.015em !important;
+}
+
+/* Better line-height everywhere */
+body { line-height: 1.4; }
+.log-table td { line-height: 1.5; }
+.summary-preview-out { line-height: 1.75; }
+.copy-area { line-height: 1.75; }
+
+/* Reduce all-caps overuse — keep small labels uppercase but bump their size for readability */
+.sr-label, .sec-label, .vs-label, .dash-card .dc-lbl,
+.bk-cell .bkl, .bk-section-title, .bk-title,
+.log-table th, .field label, .header-sub,
+.hs-lbl, .foot-label, .filter-pill, .sort-btn,
+.gate-badge, .src-pill, .auto-pill, .pill-result,
+.aligned-flag, .eyebrow, .matchup-group-meta,
+.summary-strip .ss-btn, .tab-btn {
+  font-size: 10.5px;
+}
+
+/* Slightly bigger body text throughout */
+.src-row .sr-side, .sr-side .sr-prob, .sr-side .sr-edge,
+.log-table td, .field input,
+.dash-card .dc-sub, .bk-cell .bks {
+  font-size: 12.5px;
+}
+
+/* Header title gets air */
+.header-main h1 { font-size: 24px; letter-spacing: -0.02em; font-weight: 800; }
+
+/* Big blend proj really stands out */
+.src-row.blend .sr-proj { font-size: 26px; font-weight: 800; }
+.src-row .sr-proj { font-size: 20px; font-weight: 700; }
+
+/* Fighter name in log */
+.log-table .lt-name { font-size: 14px; font-weight: 700; }
+
+/* Edge summary bigger */
+.edge-name { font-size: 15px; font-weight: 700; }
+.edge-ev { font-size: 20px; font-weight: 800; }
+
+/* Dashboard numbers pop */
+.dash-card .dc-val { font-size: 26px; font-weight: 800; }
+.bk-cell .bkv { font-size: 17px; font-weight: 800; }
+
+/* Verdict strip readability */
+.vs-side-label { font-size: 14px; font-weight: 700; }
+.vs-edge-big { font-size: 18px; font-weight: 800; }
+.vs-fair { font-size: 11.5px; font-weight: 500; }
+.vs-blend-fair-strip .val { font-size: 15px; font-weight: 800; }
+.vs-blend-fair-strip .lbl { font-size: 10.5px; font-weight: 600; }
+
+/* Inputs actually look like inputs */
+.field input, .field select {
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #0a0a0f;
+}
+.field label {
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #ffffff;
+}
+
+/* Buttons feel solid */
+.log-bet-btn, .copy-btn, .filter-pill, .sort-btn,
+.grade-btn, .summary-strip .ss-btn,
+#addBtn, .add-btn, .mode-toggle {
+  font-weight: 700;
+  padding: 8px 14px;
+  font-size: 11.5px;
+}
+
+/* Log row breathe */
+.log-table td { padding: 14px 12px; }
+.log-table .lt-sub { font-size: 11px; margin-top: 4px; line-height: 1.5; }
+
+/* Card padding air */
+.card-header { padding: 18px 22px 16px; }
+.input-section { padding: 16px 22px; }
+.src-grid { margin: 4px 22px 18px; }
+.verdict-strip { margin: 0 22px 18px; padding: 18px 20px; }
+.vs-side-action { padding: 14px 16px; }
+
+/* Tab row */
+.tab-btn { padding: 14px 20px; font-size: 11.5px; font-weight: 700; }
+
+/* Kill italic placeholders that looked weird */
+.field input::placeholder,
+.search-input::placeholder,
+.log-toolbar input::placeholder,
+.grade-actual::placeholder {
+  font-style: normal !important;
+  color: rgba(255,255,255,0.35) !important;
+  font-weight: 500;
+}
+
+/* Softer borders — pure black borders look chunky, gray reads cleaner */
+.matchup-group, .fighter-card.standalone, .header-card,
+.src-grid, .verdict-strip, .vs-side-action,
+.dash-card, .bk-section, .bk-cell, .edge-list,
+.log-table, .summary-preview, .filter-pill,
+.field input, .field select, .search-input,
+.log-toolbar select, .log-toolbar input,
+.copy-area, .grade-actual, .grade-btn,
+#espnGradeStatus {
+  border-color: rgba(255,255,255,0.10);
+}
+
+/* Source rows: less rigid */
+.src-row { padding: 14px 18px; gap: 14px; }
+.src-row .sr-side { padding: 10px 12px; border-radius: 8px; }
+.src-row.blend { padding: 16px 18px; }
+
+/* Log table header more subtle */
+.log-table th {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  padding: 12px 12px;
+  border-bottom-color: rgba(255,255,255,0.15);
+}
+
 </style>
 </head>
 <body>
@@ -1360,7 +1531,7 @@ footer {
       <button class="copy-btn" onclick="exportLogJSON()" style="font-size:11px;padding:6px 12px;">Backup</button>
     </div>
   </div>
-  <div id="espnGradeStatus" style="display:none;margin:8px 0 14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;font-family:'Space Mono',monospace;font-size:11px;line-height:1.7;"></div>
+  <div id="espnGradeStatus" style="display:none;margin:8px 0 14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;font-family:'Inter', system-ui, sans-serif;font-size:11px;line-height:1.7;"></div>
   <div style="overflow-x:auto;">
     <table class="log-table" id="logTable" style="min-width:780px;">
       <thead>
