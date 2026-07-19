@@ -117,16 +117,19 @@
 
   /* ── SECTION LABEL ── */
   .section-label {
-    display: flex; align-items: center; gap: 7px;
-    padding: 2px 16px 6px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px 6px;
   }
-  .section-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .section-dot.live  { background: var(--red); animation: blink 1.3s infinite; box-shadow: 0 0 5px var(--red); }
-  .section-dot.soon  { background: var(--amber); }
-  .section-dot.sched { background: #3a3a3a; }
-  .section-dot.final { background: #3a3a3a; }
-  .section-name { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--sub); }
-  .section-n { font-size: 11px; font-weight: 700; color: var(--sub); }
+  .section-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .section-dot.live  { background: var(--red); animation: blink 1.3s infinite; box-shadow: 0 0 8px var(--red); }
+  .section-dot.soon  { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .section-dot.sched { background: rgba(255,255,255,0.3); }
+  .section-dot.final { background: rgba(255,255,255,0.2); }
+  .section-name { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #fff; }
+  .section-n {
+    font-size: 12px; font-weight: 900; color: #fff;
+    background: rgba(255,255,255,0.12); padding: 1px 7px; border-radius: 20px;
+  }
 
   /* ── GAME ROWS ── */
   .games-list { display: flex; flex-direction: column; }
@@ -179,8 +182,8 @@
     line-height: 1; min-width: 22px; text-align: right;
     font-variant-numeric: tabular-nums; letter-spacing: -0.5px;
   }
-  .t-score.winner { color: var(--green); }
-  .t-score.loser  { color: rgba(255,255,255,0.4); }
+  .t-score.winner { color: #fff; }
+  .t-score.loser  { color: #fff; }
   .t-score.blank  { color: rgba(255,255,255,0.3); font-size: 12px; }
 
   /* STATUS */
@@ -707,7 +710,7 @@ function liveRow(g) {
          ${g.clock&&!label.includes(g.clock)?`<span class="gs-clock">${g.clock}</span>`:''}`;
   }
   return `<div class="game-row live-row" data-gameid="${g.id}">
-    <div class="logos">${logo(g.away,hW)}${logo(g.home,aW)}</div>
+    <div class="logos">${logo(g.away)}${logo(g.home)}</div>
     <div class="teams">
       <div class="team-line"><span class="t-name${aW?'':' loser'}">${g.away.abbr}</span>${g.away.record?`<span class="t-rec">${g.away.record}</span>`:''}</div>
       <div class="teams-divider"></div>
