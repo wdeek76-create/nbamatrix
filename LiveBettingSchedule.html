@@ -641,7 +641,9 @@ function render() {
   const ord = ['NBA','WNBA','NFL','MLB','NHL'];
   const byL = (a,b)=>ord.indexOf(a.league)-ord.indexOf(b.league);
 
-  const live  = f.filter(g=>g.bucket==='live').sort(byL);
+  // Live: newest start first (most time remaining)
+  const live  = f.filter(g=>g.bucket==='live').sort((a,b)=>b.startTime-a.startTime);
+  // Soon: soonest first
   const soon  = f.filter(g=>g.bucket==='soon').sort((a,b)=>a.diffMin-b.diffMin);
   const sched = f.filter(g=>g.bucket==='sched').sort((a,b)=>a.startTime-b.startTime);
   const final = f.filter(g=>g.bucket==='final').sort(byL);
