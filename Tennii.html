@@ -834,7 +834,7 @@
         <div class="panel-label" style="margin-bottom:0">bulk paste</div>
         <div id="bulkInlinePreview" style="font-family:var(--body);font-size:11px;color:var(--text3)"></div>
       </div>
-      <textarea id="bulkImportText" onpaste="setTimeout(startBulkQueue,50)" placeholder="Paste picks here — fires automatically" style="width:100%;height:80px;font-family:var(--mono);font-size:11px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:8px 10px;resize:vertical;line-height:1.5;box-sizing:border-box" readonly onfocus="this.removeAttribute('readonly')"></textarea>
+      <textarea id="bulkImportText" onpaste="setTimeout(startBulkQueue,50)" placeholder="Paste picks here — fires automatically" style="width:100%;height:80px;font-family:var(--mono);font-size:11px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:8px 10px;resize:vertical;line-height:1.5;box-sizing:border-box" readonly inputmode="none"></textarea>
     </div>
     <div style="display:flex;align-items:center;margin-bottom:10px">
       <div class="panel-label" style="margin-bottom:0">new entry</div>
@@ -905,7 +905,7 @@
     <div class="input-row" style="margin-bottom:8px;flex-wrap:nowrap;align-items:flex-end">
       <div class="field" style="flex:0 0 200px;position:relative">
         <label>Book</label>
-        <input type="text" id="iBookCombo" value="FanDuel" autocomplete="off" style="font-size:14px;font-weight:600;padding:9px 28px 9px 12px;cursor:pointer" placeholder="type or pick" readonly onfocus="this.removeAttribute('readonly')">
+        <input type="text" id="iBookCombo" value="FanDuel" autocomplete="off" inputmode="none" style="font-size:14px;font-weight:600;padding:9px 28px 9px 12px;cursor:pointer" placeholder="type or pick">
         <span id="iBookComboArrow" style="position:absolute;right:10px;bottom:10px;pointer-events:none;color:var(--text2);font-size:10px">▾</span>
         <div id="iBookComboList" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:4px;z-index:40;max-height:260px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.45)"></div>
         <select id="iMktBook" style="display:none">
@@ -7797,7 +7797,6 @@ function openBulkImport(){
   document.getElementById('bulkImportPreview').textContent = '';
   const m = document.getElementById('bulkImportModal');
   m.style.display = 'flex';
-  setTimeout(()=>document.getElementById('bulkImportText').focus(), 100);
 }
 
 function closeBulkImport(){
