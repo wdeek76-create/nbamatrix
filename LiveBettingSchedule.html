@@ -168,7 +168,7 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     text-transform: uppercase; line-height: 1;
   }
-  .t-name.loser { color: rgba(255,255,255,0.4); font-weight: 700; }
+  .t-name.loser { color: #fff; font-weight: 800; }
   /* Record: same line as name, white, smaller */
   .t-rec { font-size: 9px; color: var(--text); font-weight: 600; flex-shrink: 0; white-space: nowrap; }
 
@@ -212,9 +212,21 @@
   .teams-divider { display: none; }
   /* section separator */
   .section-sep { height: 1px; background: var(--border); margin: 10px 0 4px; }
-  .mlb-sit { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-  .mlb-count { font-size: 9px; font-weight: 700; color: var(--text); letter-spacing: 0.3px; }
-  .mlb-count span { color: rgba(255,255,255,0.55); }
+
+  /* ── NEXT UP ROW ── */
+  .next-up-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 16px 5px 20px;
+    background: rgba(39,192,113,0.05);
+    border-bottom: 1px solid var(--border);
+  }
+  .next-up-label { font-size: 8px; font-weight: 800; color: var(--green); letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; }
+  .next-up-teams { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.6); flex: 1; text-transform: uppercase; letter-spacing: 0.3px; }
+  .next-up-cd { font-size: 12px !important; color: var(--green) !important; }
+
+  .mlb-sit { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .mlb-count { font-size: 10px; font-weight: 700; color: var(--text); letter-spacing: 0.5px; margin-top: 2px; }
+  .mlb-count span { color: rgba(255,255,255,0.5); margin-left: 4px; }
   /* SVG diamond rendered inline — sized via width/height attrs */
 
   /* ── PEAK WINDOWS ── */
@@ -534,10 +546,59 @@ function render() {
   selectedWindowIds = null;
   renderWindows(f);
   let html = '';
-  if (live.length)  html += section('live',  '● Live',        live,  liveRow);
-  if (soon.length)  html += section('soon',  'Starting Soon', soon,  soonRow);
-  if (sched.length) html += section('sched', 'Later Today',   sched, schedRow);
-  if (final.length) html += section('final', 'Final',         final, finalRow);
+
+  if (live.length) {
+    // Build a "next up" map: for each league with a live game, find the next upcoming game
+    const liveLeagues = new Set(live.map(g => g.league));
+    const nextUpByLeague = {};
+    liveLeagues.forEach(league => {
+      const next = [...soon, ...sched]
+        .filter(g => g.league === league)
+        .sort((a,b) => a.startTime - b.startTime)[0];
+      if (next) nextUpByLeague[league] = next;
+    });
+
+    // Group live games by league, inject next-up after each league's live block
+    const leagueOrder = ['NBA','WNBA','NFL','MLB','NHL'];
+    const liveByLeague = {};
+    live.forEach(g => { (liveByLeague[g.league]||=[]).push(g); });
+
+    html += `<div class="section-sep"></div>
+    <div class="section-label">
+      <div class="section-dot live"></div>
+      <span class="section-name">● Live</span>
+      <span class="section-n">${live.length}</span>
+    </div>`;
+
+    leagueOrder.forEach(league => {
+      if (!liveByLeague[league]) return;
+      html += `<div class="games-list">`;
+      html += liveByLeague[league].map(liveRow).join('');
+      html += `</div>`;
+      // Inject next upcoming game for this league right below
+      if (nextUpByLeague[league]) {
+        const n = nextUpByLeague[league];
+        html += `<div class="next-up-row" data-gameid="${n.id}">
+          <span class="next-up-label">NEXT · ${n.league}</span>
+          <span class="next-up-teams">${n.away.abbr} vs ${n.home.abbr}</span>
+          <span class="gs-cd next-up-cd" data-ms="${n.startTime.getTime()}">--:--</span>
+        </div>`;
+      }
+    });
+  }
+
+  // Remaining soon/sched/final not already shown as next-up
+  const shownAsNextUp = new Set(
+    live.map(g => g.league).flatMap(league =>
+      [...soon, ...sched].filter(g => g.league === league).sort((a,b)=>a.startTime-b.startTime).slice(0,1).map(g=>g.id)
+    )
+  );
+  const remainingSoon = soon.filter(g => !shownAsNextUp.has(g.id));
+  const remainingSched = sched.filter(g => !shownAsNextUp.has(g.id));
+
+  if (remainingSoon.length)  html += section('soon',  'Starting Soon', remainingSoon, soonRow);
+  if (remainingSched.length) html += section('sched', 'Later Today',   remainingSched, schedRow);
+  if (final.length)          html += section('final', 'Final',         final, finalRow);
   out.innerHTML = html;
 }
 
