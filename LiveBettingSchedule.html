@@ -230,41 +230,107 @@
   .mlb-sit { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
   .mlb-count { font-size: 10px; font-weight: 700; color: var(--text); letter-spacing: 0.5px; margin-top: 2px; }
   .mlb-count span { color: rgba(255,255,255,0.5); margin-left: 4px; }
+
+  /* MLB expanded bottom bar */
+  .mlb-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px 8px 58px; /* indent past logos */
+    border-top: 1px solid var(--border);
+    gap: 16px;
+  }
+  .mlb-bar-inning { font-size: 11px; font-weight: 700; color: var(--text); }
+  .mlb-bar-diamond { flex-shrink: 0; }
+  .mlb-bar-count {
+    font-size: 13px; font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums; letter-spacing: 0.5px;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+  }
+  .mlb-bar-count-label { font-size: 8px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; }
+  .mlb-bar-outs {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .out-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.3);
+  }
+  .out-dot.filled { background: var(--amber); border-color: var(--amber); }
   /* SVG diamond rendered inline — sized via width/height attrs */
 
   /* ── PEAK WINDOWS ── */
   #windows-wrap { padding: 0 16px 2px; }
   .windows-label {
-    font-size: 9px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 1.5px; color: var(--sub); margin-bottom: 8px;
-    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 900; text-transform: uppercase;
+    letter-spacing: 2px; color: #fff; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 10px;
   }
   .windows-label::after { content:''; flex:1; height:1px; background:var(--border); }
 
   .window-card {
-    background: var(--card); border-radius: 12px;
+    border-radius: 12px;
     border: 1px solid var(--border);
     padding: 11px 14px; margin-bottom: 8px;
     display: flex; align-items: center; gap: 12px;
     position: relative; overflow: hidden;
     cursor: pointer; transition: border-color 0.15s, background 0.15s;
     -webkit-tap-highlight-color: transparent;
+    background: var(--card);
   }
   .window-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:#333; }
   .window-card.w-active { border-color: rgba(39,192,113,0.35); }
   .window-card.w-active::before { background: var(--green); }
-  .window-card.w-selected { border-color: rgba(39,192,113,0.6) !important; background: rgba(39,192,113,0.08) !important; }
-  .window-card.w-selected::before { background: var(--green) !important; }
+  .window-card.w-selected {
+    border-color: rgba(39,192,113,0.7) !important;
+    background: linear-gradient(135deg, rgba(39,192,113,0.18) 0%, rgba(39,192,113,0.05) 100%) !important;
+  }
+  .window-card.w-selected::before { background: var(--green) !important; width: 4px !important; }
 
   .win-count { font-size: 26px; font-weight: 800; letter-spacing: -2px; line-height: 1; flex-shrink: 0; min-width: 30px; color: rgba(255,255,255,0.5); }
   .window-card.w-active   .win-count { color: var(--green); }
-  .window-card.w-selected .win-count { color: var(--green); }
+  .window-card.w-selected .win-count { color: var(--green); text-shadow: 0 0 12px rgba(39,192,113,0.6); }
 
   .win-info { flex: 1; min-width: 0; }
   .win-time   { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
   .win-leagues { font-size: 11px; font-weight: 700; color: var(--text); margin-top: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
   .win-badge { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; background: rgba(39,192,113,0.1); color: var(--green); }
   .win-badge.now { background: rgba(255,59,59,0.12); color: var(--red); animation: blink 1.3s infinite; }
+
+  /* green gradient on row highlight */
+  .game-row.win-highlight {
+    background: linear-gradient(90deg, rgba(39,192,113,0.13) 0%, rgba(39,192,113,0.03) 100%) !important;
+  }
+  .game-row.win-highlight::before { background: var(--green) !important; }
+
+  /* ── POPUP MODAL ── */
+  #win-popup-overlay {
+    display: none; position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    align-items: flex-end; justify-content: center;
+  }
+  #win-popup-overlay.open { display: flex; }
+  #win-popup {
+    background: #0d1f18;
+    border: 1px solid rgba(39,192,113,0.3);
+    border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 500px;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:none} }
+  .popup-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.15); margin: 0 auto 16px;
+  }
+  .popup-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .popup-title { font-size: 13px; font-weight: 900; color: var(--green); text-transform: uppercase; letter-spacing: 1px; }
+  .popup-time  { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); }
+  .popup-close { background:none; border:none; color:rgba(255,255,255,0.4); font-size:20px; cursor:pointer; padding:0; line-height:1; }
+  .popup-body  { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.65; min-height: 60px; }
+  .popup-loading { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.4); font-size: 12px; }
+  .popup-spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.1);
+    border-top-color: var(--green); border-radius: 50%;
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
 
 
   #loading {
@@ -653,75 +719,80 @@ function tickCd(){
   });
 }
 
-// ── BASEBALL DIAMOND SVG ──────────────────────────────────────────
-function diamondSvg(sit) {
-  const ON  = 'var(--amber)';
-  const OFF = '#2a2a2a';
-  const S   = 28; // total svg size
-  // Diamond centered: 4 bases as rotated squares
-  // Layout: 2nd top, 1st right, 3rd left, home bottom
-  const base = (cx, cy, on) =>
-    `<rect x="${cx-4}" y="${cy-4}" width="8" height="8" transform="rotate(45,${cx},${cy})" fill="${on?ON:OFF}" stroke="#0a0a0a" stroke-width="0.5"/>`;
+// ── BASEBALL DIAMOND SVG ── (see liveRow for new implementation)
 
+
+function outDots(outs) {
+  return [0,1,2].map(i => `<div class="out-dot${i < outs ? ' filled' : ''}"></div>`).join('');
+}
+
+function diamondSvg(sit, size=36) {
+  const ON  = 'var(--amber)';
+  const OFF = 'rgba(255,255,255,0.1)';
+  const S = size, C = size/2;
+  const r = size * 0.16;
+  const base = (cx, cy, on) =>
+    `<rect x="${cx-r}" y="${cy-r}" width="${r*2}" height="${r*2}" transform="rotate(45,${cx},${cy})" fill="${on?ON:OFF}" stroke="${on?'rgba(245,166,35,0.5)':'rgba(255,255,255,0.05)'}" stroke-width="0.5"/>`;
+  const off = size * 0.3;
   return `<svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}" xmlns="http://www.w3.org/2000/svg">
-    ${base(14, 5,  sit.onSecond)}
-    ${base(23, 14, sit.onFirst)}
-    ${base(5,  14, sit.onThird)}
-    ${base(14, 23, false)}
+    ${base(C,      off,      sit.onSecond)}
+    ${base(S-off,  C,        sit.onFirst)}
+    ${base(off,    C,        sit.onThird)}
+    ${base(C,      S-off,    false)}
   </svg>`;
 }
 
-function mlbStatusHtml(g) {
-  const {label, isBreak} = gameStatus(g);
-  if (isBreak) return `<span class="gs-break">${label}</span>`;
-
-  const sit = g.sit;
-  const hasSit = sit.balls !== null;
-
-  // Inning label from stateDesc e.g. "Top 5th" — no clock
-  const inningLine = label ? `<span class="gs-period">${label}</span>` : '';
-
-  if (!hasSit) {
-    return `<span class="gs-live">LIVE</span>${inningLine}`;
-  }
-
-  const countLine = `<div class="mlb-count">${sit.balls}-${sit.strikes} <span>${sit.outs}O</span></div>`;
-  return `<div class="mlb-sit">
-    <span class="gs-live">LIVE</span>
-    ${inningLine}
-    ${diamondSvg(sit)}
-    ${countLine}
-  </div>`;
-}
-
-
 function liveRow(g) {
   const aW=g.away.score>g.home.score, hW=g.home.score>g.away.score;
+  const {label,isBreak}=gameStatus(g);
 
+  // Standard status for non-MLB
   let statusHtml;
-  if (g.league === 'MLB') {
-    statusHtml = mlbStatusHtml(g);
-  } else {
-    const {label,isBreak}=gameStatus(g);
+  if (g.league !== 'MLB') {
     statusHtml = isBreak
       ? `<span class="gs-break">${label}</span>`
       : `<span class="gs-live">LIVE</span>
          ${label?`<span class="gs-period">${label}</span>`:''}
          ${g.clock&&!label.includes(g.clock)?`<span class="gs-clock">${g.clock}</span>`:''}`;
+  } else {
+    statusHtml = isBreak
+      ? `<span class="gs-break">${label}</span>`
+      : `<span class="gs-live">LIVE</span>${label?`<span class="gs-period">${label}</span>`:''}`;
   }
-  return `<div class="game-row live-row" data-gameid="${g.id}">
-    <div class="logos">${logo(g.away)}${logo(g.home)}</div>
+
+  const sit = g.sit;
+  const hasMLBSit = g.league === 'MLB' && !isBreak && sit.balls !== null;
+
+  const mlbBar = hasMLBSit ? `
+    <div class="mlb-bar">
+      <div class="mlb-bar-inning">${label||'Live'}</div>
+      <div class="mlb-bar-diamond">${diamondSvg(sit, 40)}</div>
+      <div class="mlb-bar-count">
+        <span>${sit.balls}-${sit.strikes}</span>
+        <span class="mlb-bar-count-label">B-S</span>
+      </div>
+      <div class="mlb-bar-count">
+        <div class="mlb-bar-outs">${outDots(sit.outs)}</div>
+        <span class="mlb-bar-count-label">OUTS</span>
+      </div>
+    </div>` : '';
+
+  return `<div class="game-row live-row" data-gameid="${g.id}" style="${hasMLBSit?'padding-bottom:0;flex-wrap:wrap':''}">
+    <div class="logos" style="${hasMLBSit?'align-self:flex-start;padding-top:2px':''}">
+      ${logo(g.away)}${logo(g.home)}
+    </div>
     <div class="teams">
-      <div class="team-line"><span class="t-name${aW?'':' loser'}">${g.away.abbr}</span>${g.away.record?`<span class="t-rec">${g.away.record}</span>`:''}</div>
+      <div class="team-line"><span class="t-name">${g.away.abbr}</span>${g.away.record?`<span class="t-rec">${g.away.record}</span>`:''}</div>
       <div class="teams-divider"></div>
-      <div class="team-line"><span class="t-name${hW?'':' loser'}">${g.home.abbr}</span>${g.home.record?`<span class="t-rec">${g.home.record}</span>`:''}</div>
+      <div class="team-line"><span class="t-name">${g.home.abbr}</span>${g.home.record?`<span class="t-rec">${g.home.record}</span>`:''}</div>
     </div>
     <div class="scores">
-      <span class="t-score${aW?' winner':hW?' loser':''}">${g.away.score}</span>
-      <span class="t-score${hW?' winner':aW?' loser':''}">${g.home.score}</span>
+      <span class="t-score">${g.away.score}</span>
+      <span class="t-score">${g.home.score}</span>
     </div>
     <div class="game-status">${statusHtml}</div>
     <span class="game-league">${g.league}</span>
+    ${hasMLBSit ? `<div style="width:100%;margin-top:6px">${mlbBar}</div>` : ''}
   </div>`;
 }
 
@@ -791,38 +862,65 @@ function finalRow(g) {
 let selectedWindowIds = null;
 let currentWindows = [];
 
-function selectWindow(idx) {
+function closePopup(e) {
+  if (e && e.target !== document.getElementById('win-popup-overlay')) return;
+  document.getElementById('win-popup-overlay').classList.remove('open');
+}
+
+async function selectWindow(idx) {
   const w = currentWindows[idx];
   if (!w) return;
 
-  // Toggle off if same window tapped again
+  // Toggle highlight
   const alreadySelected = selectedWindowIds && selectedWindowIds.size === w.ids.size &&
     [...w.ids].every(id => selectedWindowIds.has(id));
-
   selectedWindowIds = alreadySelected ? null : w.ids;
 
-  // Highlight matching rows
   document.querySelectorAll('.game-row').forEach(row => {
-    const id = row.dataset.gameid;
-    row.classList.toggle('win-highlight', !!(selectedWindowIds && selectedWindowIds.has(id)));
+    row.classList.toggle('win-highlight', !!(selectedWindowIds && selectedWindowIds.has(row.dataset.gameid)));
   });
-
-  // Update card states
   document.querySelectorAll('.window-card').forEach((card, i) => {
     card.classList.toggle('w-selected', !!(selectedWindowIds && i === idx));
   });
 
-  // Scroll to first highlighted row (scroll to its section label if possible)
-  if (selectedWindowIds) {
-    setTimeout(() => {
-      const first = document.querySelector('.game-row.win-highlight');
-      if (first) {
-        // Try to find the preceding section label
-        let el = first.parentElement?.previousElementSibling;
-        const target = (el && el.classList.contains('section-label')) ? el : first;
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 50);
+  // Open popup
+  const fmt = ms => new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  const timeRange = w.start === w.end ? fmt(w.start) : `${fmt(w.start)} – ${fmt(w.end)}`;
+  document.getElementById('popup-title').textContent = `${w.leagues.join(' · ')} Window`;
+  document.getElementById('popup-time').textContent = timeRange;
+  document.getElementById('popup-body').innerHTML = `<div class="popup-loading"><div class="popup-spinner"></div>Analyzing window...</div>`;
+  document.getElementById('win-popup-overlay').classList.add('open');
+
+  // Build game list for the prompt
+  const gameList = w.games.map(g => {
+    const st = g.startTime.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    const status = g.bucket === 'live'
+      ? `LIVE (${g.stateDesc||'in progress'})`
+      : `starting ${st}`;
+    return `- ${g.away.abbr} (${g.away.record}) @ ${g.home.abbr} (${g.home.record}) [${g.league}] — ${status}`;
+  }).join('\n');
+
+  const prompt = `You are a sharp live sports bettor. Here is an action window of ${w.count} games between ${timeRange}:
+
+${gameList}
+
+In 2-3 sentences max, what should a live bettor focus on during this window? Be specific about which matchups are most interesting for live betting and why — think line movement, pace, momentum, totals. Keep it punchy, no fluff.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'Unable to generate analysis.';
+    document.getElementById('popup-body').textContent = text;
+  } catch(e) {
+    document.getElementById('popup-body').textContent = 'Could not load analysis — check your connection.';
   }
 }
 
@@ -927,5 +1025,19 @@ function renderWindows(games) {
 
 fetchAll();
 </script>
-</body>
+<div id="win-popup-overlay" onclick="closePopup(event)">
+  <div id="win-popup">
+    <div class="popup-handle"></div>
+    <div class="popup-header">
+      <span class="popup-title" id="popup-title">Action Window</span>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="popup-time" id="popup-time"></span>
+        <button class="popup-close" onclick="closePopup()">×</button>
+      </div>
+    </div>
+    <div class="popup-body" id="popup-body">
+      <div class="popup-loading"><div class="popup-spinner"></div>Analyzing window...</div>
+    </div>
+  </div>
+</div>
 </html>
