@@ -4,238 +4,1241 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>UFC Significant Strikes Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0f1117; --surface: #181c27; --surface2: #1e2333; --surface3: #252b3d;
-    --border: rgba(255,255,255,0.06); --border2: rgba(255,255,255,0.12);
-    --text: #ffffff; --muted: #8b92a5; --subtle: #3d4460;
-    --accent-text: #00d4aa;
-    --green: #00d4aa; --green-bg: rgba(0,212,170,0.1); --green-border: rgba(0,212,170,0.28);
-    --red: #ff5c5c; --red-bg: rgba(255,92,92,0.09); --red-border: rgba(255,92,92,0.28);
-    --blue: #4da6ff; --blue-bg: rgba(77,166,255,0.1); --blue-border: rgba(77,166,255,0.25);
-    --amber: #00d4aa; --amber-bg: rgba(0,212,170,0.08); --amber-border: rgba(0,212,170,0.25);
-    --purple: #a78bfa; --purple-bg: rgba(167,139,250,0.09); --purple-border: rgba(167,139,250,0.22);
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* =========================================================
+   DESIGN TOKENS — Transponder/Space Mono on pure black
+   ========================================================= */
+:root {
+  --bg: #000;
+  --surface: #050507;
+  --surface2: #0a0a0f;
+  --surface3: #14141c;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.14);
+  --border-strong: rgba(255,255,255,0.30);
+  --text: #ffffff;
+  --muted: #ffffff;       /* User wants bold white instead of muted */
+  --subtle: #ffffff;      /* All text must pop — no fading */
+  --dim: #ffffff;
+  --accent: #06b6d4;      /* Electric cyan */
+  --accent-bg: rgba(6,182,212,0.10);
+  --accent-border: rgba(6,182,212,0.40);
+  --accent-text: #06b6d4;
+  --green: #06b6d4;       /* Map green to accent — wins read as cyan */
+  --green-bg: rgba(6,182,212,0.10);
+  --green-border: rgba(6,182,212,0.40);
+  --red: #f87171;
+  --red-bg: rgba(248,113,113,0.10);
+  --red-border: rgba(248,113,113,0.35);
+  --blue: #06b6d4;
+  --blue-bg: rgba(6,182,212,0.08);
+  --blue-border: rgba(6,182,212,0.30);
+  --amber: #fbbf24;
+  --amber-bg: rgba(251,191,36,0.08);
+  --amber-border: rgba(251,191,36,0.35);
+  --purple: #a78bfa;
+  --purple-bg: rgba(167,139,250,0.10);
+  --purple-border: rgba(167,139,250,0.30);
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+body {
+  min-height: 100vh;
+  padding: 36px 20px 100px;
+  max-width: 1120px;
+  margin: 0 auto;
+  background: var(--bg);
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+header { margin-bottom: 28px; }
+.header-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+.header-main { display: flex; flex-direction: column; gap: 6px; }
+.header-main h1 {
+  font-family: 'Space Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.header-main h1 .ufc { color: var(--accent); }
+.header-main h1 .strikes { color: #fff; }
+.header-main .model-word {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: #fff;
+  opacity: 1;
+  font-weight: 700;
+}
+.header-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+.header-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 14px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+}
+.header-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hs-lbl { color: #fff; opacity: 1; letter-spacing: 0.08em; text-transform: uppercase; }
+.hs-val { color: #fff; font-weight: 700; }
+.accent-stat { color: var(--accent); }
+.foot-label {
+  color: #fff;
+  opacity: 1;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mode-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.toggle-icon { font-size: 12px; }
+
+/* =========================================================
+   TAB BAR
+   ========================================================= */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border2);
+  flex-wrap: wrap;
+}
+.tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #fff;
+  opacity: 1;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.12s;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { opacity: 1; }
+.tab-btn.active {
+  opacity: 1;
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* =========================================================
+   CALCULATOR — Matchup grouping + Fighter card (Transponder)
+   ========================================================= */
+.matchup-group {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.matchup-group-head {
+  padding: 14px 20px;
+  background: linear-gradient(180deg, rgba(6,182,212,0.05) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.matchup-group-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.005em;
+}
+.matchup-group-title .vs { color: var(--accent); margin: 0 8px; }
+.matchup-group-meta {
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.fighter-card {
+  background: var(--surface);
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+}
+.fighter-card:first-child { border-top: none; }
+
+/* Standalone (un-grouped) fighter cards still get rounded border */
+.fighter-card.standalone {
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+
+.card-header {
+  padding: 16px 20px 14px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.card-header .fighter-name-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1;
+}
+
+/* Inputs */
+.input-section {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.input-section:last-of-type { border-bottom: none; }
+.sec-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 400;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+.field input, .field select {
+  background: #000;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  color: #fff;
+  font-weight: 700;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.field input:focus { border-color: var(--accent); }
+.field input::placeholder {
+  color: #fff;
+  opacity: 1;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Compact name header */
+input.fighter-name-input,
+.field input[id^="n"] {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* =========================================================
+   SOURCE GRID (RG / SB / PP / Blend)
+   ========================================================= */
+.src-grid {
+  margin: 0 20px 16px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.src-row {
+  display: grid;
+  grid-template-columns: 70px 100px minmax(0,1fr) minmax(0,1fr) 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.src-row:first-child { border-top: none; }
+.src-row.blend {
+  background: rgba(6,182,212,0.04);
+  border-top: 1px solid var(--accent-border);
+}
+.src-row.missing { opacity: 0.45; }
+
+.sr-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.src-row.blend .sr-label { color: var(--accent); }
+.sr-label .sr-sub {
+  display: block;
+  font-size: 8px;
+  font-weight: 400;
+  color: #fff;
+  opacity: 1;
+  margin-top: 2px;
+  letter-spacing: 0.08em;
+}
+
+.sr-proj {
+  font-family: 'Space Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.src-row.blend .sr-proj { font-size: 22px; color: var(--accent); }
+.sr-proj .sr-proj-sub {
+  display: block;
+  font-size: 8px;
+  font-weight: 400;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.sr-side {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  min-width: 0;
+}
+.sr-side .sr-prob {
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.05em;
+}
+.sr-side .sr-edge {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.sr-side.pos {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+.sr-side.pos .sr-edge { color: var(--accent); }
+.sr-side.neg .sr-edge { color: var(--red); }
+.sr-side.neg { background: var(--red-bg); border-color: var(--red-border); }
+.sr-side.push .sr-edge { color: #fff; opacity: 1; }
+.sr-side.empty {
+  background: transparent;
+  border: 1px dashed var(--border2);
+  color: #fff;
+  opacity: 1;
+  justify-content: center;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sr-fair {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.05em;
+  text-align: right;
+  white-space: nowrap;
+}
+.sr-fair .sr-fair-lbl {
+  display: block;
+  font-size: 8px;
+  font-weight: 400;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+/* =========================================================
+   GATE + ACTION ROW (below source grid)
+   ========================================================= */
+.verdict-strip {
+  margin: 0 20px 16px;
+  padding: 14px 16px;
+  background: #000;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+}
+.vs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.vs-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.vs-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.vs-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vs-side-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.vs-side-action.eligible {
+  border-color: var(--accent-border);
+  background: rgba(6,182,212,0.05);
+}
+.vs-side-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.vs-side-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.vs-side-label .arrow { color: var(--accent); margin-right: 4px; }
+.vs-side-label.under .arrow { color: var(--amber); }
+.vs-edge-big {
+  font-family: 'Space Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.vs-edge-big.pos { color: var(--accent); }
+.vs-edge-big.neg { color: var(--red); }
+.vs-fair {
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.vs-fair strong { color: #fff; opacity: 1; font-weight: 700; }
+
+.vs-blend-fair-strip {
+  margin-top: 10px;
+  padding: 8px 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: rgba(6,182,212,0.04);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+}
+.vs-blend-fair-strip > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  justify-content: space-between;
+}
+.vs-blend-fair-strip .lbl {
+  font-size: 9px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.vs-blend-fair-strip .val {
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Aligned flag — subtle */
+.aligned-flag {
+  display: inline-block;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.aligned-flag::before { content: "◢ "; opacity: 0.6; }
+
+/* Gate badge */
+.gate-badge {
+  display: inline-block;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 4px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.gate-badge.pass { color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-border); }
+.gate-badge.fail { color: var(--red); background: var(--red-bg); border: 1px solid var(--red-border); }
+.gate-badge.no-pp { color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber-border); }
+
+/* Source pills (gate breakdown) */
+.src-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.src-pill.pass { color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-border); }
+.src-pill.fail { color: var(--red); background: var(--red-bg); border: 1px solid var(--red-border); }
+.src-pill.missing { color: #fff; opacity: 1; background: transparent; border: 1px dashed var(--border2); }
+
+/* Log button */
+.log-bet-btn {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.log-bet-btn:hover { opacity: 0.85; }
+.log-bet-btn.logged {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  cursor: default;
+}
+.log-bet-btn.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+/* Pending hints */
+.pending, .src-pending {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  margin: 0 20px 12px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--border2);
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+}
+.src-pending.muted { opacity: 1; }
+
+/* Search/sort toolbar */
+.search-sort {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.search-input, .search-sort input[type="search"], .search-sort input[type="text"] {
+  flex: 1;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: #fff;
+  outline: none;
+  font-weight: 700;
+}
+.search-input::placeholder { color: #fff; opacity: 1; font-weight: 400; font-style: italic; }
+.search-input:focus { border-color: var(--accent); }
+.sort-btn {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  transition: border-color 0.12s, color 0.12s;
+}
+.sort-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sort-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+.sort-state {
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.08em;
+}
+
+/* Add fighter button */
+#addBtn, .add-btn {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+#addBtn:hover { opacity: 0.88; }
+
+/* =========================================================
+   EDGE SUMMARY tab
+   ========================================================= */
+.summary-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+.summary-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.edge-count {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.06em;
+}
+.edge-list {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.edge-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+}
+.edge-item:first-child { border-top: none; }
+.edge-name {
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.005em;
+}
+.edge-bet {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: #fff;
+  opacity: 1;
+  margin-top: 2px;
+}
+.edge-ev {
+  font-family: 'Space Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.edge-ev.pos { color: var(--accent); }
+.edge-ev.neg { color: var(--red); }
+.edge-empty {
+  padding: 60px 20px;
+  text-align: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.05em;
+}
+
+.copy-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.copy-btn {
+  background: transparent;
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  padding: 8px 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.copy-btn:hover { background: var(--accent-bg); }
+.copy-area {
+  margin-top: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: #fff;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* =========================================================
+   LOG TAB
+   ========================================================= */
+.log-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.filter-pill {
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  opacity: 1;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.filter-pill:hover { opacity: 1; }
+.filter-pill.active {
+  opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+.log-toolbar select, .log-toolbar input[type="text"] {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: #fff;
+  outline: none;
+  font-weight: 700;
+}
+.log-toolbar input::placeholder { color: #fff; opacity: 1; font-style: italic; }
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Space Mono', monospace;
+  min-width: 780px;
+  table-layout: fixed;
+}
+.log-table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.log-table td {
+  padding: 12px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: #fff;
+  vertical-align: middle;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.log-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.log-table .lt-name {
+  font-weight: 700;
+  color: #fff;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+}
+.log-table .lt-name .auto-pill {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.10em;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.log-table .lt-sub {
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  margin-top: 3px;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+}
+.log-table .lt-edge.pos { color: var(--accent); font-weight: 700; }
+.log-table .lt-edge.neg { color: var(--red); font-weight: 700; }
+.pill-result {
+  display: inline-block;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+.pill-result.open { background: transparent; color: #fff; opacity: 1; border: 1px solid var(--border2); }
+.pill-result.win  { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-border); }
+.pill-result.loss { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.pill-result.void { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+
+/* Inline grade buttons (W/L/P/•) */
+.grade-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+.grade-btn {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: #fff;
+  opacity: 1;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 0;
+  width: 28px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.grade-btn:hover { opacity: 1; border-color: var(--accent-border); }
+.grade-btn.gb-win  { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); opacity: 1; }
+.grade-btn.gb-loss { background: var(--red-bg); border-color: var(--red-border); color: var(--red); opacity: 1; }
+.grade-btn.gb-void { background: var(--purple-bg); border-color: var(--purple-border); color: var(--purple); opacity: 1; }
+.grade-btn.gb-open { background: transparent; border-color: var(--border2); color: #fff; opacity: 1; }
+.grade-actual {
+  width: 52px;
+  padding: 5px 8px;
+  font-size: 11px;
+  text-align: center;
+  background: #000;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  color: #fff;
+  font-family: 'Space Mono', monospace;
+  outline: none;
+  font-weight: 700;
+}
+.grade-actual:focus { border-color: var(--accent); }
+.grade-actual::placeholder { color: #fff; opacity: 1; font-style: italic; }
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.dash-card .dc-lbl {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.dash-card .dc-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.dash-card .dc-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  margin-top: 4px;
+  letter-spacing: 0.03em;
+}
+.dash-card .dc-val.pos { color: var(--accent); }
+.dash-card .dc-val.neg { color: var(--red); }
+
+.bk-section {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.bk-section-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.bk-section-title.over  { color: var(--accent); }
+.bk-section-title.under { color: var(--amber); }
+.bk-section-title.most  { color: var(--purple); }
+.bk-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 14px 0 8px;
+}
+.bk-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.bk-cell {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.bk-cell .bkl {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.bk-cell .bkv {
+  font-family: 'Space Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+.bk-cell .bks {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  margin-top: 3px;
+}
+.bk-cell .bks.pos { color: var(--accent); opacity: 1; }
+.bk-cell .bks.neg { color: var(--red); opacity: 1; }
+
+.summary-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0 14px;
+}
+.summary-strip .ss-btn,
+.summary-strip input[type="date"] {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.summary-strip .ss-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+.summary-preview {
+  background: var(--surface);
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.summary-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.summary-preview-out {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: #fff;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+/* =========================================================
+   LEGACY CLASS SUPPORT (so existing JS keeps working)
+   ========================================================= */
+/* Old verdict block (still used in some flows) — restyle minimally */
+.verdict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
+.verdict.pos { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); }
+.verdict.neg { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
+.verdict.push { background: transparent; border-color: var(--border2); color: #fff; opacity: 1; }
+.verdict .v-side { font-weight: 700; }
+.verdict .v-ev { font-weight: 700; font-size: 13px; }
+
+/* Old fair-strip (now used as the Blend fair display below each card) */
+.fair-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  margin: 0 20px 16px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.fair-chip {
+  padding: 12px 14px;
+  text-align: center;
+  background: var(--surface);
+}
+.fc-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.fc-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+.fc-val.neutral { color: #fff; }
+
+/* Prob chips (still emitted by chips() helper) */
+.prob-row { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.prob-chip {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  padding: 4px 9px;
+  border-radius: 5px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.prob-chip.over  { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-border); }
+.prob-chip.under { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+
+/* PP implied note — light usage */
+.pp-implied {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+}
+
+/* Footer */
+footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #fff;
+  opacity: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Eyebrow / generic small labels still in use */
+.eyebrow {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: var(--accent);
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* Hidden helper */
+.hidden { display: none !important; }
+
+/* Old ev-col / blend wrapper — neutralized; new src-grid handles layout */
+.ev-row { display: contents; }
+.ev-col { display: none; }
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 720px) {
+  body { padding: 24px 14px 80px; }
+  .src-row {
+    grid-template-columns: 64px 78px minmax(0,1fr);
+    gap: 8px;
   }
-  body.light {
-    --bg: #f0f2f7; --surface: #ffffff; --surface2: #f5f7fb; --surface3: #eaecf4;
-    --border: rgba(0,0,0,0.07); --border2: rgba(0,0,0,0.13);
-    --text: #0f1117; --muted: #5a6278; --subtle: #b0b8cc;
-    --accent-text: #009b7d;
-    --green: #009b7d; --green-bg: rgba(0,155,125,0.08); --green-border: rgba(0,155,125,0.25);
-    --red: #e03030; --red-bg: rgba(224,48,48,0.07); --red-border: rgba(224,48,48,0.22);
-    --blue: #1a7de0; --blue-bg: rgba(26,125,224,0.07); --blue-border: rgba(26,125,224,0.2);
-    --amber: #009b7d; --amber-bg: rgba(0,155,125,0.07); --amber-border: rgba(0,155,125,0.22);
-    --purple: #6d4fc2; --purple-bg: rgba(109,79,194,0.07); --purple-border: rgba(109,79,194,0.2);
-  }
-
-  /* Mode toggle */
-  .mode-toggle { display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border2); border-radius:20px; padding:5px 12px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; font-size:12px; font-weight:600; color:var(--muted); transition:all 0.15s; user-select:none; }
-  .mode-toggle:hover { color:var(--text); border-color:var(--border2); }
-  .toggle-icon { font-size:14px; }
-  html { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; font-size: 16px; font-weight: 400; }
-  body { min-height: 100vh; padding: 48px 24px 80px; max-width: 820px; margin: 0 auto; }
-
-  header { margin-bottom: 36px; }
-  .header-card {
-    padding: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    position: relative;
-    overflow: hidden;
-  }
-  /* Top accent bar */
-  .header-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--accent-text) 0%, rgba(200,216,48,0.15) 100%);
-    z-index: 1;
-  }
-  /* Corner clip decoration top-right */
-  .header-card::after {
-    content: '';
-    position: absolute;
-    top: 0; right: 0;
-    width: 120px; height: 120px;
-    background: radial-gradient(ellipse at top right, rgba(200,216,48,0.07) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .header-main {
-    padding: 30px 32px 24px;
-    position: relative;
-  }
-  .eyebrow {
-    font-size: 10px;
-    letter-spacing: 0.26em;
-    text-transform: uppercase;
-    color: var(--accent-text);
-    font-family: Arial, sans-serif;
-    font-weight: 600;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    opacity: 0.8;
-  }
-  .eyebrow::before { content: ''; display: inline-block; width: 18px; height: 1px; background: var(--accent-text); }
-  .eyebrow::after  { content: ''; display: inline-block; width: 4px; height: 4px; background: var(--accent-text); transform: rotate(45deg); }
-  .header-title-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-  header h1 {
-    font-size: 52px;
-    font-weight: 800;
-    letter-spacing: -2px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-    text-transform: uppercase;
-    color: var(--text);
-    line-height: 0.95;
-  }
-  header h1 .ufc {
-    color: var(--accent-text);
-    position: relative;
-  }
-  header h1 .strikes {
-    color: var(--text);
-  }
-  header h1 .model-word {
-    font-size: 22px;
-    font-weight: 500;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    text-transform: uppercase;
-    font-family: Arial, sans-serif;
-    align-self: flex-end;
-    margin-bottom: 6px;
-    padding: 3px 10px;
-    border: 1px solid var(--border2);
-    border-radius: 4px;
-  }
-  .header-sub {
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-    border-top: 1px solid var(--border);
-  }
-  .header-stat { flex: 1; text-align: center; padding: 12px 10px; border-right: 1px solid var(--border); }
-  .header-stat:last-child { border-right: none; }
-  .header-stat .hs-val { font-size: 14px; font-weight: 800; font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; color: var(--text); letter-spacing: 0.06em; text-transform: uppercase; }
-  .header-stat .hs-lbl { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; font-family: Arial, sans-serif; }
-  .header-stat.accent-stat .hs-val { color: var(--accent-text); }
-  .header-divider { display: none; }
-
-  .fighter-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 14px; overflow: hidden; animation: fadeUp 0.18s ease; }
-  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-  .card-header { display:flex; align-items:center; gap:12px; padding:18px 22px 14px; border-bottom:1px solid var(--border); }
-  .card-header input { flex:1; background:transparent; border:none; outline:none; font-family:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; font-size:17px; font-weight:700; letter-spacing:-0.01em; text-transform:uppercase; color:var(--text); caret-color:var(--accent-text); }
-  .card-header input::placeholder { color: var(--subtle); }
-  .remove-btn { background:none; border:none; color:var(--subtle); cursor:pointer; font-size:20px; line-height:1; padding:2px 6px; border-radius:6px; transition:color 0.15s; }
-  .remove-btn:hover { color: var(--red); }
-
-  .input-section { padding:16px 22px; border-bottom:1px solid var(--border); }
-  .sec-label { font-size:10px; letter-spacing:0.12em; text-transform:uppercase; font-family:Arial, sans-serif; color:#c0c0d8; margin-bottom:11px; font-weight:600; }
-  .fields { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
-  .fields.one { grid-template-columns:160px; }
-  .field label { display:block; font-size:10px; color:#c0c0d8; margin-bottom:4px; font-family:Arial, sans-serif; letter-spacing:0.06em; }
-  .field input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:15px; font-family:Arial, sans-serif; color:#ffffff; font-weight:700; outline:none; transition:border-color 0.15s,background 0.15s; font-size:16px; }
-  .field input::placeholder { color:#555568; }
-  .field input:focus { border-color:var(--border2); background:var(--surface3); }
-
-  /* Results */
-  .results-area { border-top:1px solid var(--border); }
-
-  .ev-row { display:grid; grid-template-columns:1fr 1fr 1fr; }
-  .ev-col { padding:16px 16px 18px; border-right:1px solid var(--border); }
-  .ev-col:last-child { border-right:none; }
-  .ev-col-label { font-size:10px; letter-spacing:0.12em; font-weight:600; text-transform:uppercase; font-family:Arial, sans-serif; color:var(--muted); margin-bottom:10px; }
-  .ev-col.blend { background:rgba(251,191,36,0.03); }
-  .ev-col.blend .ev-col-label { color:var(--amber); }
-
-  /* Proj display */
-  .proj-display { font-size:28px; font-weight:700; font-family:Arial, sans-serif; letter-spacing:-0.02em; color:var(--text); margin-bottom:4px; }
-  .proj-sub { font-size:10px; color:var(--muted); font-family:Arial, sans-serif; margin-bottom:10px; }
-
-  /* Prob chips */
-  .prob-row { display:flex; gap:5px; margin-bottom:9px; flex-wrap:wrap; }
-  .prob-chip { font-size:12px; font-family:Arial, sans-serif; padding:4px 10px; border-radius:6px; font-weight:500; white-space:nowrap; }
-  .prob-chip.over  { background:var(--blue-bg);   color:var(--blue);   border:1px solid var(--blue-border); }
-  .prob-chip.under { background:var(--purple-bg); color:var(--purple); border:1px solid var(--purple-border); }
-
-  .verdict { display:flex; align-items:center; justify-content:space-between; border-radius:8px; padding:11px 13px; margin-bottom:6px; font-family:Arial, sans-serif; font-size:13px; }
-  .verdict.pos  { background:var(--green-bg);  border:1px solid var(--green-border);  color:var(--green); }
-  .verdict.neg  { background:var(--red-bg);    border:1px solid var(--red-border);    color:var(--red); }
-  .verdict.push { background:var(--surface2);  border:1px solid var(--border);        color:var(--muted); }
-  .verdict .v-side { opacity:0.7; }
-  .verdict .v-ev { font-weight:700; font-size:15px; }
-
-  .pending { font-size:11px; color:var(--subtle); font-family:Arial, sans-serif; margin-top:6px; }
-
-  /* Fair value strip */
-  .fair-strip { display:flex; gap:0; border-top:1px solid var(--border); background:var(--surface2); }
-  .fair-chip { flex:1; padding:11px 14px; text-align:center; border-right:1px solid var(--border); }
-  .fair-chip:last-child { border-right:none; }
-  .fc-label { font-size:10px; color:var(--muted); font-family:Arial, sans-serif; margin-bottom:3px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; }
-  .fc-val { font-size:18px; font-weight:700; font-family:Arial, sans-serif; letter-spacing:-0.02em; color:var(--accent-text); }
-  .fc-val.neutral { color:var(--text); }
-  .fc-val.amber { color:var(--amber); }
-  .blend-chip { background:var(--amber-bg); border-left:2px solid var(--amber-border) !important; }
-
-  /* PP implied proj */
-  .pp-implied { font-size:11px; color:var(--muted); font-family:Arial, sans-serif; margin-bottom:8px; padding:5px 8px; background:var(--surface3); border-radius:6px; border:1px solid var(--border); }
-  .pp-implied strong { color:var(--purple); font-weight:500; }
-
-  .add-btn { display:flex; align-items:center; gap:8px; background:transparent; border:1px dashed var(--border2); border-radius:12px; padding:13px 20px; width:100%; color:var(--muted); font-family:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; font-size:14px; cursor:pointer; transition:all 0.15s; margin-top:6px; }
-  .add-btn:hover { border-color:var(--accent-text); color:var(--accent-text); background:rgba(200,216,48,0.04); }
-
-  footer { margin-top:56px; padding-top:22px; border-top:1px solid var(--border); display:flex; justify-content:space-between; }
-  .foot-label { font-size:11px; color:var(--subtle); font-family:Arial, sans-serif; }
-
-  @media(max-width:580px){
-    body { padding:28px 14px 60px; }
-    .fields { grid-template-columns:1fr 1fr; }
-    .ev-row { grid-template-columns:1fr; }
-    .ev-col { border-right:none; border-bottom:1px solid var(--border); }
-    .ev-col:last-child { border-bottom:none; }
-    .fair-strip { flex-wrap:wrap; }
-    .fair-chip { flex:1 1 40%; border-bottom:1px solid var(--border); }
-  }
-
-  /* Toolbar */
-  #toolbar { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
-  .sort-btn { display:flex; align-items:center; gap:7px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:8px 14px; color:var(--muted); font-family:Arial, sans-serif; font-size:12px; cursor:pointer; transition:all 0.15s; }
-  .sort-btn:hover, .sort-btn.active { border-color:var(--accent-text); color:var(--accent-text); background:rgba(200,216,48,0.06); }
-  .sort-state { font-size:11px; color:var(--subtle); font-family:Arial, sans-serif; }
-
-  /* Tabs */
-  .tab-bar { display:flex; gap:0; margin-bottom:24px; border-bottom:1px solid var(--border2); }
-  .tab-btn { background:none; border:none; border-bottom:2px solid transparent; padding:10px 20px; font-family:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; transition:all 0.15s; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:-1px; }
-  .tab-btn:hover { color:var(--text); }
-  .tab-btn.active { color:var(--accent-text); border-bottom-color:var(--accent-text); }
-  .tab-pane { display:none; }
-  .tab-pane.active { display:block; }
-
-  /* Edge summary */
-  .edge-empty { text-align:center; padding:60px 20px; color:var(--subtle); font-family:Arial, sans-serif; font-size:13px; }
-  .edge-list { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
-  .edge-item { display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:13px 16px; gap:12px; }
-  .edge-item.pos-edge { border-color:var(--green-border); }
-  .edge-item.neg-edge { border-color:var(--red-border); opacity:0.5; }
-  .edge-name { font-family:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; font-size:17px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:0.03em; }
-  .edge-bet { font-family:Arial, sans-serif; font-size:12px; color:var(--muted); margin-top:2px; }
-  .edge-ev { font-family:Arial, sans-serif; font-size:18px; font-weight:700; white-space:nowrap; }
-  .edge-ev.pos { color:var(--green); }
-  .edge-ev.neg { color:var(--red); }
-  .copy-row { display:flex; gap:10px; align-items:center; margin-bottom:16px; }
-  .copy-btn { display:flex; align-items:center; gap:7px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:9px 16px; color:var(--muted); font-family:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.15s; }
-  .copy-btn:hover { border-color:var(--accent-text); color:var(--accent-text); }
-  .copy-btn.copied { border-color:var(--green-border); color:var(--green); }
-  .copy-area { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; font-family:Arial, sans-serif; font-size:12px; color:var(--muted); line-height:1.8; white-space:pre-wrap; word-break:break-word; }
-  .summary-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-  .summary-title { font-family:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; font-size:20px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
-  .edge-count { font-family:Arial, sans-serif; font-size:11px; color:var(--muted); }
+  .src-row .sr-side:nth-of-type(2) { grid-column: 1 / -1; }
+  .src-row .sr-side:nth-of-type(3) { grid-column: 1 / -1; }
+  .sr-fair { grid-column: 1 / -1; text-align: left; }
+  .fields { grid-template-columns: 1fr; }
+}
+@media (max-width: 580px) {
+  .log-table { min-width: 0 !important; }
+  .log-table th:nth-child(3), .log-table td:nth-child(3),
+  .log-table th:nth-child(4), .log-table td:nth-child(4) { display: none; }
+  .grade-row { gap: 3px; }
+  .grade-btn { width: 24px; padding: 4px 0; font-size: 10px; }
+  .grade-actual { width: 44px; font-size: 10px; }
+  .dash-grid { grid-template-columns: repeat(2, 1fr); }
+  .vs-blend-fair-strip { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -276,40 +1279,41 @@
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchTab('calc')">Calculator</button>
-  <button class="tab-btn" onclick="switchTab('summary')" id="summaryTab">Edge Summary</button>
+  <button class="tab-btn" onclick="switchTab('summary')">Edge Summary</button>
+  <button class="tab-btn" onclick="switchTab('log')">Log</button>
+  <button class="tab-btn" onclick="switchTab('dashboard')">Dashboard</button>
 </div>
 
 <div id="pane-calc" class="tab-pane active">
-  <div id="toolbar">
+  <div id="toolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:18px;">
     <button class="sort-btn" id="sortBtn" onclick="toggleSort()">
-      <span id="sortIcon">&#8645;</span> Sort by Edge
+      <span id="sortIcon">&#8645;</span> Sort
     </button>
-    <label class="sort-btn" style="cursor:pointer;" title="Import RotoGrinders CSV">
-      &#8593; Import RG CSV
+    <label class="sort-btn" style="cursor:pointer;white-space:nowrap;" title="Import RotoGrinders CSV">
+      &#8593; RG CSV
       <input type="file" accept=".csv" id="csvInput" style="display:none;" onchange="importCSV(event)" />
     </label>
-    <label class="sort-btn" style="cursor:pointer;" title="Import odds screenshot">
-      &#128247; Import Screenshot
+    <label class="sort-btn" style="cursor:pointer;white-space:nowrap;" title="Import Saber/SaberSim CSV (UFC slate file)">
+      &#8593; Saber CSV
+      <input type="file" accept=".csv" id="saberInput" style="display:none;" onchange="importSaberCSV(event)" />
+    </label>
+    <label class="sort-btn" style="cursor:pointer;white-space:nowrap;" title="Import odds screenshot">
+      &#128247; Screenshot
       <input type="file" accept="image/*" id="imgInput" style="display:none;" onchange="importScreenshot(event)" />
     </label>
-    <div id="imgStatus" style="font-size:11px;color:var(--muted);font-family:Arial,sans-serif;display:none;align-items:center;gap:6px;">
-      <span id="imgStatusTxt"></span>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;margin-left:4px;">
-      <input id="apiKeyInput" type="password" placeholder="Anthropic API key for screenshot import"
-        style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;font-family:Arial,sans-serif;font-size:11px;color:var(--text);outline:none;width:220px;"
-        oninput="localStorage.setItem('ufcApiKey',this.value)"/>
-    </div>
     <div style="position:relative;">
-      <input id="searchInput" type="text" placeholder="&#128269; Search fighter..." oninput="searchFighters(this.value)"
-        style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-family:Arial,sans-serif;font-size:12px;color:var(--text);outline:none;width:180px;"/>
+      <input id="searchInput" type="text" placeholder="&#128269; Search..." oninput="searchFighters(this.value)"
+        style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-family:Arial,sans-serif;font-size:12px;color:var(--text);outline:none;width:140px;"/>
       <div id="searchDrop" style="display:none;position:absolute;top:36px;left:0;width:220px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;z-index:999;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.4);"></div>
     </div>
-    <span id="sortState" class="sort-state"></span>
+    <span id="sortState" class="sort-state" style="font-size:11px;color:var(--muted);"></span>
+    <div id="imgStatus" style="font-size:11px;color:var(--muted);font-family:Arial,sans-serif;display:none;">
+      <span id="imgStatusTxt"></span>
+    </div>
     <div style="margin-left:auto;">
       <div class="mode-toggle" onclick="toggleMode()">
         <span class="toggle-icon" id="modeIcon">☀️</span>
-        <span id="modeLabel">Light mode</span>
+        <span id="modeLabel">Light</span>
       </div>
     </div>
   </div>
@@ -330,6 +1334,80 @@
     <button class="copy-btn" id="copyBtn" onclick="copyAll()">&#x2398; Copy all to clipboard</button>
   </div>
   <div class="copy-area" id="copyArea"></div>
+</div>
+
+<div id="pane-log" class="tab-pane">
+  <div class="summary-header">
+    <span class="summary-title">Bet Log</span>
+    <span class="edge-count" id="logCount"></span>
+  </div>
+  <div class="log-toolbar">
+    <button class="filter-pill active" id="filt_all" onclick="setLogFilter('all')">All</button>
+    <button class="filter-pill" id="filt_open" onclick="setLogFilter('open')">Open</button>
+    <button class="filter-pill" id="filt_settled" onclick="setLogFilter('settled')">Settled</button>
+    <select id="filt_market" onchange="renderLog()">
+      <option value="all">All markets</option>
+      <option value="SS Over">SS Over</option>
+      <option value="SS Under">SS Under</option>
+      <option value="Most SS">Most SS</option>
+    </select>
+    <input type="text" id="filt_search" placeholder="Search fighter..." oninput="renderLog()" style="width:160px;"/>
+    <div style="margin-left:auto;display:flex;gap:6px;">
+      <button class="copy-btn" onclick="autoGradeFromESPN()" id="espnGradeBtn" style="font-size:11px;padding:6px 12px;background:var(--accent);color:#000;border-color:var(--accent);">⚡ Auto-grade from ESPN</button>
+      <button class="copy-btn" onclick="exportLogCSV()" style="font-size:11px;padding:6px 12px;">Export CSV</button>
+      <button class="copy-btn" onclick="document.getElementById('importLogFile').click()" style="font-size:11px;padding:6px 12px;">Import</button>
+      <input type="file" id="importLogFile" accept="application/json,.json" style="display:none" onchange="importLogJSON(event)"/>
+      <button class="copy-btn" onclick="exportLogJSON()" style="font-size:11px;padding:6px 12px;">Backup</button>
+    </div>
+  </div>
+  <div id="espnGradeStatus" style="display:none;margin:8px 0 14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;font-family:'Space Mono',monospace;font-size:11px;line-height:1.7;"></div>
+  <div style="overflow-x:auto;">
+    <table class="log-table" id="logTable" style="min-width:780px;">
+      <thead>
+        <tr>
+          <th style="width:60px;">Date</th>
+          <th style="min-width:200px;">Bet</th>
+          <th style="width:60px;text-align:center;">Line</th>
+          <th style="width:60px;text-align:center;">Odds</th>
+          <th style="width:60px;text-align:center;">Edge</th>
+          <th style="width:80px;text-align:center;">Result</th>
+          <th style="width:200px;"></th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+  <div id="logEmpty" style="text-align:center;padding:60px 20px;color:var(--subtle);font-family:Arial,sans-serif;font-size:13px;display:none;">
+    No bets logged yet — log plays from the Calculator or Most SS tab.
+  </div>
+</div>
+
+<div id="pane-dashboard" class="tab-pane">
+  <div class="summary-header">
+    <span class="summary-title">Dashboard</span>
+    <span class="edge-count" id="dashCount"></span>
+  </div>
+  <div class="dash-grid" id="dashGrid"></div>
+
+  <div class="summary-strip">
+    <span style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-right:4px;">Preview:</span>
+    <button class="ss-btn" onclick="copyDaySummary('today')">Today</button>
+    <button class="ss-btn" onclick="copyDaySummary('7')">Last 7</button>
+    <button class="ss-btn" onclick="copyDaySummary('30')">Last 30</button>
+    <button class="ss-btn" onclick="copyDaySummary('all')">All Time</button>
+    <input type="date" id="dashDateFilter" class="ss-btn" style="color:var(--text);background:var(--surface2);"/>
+    <button class="ss-btn" onclick="copyDaySummary('date')">Pick Date</button>
+  </div>
+
+  <div id="summaryPreviewWrap" class="summary-preview" style="display:none;">
+    <div class="summary-preview-head">
+      <span style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;color:var(--accent-text);text-transform:uppercase;letter-spacing:0.08em;">Summary preview</span>
+      <button id="copySummaryBtn" class="ss-btn" style="display:none;" onclick="copySummaryNow()">Copy to clipboard</button>
+    </div>
+    <div id="summaryPreviewOut" class="summary-preview-out"></div>
+  </div>
+
+  <div id="dashBreakdown"></div>
 </div>
 
 <footer>
@@ -470,11 +1548,11 @@ function addFighter() {
   fighters.push(id);
   const c=document.getElementById('container');
   const d=document.createElement('div');
-  d.className='fighter-card';
+  d.className='fighter-card standalone';
   d.id='fc'+id;
   d.innerHTML=tmpl(id);
   c.appendChild(d);
-  ['n','rg_ss','rg_ft','bl','bo','bu','pl','po','pu'].forEach(k=>{
+  ['n','rg_ss','rg_ft','sb_ss','bl','bo','bu','pl'].forEach(k=>{
     const e=document.getElementById(k+id);
     if(e) e.addEventListener('input',()=>calc(id));
   });
@@ -506,6 +1584,15 @@ function tmpl(id) { return `
   </div>
 </div>
 <div class="input-section">
+  <div class="sec-label" style="display:flex;align-items:center;justify-content:space-between;">
+    <span>Saber Projection</span>
+    <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;font-family:Arial,sans-serif;color:var(--muted);">independent source · informational</span>
+  </div>
+  <div class="fields" style="grid-template-columns:1fr;">
+    <div class="field"><label>Saber sig_strikes (projected SS landed)</label><input type="text" id="sb_ss${id}" placeholder="e.g. 54.93" inputmode="decimal" oninput="calc(${id})"/></div>
+  </div>
+</div>
+<div class="input-section">
   <div class="sec-label">BetOnline</div>
   <div class="fields">
     <div class="field"><label>SS Line</label><input type="text" id="bl${id}" placeholder="45.5" inputmode="decimal"/></div>
@@ -516,19 +1603,12 @@ function tmpl(id) { return `
 <div class="input-section" style="border-bottom:none;">
   <div class="sec-label" style="display:flex;align-items:center;justify-content:space-between;">
     <span>PrizePicks</span>
-    <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;font-family:Arial,sans-serif;color:var(--muted);">
-      odds locked <span style="color:var(--accent-text);font-weight:700;">-137/-137</span>
-      &nbsp;<span onclick="togglePPOdds(${id})" id="ppToggleLbl${id}" style="cursor:pointer;color:var(--blue);text-decoration:underline;">custom?</span>
+    <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:#fff;">
+      odds locked <span style="color:var(--accent);font-weight:700;">-137/-137</span>
     </span>
   </div>
   <div class="fields" style="grid-template-columns:1fr;">
     <div class="field"><label>PP Line</label><input type="text" id="pl${id}" placeholder="44.5" inputmode="decimal"/></div>
-  </div>
-  <div id="ppCustom${id}" style="display:none;margin-top:8px;">
-    <div class="fields">
-      <div class="field"><label>Over Odds</label><input type="text" id="po${id}" value="-137" inputmode="decimal" oninput="mirrorPPOdds(${id})"/></div>
-      <div class="field"><label>Under Odds</label><input type="text" id="pu${id}" value="-137" inputmode="decimal"/></div>
-    </div>
   </div>
 </div>
 <div id="res${id}" class="results-area"></div>`; }
@@ -551,13 +1631,12 @@ function chips(op, up) {
 
 function calc(id) {
   const v = k => { const e=document.getElementById(k+id); return e?e.value.trim():''; };
+  const fighter = v('n');
   const proj  = parseFloat(v('proj'));
   const bLine = parseFloat(v('bl')), bOver=v('bo'), bUnder=v('bu');
   const pLine = parseFloat(v('pl'));
-  const ppCustomEl = document.getElementById('ppCustom'+id);
-  const ppIsCustom = ppCustomEl && ppCustomEl.style.display !== 'none';
-  const pOver  = ppIsCustom ? v('po') : '-137';
-  const pUnder = ppIsCustom ? v('pu') : '-137';
+  const pOver  = '-137';
+  const pUnder = '-137';
   const res   = document.getElementById('res'+id);
 
   if(isNaN(proj)||isNaN(bLine)||(! bOver&&!bUnder)) { res.innerHTML=''; return; }
@@ -574,10 +1653,25 @@ function calc(id) {
     stdDev = pace * adjFT * 0.65;
   }
 
+  // Saber sig_strikes — independent projection source
+  const sbSS = parseFloat(document.getElementById('sb_ss'+id)?.value || '');
+  const hasSB = !isNaN(sbSS) && sbSS > 0;
+  // For Saber stdDev, prefer RG-derived; if RG is missing, derive from Saber alone using a 0.65 ratio
+  let sbStdDev = stdDev;
+  if(hasSB && sbStdDev === null) sbStdDev = sbSS * 0.45;
+
   // -- 1. YOUR PROJ vs BOL line --
   const myProb = sigProb(proj, bLine, SCALE, stdDev);
   const myEvO  = bOver  ? calcEdge(bOver,  myProb.over)  : null;
   const myEvU  = bUnder ? calcEdge(bUnder, myProb.under) : null;
+
+  // -- 1b. Saber proj vs BOL line --
+  let sbProb = null, sbEvO = null, sbEvU = null;
+  if(hasSB && !isNaN(bLine)) {
+    sbProb = sigProb(sbSS, bLine, SCALE, sbStdDev);
+    sbEvO  = bOver  ? calcEdge(bOver,  sbProb.over)  : null;
+    sbEvU  = bUnder ? calcEdge(bUnder, sbProb.under) : null;
+  }
 
   // -- 2. PP-implied projection vs BOL line --
   // PP's line + odds -> devig -> back-solve implied SS mean -> prob vs BOL line
@@ -602,63 +1696,181 @@ function calc(id) {
   const blEvO = bOver  ? calcEdge(bOver,  blProb.over)  : null;
   const blEvU = bUnder ? calcEdge(bUnder, blProb.under) : null;
 
+  // -- Gate logic: RG and PP are the anchors. Both must show +edge on the same side.
+  //   PASS: RG and PP both show +edge on this side.
+  //   FAIL: RG and PP point opposite directions.
+  //   NO-PP: PP missing.
+  //   NEUTRAL: not enough signal on this side.
+  function gateState(rgThis, ppThis, rgOther, ppOther) {
+    if(!hasPP) return 'no-pp';
+    const rgVotes = rgThis !== null && rgThis >= 0.005;
+    const ppVotes = ppThis !== null && ppThis >= 0.005;
+    const rgAgainst = rgOther !== null && rgOther >= 0.005;
+    const ppAgainst = ppOther !== null && ppOther >= 0.005;
+    if(rgVotes && ppVotes) return 'pass';
+    if((rgVotes && ppAgainst) || (ppVotes && rgAgainst)) return 'fail';
+    return 'neutral';
+  }
+  const gateOver  = gateState(myEvO, ppEvO, myEvU, ppEvU);
+  const gateUnder = gateState(myEvU, ppEvU, myEvO, ppEvO);
+
   // Fair value from blended
   const fairO = fvA(blProb.over);
   const fairU = fvA(blProb.under);
 
-  // -- Build HTML --
-  let out = `<div class="ev-row">`;
+  // -- Build HTML (Transponder layout: source grid + verdict strip) --
+  const fP = p => p === null || p === undefined ? '—' : (p*100).toFixed(0) + '%';
+  const fE = e => e === null || e === undefined ? '' : ((e>=0?'+':'') + (e*100).toFixed(1) + '%');
+  const fOd = o => { if(o === null || o === undefined || isNaN(o)) return '—'; const n=Math.round(o); return (n>0?'+':'')+n; };
+  const eClass = e => e === null || e === undefined ? 'push' : e>0.005 ? 'pos' : e<-0.005 ? 'neg' : 'push';
 
-  // Col 1 - Your proj
-  out += `<div class="ev-col">
-    <div class="ev-col-label">RotoGrinders</div>
-    <div class="proj-display">${fN(proj)}</div>
-    <div class="proj-sub">RotoGrinders vs BOL ${bLine}</div>
-    ${chips(myProb.over, myProb.under)}
-    ${verdHTML(myEvO,'Over')}
-    ${verdHTML(myEvU,'Under')}
-  </div>`;
+  // Per-source fair price helper
+  // Given a model probability p, fair AMERICAN odds = if p>0.5 -100*p/(1-p) else (1-p)/p*100
+  // We already have fvA — use it (returns American number)
+  const projFair = (p) => p === null || p === undefined ? '—' : fA(fvA(p));
 
-  // Col 2 - PP implied
-  out += `<div class="ev-col">
-    <div class="ev-col-label">PrizePicks</div>`;
-  if(hasPP && ppProb && ppImplied!==null) {
-    out += `<div class="proj-display">${fN(ppImplied)}</div>
-    <div class="proj-sub">PP-implied proj vs BOL ${bLine}</div>
-    <div class="pp-implied">PP line ${pLine} -> implied SS <strong>${fN(ppImplied)}</strong></div>
-    ${chips(ppProb.over, ppProb.under)}
-    ${verdHTML(ppEvO,'Over')}
-    ${verdHTML(ppEvU,'Under')}`;
-  } else {
-    out += `<div class="proj-display" style="color:var(--subtle)">—</div>
-    <div class="proj-sub">enter PP line + odds</div>
-    <div class="pending">Fill in PP line &amp; odds to see PP signal</div>`;
+  // Build one source row: label, projection, Over chip, Under chip, fair (Over fair / Under fair)
+  function srcRow(label, sub, projVal, probO, probU, evO, evU, isBlend, emptyText) {
+    const isMissing = projVal === null || projVal === undefined || isNaN(projVal);
+    const projDisplay = isMissing
+      ? '<span style="color:#fff;">—</span>'
+      : fN(projVal);
+    const projSub = sub ? `<span class="sr-proj-sub">${sub}</span>` : '';
+
+    function sideCell(side, prob, ev) {
+      if(isMissing || ev === null || ev === undefined) {
+        return `<div class="sr-side empty">${emptyText || '—'}</div>`;
+      }
+      return `<div class="sr-side ${side} ${eClass(ev)}">
+        <span class="sr-prob">${side==='over'?'O':'U'} ${fP(prob)}</span>
+        <span class="sr-edge">${fE(ev)}</span>
+      </div>`;
+    }
+
+    // Per-source fair prices for the model probabilities used here
+    const fairCell = isMissing
+      ? '<div class="sr-fair"><span class="sr-fair-lbl">fair</span>—</div>'
+      : `<div class="sr-fair">
+          <span class="sr-fair-lbl">fair O/U</span>
+          <span>${projFair(probO)} / ${projFair(probU)}</span>
+        </div>`;
+
+    return `<div class="src-row${isBlend?' blend':''}${isMissing?' missing':''}">
+      <div class="sr-label">${label}${sub && isBlend ? '<span class="sr-sub">'+sub+'</span>' : ''}</div>
+      <div class="sr-proj">${projDisplay}${!isBlend ? projSub : ''}</div>
+      ${sideCell('over', probO, evO)}
+      ${sideCell('under', probU, evU)}
+      ${fairCell}
+    </div>`;
   }
+
+  // Source pill (gate breakdown chip)
+  function srcPill(label, e, isAnchor) {
+    let state, detail;
+    if(e === null || e === undefined) { state = 'missing'; detail = '—'; }
+    else if(e >= 0.005) { state = 'pass'; detail = '+' + (e*100).toFixed(1) + '%'; }
+    else { state = 'fail'; detail = (e*100).toFixed(1) + '%'; }
+    const symbol = state === 'pass' ? '✓' : state === 'fail' ? '✗' : '—';
+    const infoTag = isAnchor ? '' : ' info';
+    return `<span class="src-pill ${state}">${symbol} ${label}: ${detail}${infoTag}</span>`;
+  }
+
+  // Aligned flag — subtle indicator when RG and Saber agree on direction
+  let alignedFlag = '';
+  if(hasSB && sbEvO !== null && myEvO !== null) {
+    const rgOver  = myEvO >= 0.005;
+    const sbOver  = sbEvO >= 0.005;
+    const rgUnder = myEvU !== null && myEvU >= 0.005;
+    const sbUnder = sbEvU !== null && sbEvU >= 0.005;
+    if((rgOver && sbOver) || (rgUnder && sbUnder)) {
+      alignedFlag = '<span class="aligned-flag">RG+SB aligned</span>';
+    }
+  }
+
+  // The Blended proj
+  const blendProj = (hasPP && ppImplied !== null) ? blProj : proj;
+
+  // -- Build output --
+  let out = '';
+
+  // Source grid (4 rows: RG, SB, PP, Blend)
+  out += `<div class="src-grid">`;
+  out += srcRow('RG',    'RG model',       proj,   myProb.over,  myProb.under,  myEvO,  myEvU,  false, 'no RG');
+  out += srcRow('SB',    'sig_strikes',    hasSB ? sbSS : null, sbProb && sbProb.over,  sbProb && sbProb.under,  sbEvO,  sbEvU,  false, 'add Saber');
+  out += srcRow('PP',    hasPP ? ('line '+pLine) : 'add line', (hasPP && ppImplied !== null) ? ppImplied : null, ppProb && ppProb.over, ppProb && ppProb.under, ppEvO, ppEvU, false, 'add PP');
+  out += srcRow('BLEND', hasPP?'75/25':'RG only', blendProj, blProb.over, blProb.under, blEvO, blEvU, true, '');
   out += `</div>`;
 
-  // Col 3 - Blended
-  out += `<div class="ev-col blend">
-    <div class="ev-col-label">Blended (75/25)</div>
-    <div class="proj-display">${hasPP&&ppImplied!==null ? fN(blProj) : fN(proj)}</div>
-    <div class="proj-sub">blended projection</div>
-    ${chips(blProb.over, blProb.under)}
-    ${verdHTML(blEvO,'Over')}
-    ${verdHTML(blEvU,'Under')}
-    ${!hasPP ? '<div class="pending" style="margin-top:4px;">Add PP for full blend</div>' : ''}
+  // Verdict strip: best side + log button + per-side fair prices + the prominent Blend fair strip
+  out += `<div class="verdict-strip">`;
+  // Pick the dominant direction (Over vs Under) by RG edge — pills reflect that side
+  const dominantOver = (myEvO || -Infinity) >= (myEvU || -Infinity);
+  const rgPillEv = dominantOver ? myEvO : myEvU;
+  const ppPillEv = dominantOver ? ppEvO : ppEvU;
+  const sbPillEv = dominantOver ? sbEvO : sbEvU;
+
+  out += `<div class="vs-head">
+    <span class="vs-label">Verdict · gated by RG + PP ${alignedFlag}</span>
+    <div class="vs-pills">
+      ${srcPill('RG', rgPillEv, true)}
+      ${srcPill('PP', ppPillEv, true)}
+      ${hasSB ? srcPill('SB', sbPillEv, false) : ''}
+    </div>
+  </div>`;
+  out += `<div class="vs-actions">`;
+
+  // Per-side action row helper
+  function sideAction(side, sideKey, prob, ev, edgeOdds, gate) {
+    if(ev === null || ev === undefined) return '';
+    const cls = `vs-side-action ${gate==='pass' && ev >= 0.03 ? 'eligible' : ''}`;
+    const arrow = side === 'over' ? '▲' : '▼';
+    const sideLabel = side === 'over' ? `OVER ${bLine}` : `UNDER ${bLine}`;
+    const edgeBig = `<span class="vs-edge-big ${eClass(ev)}">${fE(ev)}</span>`;
+    const fairStr = `<span class="vs-fair">fair <strong>${projFair(prob)}</strong></span>`;
+    // Gate badge
+    let gateBadge = '';
+    if(ev >= 0.005) {
+      if(gate === 'pass')  gateBadge = '<span class="gate-badge pass">✓ gate</span>';
+      if(gate === 'fail')  gateBadge = '<span class="gate-badge fail">✗ gate</span>';
+      if(gate === 'no-pp') gateBadge = '<span class="gate-badge no-pp">⚠ no PP</span>';
+    }
+    // Log button
+    const canLog = gate === 'pass' && ev >= 0.03 && fighter && edgeOdds && bLine && prob !== null;
+    const market = sideKey === 'O' ? 'SS Over' : 'SS Under';
+    const logKey = trackerKeyForSS(fighter, market, bLine);
+    const isLogged = canLog && trackerHasBet(logKey);
+    const logBtn = canLog
+      ? `<button class="log-bet-btn ${isLogged?'logged':''}" onclick="logSSBet(${id},'${sideKey}',${bLine},${edgeOdds},${prob.toFixed(4)},${(ev*100).toFixed(2)},this)">${isLogged?'✓ Logged':'+ Log'}</button>`
+      : '';
+
+    return `<div class="${cls}">
+      <div class="vs-side-summary">
+        <span class="vs-side-label ${side}"><span class="arrow">${arrow}</span>${sideLabel} @ ${edgeOdds||'—'}</span>
+        ${edgeBig}
+        ${fairStr}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        ${gateBadge}
+        ${logBtn}
+      </div>
+    </div>`;
+  }
+  out += sideAction('over',  'O', blProb.over,  blEvO, bOver,  gateOver);
+  out += sideAction('under', 'U', blProb.under, blEvU, bUnder, gateUnder);
+  out += `</div>`; // end vs-actions
+
+  // Blend fair-price strip (prominent)
+  out += `<div class="vs-blend-fair-strip">
+    <div><span class="lbl">Blend fair Over</span><span class="val">${fA(fairO)}</span></div>
+    <div><span class="lbl">Blend fair Under</span><span class="val">${fA(fairU)}</span></div>
   </div>`;
 
-  out += `</div>`; // end ev-row
+  out += `</div>`; // end verdict-strip
 
-  // Fair value strip
-  const blProjDisplay = (hasPP && ppImplied!==null) ? fN(blProj) : fN(proj);
-  out += `<div class="fair-strip">
-    <div class="fair-chip"><div class="fc-label">Fair value over</div><div class="fc-val">${fA(fairO)}</div></div>
-    <div class="fair-chip"><div class="fc-label">Fair value under</div><div class="fc-val">${fA(fairU)}</div></div>
-    <div class="fair-chip"><div class="fc-label">BOL line</div><div class="fc-val neutral">${bLine}</div></div>
-    <div class="fair-chip"><div class="fc-label">RotoGrinders proj</div><div class="fc-val neutral">${fN(proj)}</div></div>
-    ${hasPP&&ppImplied!==null ? `<div class="fair-chip"><div class="fc-label">PP-implied proj</div><div class="fc-val neutral">${fN(ppImplied)}</div></div>` : ''}
-    <div class="fair-chip blend-chip"><div class="fc-label">Blended proj</div><div class="fc-val amber">${blProjDisplay}</div></div>
-  </div>`;
+  // Pending hints
+  if(!hasPP) out += `<div class="src-pending">PP line required as anchor — no plays will pass the gate</div>`;
+  if(!hasSB) out += `<div class="src-pending muted">Saber optional — informational only</div>`;
+
 
   res.innerHTML = out;
 
@@ -674,7 +1886,12 @@ function calc(id) {
     blEvO, blEvU,
     blProbO: blProb.over,
     blProbU: blProb.under,
-    fairO, fairU
+    fairO, fairU,
+    sbSS: hasSB ? sbSS : null,
+    myEvO, myEvU,           // RG edges
+    sbEvO, sbEvU,           // Saber edges
+    ppEvO, ppEvU,           // PP edges
+    gateOver, gateUnder
   };
   // Keep name in sync when typed
   if(nameEl && !nameEl._boundSummary) {
@@ -689,10 +1906,30 @@ function calc(id) {
 
 /* -- Tabs -- */
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['calc','summary'][i]===name));
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id==='pane-'+name));
+  // Activate correct tab button
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    const match = (b.getAttribute('onclick')||'').includes("'"+name+"'");
+    b.classList.toggle('active', match);
+  });
+  // Show/hide panes by ID directly
+  ['calc','summary','log','dashboard'].forEach(t => {
+    const el = document.getElementById('pane-'+t);
+    if(el) el.style.display = (t === name) ? 'block' : 'none';
+  });
   if(name==='summary') buildSummary();
+  if(name==='log') renderLog();
+  if(name==='dashboard') renderDashboard();
 }
+
+// Init: hide non-active panes on load
+document.addEventListener('DOMContentLoaded', () => {
+  ['summary','log','dashboard'].forEach(t => {
+    const el = document.getElementById('pane-'+t);
+    if(el) el.style.display = 'none';
+  });
+  // Init tracker storage
+  loadTracker();
+});
 
 /* -- Edge summary -- */
 // Store per-fighter data for summary
@@ -718,17 +1955,17 @@ function buildSummary() {
     return d ? (1/d*100).toFixed(1)+'%' : null;
   }
 
-  // Per fighter: best side, blended >= 5% threshold
+  // Per fighter: best side, blended >= 5% threshold, gate must PASS
   let plays = [];
   fighters.forEach(id => {
     const d = fighterData[id];
     if(!d) return;
     const name = d.name || ('Fighter '+(id+1));
     const candidates = [];
-    if(d.blEvO !== null && d.blProbO !== null)
-      candidates.push({ id, name, side:'O', line:d.bLine, odds:d.bOver, ev:d.blEvO, prob:d.blProbO });
-    if(d.blEvU !== null && d.blProbU !== null)
-      candidates.push({ id, name, side:'U', line:d.bLine, odds:d.bUnder, ev:d.blEvU, prob:d.blProbU });
+    if(d.blEvO !== null && d.blProbO !== null && d.gateOver === 'pass')
+      candidates.push({ id, name, side:'O', line:d.bLine, odds:d.bOver, ev:d.blEvO, prob:d.blProbO, gate:d.gateOver });
+    if(d.blEvU !== null && d.blProbU !== null && d.gateUnder === 'pass')
+      candidates.push({ id, name, side:'U', line:d.bLine, odds:d.bUnder, ev:d.blEvU, prob:d.blProbU, gate:d.gateUnder });
     candidates.sort((a,b) => b.ev - a.ev);
     const best = candidates[0];
     if(best && best.ev >= 0.05) plays.push(best); // 5% edge minimum
@@ -738,7 +1975,7 @@ function buildSummary() {
   edgeCount.textContent = plays.length + (plays.length===1 ? ' edge' : ' edges') + ' found';
 
   if(!plays.length) {
-    list.innerHTML = '<div class="edge-empty">No edges above 5% yet — fill in fighters on the Calculator tab.</div>';
+    list.innerHTML = '<div class="edge-empty">No plays passed the gate — need RG and PP both showing +edge on the same side.</div>';
     copyArea.textContent = '';
     return;
   }
@@ -755,6 +1992,11 @@ function buildSummary() {
     const betLabel  = sideWord + ' ' + b.line + (oddsStr ? ' ' + oddsStr : '');
     const wp        = worstPrice(b.prob);
     const wpStr     = wp !== null ? fmtO(wp) : '';
+    const fdata     = fighterData[b.id] || {};
+    const sbStr     = fdata.sbSS !== null && fdata.sbSS !== undefined ? fdata.sbSS.toFixed(1) : null;
+    const gateBadge = b.gate === 'pass'
+      ? '&nbsp;·&nbsp; <span style="color:var(--accent-text);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;">✓ gate</span>'
+      : '';
 
     html += `<div class="edge-item pos-edge">
       <div style="flex:1;">
@@ -763,7 +2005,9 @@ function buildSummary() {
         <div style="margin-top:4px;font-size:11px;font-family:Arial,sans-serif;color:var(--muted);">
           Model <span style="color:#ffffff;font-weight:600;">${modelPct}%</span>
           &nbsp;·&nbsp; Market <span style="color:#ffffff;font-weight:600;">${mktPct||'—'}</span>
+          ${sbStr ? '&nbsp;·&nbsp; Saber <span style="color:#ffffff;font-weight:600;">' + sbStr + '</span>' : ''}
           ${wpStr ? '&nbsp;·&nbsp; <span style="color:var(--amber);font-weight:600;">worst price ' + wpStr + '</span>' : ''}
+          ${gateBadge}
         </div>
       </div>
       <div class="edge-ev pos">+${edgePct}%</div>
@@ -777,10 +2021,12 @@ function buildSummary() {
     const ppLineVal = ppLineEl ? ppLineEl.value.trim() : null;
     const refStr = [
       rgProj ? 'RG ' + rgProj.toFixed(1) : null,
+      sbStr ? 'SB ' + sbStr : null,
       ppLineVal ? 'PP ' + ppLineVal : null
     ].filter(Boolean).join(' ');
     const worstStr = wpStr ? ' — play to ' + wpStr : '';
-    textLines.push(nameUp + ' ' + betLabel + (refStr ? ' | ' + refStr : '') + ' | +' + edgePct + '% edge' + worstStr);
+    const gateStr = b.gate === 'pass' ? ' ✓gate' : '';
+    textLines.push(nameUp + ' ' + betLabel + (refStr ? ' | ' + refStr : '') + ' | +' + edgePct + '% edge' + gateStr + worstStr);
   });
 
   html += '</div>';
@@ -849,6 +2095,7 @@ function importCSV(event) {
     const iPlayer = headers.indexOf('PLAYER');
     const iSS     = headers.indexOf('SS');
     const iFT     = headers.indexOf('FT');
+    const iOpp    = headers.indexOf('OPP');
 
     if(iPlayer < 0 || iSS < 0 || iFT < 0) {
       alert('Could not find PLAYER, SS, or FT columns in this CSV.');
@@ -862,30 +2109,60 @@ function importCSV(event) {
       const player = (cols[iPlayer]||'').replace(/"/g,'').trim();
       const ss     = parseFloat(cols[iSS]);
       const ft     = parseFloat(cols[iFT]);
+      const opp    = iOpp >= 0 ? (cols[iOpp]||'').replace(/"/g,'').trim() : '';
       if(player && !isNaN(ss) && !isNaN(ft)) {
-        rows.push({ player, ss, ft });
+        rows.push({ player, ss, ft, opp });
       }
     }
 
     if(!rows.length) { alert('No valid rows found.'); return; }
 
-    // Create a card for each row
-    rows.forEach(row => {
+    // Pair fighters into matchups using the OPP field.
+    // RG's OPP is sometimes a last-name slug — match against any row whose normalized name CONTAINS
+    // or IS CONTAINED BY the opp value.
+    const used = new Set();
+    const matchups = [];
+    const standalone = [];
+    const findOpp = (oppRaw, exceptIdx) => {
+      if(!oppRaw) return -1;
+      const oppN = normName(oppRaw);
+      if(!oppN) return -1;
+      for(let i=0; i<rows.length; i++) {
+        if(i === exceptIdx || used.has(i)) continue;
+        const nN = normName(rows[i].player);
+        if(nN === oppN) return i;
+        if(nN.includes(oppN) || oppN.includes(nN)) return i;
+      }
+      return -1;
+    };
+    for(let i=0; i<rows.length; i++) {
+      if(used.has(i)) continue;
+      const matchIdx = findOpp(rows[i].opp, i);
+      if(matchIdx > -1) {
+        matchups.push([rows[i], rows[matchIdx]]);
+        used.add(i); used.add(matchIdx);
+      } else {
+        standalone.push(rows[i]);
+        used.add(i);
+      }
+    }
+
+    const container = document.getElementById('container');
+
+    // Helper to make a single card and wire it
+    const makeCard = (row, parentEl, isInGroup) => {
       const id = uid++;
       fighters.push(id);
-      const c = document.getElementById('container');
       const d = document.createElement('div');
-      d.className = 'fighter-card';
+      d.className = 'fighter-card' + (isInGroup ? '' : ' standalone');
       d.id = 'fc'+id;
       d.innerHTML = tmpl(id);
-      c.appendChild(d);
-
+      parentEl.appendChild(d);
       // Wire listeners
-      ['n','rg_ss','rg_ft','bl','bo','bu','pl','po','pu'].forEach(k => {
+      ['n','rg_ss','rg_ft','sb_ss','bl','bo','bu','pl'].forEach(k => {
         const el = document.getElementById(k+id);
         if(el) el.addEventListener('input', ()=>calc(id));
       });
-
       // Fill in values
       const nameEl = document.getElementById('n'+id);
       const ssEl   = document.getElementById('rg_ss'+id);
@@ -893,21 +2170,34 @@ function importCSV(event) {
       if(nameEl) nameEl.value = row.player;
       if(ssEl)   ssEl.value  = row.ss.toFixed(2);
       if(ftEl)   ftEl.value  = row.ft.toFixed(2);
-
-      // Trigger pace calculation
       updateProj(id);
+      updateMostSSFromRG(row.player, row.ss, row.ft);
+      return id;
+    };
+
+    // Render matchups
+    matchups.forEach(([a, b]) => {
+      const group = document.createElement('div');
+      group.className = 'matchup-group';
+      const head = document.createElement('div');
+      head.className = 'matchup-group-head';
+      head.innerHTML = `<span class="matchup-group-title">${escHTML(a.player)}<span class="vs">vs</span>${escHTML(b.player)}</span>
+                        <span class="matchup-group-meta">SS · UFC</span>`;
+      group.appendChild(head);
+      container.appendChild(group);
+      makeCard(a, group, true);
+      makeCard(b, group, true);
     });
+    // Render standalone fighters (no paired opp found)
+    standalone.forEach(row => makeCard(row, container, false));
 
     // Hide empty state
     const empty = document.getElementById('emptyState');
     if(empty) empty.style.display = 'none';
 
-    // Reset file input so same file can be re-imported
     event.target.value = '';
-
-    // Show count
     const state = document.getElementById('sortState');
-    state.textContent = rows.length + ' fighters imported';
+    state.textContent = `${rows.length} fighters · ${matchups.length} matchups`;
     setTimeout(() => { state.textContent = ''; }, 3000);
   };
   reader.readAsText(file);
@@ -924,6 +2214,79 @@ function parseCSVLine(line) {
   }
   result.push(cur);
   return result;
+}
+
+/* -- Saber CSV import (sig_strikes column) -- */
+function importSaberCSV(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result.replace(/\r/g,'');
+    const lines = text.trim().split('\n');
+    if(lines.length < 2) { alert('Empty CSV.'); return; }
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
+    const iName = headers.findIndex(h => h === 'name' || h === 'player');
+    const iSig  = headers.indexOf('sig_strikes');
+
+    if(iName < 0 || iSig < 0) {
+      alert('Could not find Name and sig_strikes columns. Got: ' + headers.slice(0,8).join(', ') + (headers.length>8?'...':''));
+      return;
+    }
+
+    // Build name -> sig_strikes map
+    const saberMap = {};
+    for(let i=1; i<lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      const name = (cols[iName]||'').replace(/"/g,'').trim();
+      const sig  = parseFloat(cols[iSig]);
+      if(name && !isNaN(sig) && sig > 0) {
+        saberMap[normMostSS(name)] = { name, sig };
+      }
+    }
+
+    if(!Object.keys(saberMap).length) { alert('No valid sig_strikes rows found.'); return; }
+
+    // For each existing fighter card, try to match and fill in sb_ss
+    let matched = 0, total = 0;
+    fighters.forEach(id => {
+      const nameEl = document.getElementById('n'+id);
+      const sbEl   = document.getElementById('sb_ss'+id);
+      if(!nameEl || !sbEl) return;
+      total++;
+      const cardName = nameEl.value.trim();
+      if(!cardName) return;
+      const k = normMostSS(cardName);
+      // Try exact match, then partial in either direction
+      let hit = saberMap[k];
+      if(!hit) {
+        const keys = Object.keys(saberMap);
+        const m = keys.find(sk => sk.includes(k) || k.includes(sk));
+        if(m) hit = saberMap[m];
+      }
+      if(hit) {
+        sbEl.value = hit.sig.toFixed(2);
+        matched++;
+        calc(id);
+      }
+    });
+
+    // Also push everything into mostSSData so the Most SS tab can use Saber
+    Object.values(saberMap).forEach(({name, sig}) => {
+      const key = normMostSS(name);
+      if(!mostSSData[key]) mostSSData[key] = {};
+      mostSSData[key].name  = mostSSData[key].name || name;
+      mostSSData[key].sb_ss = sig;
+    });
+
+    event.target.value = '';
+    const state = document.getElementById('sortState');
+    state.textContent = matched + '/' + total + ' fighter cards matched · ' + Object.keys(saberMap).length + ' Saber rows total';
+    state.style.color = 'var(--accent-text)';
+    setTimeout(() => { state.textContent = ''; state.style.color = ''; }, 5000);
+  };
+  reader.readAsText(file);
 }
 
 /* -- Search fighters -- */
@@ -974,22 +2337,7 @@ function toggleMode() {
 }
 
 /* -- PP odds mirror -- */
-function mirrorPPOdds(id) {
-  const over  = document.getElementById('po'+id);
-  const under = document.getElementById('pu'+id);
-  if(over && under) under.value = over.value;
-  calc(id);
-}
 
-function togglePPOdds(id) {
-  const panel = document.getElementById('ppCustom'+id);
-  const lbl   = document.getElementById('ppToggleLbl'+id);
-  if(!panel) return;
-  const isOpen = panel.style.display !== 'none';
-  panel.style.display = isOpen ? 'none' : 'block';
-  lbl.textContent = isOpen ? 'custom?' : 'hide';
-  calc(id);
-}
 
 // No initial card - import CSV to populate
 
@@ -1093,7 +2441,7 @@ function showReviewModal(data) {
   document.body.appendChild(modal);
 }
 
-function normName(s) { return s.toLowerCase().replace(/[^a-z]/g,''); }
+function normName(s) { return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z]/g,''); }
 function findExistingFighter(name) {
   return fighters.find(id => { const el=document.getElementById('n'+id); return el&&normName(el.value)===normName(name); });
 }
@@ -1117,8 +2465,8 @@ function confirmImport(count) {
     } else {
       const id=uid++; fighters.push(id);
       const c=document.getElementById('container');
-      const d=document.createElement('div'); d.className='fighter-card'; d.id='fc'+id; d.innerHTML=tmpl(id); c.appendChild(d);
-      ['n','rg_ss','rg_ft','bl','bo','bu','pl','po','pu'].forEach(k=>{ const el=document.getElementById(k+id); if(el) el.addEventListener('input',()=>calc(id)); });
+      const d=document.createElement('div'); d.className='fighter-card standalone'; d.id='fc'+id; d.innerHTML=tmpl(id); c.appendChild(d);
+      ['n','rg_ss','rg_ft','sb_ss','bl','bo','bu','pl'].forEach(k=>{ const el=document.getElementById(k+id); if(el) el.addEventListener('input',()=>calc(id)); });
       set('n',id,name); set('bl',id,bolLine); set('bo',id,bolOver); set('bu',id,bolUnder); set('pl',id,ppLine);
       added++;
     }
@@ -1126,6 +2474,868 @@ function confirmImport(count) {
   document.getElementById('reviewModal').remove();
   const state=document.getElementById('sortState');
   if(state){ const msg=[added&&(added+' added'),updated&&(updated+' updated')].filter(Boolean).join(', '); state.textContent=msg+' from screenshot'; setTimeout(()=>{state.textContent='';},3000); }
+}
+
+/* ── Most SS Tab ── */
+let mostSSData = {};
+
+function normMostSS(s) { return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z]/g,''); }
+
+function updateMostSSFromRG(player, ss, ft) {
+  if(!ss||!ft||ft<=0) return;
+  const key = normMostSS(player);
+  if(!mostSSData[key]) mostSSData[key] = {};
+  const discount = getFTDiscount(ft);
+  mostSSData[key].name  = player;
+  mostSSData[key].rg_ss = ss;
+  mostSSData[key].rg_ft = ft;
+  mostSSData[key].pace  = ss / ft;
+  mostSSData[key].proj  = (ss / ft) * (ft * discount);
+}
+
+
+
+
+/* ─────────────────────────────────────────────────
+   ── BET TRACKER (Log + Dashboard) ──
+   ───────────────────────────────────────────────── */
+
+let trackerBets = [];
+let logFilter = 'all';
+const TRACKER_KEY = 'mma_ss_tracker_v1';
+
+function loadTracker() {
+  try {
+    const raw = localStorage.getItem(TRACKER_KEY);
+    if(raw) trackerBets = JSON.parse(raw) || [];
+    // Migrate any pre-existing float IDs to strings (older versions used Date.now()+Math.random())
+    let migrated = false;
+    trackerBets.forEach(b => {
+      if(typeof b.id !== 'string') {
+        b.id = 'b' + String(b.id).replace(/\./g,'_');
+        migrated = true;
+      }
+    });
+    if(migrated) saveTracker();
+  } catch(e) { trackerBets = []; }
+}
+function saveTracker() {
+  try { localStorage.setItem(TRACKER_KEY, JSON.stringify(trackerBets)); }
+  catch(e) { console.warn('Save failed', e); }
+}
+
+function escAttr(s) {
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}
+function escHTML(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function todayDateStr() {
+  const d = new Date();
+  return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(-2);
+}
+function isoDateStr() {
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function trackerKeyForSS(fighter, market, line) {
+  // Stable key: same fighter + market + same date + similar line = duplicate
+  return normMostSS(fighter)+'|'+market+'|'+(line||'')+'|'+isoDateStr();
+}
+function mostSSLogKey(fighter, opp) {
+  return normMostSS(fighter)+'|MOSTSS|'+normMostSS(opp||'')+'|'+isoDateStr();
+}
+function trackerHasBet(key) {
+  return trackerBets.some(b => b.key === key);
+}
+
+// String IDs — float IDs lose precision when round-tripping through HTML attrs
+let _idCounter = 0;
+function newBetId() {
+  _idCounter++;
+  return 'b' + Date.now().toString(36) + '_' + _idCounter;
+}
+
+/* -- verdict with log button (used in calc Blended col) -- */
+function verdHTMLLog(edgeVal, side, fighterId, sideKey, line, odds, modelProb, gate, sources) {
+  if(edgeVal===null) return '';
+  const pct=(edgeVal*100).toFixed(1);
+  const cls=edgeVal>0.005?'pos':edgeVal<-0.005?'neg':'push';
+  const icon=edgeVal>0.005?'▲':edgeVal<-0.005?'▼':'—';
+  const nameEl = document.getElementById('n'+fighterId);
+  const fighter = nameEl ? nameEl.value.trim() : '';
+  // Only 'pass' allows logging — 'fail' and 'no-pp' both block.
+  const canLog = gate === 'pass' && edgeVal >= 0.03 && fighter && odds && line && modelProb !== null && !isNaN(modelProb);
+  const market = sideKey === 'O' ? 'SS Over' : 'SS Under';
+  const logKey = trackerKeyForSS(fighter, market, line);
+  const isLogged = canLog && trackerHasBet(logKey);
+  const btn = canLog
+    ? `<button class="log-bet-btn ${isLogged?'logged':''}" onclick="logSSBet(${fighterId},'${sideKey}',${line},${odds},${modelProb.toFixed(4)},${(edgeVal*100).toFixed(2)},this)">${isLogged?'✓ Logged':'+ Log'}</button>`
+    : '';
+  // Gate badge
+  let gateBadge = '';
+  if(edgeVal >= 0.005) {
+    if(gate === 'pass')  gateBadge = ' <span class="gate-badge pass" title="RG and PP agree">✓ gate</span>';
+    if(gate === 'fail')  gateBadge = ' <span class="gate-badge fail" title="RG and PP disagree on direction">✗ gate</span>';
+    if(gate === 'no-pp') gateBadge = ' <span class="gate-badge no-pp" title="PP line required">⚠ no PP</span>';
+  }
+  // Source breakdown — show per-anchor status for SS Over/Under
+  // Rule: RG and PP both +edge ≥ 0.5% on this side → pass. Saber is informational.
+  let sourceRow = '';
+  if(sources && edgeVal >= 0.005) {
+    const srcPill = (label, e, isAnchor) => {
+      let state, detail;
+      if(e === null || e === undefined) {
+        state = 'missing';
+        detail = '';
+      } else if(e >= 0.005) {
+        state = 'pass';
+        detail = '+' + (e*100).toFixed(1) + '%';
+      } else if(e <= -0.005) {
+        state = 'fail';
+        detail = (e*100).toFixed(1) + '%';
+      } else {
+        state = 'fail';
+        detail = '~0%';
+      }
+      const symbol = state === 'pass' ? '✓' : state === 'fail' ? '✗' : '—';
+      const infoTag = isAnchor ? '' : ' <span style="opacity:.5;font-weight:400;">info</span>';
+      return '<span class="src-pill '+state+'">'+symbol+' '+label+': '+detail+infoTag+'</span>';
+    };
+    sourceRow = '<div class="mf-sources">' +
+      srcPill('RG', sources.rg, true) +
+      srcPill('PP', sources.pp, true) +
+      (sources.sb !== null && sources.sb !== undefined ? srcPill('SB', sources.sb, false) : '') +
+    '</div>';
+  }
+  return `<div class="verdict ${cls}"><span class="v-side">${icon} ${side}</span><span class="v-ev">${edgeVal>=0?'+':''}${pct}% edge${gateBadge}${btn}</span></div>${sourceRow}`;
+}
+
+/* -- Log a SS Over/Under bet from the Calculator -- */
+function logSSBet(fighterId, sideKey, line, odds, modelProb, edgePct, btnEl) {
+  const nameEl = document.getElementById('n'+fighterId);
+  if(!nameEl || !nameEl.value.trim()) { alert('Add a fighter name first.'); return; }
+  const fighter = nameEl.value.trim();
+  const market = sideKey === 'O' ? 'SS Over' : 'SS Under';
+  const oddsNum = parseFloat(odds);
+  const lineNum = parseFloat(line);
+  const evPct = ((parseFloat(modelProb) * (oddsNum>=0 ? oddsNum/100 : 100/Math.abs(oddsNum))) - (1-parseFloat(modelProb))) * 100;
+
+  // Pull RG proj for reference
+  const projEl = document.getElementById('proj'+fighterId);
+  const rgProj = projEl ? parseFloat(projEl.value) : null;
+  // Pull PP line + Saber proj for reference
+  const ppEl = document.getElementById('pl'+fighterId);
+  const ppLine = ppEl ? ppEl.value.trim() : '';
+  const sbEl = document.getElementById('sb_ss'+fighterId);
+  const sbProj = sbEl ? parseFloat(sbEl.value) : null;
+
+  // Compute PP-implied projection (mirrors calc() logic)
+  // PP line is the median — implied projection is just the line itself
+  const ppLineNum = parseFloat(ppLine);
+  const ppProj = !isNaN(ppLineNum) ? ppLineNum : null;
+
+  // Compute blended projection: 75% RG + 25% PP if PP available, else just RG
+  let blendProj = null;
+  if(!isNaN(rgProj) && ppProj !== null) blendProj = rgProj * 0.75 + ppProj * 0.25;
+  else if(!isNaN(rgProj)) blendProj = rgProj;
+
+  // Capture per-source edges from fighterData[id] (populated by calc())
+  // Pick the side that matches what's being logged (Over or Under)
+  const fd = fighterData[fighterId] || {};
+  const isOver = sideKey === 'O';
+  const rgEdgePct = (isOver ? fd.myEvO : fd.myEvU);
+  const sbEdgePct = (isOver ? fd.sbEvO : fd.sbEvU);
+  const ppEdgePct = (isOver ? fd.ppEvO : fd.ppEvU);
+
+  const key = trackerKeyForSS(fighter, market, lineNum);
+  if(trackerHasBet(key)) {
+    const existing = trackerBets.find(b => b.key === key);
+    if(existing) {
+      // Already logged — flash button and bail
+      if(btnEl) {
+        btnEl.classList.add('logged');
+        btnEl.textContent = '✓ Logged';
+      }
+      return;
+    }
+  }
+
+  trackerBets.unshift({
+    id: newBetId(),
+    key,
+    market,
+    fighter,
+    opp: '',
+    line: lineNum,
+    side: sideKey === 'O' ? 'Over' : 'Under',
+    odds: oddsNum,
+    modelProb: parseFloat(modelProb),
+    edgePct: parseFloat(edgePct),
+    evPct,
+    // Projections from all sources at time of logging
+    rgProj: !isNaN(rgProj) ? rgProj : null,
+    sbProj: !isNaN(sbProj) ? sbProj : null,
+    ppProj: ppProj,
+    blendProj: blendProj,
+    // Per-source edges (as decimal — multiply by 100 to display %)
+    rgEdge: (rgEdgePct !== null && rgEdgePct !== undefined) ? rgEdgePct : null,
+    sbEdge: (sbEdgePct !== null && sbEdgePct !== undefined) ? sbEdgePct : null,
+    ppEdge: (ppEdgePct !== null && ppEdgePct !== undefined) ? ppEdgePct : null,
+    ppLine: ppLine || null,
+    book: 'BetOnline',
+    result: 'open',
+    actual: null,
+    date: todayDateStr(),
+    iso: isoDateStr(),
+    ts: Date.now()
+  });
+  saveTracker();
+  if(btnEl) {
+    btnEl.classList.add('logged');
+    btnEl.textContent = '✓ Logged';
+  }
+}
+
+/* -- Log a Most SS bet from the Most SS tab -- */
+
+/* -- Auto-log Most SS at 5%+ edge (called from renderMostSS) -- */
+// Returns true if a new bet was added, false if it already existed.
+// Does NOT call saveTracker — caller batches save after the loop.
+
+/* -- Math helpers for tracker -- */
+function ttoDec(o) { const n=parseFloat(o); if(isNaN(n)) return null; return n>0?n/100+1:100/Math.abs(n)+1; }
+function ttoImpProb(o) { const d=ttoDec(o); return d ? 1/d : null; }
+function tprofit(odds, unit) {
+  // unit risked. Profit on win.
+  const o = parseFloat(odds);
+  if(isNaN(o)) return 0;
+  // Treat 100 unit as standard stake. For + odds: risk 100 to win odds. For - odds: risk |odds| to win 100, scaled.
+  return o >= 0 ? unit * o/100 : unit * 100/Math.abs(o);
+}
+function trisk(odds, unit) { return unit; } // Flat 1u stake per bet
+
+/* -- Set log filter -- */
+function setLogFilter(f) {
+  logFilter = f;
+  ['all','open','settled'].forEach(k => {
+    const el = document.getElementById('filt_'+k);
+    if(el) el.classList.toggle('active', k === f);
+  });
+  renderLog();
+}
+
+/* -- Render Log table -- */
+function renderLog() {
+  const tbody = document.getElementById('logBody');
+  const empty = document.getElementById('logEmpty');
+  const count = document.getElementById('logCount');
+  if(!tbody) return;
+
+  const marketFilter = (document.getElementById('filt_market')||{}).value || 'all';
+  const search = ((document.getElementById('filt_search')||{}).value || '').trim().toLowerCase();
+
+  let list = trackerBets.slice();
+  if(logFilter === 'open') list = list.filter(b => b.result === 'open');
+  if(logFilter === 'settled') list = list.filter(b => b.result === 'win' || b.result === 'loss' || b.result === 'void');
+  if(marketFilter !== 'all') list = list.filter(b => b.market === marketFilter);
+  if(search) {
+    list = list.filter(b =>
+      (b.fighter||'').toLowerCase().includes(search) ||
+      (b.opp||'').toLowerCase().includes(search)
+    );
+  }
+
+  count.textContent = list.length + (list.length===1?' bet':' bets');
+  if(!list.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = list.map(b => {
+    const autoPill = b.autoTracked ? '<span class="auto-pill">auto</span>' : '';
+    // Projections sub-line — only render if at least one is stored
+    const projParts = [];
+    if(b.rgProj    !== null && b.rgProj    !== undefined) projParts.push('RG '+b.rgProj.toFixed(1));
+    if(b.sbProj    !== null && b.sbProj    !== undefined) projParts.push('SB '+b.sbProj.toFixed(1));
+    if(b.ppProj    !== null && b.ppProj    !== undefined) projParts.push('PP '+b.ppProj.toFixed(1));
+    if(b.blendProj !== null && b.blendProj !== undefined) projParts.push('Bl '+b.blendProj.toFixed(1));
+    const projLine = projParts.length ? `<div class="lt-sub" style="color:var(--accent);font-size:10px;letter-spacing:0.04em;">${projParts.join(' · ')}</div>` : '';
+
+    // Per-source edge pills — render when we have at least one stored
+    const edgePill = (label, edgeDec) => {
+      if(edgeDec === null || edgeDec === undefined) return '';
+      const pct = (edgeDec * 100);
+      const state = pct >= 0.5 ? 'pass' : pct <= -0.5 ? 'fail' : 'missing';
+      const symbol = state === 'pass' ? '✓' : state === 'fail' ? '✗' : '—';
+      const txt = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+      return `<span class="src-pill ${state}" style="font-size:9px;padding:2px 6px;margin-right:4px;">${symbol} ${label}: ${txt}</span>`;
+    };
+    let edgePillsLine = '';
+    if(b.rgEdge !== null || b.sbEdge !== null || b.ppEdge !== null) {
+      const pills = [
+        edgePill('RG', b.rgEdge),
+        edgePill('SB', b.sbEdge),
+        edgePill('PP', b.ppEdge),
+      ].filter(Boolean).join('');
+      if(pills) edgePillsLine = `<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:0;">${pills}</div>`;
+    }
+
+    const fighterCell = `<div class="lt-name">${escHTML(b.fighter)}${autoPill}</div>` +
+      (b.opp ? `<div class="lt-sub">vs ${escHTML(b.opp)}</div>` : '') +
+      `<div class="lt-sub">${escHTML(b.market)}${b.line!==null && b.line!==undefined ? ' · '+b.line : ''}</div>` +
+      projLine +
+      edgePillsLine;
+    const oddsStr = b.odds>=0 ? '+'+b.odds : ''+b.odds;
+    const lineCell = b.line !== null && b.line !== undefined ? b.line : '—';
+    const edgeCls = b.edgePct >= 0 ? 'pos' : 'neg';
+    const edgeStr = (b.edgePct>=0?'+':'') + b.edgePct.toFixed(1) + '%';
+    const resultPill = `<span class="pill-result ${b.result}">${b.result}</span>`;
+    const isOpen = b.result === 'open';
+    const actStr = (b.actual!==null && b.actual!==undefined) ? ' · actual '+b.actual : '';
+
+    return `<tr>
+      <td style="font-family:Arial,sans-serif;color:var(--muted);font-size:11px;">${b.date}</td>
+      <td>${fighterCell}</td>
+      <td style="text-align:center;font-family:Arial,sans-serif;">${lineCell}</td>
+      <td style="text-align:center;font-family:Arial,sans-serif;font-weight:600;">${oddsStr}</td>
+      <td style="text-align:center;" class="lt-edge ${edgeCls}">${edgeStr}</td>
+      <td style="text-align:center;">${resultPill}${actStr ? '<div class="lt-sub">'+actStr.trim()+'</div>' : ''}</td>
+      <td>
+        <div class="grade-row">
+          ${(b.market === 'SS Over' || b.market === 'SS Under')
+            ? `<input type="text" inputmode="decimal" class="grade-actual"
+                 placeholder="SS"
+                 value="${b.actual !== null && b.actual !== undefined ? b.actual : ''}"
+                 onchange="setActual('${b.id}', this.value)"
+                 title="Actual sig strikes (auto-grades vs line)" />`
+            : ''}
+          <button class="grade-btn ${b.result==='win'?'gb-win':''}"   onclick="setResult('${b.id}','win')"  title="Win">W</button>
+          <button class="grade-btn ${b.result==='loss'?'gb-loss':''}" onclick="setResult('${b.id}','loss')" title="Loss">L</button>
+          <button class="grade-btn ${b.result==='void'?'gb-void':''}" onclick="setResult('${b.id}','void')" title="Push/Void">P</button>
+          <button class="grade-btn ${b.result==='open'?'gb-open':''}" onclick="setResult('${b.id}','open')" title="Open">•</button>
+          <button class="grade-btn" onclick="deleteBet('${b.id}')" title="Delete" style="color:var(--red);border-color:var(--red-border);">✕</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* -- Inline grading -- */
+function setResult(id, val) {
+  const b = trackerBets.find(x => String(x.id) === String(id));
+  if(!b) return;
+  b.result = val;
+  saveTracker();
+  renderLog();
+}
+function setActual(id, val) {
+  const b = trackerBets.find(x => String(x.id) === String(id));
+  if(!b) return;
+  const trimmed = (val||'').trim();
+  if(!trimmed) { b.actual = null; saveTracker(); renderLog(); return; }
+  const actual = parseFloat(trimmed);
+  if(isNaN(actual)) { saveTracker(); renderLog(); return; }
+  b.actual = actual;
+  // Auto-grade for SS Over/Under
+  if(b.line !== null && b.line !== undefined) {
+    if(b.market === 'SS Over') {
+      if(actual > b.line) b.result = 'win';
+      else if(actual < b.line) b.result = 'loss';
+      else b.result = 'void';
+    } else if(b.market === 'SS Under') {
+      if(actual < b.line) b.result = 'win';
+      else if(actual > b.line) b.result = 'loss';
+      else b.result = 'void';
+    }
+  }
+  saveTracker();
+  renderLog();
+}
+
+function deleteBet(id) {
+  if(!confirm('Delete this bet?')) return;
+  trackerBets = trackerBets.filter(b => String(b.id) !== String(id));
+  saveTracker();
+  renderLog();
+}
+
+/* -- CSV / JSON export -- */
+function exportLogCSV() {
+  if(!trackerBets.length) { alert('No bets to export.'); return; }
+  const cols = ['date','market','fighter','opp','side','line','odds','modelProb','edgePct','evPct','rgProj','sbProj','ppProj','blendProj','rgEdge','sbEdge','ppEdge','ppLine','book','result','actual'];
+  const headers = cols.join(',');
+  const rows = trackerBets.map(b => cols.map(c => {
+    let v = b[c];
+    if(v===null||v===undefined) v = '';
+    if(typeof v === 'string' && (v.includes(',')||v.includes('"')||v.includes('\n'))) v = '"'+v.replace(/"/g,'""')+'"';
+    return v;
+  }).join(','));
+  const csv = [headers, ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'mma-ss-bets-'+isoDateStr()+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function exportLogJSON() {
+  const blob = new Blob([JSON.stringify(trackerBets, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'mma-ss-bets-backup-'+isoDateStr()+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importLogJSON(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if(!Array.isArray(data)) { alert('Invalid backup file.'); return; }
+      if(!confirm(`Import ${data.length} bets? This will replace your current log.`)) return;
+      trackerBets = data;
+      saveTracker();
+      renderLog();
+    } catch(err) { alert('Failed to parse backup: '+err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+/* -- Dashboard render -- */
+function renderDashboard() {
+  const grid = document.getElementById('dashGrid');
+  const bd   = document.getElementById('dashBreakdown');
+  const cnt  = document.getElementById('dashCount');
+  if(!trackerBets.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--subtle);font-family:Arial,sans-serif;font-size:13px;">No bets logged yet. Log plays from the Calculator or Most SS tab.</div>';
+    bd.innerHTML = '';
+    cnt.textContent = '';
+    return;
+  }
+  cnt.textContent = trackerBets.length + ' total';
+
+  const settled = trackerBets.filter(b => b.result === 'win' || b.result === 'loss');
+  const wins    = settled.filter(b => b.result === 'win').length;
+  const UNIT = 100;
+  const realPnl = settled.reduce((a,b) => b.result === 'win' ? a + tprofit(b.odds, UNIT) : a - trisk(b.odds, UNIT), 0);
+  const avgEdge = trackerBets.reduce((a,b) => a + b.edgePct, 0) / trackerBets.length;
+  const avgEV   = trackerBets.reduce((a,b) => a + (b.evPct||0), 0) / trackerBets.length;
+  const totalRisked = settled.length * UNIT;
+  const roi = totalRisked > 0 ? (realPnl / totalRisked) * 100 : null;
+
+  function toU(v) { return (v>=0?'+':'') + (v/100).toFixed(2) + 'u'; }
+
+  grid.innerHTML = `
+    <div class="dash-card"><div class="dc-lbl">Bets</div><div class="dc-val">${trackerBets.length}</div><div class="dc-sub">${settled.length} settled · ${trackerBets.length-settled.length} open</div></div>
+    <div class="dash-card"><div class="dc-lbl">Record</div><div class="dc-val">${wins}-${settled.length-wins}</div><div class="dc-sub">${settled.length?((wins/settled.length)*100).toFixed(1)+'% win rate':'—'}</div></div>
+    <div class="dash-card"><div class="dc-lbl">Avg Edge</div><div class="dc-val ${avgEdge>=0?'pos':'neg'}">${avgEdge>=0?'+':''}${avgEdge.toFixed(1)}%</div><div class="dc-sub">${avgEV>=0?'+':''}${avgEV.toFixed(1)}% avg EV</div></div>
+    <div class="dash-card"><div class="dc-lbl">Realized P/L</div><div class="dc-val ${realPnl>=0?'pos':'neg'}">${toU(realPnl)}</div><div class="dc-sub">${realPnl>=0?'+$':'-$'}${Math.abs(realPnl).toFixed(0)} ${roi!==null?'· ROI '+(roi>=0?'+':'')+roi.toFixed(1)+'%':''}</div></div>
+  `;
+
+  // Helpers
+  function wl(arr) {
+    const s = arr.filter(b => b.result === 'win' || b.result === 'loss');
+    if(!s.length) return '—';
+    const w = s.filter(b => b.result === 'win').length;
+    return w+'-'+(s.length-w);
+  }
+  function pnlOf(arr) {
+    return arr.filter(b => b.result === 'win' || b.result === 'loss')
+      .reduce((a,b) => b.result === 'win' ? a + tprofit(b.odds, UNIT) : a - trisk(b.odds, UNIT), 0);
+  }
+  function avgE(arr) { return arr.length ? (arr.reduce((a,b) => a + b.edgePct, 0) / arr.length) : 0; }
+  function pnlColor(v) { return v >= 0 ? 'pos' : 'neg'; }
+  function bkCell(lbl, arr) {
+    if(!arr.length) return `<div class="bk-cell"><div class="bkl">${lbl}</div><div class="bkv" style="color:var(--subtle)">—</div></div>`;
+    const ae = avgE(arr);
+    const pv = pnlOf(arr);
+    const set = arr.filter(b => b.result === 'win' || b.result === 'loss');
+    const roi = set.length ? (pv / (set.length * UNIT)) * 100 : null;
+    return `<div class="bk-cell">
+      <div class="bkl">${lbl}</div>
+      <div class="bkv">${arr.length}</div>
+      <div class="bks">${wl(arr)} · ${ae>=0?'+':''}${ae.toFixed(1)}% edge</div>
+      <div class="bks ${pnlColor(pv)}">${toU(pv)} ${roi!==null?'<span style="color:var(--muted)">· ROI '+(roi>=0?'+':'')+roi.toFixed(1)+'%</span>':''}</div>
+    </div>`;
+  }
+
+  // Edge buckets
+  function edgeBuckets(arr) {
+    const buckets = [
+      { lbl:'3–5% edge', lo:3, hi:5 },
+      { lbl:'5–8% edge', lo:5, hi:8 },
+      { lbl:'8–12% edge', lo:8, hi:12 },
+      { lbl:'12%+ edge', lo:12, hi:Infinity }
+    ];
+    return buckets.map(bk => {
+      const a = arr.filter(b => b.edgePct >= bk.lo && b.edgePct < bk.hi);
+      return bkCell(bk.lbl, a);
+    }).join('');
+  }
+  // Odds buckets
+  function oddsBuckets(arr) {
+    const buckets = [
+      { lbl:'Heavy fav (≤-200)', test:b => b.odds <= -200 },
+      { lbl:'-101 to -199',      test:b => b.odds <= -101 && b.odds > -200 },
+      { lbl:'Even ±100',         test:b => b.odds >= -100 && b.odds <= 100 },
+      { lbl:'+101 to +199',      test:b => b.odds >= 101 && b.odds <= 199 },
+      { lbl:'+200 or more',      test:b => b.odds >= 200 }
+    ];
+    return buckets.map(bk => bkCell(bk.lbl, arr.filter(bk.test))).join('');
+  }
+
+  // Section by market
+  function marketSection(label, market, accent) {
+    const arr = trackerBets.filter(b => b.market === market);
+    if(!arr.length) return '';
+    return `<div class="bk-section">
+      <div class="bk-section-title ${accent}">${label} · ${arr.length} bets</div>
+      <div class="bk-row">${bkCell('Overall', arr)}</div>
+      <div class="bk-title">Edge buckets</div>
+      <div class="bk-row">${edgeBuckets(arr)}</div>
+      <div class="bk-title">Odds buckets</div>
+      <div class="bk-row">${oddsBuckets(arr)}</div>
+    </div>`;
+  }
+
+  bd.innerHTML =
+    `<div class="bk-row" style="margin-bottom:12px;">
+      ${bkCell('Overall', trackerBets)}
+      ${bkCell('SS Over', trackerBets.filter(b => b.market === 'SS Over'))}
+      ${bkCell('SS Under', trackerBets.filter(b => b.market === 'SS Under'))}
+      ${bkCell('Most SS', trackerBets.filter(b => b.market === 'Most SS'))}
+    </div>` +
+    marketSection('Sig Strikes Over',  'SS Over',  'over') +
+    marketSection('Sig Strikes Under', 'SS Under', 'under') +
+    marketSection('Most SS',           'Most SS',  'most');
+}
+
+/* -- Day summary copy preview -- */
+function copyDaySummary(range) {
+  const wrap = document.getElementById('summaryPreviewWrap');
+  const out  = document.getElementById('summaryPreviewOut');
+  const btn  = document.getElementById('copySummaryBtn');
+  let arr = trackerBets.slice();
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const ms = 86400000;
+
+  if(range === 'today') {
+    const todayISO = isoDateStr();
+    arr = arr.filter(b => b.iso === todayISO);
+  } else if(range === '7') {
+    const cutoff = today.getTime() - 7*ms;
+    arr = arr.filter(b => b.ts >= cutoff);
+  } else if(range === '30') {
+    const cutoff = today.getTime() - 30*ms;
+    arr = arr.filter(b => b.ts >= cutoff);
+  } else if(range === 'date') {
+    const dateInput = document.getElementById('dashDateFilter').value;
+    if(!dateInput) { alert('Pick a date first.'); return; }
+    arr = arr.filter(b => b.iso === dateInput);
+  } // 'all' = no filter
+
+  wrap.style.display = 'block';
+
+  if(!arr.length) {
+    out.textContent = 'No bets in range.';
+    btn.style.display = 'none';
+    return;
+  }
+
+  // Build text summary
+  const settled = arr.filter(b => b.result === 'win' || b.result === 'loss');
+  const wins = settled.filter(b => b.result === 'win').length;
+  const losses = settled.length - wins;
+  const UNIT = 100;
+  const pnl = settled.reduce((a,b) => b.result === 'win' ? a + tprofit(b.odds, UNIT) : a - trisk(b.odds, UNIT), 0);
+  const avgEdge = arr.reduce((a,b) => a + b.edgePct, 0) / arr.length;
+
+  const labelMap = {
+    today: 'Today',
+    '7': 'Last 7 days',
+    '30': 'Last 30 days',
+    all: 'All-time',
+    date: document.getElementById('dashDateFilter').value || 'Selected date'
+  };
+  const lines = [];
+  lines.push('═══ MMA Sig Strikes — '+labelMap[range]+' ═══');
+  lines.push('Bets: '+arr.length+'  ·  Settled: '+settled.length);
+  if(settled.length) {
+    lines.push('Record: '+wins+'-'+losses+'  ·  P/L: '+(pnl>=0?'+':'')+(pnl/100).toFixed(2)+'u  ('+(pnl>=0?'+$':'-$')+Math.abs(pnl).toFixed(0)+')');
+    if(settled.length) {
+      const roi = (pnl / (settled.length * UNIT)) * 100;
+      lines.push('ROI: '+(roi>=0?'+':'')+roi.toFixed(1)+'%');
+    }
+  }
+  lines.push('Avg edge: '+(avgEdge>=0?'+':'')+avgEdge.toFixed(1)+'%');
+  lines.push('');
+
+  // Per market
+  ['SS Over','SS Under','Most SS'].forEach(mk => {
+    const m = arr.filter(b => b.market === mk);
+    if(!m.length) return;
+    const ms_ = m.filter(b => b.result === 'win' || b.result === 'loss');
+    const mw = ms_.filter(b => b.result === 'win').length;
+    const mp = ms_.reduce((a,b) => b.result === 'win' ? a + tprofit(b.odds, UNIT) : a - trisk(b.odds, UNIT), 0);
+    lines.push('— '+mk+': '+m.length+' bets'+(ms_.length?'  ·  '+mw+'-'+(ms_.length-mw)+'  ·  '+(mp>=0?'+':'')+(mp/100).toFixed(2)+'u':''));
+  });
+
+  // List bets (limited)
+  if(arr.length <= 20) {
+    lines.push('');
+    arr.forEach(b => {
+      const oddsStr = b.odds>=0 ? '+'+b.odds : ''+b.odds;
+      const lineStr = b.line !== null && b.line !== undefined ? ' '+b.line : '';
+      const result = b.result === 'open' ? '·' : b.result === 'win' ? '✓' : b.result === 'loss' ? '✗' : '—';
+      lines.push(result+' '+b.fighter.toUpperCase()+' '+b.side+lineStr+' '+oddsStr+'  ('+(b.edgePct>=0?'+':'')+b.edgePct.toFixed(1)+'%)');
+    });
+  }
+
+  out.textContent = lines.join('\n');
+  btn.style.display = 'inline-block';
+  window._dashSummaryText = lines.join('\n');
+}
+function copySummaryNow() {
+  if(!window._dashSummaryText) return;
+  navigator.clipboard.writeText(window._dashSummaryText).then(() => {
+    const btn = document.getElementById('copySummaryBtn');
+    if(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied';
+      setTimeout(() => { btn.textContent = orig; }, 1800);
+    }
+  });
+}
+
+/* ─────────────────────────────────────────────────
+   ── ESPN AUTO-GRADE ──
+   Pulls final sig strike counts from ESPN's public MMA API
+   and fills in `actual` on each open bet, auto-grading vs the line.
+   ───────────────────────────────────────────────── */
+
+const ESPN_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=';
+
+async function fetchJSON(url) {
+  // Convert http:// to https:// for mixed-content safety when tool is deployed on GitHub Pages
+  const secure = url.replace(/^http:\/\//, 'https://');
+  const r = await fetch(secure);
+  if(!r.ok) throw new Error('HTTP ' + r.status + ' from ' + secure);
+  return r.json();
+}
+
+// ESPN sometimes uses ref links instead of inlined data. Follow them.
+async function resolveRef(obj) {
+  if(!obj) return null;
+  if(obj.$ref) return await fetchJSON(obj.$ref);
+  return obj;
+}
+
+// Convert bet's iso date (YYYY-MM-DD) → YYYYMMDD format ESPN wants
+function isoToESPNDate(iso) {
+  return (iso || '').replace(/-/g, '');
+}
+
+// Find sig strikes landed for a fighter (by ID) in a given event
+async function findFighterSigStrikes(eventId, athleteId) {
+  // Get event competitions
+  const evUrl = `https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${eventId}`;
+  const ev = await fetchJSON(evUrl);
+  if(!ev.competitions) return null;
+  for(const comp of ev.competitions) {
+    const competition = await resolveRef(comp);
+    if(!competition.competitors) continue;
+    for(const c of competition.competitors) {
+      const competitor = await resolveRef(c);
+      const ath = await resolveRef(competitor.athlete);
+      if(!ath) continue;
+      if(String(ath.id) === String(athleteId)) {
+        // Found this fighter — pull statistics
+        const stats = await resolveRef(competitor.statistics);
+        if(!stats || !stats.splits) continue;
+        for(const cat of (stats.splits.categories || [])) {
+          for(const s of (cat.stats || [])) {
+            if(s.name === 'sigStrikesLanded') return s.value;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Get all competitors from an event with names + IDs (for matching by name)
+async function getEventCompetitors(eventId) {
+  const evUrl = `https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${eventId}`;
+  const ev = await fetchJSON(evUrl);
+  const result = []; // [{ name, athleteId, sigStrikes }]
+  if(!ev.competitions) return result;
+  for(const comp of ev.competitions) {
+    const competition = await resolveRef(comp);
+    if(!competition.competitors) continue;
+    // Only include fights that are actually final
+    let statusOK = true;
+    if(competition.status) {
+      const st = await resolveRef(competition.status);
+      if(st.type && st.type.state && st.type.state !== 'post') statusOK = false;
+    }
+    if(!statusOK) continue;
+    for(const c of competition.competitors) {
+      const competitor = await resolveRef(c);
+      const ath = await resolveRef(competitor.athlete);
+      if(!ath) continue;
+      // Pull stats
+      let sigStrikes = null;
+      try {
+        const stats = await resolveRef(competitor.statistics);
+        if(stats && stats.splits) {
+          for(const cat of (stats.splits.categories || [])) {
+            for(const s of (cat.stats || [])) {
+              if(s.name === 'sigStrikesLanded') { sigStrikes = s.value; break; }
+            }
+            if(sigStrikes !== null) break;
+          }
+        }
+      } catch(e) { /* stats not available, skip */ }
+      result.push({
+        name: ath.displayName || ath.fullName || ((ath.firstName || '') + ' ' + (ath.lastName || '')).trim(),
+        athleteId: ath.id,
+        sigStrikes,
+      });
+    }
+  }
+  return result;
+}
+
+// Find UFC event ID for a given date (ESPN scoreboard)
+async function findEventForDate(iso) {
+  const espnDate = isoToESPNDate(iso);
+  const sb = await fetchJSON(ESPN_SCOREBOARD + espnDate);
+  if(!sb.events || !sb.events.length) {
+    // Some events span two dates (fights start Sat night US time, end Sunday UTC).
+    // Retry with the day before and after.
+    for(const delta of [-1, 1]) {
+      const alt = new Date(iso);
+      alt.setDate(alt.getDate() + delta);
+      const altIso = alt.toISOString().slice(0, 10);
+      const altSb = await fetchJSON(ESPN_SCOREBOARD + isoToESPNDate(altIso));
+      if(altSb.events && altSb.events.length) return altSb.events[0].id;
+    }
+    return null;
+  }
+  return sb.events[0].id;
+}
+
+async function autoGradeFromESPN() {
+  const btn = document.getElementById('espnGradeBtn');
+  const statusEl = document.getElementById('espnGradeStatus');
+  const originalTxt = btn.textContent;
+
+  const openBets = trackerBets.filter(b => b.result === 'open' && (b.market === 'SS Over' || b.market === 'SS Under'));
+  if(!openBets.length) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = '<span style="color:#fff;">No open SS bets to grade.</span>';
+    return;
+  }
+
+  btn.textContent = '⏳ Fetching ESPN…';
+  btn.style.pointerEvents = 'none';
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = `<span style="color:var(--accent);">▸ Grading ${openBets.length} open bet(s) from ESPN…</span>`;
+
+  // Group by iso date
+  const byDate = {};
+  openBets.forEach(b => {
+    if(!b.iso) return;
+    (byDate[b.iso] = byDate[b.iso] || []).push(b);
+  });
+
+  const results = { updated: 0, unmatched: 0, noEvent: 0, errors: [] };
+  const changeLog = [];
+
+  for(const iso of Object.keys(byDate)) {
+    const bets = byDate[iso];
+    try {
+      const eventId = await findEventForDate(iso);
+      if(!eventId) {
+        results.noEvent += bets.length;
+        changeLog.push(`<div style="color:var(--amber);">— No UFC event found on ${iso}</div>`);
+        continue;
+      }
+      const competitors = await getEventCompetitors(eventId);
+      if(!competitors.length) {
+        results.noEvent += bets.length;
+        changeLog.push(`<div style="color:var(--amber);">— Event ${eventId} on ${iso}: no fighters returned</div>`);
+        continue;
+      }
+
+      // For each bet, match fighter name to a competitor
+      for(const bet of bets) {
+        const betNorm = normName(bet.fighter);
+        // Try exact match first, then contains-either-direction
+        let match = competitors.find(c => normName(c.name) === betNorm);
+        if(!match) match = competitors.find(c => {
+          const cn = normName(c.name);
+          return cn.includes(betNorm) || betNorm.includes(cn);
+        });
+        if(!match) {
+          results.unmatched++;
+          changeLog.push(`<div style="color:var(--amber);">— No match for <strong>${escHTML(bet.fighter)}</strong> on ${iso}</div>`);
+          continue;
+        }
+        if(match.sigStrikes === null || match.sigStrikes === undefined) {
+          results.unmatched++;
+          changeLog.push(`<div style="color:var(--amber);">— Found <strong>${escHTML(bet.fighter)}</strong> but no sig-strike stats yet on ${iso}</div>`);
+          continue;
+        }
+        // Auto-grade using existing logic
+        const actual = match.sigStrikes;
+        bet.actual = actual;
+        const prevResult = bet.result;
+        if(bet.market === 'SS Over') {
+          if(actual > bet.line) bet.result = 'win';
+          else if(actual < bet.line) bet.result = 'loss';
+          else bet.result = 'void';
+        } else if(bet.market === 'SS Under') {
+          if(actual < bet.line) bet.result = 'win';
+          else if(actual > bet.line) bet.result = 'loss';
+          else bet.result = 'void';
+        }
+        results.updated++;
+        const resultColor = bet.result === 'win' ? 'var(--accent)' : bet.result === 'loss' ? 'var(--red)' : 'var(--purple)';
+        changeLog.push(
+          `<div><span style="color:${resultColor};font-weight:700;">${bet.result.toUpperCase()}</span> · ` +
+          `<strong>${escHTML(bet.fighter)}</strong> ${bet.market} ${bet.line} → actual <strong>${actual}</strong></div>`
+        );
+      }
+    } catch(err) {
+      results.errors.push(`${iso}: ${err.message}`);
+      changeLog.push(`<div style="color:var(--red);">✗ Error on ${iso}: ${escHTML(err.message)}</div>`);
+    }
+  }
+
+  if(results.updated > 0) saveTracker();
+  renderLog();
+
+  // Build summary
+  const summary =
+    `<div style="font-weight:700;color:#fff;margin-bottom:6px;">
+      <span style="color:var(--accent);">${results.updated}</span> graded · ` +
+    `<span style="color:var(--amber);">${results.unmatched}</span> unmatched · ` +
+    `<span style="color:var(--amber);">${results.noEvent}</span> no event` +
+    (results.errors.length ? ` · <span style="color:var(--red);">${results.errors.length}</span> errors` : '') +
+    `</div>` +
+    changeLog.join('');
+  statusEl.innerHTML = summary;
+
+  btn.textContent = originalTxt;
+  btn.style.pointerEvents = '';
 }
 </script>
 </body>
