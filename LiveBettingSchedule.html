@@ -304,31 +304,6 @@
   }
   .game-row.win-highlight::before { background: var(--green) !important; }
 
-  /* ── POPUP MODAL ── */
-  #win-popup-overlay {
-    display: none; position: fixed; inset: 0; z-index: 999;
-    background: rgba(0,0,0,0.5); backdrop-filter: blur(3px);
-    align-items: flex-end; justify-content: center;
-  }
-  #win-popup-overlay.open { display: flex; }
-  #win-popup {
-    background: #212d52;
-    border: 1px solid rgba(39,192,113,0.25);
-    border-radius: 16px 16px 0 0;
-    width: 100%; max-width: 500px;
-    padding: 16px 20px calc(24px + env(safe-area-inset-bottom));
-    animation: slideUp 0.2s ease;
-  }
-  @keyframes slideUp { from{transform:translateY(100%)} to{transform:none} }
-  .popup-handle { width: 32px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.12); margin: 0 auto 14px; }
-  .popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .popup-title { font-size: 11px; font-weight: 800; color: var(--green); text-transform: uppercase; letter-spacing: 1px; }
-  .popup-time  { font-size: 10px; color: rgba(255,255,255,0.4); }
-  .popup-close { background:none; border:none; color:rgba(255,255,255,0.35); font-size:20px; cursor:pointer; padding:0; line-height:1; }
-  .popup-body  { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.8; white-space: pre; }
-  .popup-loading { color: rgba(255,255,255,0.35); font-size: 12px; display:flex; align-items:center; gap:8px; }
-  .popup-spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,0.1); border-top-color:var(--green); border-radius:50%; animation:spin 0.7s linear infinite; }
-
 
   #loading {
     display: flex; flex-direction: column; align-items: center;
@@ -989,20 +964,6 @@ function renderWindows(games) {
 
 fetchAll();
 </script>
-
-<div id="win-popup-overlay" onclick="closePopup(event)">
-  <div id="win-popup">
-    <div class="popup-handle"></div>
-    <div class="popup-header">
-      <span class="popup-title" id="popup-title"></span>
-      <div style="display:flex;align-items:center;gap:12px">
-        <span class="popup-time" id="popup-time"></span>
-        <button class="popup-close" onclick="closePopup()">×</button>
-      </div>
-    </div>
-    <div class="popup-body" id="popup-body"></div>
-  </div>
-</div>
 
 </body>
 </html>
