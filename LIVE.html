@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Now — blackbook.bet</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --card: #1a1a1a;
+    --border: #2a2a2a;
+    --green: #27c071;
+    --green-dim: rgba(39,192,113,0.12);
+    --red: #e84040;
+    --amber: #f5a623;
+    --text: #f0f0f0;
+    --muted: #555;
+    --sub: #888;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100; background: var(--bg);
+  }
+  .logo { display: flex; align-items: center; gap: 8px; }
+  .logo-mark {
+    width: 26px; height: 26px; background: var(--green); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 12px; color: #000;
+  }
+  .logo-text { font-size: 12px; font-weight: 700; color: var(--green); letter-spacing: 0.5px; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  #last-updated { font-size: 11px; color: var(--muted); }
+  #refresh-btn {
+    background: none; border: 1px solid var(--border); color: var(--sub);
+    padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s;
+  }
+  #refresh-btn:hover, #refresh-btn.spinning { border-color: var(--green); color: var(--green); }
+
+  /* FILTER */
+  .filter-bar {
+    display: flex; gap: 7px; padding: 10px 16px; overflow-x: auto;
+    border-bottom: 1px solid var(--border); scrollbar-width: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .league-pill {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer; white-space: nowrap;
+    font-size: 12px; font-weight: 600; color: var(--sub);
+    transition: all 0.15s; user-select: none;
+  }
+  .league-pill.active { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+  .pill-count {
+    background: var(--border); border-radius: 10px; padding: 1px 5px;
+    font-size: 10px; font-weight: 700; min-width: 16px; text-align: center;
+  }
+  .league-pill.active .pill-count { background: var(--green); color: #000; }
+
+  /* SUMMARY */
+  .summary-bar {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .summary-stat {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 10px 4px; border-right: 1px solid var(--border);
+  }
+  .summary-stat:last-child { border-right: none; }
+  .summary-val { font-size: 22px; font-weight: 800; line-height: 1; }
+  .summary-val.live { color: var(--red); }
+  .summary-val.soon { color: var(--amber); }
+  .summary-val.today { color: var(--text); }
+  .summary-val.done { color: var(--muted); }
+  .summary-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+  /* SECTIONS */
+  .section { padding: 0 12px; }
+  .section-header {
+    display: flex; align-items: center; gap: 7px; padding: 13px 0 7px;
+  }
+  .section-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .section-dot.live { background: var(--red); box-shadow: 0 0 6px var(--red); animation: blink 1.4s infinite; }
+  .section-dot.soon { background: var(--amber); }
+  .section-dot.sched { background: var(--muted); }
+  .section-dot.final { background: #444; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadein { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--sub); }
+  .section-badge {
+    font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 10px; color: #000;
+  }
+  .section-badge.live { background: var(--red); }
+  .section-badge.soon { background: var(--amber); }
+  .section-badge.sched { background: var(--muted); }
+  .section-badge.final { background: #444; color: #999; }
+
+  /* GAME CARDS */
+  .games-grid { display: flex; flex-direction: column; gap: 7px; padding-bottom: 6px; }
+
+  .game-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    display: flex; align-items: stretch;
+    animation: fadein 0.2s ease;
+    position: relative;
+  }
+  .game-card.live-card  { border-color: rgba(232,64,64,0.35); }
+  .game-card.soon-card  { border-color: rgba(245,166,35,0.25); }
+  .game-card.final-card { opacity: 0.6; }
+
+  /* LEFT accent bar */
+  .accent-bar { width: 3px; flex-shrink: 0; }
+  .live-card  .accent-bar { background: var(--red); }
+  .soon-card  .accent-bar { background: var(--amber); }
+  .sched-card .accent-bar { background: var(--border); }
+  .final-card .accent-bar { background: #333; }
+
+  /* CARD BODY */
+  .card-body { flex: 1; padding: 10px 12px; display: flex; gap: 10px; align-items: center; min-width: 0; }
+
+  /* MATCHUP (logos + teams + scores) */
+  .matchup { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .team-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .team-logo {
+    width: 28px; height: 28px; object-fit: contain; flex-shrink: 0;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+  }
+  .team-logo-placeholder {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.7);
+  }
+  .team-info { flex: 1; min-width: 0; }
+  .team-abbr {
+    font-size: 14px; font-weight: 700; line-height: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .team-abbr.loser { color: var(--muted); }
+  .team-record { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .team-score {
+    font-size: 18px; font-weight: 900; min-width: 28px; text-align: right;
+    line-height: 1; flex-shrink: 0;
+  }
+  .team-score.winner { color: var(--green); }
+  .team-score.loser  { color: var(--muted); }
+  .team-score.blank  { color: var(--muted); font-size: 13px; }
+
+  /* DIVIDER between teams */
+  .team-divider { height: 1px; background: var(--border); margin: 0; }
+
+  /* STATUS column */
+  .card-status { text-align: right; flex-shrink: 0; min-width: 58px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px; }
+  .status-live  { font-size: 10px; font-weight: 800; color: var(--red); letter-spacing: 0.5px; }
+  .status-period{ font-size: 10px; color: var(--sub); }
+  .status-clock { font-size: 11px; font-weight: 600; color: var(--sub); }
+  .status-soon  { font-size: 12px; font-weight: 700; color: var(--amber); }
+  .status-start { font-size: 10px; color: var(--sub); margin-top: 1px; }
+  .status-final { font-size: 10px; font-weight: 700; color: #555; letter-spacing: 0.5px; }
+
+  /* LEAGUE TAG top-right */
+  .league-tag {
+    position: absolute; top: 7px; right: 10px;
+    font-size: 8px; font-weight: 800; letter-spacing: 0.8px;
+    text-transform: uppercase; color: rgba(255,255,255,0.25);
+  }
+
+  /* LOADING */
+  #loading {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 60px 20px; gap: 12px;
+  }
+  .spinner {
+    width: 30px; height: 30px; border: 3px solid var(--border);
+    border-top-color: var(--green); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  #loading p { font-size: 13px; color: var(--muted); }
+
+  .refresh-dot {
+    display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green); margin-right: 4px; vertical-align: middle;
+    animation: blink 2s infinite;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">BB</div>
+    <span class="logo-text">Live Now</span>
+  </div>
+  <div class="header-right">
+    <span id="last-updated"></span>
+    <button id="refresh-btn" onclick="fetchAll()">↻ Refresh</button>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <div class="league-pill active" data-league="ALL"  onclick="toggleLeague(this)">All  <span class="pill-count" id="count-ALL">0</span></div>
+  <div class="league-pill active" data-league="NBA"  onclick="toggleLeague(this)">NBA  <span class="pill-count" id="count-NBA">0</span></div>
+  <div class="league-pill active" data-league="WNBA" onclick="toggleLeague(this)">WNBA <span class="pill-count" id="count-WNBA">0</span></div>
+  <div class="league-pill active" data-league="NFL"  onclick="toggleLeague(this)">NFL  <span class="pill-count" id="count-NFL">0</span></div>
+  <div class="league-pill active" data-league="MLB"  onclick="toggleLeague(this)">MLB  <span class="pill-count" id="count-MLB">0</span></div>
+  <div class="league-pill active" data-league="NHL"  onclick="toggleLeague(this)">NHL  <span class="pill-count" id="count-NHL">0</span></div>
+</div>
+
+<div class="summary-bar">
+  <div class="summary-stat">
+    <span class="summary-val live" id="sum-live">0</span>
+    <span class="summary-label"><span class="refresh-dot"></span>Live</span>
+  </div>
+  <div class="summary-stat">
+    <span class="summary-val soon" id="sum-soon">0</span>
+    <span class="summary-label">Soon</span>
+  </div>
+  <div class="summary-stat">
+    <span class="summary-val today" id="sum-today">0</span>
+    <span class="summary-label">Today</span>
+  </div>
+  <div class="summary-stat">
+    <span class="summary-val done" id="sum-final">0</span>
+    <span class="summary-label">Final</span>
+  </div>
+</div>
+
+<div id="loading"><div class="spinner"></div><p>Fetching scores…</p></div>
+<div id="content" style="display:none">
+  <div class="section" id="live-section"></div>
+  <div class="section" id="soon-section"></div>
+  <div class="section" id="sched-section"></div>
+  <div class="section" id="final-section"></div>
+</div>
+
+<script>
+const LEAGUES = {
+  NBA:  { url:'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'  },
+  WNBA: { url:'https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard' },
+  NFL:  { url:'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'    },
+  MLB:  { url:'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard'    },
+  NHL:  { url:'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'      },
+};
+const SOON_MIN = 60;
+
+let allGames = [];
+let activeLeagues = new Set(Object.keys(LEAGUES));
+let autoTimer = null;
+
+// ── FETCH ────────────────────────────────────────────────────────
+async function fetchLeague(key, cfg) {
+  try {
+    const r = await fetch(cfg.url);
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    return (d.events || []).map(ev => parseEvent(ev, key));
+  } catch(e) { console.warn(key, e); return []; }
+}
+
+function parseEvent(ev, key) {
+  const comp = ev.competitions?.[0] || {};
+  const status = ev.status || {};
+  const stateType = status.type?.state || 'pre';
+  const stateDesc = status.type?.shortDetail || '';
+  const clock = status.displayClock || '';
+  const period = status.period || 0;
+
+  const competitors = comp.competitors || [];
+  const home = competitors.find(c => c.homeAway === 'home') || competitors[0] || {};
+  const away = competitors.find(c => c.homeAway === 'away') || competitors[1] || {};
+
+  const startTime = new Date(ev.date);
+  const diffMin = (startTime - Date.now()) / 60000;
+
+  let bucket;
+  if (stateType === 'in') bucket = 'live';
+  else if (stateType === 'post') bucket = 'final';
+  else if (diffMin <= SOON_MIN && diffMin > -5) bucket = 'soon';
+  else bucket = 'sched';
+
+  function parseTeam(c) {
+    const t = c.team || {};
+    return {
+      abbr: t.abbreviation || t.shortDisplayName || '?',
+      fullName: t.displayName || '',
+      logo: t.logo || '',
+      color: t.color ? '#' + t.color : '#333',
+      altColor: t.alternateColor ? '#' + t.alternateColor : '#555',
+      score: parseInt(c.score || 0),
+      record: c.records?.[0]?.summary || '',
+      winner: c.winner || false,
+    };
+  }
+
+  return {
+    id: ev.id, league: key, bucket, stateType, stateDesc, clock, period,
+    startTime, diffMin,
+    home: parseTeam(home),
+    away: parseTeam(away),
+  };
+}
+
+async function fetchAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  btn.textContent = '↻ Fetching…';
+  const results = await Promise.all(Object.entries(LEAGUES).map(([k,c]) => fetchLeague(k,c)));
+  allGames = results.flat();
+  btn.classList.remove('spinning');
+  btn.textContent = '↻ Refresh';
+  document.getElementById('last-updated').textContent =
+    new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+  render();
+  const hasLive = allGames.some(g => g.bucket === 'live');
+  if (autoTimer) clearTimeout(autoTimer);
+  autoTimer = setTimeout(fetchAll, hasLive ? 60000 : 300000);
+}
+
+// ── FILTER ───────────────────────────────────────────────────────
+function toggleLeague(el) {
+  const l = el.dataset.league;
+  if (l === 'ALL') {
+    const all = activeLeagues.size === Object.keys(LEAGUES).length;
+    all ? activeLeagues.clear() : Object.keys(LEAGUES).forEach(k => activeLeagues.add(k));
+  } else {
+    activeLeagues.has(l) ? activeLeagues.delete(l) : activeLeagues.add(l);
+  }
+  document.querySelectorAll('.league-pill').forEach(p => {
+    const pl = p.dataset.league;
+    p.classList.toggle('active', pl === 'ALL'
+      ? activeLeagues.size === Object.keys(LEAGUES).length
+      : activeLeagues.has(pl));
+  });
+  render();
+}
+
+// ── RENDER ───────────────────────────────────────────────────────
+function render() {
+  const f = allGames.filter(g => activeLeagues.has(g.league));
+  Object.keys(LEAGUES).forEach(k => {
+    const el = document.getElementById('count-' + k);
+    if (el) el.textContent = allGames.filter(g => g.league === k).length;
+  });
+  document.getElementById('count-ALL').textContent = allGames.length;
+
+  const live  = f.filter(g => g.bucket === 'live').sort(byLeague);
+  const soon  = f.filter(g => g.bucket === 'soon').sort((a,b) => a.diffMin - b.diffMin);
+  const sched = f.filter(g => g.bucket === 'sched').sort((a,b) => a.startTime - b.startTime);
+  const final = f.filter(g => g.bucket === 'final').sort(byLeague);
+
+  document.getElementById('sum-live').textContent  = live.length;
+  document.getElementById('sum-soon').textContent  = soon.length;
+  document.getElementById('sum-today').textContent = live.length + soon.length + sched.length;
+  document.getElementById('sum-final').textContent = final.length;
+
+  renderSection('live-section',  'live',  '● Live',           live,  liveCard);
+  renderSection('soon-section',  'soon',  'Starting Soon',    soon,  soonCard);
+  renderSection('sched-section', 'sched', 'Later Today',      sched, schedCard);
+  renderSection('final-section', 'final', 'Final',            final, finalCard);
+}
+
+function byLeague(a,b) {
+  return ['NBA','WNBA','NFL','MLB','NHL'].indexOf(a.league) - ['NBA','WNBA','NFL','MLB','NHL'].indexOf(b.league);
+}
+
+function renderSection(id, cls, title, games, fn) {
+  const el = document.getElementById(id);
+  if (!games.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="section-header">
+      <div class="section-dot ${cls}"></div>
+      <span class="section-title">${title}</span>
+      <span class="section-badge ${cls}">${games.length}</span>
+    </div>
+    <div class="games-grid">${games.map(fn).join('')}</div>`;
+}
+
+// ── LOGO HTML ────────────────────────────────────────────────────
+function logoHtml(team, dim=true) {
+  if (team.logo) {
+    return `<img class="team-logo" src="${team.logo}" alt="${team.abbr}"
+      onerror="this.outerHTML=fallbackLogo('${team.abbr}','${team.color.replace('#','')}')"
+      style="${dim ? 'opacity:0.45;filter:grayscale(60%) drop-shadow(0 1px 2px rgba(0,0,0,0.5))' : 'filter:drop-shadow(0 1px 3px rgba(0,0,0,0.7))'}">`;
+  }
+  return fallbackLogo(team.abbr, team.color.replace('#',''));
+}
+function fallbackLogo(abbr, color) {
+  return `<div class="team-logo-placeholder" style="background:#${color}22;border:1px solid #${color}55">${abbr.slice(0,3)}</div>`;
+}
+
+function ordinal(n) {
+  const s=['th','st','nd','rd'], v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+function periodLabel(g) {
+  if (!g.period) return g.stateDesc || '';
+  if (g.league==='MLB')  return `${ordinal(g.period)} Inn`;
+  if (g.league==='NHL')  return `${ordinal(g.period)} Per`;
+  return `${ordinal(g.period)} Qtr`;
+}
+
+// ── CARDS ────────────────────────────────────────────────────────
+function liveCard(g) {
+  const aW = g.away.score > g.home.score;
+  const hW = g.home.score > g.away.score;
+  return `<div class="game-card live-card">
+    <div class="accent-bar"></div>
+    <div class="card-body">
+      <div class="matchup">
+        <div class="team-row">
+          ${logoHtml(g.away, false)}
+          <div class="team-info">
+            <div class="team-abbr ${aW?'':'loser'}">${g.away.abbr}</div>
+            ${g.away.record ? `<div class="team-record">${g.away.record}</div>` : ''}
+          </div>
+          <div class="team-score ${aW?'winner':hW?'loser':''}">${g.away.score}</div>
+        </div>
+        <div class="team-divider"></div>
+        <div class="team-row">
+          ${logoHtml(g.home, false)}
+          <div class="team-info">
+            <div class="team-abbr ${hW?'':'loser'}">${g.home.abbr}</div>
+            ${g.home.record ? `<div class="team-record">${g.home.record}</div>` : ''}
+          </div>
+          <div class="team-score ${hW?'winner':aW?'loser':''}">${g.home.score}</div>
+        </div>
+      </div>
+      <div class="card-status">
+        <div class="status-live">● LIVE</div>
+        <div class="status-period">${periodLabel(g)}</div>
+        ${g.clock ? `<div class="status-clock">${g.clock}</div>` : ''}
+      </div>
+    </div>
+    <div class="league-tag">${g.league}</div>
+  </div>`;
+}
+
+function soonCard(g) {
+  const m = Math.round(g.diffMin);
+  const label = m <= 0 ? 'Now' : m < 60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`;
+  return `<div class="game-card soon-card">
+    <div class="accent-bar"></div>
+    <div class="card-body">
+      <div class="matchup">
+        <div class="team-row">
+          ${logoHtml(g.away)}
+          <div class="team-info"><div class="team-abbr">${g.away.abbr}</div>${g.away.record?`<div class="team-record">${g.away.record}</div>`:''}</div>
+        </div>
+        <div class="team-divider"></div>
+        <div class="team-row">
+          ${logoHtml(g.home)}
+          <div class="team-info"><div class="team-abbr">${g.home.abbr}</div>${g.home.record?`<div class="team-record">${g.home.record}</div>`:''}</div>
+        </div>
+      </div>
+      <div class="card-status">
+        <div class="status-soon">in ${label}</div>
+        <div class="status-start">${g.startTime.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</div>
+      </div>
+    </div>
+    <div class="league-tag">${g.league}</div>
+  </div>`;
+}
+
+function schedCard(g) {
+  return `<div class="game-card sched-card" style="opacity:0.55">
+    <div class="accent-bar"></div>
+    <div class="card-body">
+      <div class="matchup">
+        <div class="team-row">
+          ${logoHtml(g.away)}
+          <div class="team-info"><div class="team-abbr">${g.away.abbr}</div></div>
+        </div>
+        <div class="team-divider"></div>
+        <div class="team-row">
+          ${logoHtml(g.home)}
+          <div class="team-info"><div class="team-abbr">${g.home.abbr}</div></div>
+        </div>
+      </div>
+      <div class="card-status">
+        <div class="status-start" style="font-size:12px;color:var(--sub)">${g.startTime.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</div>
+      </div>
+    </div>
+    <div class="league-tag">${g.league}</div>
+  </div>`;
+}
+
+function finalCard(g) {
+  const aW = g.away.score > g.home.score;
+  const hW = g.home.score > g.away.score;
+  return `<div class="game-card final-card">
+    <div class="accent-bar"></div>
+    <div class="card-body">
+      <div class="matchup">
+        <div class="team-row">
+          ${logoHtml(g.away, !aW)}
+          <div class="team-info"><div class="team-abbr ${aW?'':'loser'}">${g.away.abbr}</div></div>
+          <div class="team-score ${aW?'winner':'loser'}">${g.away.score}</div>
+        </div>
+        <div class="team-divider"></div>
+        <div class="team-row">
+          ${logoHtml(g.home, !hW)}
+          <div class="team-info"><div class="team-abbr ${hW?'':'loser'}">${g.home.abbr}</div></div>
+          <div class="team-score ${hW?'winner':'loser'}">${g.home.score}</div>
+        </div>
+      </div>
+      <div class="card-status"><div class="status-final">FINAL</div></div>
+    </div>
+    <div class="league-tag">${g.league}</div>
+  </div>`;
+}
+
+fetchAll();
+</script>
+</body>
+</html>
