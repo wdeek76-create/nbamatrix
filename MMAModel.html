@@ -4137,10 +4137,14 @@ function exportModelCardImage() {
   const topPicks = rendered.filter(fx => fx.edge >= 5).slice(0, 5);
 
   // ---- Canvas drawing ----
-  // Option A dark-list layout — one continuous card with a title bar and
-  // stacked rows. Each row has a matchup dot + label on top, then a body
-  // line with rank / fighters / inline key-values / edge chip. All text is
-  // full white or full color — no muted greys, no source-weight line.
+  // Image-2 layout — narrow vertical stack. Each row is tight:
+  //   • Pill line: dot + "Fight NN"
+  //   • Fighter matchup line (wraps to 2 lines if long)
+  //   • Data line 1: Model + Fair
+  //   • Data line 2: Market
+  //   • Data line 3: Pick
+  //   • Chip vertically centered on the right
+  // All text full white or full color (green/amber/red). No greys, no summary line.
   const DPI = 2;
   const paddingSides = 24;
   const paddingBottom = 32;
@@ -4152,8 +4156,8 @@ function exportModelCardImage() {
   const CARD_BORDER   = '#1e293b';
   const ROW_DIVIDER   = '#1a2432';
   const TEXT          = '#ffffff';
-  const LABEL         = '#ffffff';  // was #94a3b8 muted — now full white
-  const RANK          = '#ffffff';  // was #64748b muted — now full white
+  const LABEL         = '#ffffff';
+  const RANK          = '#ffffff';
   const GREEN         = '#22c55e';
   const AMBER         = '#fbbf24';
   const RED           = '#ef4444';
@@ -4165,48 +4169,35 @@ function exportModelCardImage() {
   const CHIP_RED_BR   = 'rgba(239,68,68,0.4)';
 
   const FONT_STACK    = "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif";
-  const FONT_TITLE    = `600 17px ${FONT_STACK}`;
-  const FONT_SUB      = `500 13px ${FONT_STACK}`;
-  const FONT_PILL     = `500 11px ${FONT_STACK}`;
-  const FONT_RANK     = `700 13px ${FONT_STACK}`;
-  const FONT_FIGHT    = `700 16px ${FONT_STACK}`;
-  const FONT_VS       = `500 14px ${FONT_STACK}`;
-  const FONT_KEY      = `500 12px ${FONT_STACK}`;
-  const FONT_VAL      = `700 12px ${FONT_STACK}`;
-  const FONT_CHIP_N   = `700 16px ${FONT_STACK}`;
-  const FONT_CHIP_L   = `600 9px ${FONT_STACK}`;
+  const FONT_TITLE    = `600 15px ${FONT_STACK}`;
+  const FONT_PILL     = `500 10px ${FONT_STACK}`;
+  const FONT_RANK     = `700 12px ${FONT_STACK}`;
+  const FONT_FIGHT    = `700 14px ${FONT_STACK}`;
+  const FONT_KEY      = `500 11px ${FONT_STACK}`;
+  const FONT_VAL      = `700 11px ${FONT_STACK}`;
+  const FONT_CHIP_N   = `700 15px ${FONT_STACK}`;
+  const FONT_CHIP_L   = `700 10px ${FONT_STACK}`;
 
-  // Layout metrics
-  const cardRadius     = 14;
-  const cardPadX       = 18;
-  const cardPadY       = 18;
-  const cardTopH       = 46;   // title + date (2 lines)
-  const rowGap         = 14;
-  const rowVPad        = 14;
-  const rowLineGap     = 8;    // between pill and body
-  const chipW          = 74;
-  const chipH          = 44;
+  // Layout
+  const cardRadius     = 12;
+  const cardPadX       = 16;
+  const cardPadY       = 16;
+  const cardTopH       = 28;
   const dotSize        = 7;
-  const dotGap         = 8;
-  const rankW          = 28;
-  const rightMargin    = 8;
+  const dotGap         = 6;
+  const rankW          = 24;
+  const chipW          = 72;
+  const chipH          = 44;
 
-  // Determine table width based on the widest possible fighter+key-values line
-  const W = 700;
+  // Narrower canvas — Image-2 vibe
+  const W = 420;
   const tableW = W - paddingSides * 2;
   const cardInnerW = tableW - cardPadX * 2;
-  const bodyContentW = cardInnerW - rankW - rightMargin - chipW - 16;
+  const bodyContentW = cardInnerW - rankW - chipW - 16;
 
-  // Measurement canvas
   const measureCanvas = document.createElement('canvas');
   const mctx = measureCanvas.getContext('2d');
-
-  function measureText(text, font) {
-    mctx.font = font;
-    return mctx.measureText(text).width;
-  }
-
-  // Wrap fighter matchup line if it's too long
+  function measureText(text, font) { mctx.font = font; return mctx.measureText(text).width; }
   function wrapText(text, maxW, font) {
     mctx.font = font;
     if (mctx.measureText(text).width <= maxW) return [text];
@@ -4222,53 +4213,29 @@ function exportModelCardImage() {
     return lines.length ? lines : [text];
   }
 
-  // Wrap the subline into pieces (each key-value pair with fixed gap between)
-  // The subline is a flex-wrap style — measure each pair and pack them into
-  // lines that fit inside bodyContentW.
-  function layoutSubline(pairs, maxW, keyFont, valFont) {
-    const gapBetweenPairs = 16;
-    const gapWithinPair = 4;
-    const lines = [];
-    let line = [];
-    let lineW = 0;
-    pairs.forEach(([k, v, color]) => {
-      const kw = measureText(k, keyFont);
-      const vw = measureText(v, valFont);
-      const pairW = kw + gapWithinPair + vw;
-      const addW = line.length ? gapBetweenPairs + pairW : pairW;
-      if (lineW + addW > maxW && line.length) {
-        lines.push(line);
-        line = [{ k, v, color, kw, vw }];
-        lineW = pairW;
-      } else {
-        line.push({ k, v, color, kw, vw });
-        lineW += addW;
-      }
-    });
-    if (line.length) lines.push(line);
-    return { lines, gapBetweenPairs, gapWithinPair };
-  }
-
-  // Pre-compute per-row layouts + heights
+  // Layout per row: pill + fighters (wrap) + 3 data lines
   const rowLayouts = rendered.map((f, i) => {
-    const fighterLine = `${f.fighter1}  vs  ${f.fighter2}`;
+    const pickName = f.predictedWinner;
+    const oppName = f.predictedWinner === f.fighter1 ? f.fighter2 : f.fighter1;
+    const fighterLine = `${pickName}  vs  ${oppName}`;
     const fLines = wrapText(fighterLine, bodyContentW, FONT_FIGHT);
-    const subPairs = [
-      ['Model', fmtPct(f.predictedWinner === f.fighter1 ? f.f1Prob : f.f2Prob, 1), TEXT],
-      ['Fair',  fmtAm(f.predictedWinner === f.fighter1 ? f.f1Fair : f.f2Fair), GREEN],
-      ['Market', fmtAm(f.predictedWinner === f.fighter1 ? f.f1Ml : f.f2Ml), TEXT],
-      ['Pick',  f.predictedWinner, TEXT],
-    ];
-    const sub = layoutSubline(subPairs, bodyContentW, FONT_KEY, FONT_VAL);
-    const fLineH = 20;
-    const subLineH = 18;
-    const bodyH = fLines.length * fLineH + rowLineGap + sub.lines.length * subLineH;
-    const height = rowVPad * 2 + 16 /* pill line */ + rowLineGap + bodyH;
-    return { fight: f, rank: i + 1, fighterLines: fLines, sub, height };
+    const modelPct = fmtPct(f.predictedWinner === f.fighter1 ? f.f1Prob : f.f2Prob, 1);
+    const fairAm   = fmtAm(f.predictedWinner === f.fighter1 ? f.f1Fair : f.f2Fair);
+    const marketAm = fmtAm(f.predictedWinner === f.fighter1 ? f.f1Ml : f.f2Ml);
+    return {
+      fight: f, rank: i + 1,
+      fighterLines: fLines,
+      modelPct, fairAm, marketAm, pickName,
+    };
   });
-  const rowsH = rowLayouts.reduce((s, r) => s + r.height, 0)
-               + (rowLayouts.length - 1);  // 1px dividers between rows
-  const cardH = cardPadY * 2 + cardTopH + 14 /* divider below top */ + rowsH;
+
+  // Row height budget: pill (14) + gap (4) + fighter lines * 18 + gap (6)
+  //                  + line1 (16) + line2 (16) + line3 (16) + bottom pad (10)
+  const rowH = (r) => 14 + 4 + r.fighterLines.length * 18 + 6 + 16 * 3 + 10;
+
+  const rowsH = rowLayouts.reduce((s, r) => s + rowH(r), 0)
+             + (rowLayouts.length - 1);  // 1px dividers between rows
+  const cardH = cardPadY * 2 + cardTopH + 10 + rowsH;
   const H = paddingTop + cardH + paddingBottom;
 
   const canvas = document.createElement('canvas');
@@ -4279,11 +4246,10 @@ function exportModelCardImage() {
   const ctx = canvas.getContext('2d');
   ctx.scale(DPI, DPI);
 
-  // Page background
+  // Page bg
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
 
-  // Rounded card frame
   function roundRect(x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -4307,42 +4273,41 @@ function exportModelCardImage() {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Card top: title + date
+  // Header
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   ctx.fillStyle = TEXT;
   ctx.font = FONT_TITLE;
   const topX = cardX + cardPadX;
   const topY = cardY + cardPadY;
-  ctx.fillText(card.label, topX, topY + 10);
-  ctx.font = FONT_SUB;
-  ctx.fillText(card.date || '', topX, topY + 32);
-  // Divider under top block
+  const cleanLabel = (card.label || '').replace(/\s*[•·]\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  ctx.fillText(cleanLabel, topX, topY + 14);
   ctx.fillStyle = ROW_DIVIDER;
-  ctx.fillRect(topX, cardY + cardPadY + cardTopH + 4, tableW - cardPadX * 2, 1);
+  ctx.fillRect(topX, cardY + cardPadY + cardTopH + 2, tableW - cardPadX * 2, 1);
 
   // Rows
-  let ry = cardY + cardPadY + cardTopH + 4 + 10;
-  rowLayouts.forEach(({ fight: f, rank, fighterLines, sub, height }, idx) => {
+  let ry = cardY + cardPadY + cardTopH + 10;
+  rowLayouts.forEach((rl, idx) => {
+    const { fight: f, rank, fighterLines, modelPct, fairAm, marketAm, pickName } = rl;
     const rowX = cardX + cardPadX;
+    const height = rowH(rl);
 
-    // Dot color: green if flagged (≥1%), amber if borderline. Since we only
-    // render ≥1% edges anyway, use green for ≥5, amber for 1-5.
+    // Pill dot + label
     const dotColor = f.edge >= 5 ? GREEN : AMBER;
-    // Pill: dot + label
     ctx.fillStyle = dotColor;
     ctx.beginPath();
-    ctx.arc(rowX + dotSize / 2, ry + 7, dotSize / 2, 0, Math.PI * 2);
+    ctx.arc(rowX + dotSize / 2, ry + 6, dotSize / 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     ctx.font = FONT_PILL;
     ctx.fillStyle = LABEL;
-    ctx.fillText(`${card.label} · Fight ${String(rank).padStart(2, '0')}`, rowX + dotSize + dotGap, ry + 7);
+    ctx.fillText(`Fight ${String(rank).padStart(2, '0')}`, rowX + dotSize + dotGap, ry + 6);
 
-    // Body: rank | fighters + subline | chip
-    const bodyY = ry + 16 + rowLineGap;
-    const bodyMidY = bodyY + (height - 16 - rowLineGap - rowVPad * 2) / 2 + rowVPad;
+    // Vertical center of body block (fighters + 3 data lines) — anchor rank + chip here
+    const bodyTop = ry + 14 + 4;
+    const bodyH = fighterLines.length * 18 + 6 + 16 * 3;
+    const bodyMidY = bodyTop + bodyH / 2;
 
     // Rank
     ctx.font = FONT_RANK;
@@ -4350,40 +4315,54 @@ function exportModelCardImage() {
     ctx.textAlign = 'left';
     ctx.fillText(String(rank).padStart(2, '0'), rowX, bodyMidY);
 
-    // Fighter matchup line(s)
+    // Fighter matchup (wraps)
     const midX = rowX + rankW;
     ctx.font = FONT_FIGHT;
     ctx.fillStyle = TEXT;
-    const fighterBlockH = fighterLines.length * 20;
-    const subBlockH = sub.lines.length * 18;
-    const totalBlockH = fighterBlockH + rowLineGap + subBlockH;
-    let fy = bodyMidY - totalBlockH / 2 + 10;
+    let fy = bodyTop + 9;
     fighterLines.forEach(line => {
-      // "vs" mid gets dimmer visual but full white now — keep same
       ctx.fillText(line, midX, fy);
-      fy += 20;
-    });
-    // Subline pairs (key/value, key/value…)
-    fy += rowLineGap - 10;
-    sub.lines.forEach(lineParts => {
-      let x = midX;
-      lineParts.forEach((p, i) => {
-        if (i > 0) x += sub.gapBetweenPairs;
-        // Key (label)
-        ctx.font = FONT_KEY;
-        ctx.fillStyle = LABEL;
-        ctx.fillText(p.k, x, fy + 9);
-        x += p.kw + sub.gapWithinPair;
-        // Value
-        ctx.font = FONT_VAL;
-        ctx.fillStyle = p.color;
-        ctx.fillText(p.v, x, fy + 9);
-        x += p.vw;
-      });
       fy += 18;
     });
+    fy += 4;
 
-    // Chip (right side)
+    // Data lines: [Model X% · Fair Y] / [Market Z] / [Pick <name>]
+    // Draw as key/value inline w/ small gap.
+    const drawKV = (key, val, valColor, y) => {
+      ctx.font = FONT_KEY;
+      ctx.fillStyle = LABEL;
+      ctx.fillText(key, midX, y);
+      const kw = measureText(key, FONT_KEY);
+      ctx.font = FONT_VAL;
+      ctx.fillStyle = valColor;
+      ctx.fillText(val, midX + kw + 4, y);
+    };
+    const drawTwoKV = (k1, v1, c1, k2, v2, c2, y) => {
+      ctx.font = FONT_KEY;
+      ctx.fillStyle = LABEL;
+      ctx.fillText(k1, midX, y);
+      const k1w = measureText(k1, FONT_KEY);
+      ctx.font = FONT_VAL;
+      ctx.fillStyle = c1;
+      ctx.fillText(v1, midX + k1w + 4, y);
+      const v1w = measureText(v1, FONT_VAL);
+      const secondX = midX + k1w + 4 + v1w + 14;
+      ctx.font = FONT_KEY;
+      ctx.fillStyle = LABEL;
+      ctx.fillText(k2, secondX, y);
+      const k2w = measureText(k2, FONT_KEY);
+      ctx.font = FONT_VAL;
+      ctx.fillStyle = c2;
+      ctx.fillText(v2, secondX + k2w + 4, y);
+    };
+    fy += 4;
+    drawTwoKV('Model', modelPct, TEXT, 'Fair', fairAm, GREEN, fy);
+    fy += 16;
+    drawKV('Market', marketAm, TEXT, fy);
+    fy += 16;
+    drawKV('Pick', pickName, TEXT, fy);
+
+    // Edge chip on the right, vertically centered
     const isGreen = f.edge >= 5;
     const isAmber = f.edge >= 1 && f.edge < 5;
     const isRed = f.edge < 0;
@@ -4402,12 +4381,11 @@ function exportModelCardImage() {
     ctx.font = FONT_CHIP_N;
     ctx.textAlign = 'center';
     ctx.fillText((f.edge >= 0 ? '+' : '') + f.edge.toFixed(1), chipX + chipW / 2, chipY + 15);
+    ctx.fillStyle = chipTx;
     ctx.font = FONT_CHIP_L;
-    ctx.fillText('PP', chipX + chipW / 2, chipY + 32);
+    ctx.fillText('PP', chipX + chipW / 2, chipY + 33);
 
     ry += height;
-
-    // Row divider (except last)
     if (idx < rowLayouts.length - 1) {
       ctx.fillStyle = ROW_DIVIDER;
       ctx.fillRect(rowX, ry, tableW - cardPadX * 2, 1);
