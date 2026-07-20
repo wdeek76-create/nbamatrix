@@ -4151,7 +4151,7 @@ function exportModelCardImage() {
   const paddingTop = 24;
 
   // Palette
-  const BG            = '#14181c';
+  const BG            = '#000000';
   const CARD_BG       = '#0b0f14';
   const CARD_BORDER   = '#1e293b';
   const ROW_DIVIDER   = '#1a2432';
@@ -4189,11 +4189,14 @@ function exportModelCardImage() {
   const chipW          = 72;
   const chipH          = 44;
 
-  // Narrower canvas — Image-2 vibe
-  const W = 420;
+  // Narrow but wide enough that most fighter matchups fit on ONE line without
+  // hanging off the frame. Long matchups still wrap, but with the extra room
+  // wrapping happens far less often.
+  const W = 560;
   const tableW = W - paddingSides * 2;
   const cardInnerW = tableW - cardPadX * 2;
-  const bodyContentW = cardInnerW - rankW - chipW - 16;
+  // Extra padding between fighter text and chip so nothing feels crowded.
+  const bodyContentW = cardInnerW - rankW - chipW - 24;
 
   const measureCanvas = document.createElement('canvas');
   const mctx = measureCanvas.getContext('2d');
@@ -4217,8 +4220,26 @@ function exportModelCardImage() {
   const rowLayouts = rendered.map((f, i) => {
     const pickName = f.predictedWinner;
     const oppName = f.predictedWinner === f.fighter1 ? f.fighter2 : f.fighter1;
+    // Smart wrap for fighter matchup — if the whole line "PickName  vs  OppName"
+    // fits, use it as one line. If not, break at the "vs" so each fighter's
+    // full name stays intact on its own line (never mid-name break like
+    // "Kamaru\nUsman"). Layout: "PickName vs" on line 1, "OppName" on line 2.
     const fighterLine = `${pickName}  vs  ${oppName}`;
-    const fLines = wrapText(fighterLine, bodyContentW, FONT_FIGHT);
+    let fLines;
+    if (measureText(fighterLine, FONT_FIGHT) <= bodyContentW) {
+      fLines = [fighterLine];
+    } else {
+      // Try two-line: "<pick> vs" / "<opp>"
+      const l1 = `${pickName} vs`;
+      const l2 = oppName;
+      // If pick name is still too wide, fall back to greedy wrap.
+      if (measureText(l1, FONT_FIGHT) <= bodyContentW &&
+          measureText(l2, FONT_FIGHT) <= bodyContentW) {
+        fLines = [l1, l2];
+      } else {
+        fLines = wrapText(fighterLine, bodyContentW, FONT_FIGHT);
+      }
+    }
     const modelPct = fmtPct(f.predictedWinner === f.fighter1 ? f.f1Prob : f.f2Prob, 1);
     const fairAm   = fmtAm(f.predictedWinner === f.fighter1 ? f.f1Fair : f.f2Fair);
     const marketAm = fmtAm(f.predictedWinner === f.fighter1 ? f.f1Ml : f.f2Ml);
@@ -4231,7 +4252,7 @@ function exportModelCardImage() {
 
   // Row height budget: pill (14) + gap (4) + fighter lines * 18 + gap (6)
   //                  + line1 (16) + line2 (16) + line3 (16) + bottom pad (10)
-  const rowH = (r) => 14 + 4 + r.fighterLines.length * 18 + 6 + 16 * 3 + 10;
+  const rowH = (r) => 8 + r.fighterLines.length * 18 + 6 + 16 * 3 + 10;
 
   const rowsH = rowLayouts.reduce((s, r) => s + rowH(r), 0)
              + (rowLayouts.length - 1);  // 1px dividers between rows
@@ -4292,20 +4313,10 @@ function exportModelCardImage() {
     const rowX = cardX + cardPadX;
     const height = rowH(rl);
 
-    // Pill dot + label
-    const dotColor = f.edge >= 5 ? GREEN : AMBER;
-    ctx.fillStyle = dotColor;
-    ctx.beginPath();
-    ctx.arc(rowX + dotSize / 2, ry + 6, dotSize / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    ctx.font = FONT_PILL;
-    ctx.fillStyle = LABEL;
-    ctx.fillText(`Fight ${String(rank).padStart(2, '0')}`, rowX + dotSize + dotGap, ry + 6);
-
-    // Vertical center of body block (fighters + 3 data lines) — anchor rank + chip here
-    const bodyTop = ry + 14 + 4;
+    // No pill — user removed the "Fight NN" label. Row starts with the
+    // fighter matchup directly. Rank number on the left keeps the ordering
+    // visible.
+    const bodyTop = ry + 8;  // small top pad only
     const bodyH = fighterLines.length * 18 + 6 + 16 * 3;
     const bodyMidY = bodyTop + bodyH / 2;
 
