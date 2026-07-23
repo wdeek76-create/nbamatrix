@@ -731,7 +731,7 @@ function renderInsight(games) {
     const halfMs = (HALF_OFFSET[g.league]||0.48) * (AVG_DURATION[g.league]||150) * 60000;
     const halfTime = g.startTime.getTime() + halfMs;
     if (halfTime > nowMs && halfTime < nowMs + 6*60*60000) {
-      halfEvents.push({ g, halfTime, icon:'📈' });
+      halfEvents.push({ g, halfTime, icon:'·' });
     }
   });
 
@@ -741,7 +741,7 @@ function renderInsight(games) {
     const estStart = nowMs - Math.max(0, g.period-1) * (AVG_DURATION[g.league]||150)/4 * 60000;
     const halfTime = estStart + halfMs;
     if (halfTime > nowMs && halfTime < nowMs + 90*60000 && !highValueLabel(g)) {
-      halfEvents.push({ g, halfTime, icon:'⏱' });
+      halfEvents.push({ g, halfTime, icon:'·' });
     }
   });
 
@@ -766,13 +766,12 @@ function renderInsight(games) {
 
     if (evs.length === 1) {
       const {g} = evs[0];
-      tips.push({ icon, time: grp.anchorMs, text:`${g.away.abbr}/${g.home.abbr} (${g.league}) 2nd half ~${t}` });
+      tips.push({ icon:'·', time: grp.anchorMs, text:`${g.away.abbr}/${g.home.abbr} (${g.league}) 2nd half ~<span class="time-pill">${t}</span>` });
     } else {
-      // Group by league
       const byL = {};
       evs.forEach(({g}) => { (byL[g.league]||=[]).push(g); });
       const parts = Object.entries(byL).map(([l,gs]) => `${gs.length} ${l}`).join(', ');
-      tips.push({ icon, time: grp.anchorMs, text:`${parts} hit 2nd half ~${t}` });
+      tips.push({ icon:'·', time: grp.anchorMs, text:`${parts} hit 2nd half ~<span class="time-pill">${t}</span>` });
     }
   });
 
@@ -782,11 +781,7 @@ function renderInsight(games) {
   bar.innerHTML = tips.map((t,i) => `
     <div style="display:flex;gap:8px${i<tips.length-1?';margin-bottom:7px':''}">
       <span class="insight-icon">${t.icon}</span>
-      <span class="insight-text">${t.text
-        .replace(/([A-Z]{2,4}\/[A-Z]{2,4})/g,'<strong>$1</strong>')
-        .replace(/\d+ [A-Z]+(?:, \d+ [A-Z]+)*/g, m=>`<strong>${m}</strong>`)
-        .replace(/~([\d]+:[\d]+[\s\u202f]*[AP]M)/g, '~ <span class="time-pill">$1</span>')
-      }</span>
+      <span class="insight-text">${t.text}</span>
     </div>`).join('');
 }
 
