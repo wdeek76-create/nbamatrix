@@ -9779,61 +9779,45 @@ function renderSrcAnalytics() {
   // minutes from the box score at grading time) — both only present on bets
   // tracked/graded after this feature shipped, so older bets are silently
   // skipped rather than counted with missing data.
-  const minAccumBySource = {}; // key -> { n, sumAbsDiff, closestCount }
+  const minAccumBySource = {}; // key -> { n, sumAbsDiff }
   let minAccumTotal = 0;
   settled.forEach(b => {
     if (!b.srcMin || b.actualMin == null) return;
     const entries = Object.entries(b.srcMin).filter(([, v]) => v != null);
     if (!entries.length) return;
     minAccumTotal++;
-    const withDiff = entries.map(([key, val]) => ({ key, diff: Math.abs(val - b.actualMin) }));
     // Include the blended "Expected" (average of whichever sources had data)
-    // as its own candidate in the same comparison — answers "does averaging
-    // beat picking one source alone," not just "which single source wins."
+    // as its own candidate — answers "is combining RG+RW more accurate than
+    // either one alone."
+    const withDiff = entries.map(([key, val]) => ({ key, diff: Math.abs(val - b.actualMin) }));
     if (b.expMin != null) withDiff.push({ key: "__expected", diff: Math.abs(b.expMin - b.actualMin) });
-    const minDiff = Math.min(...withDiff.map(e => e.diff));
-    // Ties: if 2+ sources land the exact same distance from actual on a bet,
-    // split the "closest" credit evenly between them instead of crediting
-    // each one fully — otherwise Closest % across all sources sums to well
-    // over 100% (this was the actual bug: RG+RW+Expected summing to 141%
-    // because rounded projections tie often, and every tied source was
-    // getting a full point instead of a fair share).
-    const tiedKeys = withDiff.filter(e => e.diff === minDiff);
-    const creditPerTie = 1 / tiedKeys.length;
     withDiff.forEach(e => {
-      if (!minAccumBySource[e.key]) minAccumBySource[e.key] = { n: 0, sumAbsDiff: 0, closestCount: 0 };
+      if (!minAccumBySource[e.key]) minAccumBySource[e.key] = { n: 0, sumAbsDiff: 0 };
       const acc = minAccumBySource[e.key];
       acc.n++;
       acc.sumAbsDiff += e.diff;
-      if (e.diff === minDiff) acc.closestCount += creditPerTie;
     });
   });
+  // One metric, one ranking: average minutes off actual. Lowest wins. That's it.
   const minAccumRanked = Object.entries(minAccumBySource)
-    .sort((a, b) => (b[1].closestCount / b[1].n) - (a[1].closestCount / a[1].n))
+    .sort((a, b) => (a[1].sumAbsDiff / a[1].n) - (b[1].sumAbsDiff / b[1].n))
     .map(([key, acc]) => {
       const isExpected = key === "__expected";
       const label = isExpected
         ? "Expected (avg)"
         : (typeof SOURCES !== "undefined" ? SOURCES.find(s => s.key === key)?.label : null) || key;
       const avgOff = acc.n > 0 ? acc.sumAbsDiff / acc.n : 0;
-      const closestPct = acc.n > 0 ? (acc.closestCount / acc.n) * 100 : 0;
-      return { key, label, isExpected, avgOff, closestPct, n: acc.n };
+      return { key, label, isExpected, avgOff, n: acc.n };
     });
   const minAccumWinner = minAccumRanked[0] || null;
 
-  // Plain-English headline naming the winner directly, instead of leaving it
-  // to be inferred from a table of numbers.
   const minAccumHeadline = minAccumWinner
-    ? `<span style="color:#4ade80;font-weight:800;">${minAccumWinner.label}</span> has been closest to actual minutes most often — ${minAccumWinner.closestPct.toFixed(0)}% of the time, off by an average of ${minAccumWinner.avgOff.toFixed(1)} min.`
+    ? `<span style="color:#4ade80;font-weight:800;">${minAccumWinner.label}</span> is the most accurate on minutes — off by ${minAccumWinner.avgOff.toFixed(1)} min on average across ${minAccumWinner.n} bets.`
     : "";
 
-  // Each source gets a ranked row: name, a filled bar showing its share of
-  // "closest" wins relative to the top source, the win % as a number, and
-  // the average-minutes-off as a plain sentence fragment — reads like a
-  // summary, not a spreadsheet.
-  const maxPct = minAccumWinner ? minAccumWinner.closestPct : 1;
+  const maxAvgOff = minAccumRanked.length ? Math.max(...minAccumRanked.map(r => r.avgOff)) : 1;
   const minAccumRows = minAccumRanked.map((r, i) => {
-    const barPct = maxPct > 0 ? Math.max(4, (r.closestPct / maxPct) * 100) : 4;
+    const barPct = maxAvgOff > 0 ? Math.max(4, (r.avgOff / maxAvgOff) * 100) : 4;
     const barColor = i === 0 ? "#4ade80" : r.isExpected ? "#7dd3fc" : "#a8b0bb";
     const nameColor = r.isExpected ? "#7dd3fc" : "#fff";
     return `
@@ -9841,8 +9825,7 @@ function renderSrcAnalytics() {
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px;">
           <span style="font-size:13px;font-weight:800;color:${nameColor};">${i===0 ? "🏆 " : ""}${r.label}</span>
           <span style="font-size:12px;color:#a8b0bb;">
-            closest <span style="color:#fff;font-weight:700;">${r.closestPct.toFixed(0)}%</span> of ${r.n}
-            &nbsp;·&nbsp; off by <span style="color:#fff;font-weight:700;">${r.avgOff.toFixed(1)} min</span> on average
+            off by <span style="color:#fff;font-weight:800;font-size:14px;">${r.avgOff.toFixed(1)} min</span> on average · ${r.n} bets
           </span>
         </div>
         <div style="height:6px;background:#050507;border-radius:3px;overflow:hidden;">
@@ -19300,13 +19283,22 @@ function saveEvCalcSnapshot(snap) {
 window._evCalcSnapshot = getEvCalcSnapshot();
 
 function evCalcRefreshSnapshot() {
-  if (typeof merged === "undefined" || !merged || !merged.length) {
-    showToast("Load projections first (Upload tab)");
+  const hasMerged = typeof merged !== "undefined" && merged && merged.length;
+  const hasOpenBetsToday = (() => {
+    if (typeof bets === "undefined" || !Array.isArray(bets)) return false;
+    try { loadBets(); } catch (e) {}
+    const todayIso = new Date().toISOString().slice(0, 10);
+    return bets.some(b => b.player && b.result === "pending" &&
+      (typeof getBetISODate === "function" ? getBetISODate(b) === todayIso : false) &&
+      STATS.includes((b.stat || "").toLowerCase()) && (b.srcProjs || b.expMin != null));
+  })();
+  if (!hasMerged && !hasOpenBetsToday) {
+    showToast("Load projections first (Upload tab), or track a prop today to price from that");
     return;
   }
   const lookups = (typeof getSlotLookups === "function") ? getSlotLookups() : [];
   const players = {};
-  merged.forEach(r => {
+  if (hasMerged) merged.forEach(r => {
     if (!r.rawName) return;
     const n = norm(r.rawName);
     const bySource = {};
@@ -19323,6 +19315,46 @@ function evCalcRefreshSnapshot() {
     if (Object.keys(bySource).length === 0) return; // no source had this player
     players[n] = { rawName: r.rawName, team: r.team || "", pos: r.pos || "", bySource };
   });
+
+  // Fallback layer: today's OPEN (pending) bets, for any player not already
+  // covered by the live-loaded projections above. Uses the exact srcProjs /
+  // srcMin / expMin snapshots saved on the bet at track time — so if you
+  // forgot to refresh the EV Calc while everything was loaded, or the source
+  // CSVs got cleared/replaced later in the day, you can still price whatever
+  // you already have open. Real limitation, worth knowing: a bet's srcProjs
+  // only has a value for the ONE stat it was tracked on (e.g. a PTS bet only
+  // has a pts number saved, not reb/ast too) — so a fallback player's card
+  // may only be priceable on the stat you originally bet, not all 5.
+  if (typeof bets !== "undefined" && Array.isArray(bets)) {
+    try { loadBets(); } catch (e) {}
+    const todayIso = new Date().toISOString().slice(0, 10);
+    (typeof bets !== "undefined" ? bets : []).forEach(b => {
+      if (!b.player || b.result !== "pending") return;
+      const biso = (typeof getBetISODate === "function") ? getBetISODate(b) : null;
+      if (biso !== todayIso) return;
+      const bstat = (b.stat || "").toLowerCase();
+      if (!STATS.includes(bstat)) return; // skip GAME_TOTAL/GAME_SPREAD — not player-priceable here
+      const n = norm(b.player);
+      if (players[n]) return; // already covered by live projections, don't overwrite with a partial snapshot
+      if (!b.srcProjs && b.expMin == null) return; // nothing usable saved on this bet
+
+      const bySource = {};
+      if (b.srcProjs) {
+        Object.entries(b.srcProjs).forEach(([srcKey, val]) => {
+          if (val == null) return;
+          bySource[srcKey] = { pts: null, reb: null, ast: null, threepm: null, pra: null, min: null };
+          bySource[srcKey][bstat] = val;
+          if (b.srcMin && b.srcMin[srcKey] != null) bySource[srcKey].min = b.srcMin[srcKey];
+        });
+      }
+      if (Object.keys(bySource).length === 0) return;
+      players[n] = {
+        rawName: b.player, team: b.team || "", pos: "",
+        bySource,
+        fromOpenBet: true, // flags this as a partial/fallback entry in the UI
+      };
+    });
+  }
   window._evCalcSnapshot = { takenAt: Date.now(), players };
   saveEvCalcSnapshot(window._evCalcSnapshot);
   showToast(`Snapshot refreshed · ${Object.keys(players).length} players`);
@@ -19449,7 +19481,7 @@ function renderEvCalc() {
           ${todaysPlayers.map(p => `
             <button onclick="window._evCalcPlayer='${p.rawName.replace(/'/g,"\\'")}'; renderEvCalc();"
               style="background:${selectedPlayer===p.rawName?'#7dd3fc':'#050507'};color:${selectedPlayer===p.rawName?'#050507':'#fff'};border:1px solid ${selectedPlayer===p.rawName?'#7dd3fc':'#1a1d22'};border-radius:20px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:5px;">
-              ${p.rawName}${p.team ? `<span style="opacity:0.6;font-size:9px;">${p.team}</span>` : ""}
+              ${p.rawName}${p.team ? `<span style="opacity:0.6;font-size:9px;">${p.team}</span>` : ""}${p.fromOpenBet ? `<span title="From open bet snapshot — partial data" style="color:#fbbf24;font-size:9px;">●</span>` : ""}
             </button>`).join("")}
         </div>
       </div>` : ""}
@@ -19713,6 +19745,7 @@ function evCalcUpdateEvPanel() {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
         <span style="font-size:15px;font-weight:800;color:#fff;">${playerRow.rawName}</span>
         ${playerRow.team ? `<span style="background:#7dd3fc1a;border:1px solid #7dd3fc55;color:#7dd3fc;font-size:10px;font-weight:800;letter-spacing:0.4px;border-radius:4px;padding:2px 7px;">${playerRow.team}</span>` : ""}
+        ${playerRow.fromOpenBet ? `<span title="Not in currently loaded projections — pulled from your tracked bet's snapshot instead. Only priceable on the stat you originally bet." style="background:#f59e0b1a;border:1px solid #f59e0b55;color:#fbbf24;font-size:9px;font-weight:800;letter-spacing:0.3px;border-radius:4px;padding:2px 7px;cursor:help;">FROM OPEN BET</span>` : ""}
         <span style="background:rgba(125,211,252,0.10);border:1px solid rgba(125,211,252,0.25);color:#7dd3fc;font-size:11px;font-weight:800;letter-spacing:0.5px;border-radius:14px;padding:3px 10px;">${sideEl.toUpperCase()} ${line ?? "—"} ${selectedStat}</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;">
