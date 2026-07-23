@@ -806,9 +806,11 @@ function highValueLabel(g) {
   const tied = diff === 0;
   const close = diff <= 3;
 
-  // Overtime / extra innings
-  if (desc.includes('ot') || desc.includes('overtime') || desc.includes('extra')) return 'OT';
+  // Overtime / extra innings — must be explicit
   if (g.league === 'MLB' && period > 9) return 'Extra Innings';
+  if (['NBA','WNBA'].includes(g.league) && period > 4) return 'OT';
+  if (g.league === 'NHL' && period > 3) return 'OT';
+  if (g.league === 'NFL' && period > 4) return 'OT';
 
   // MLB — 5th inning and beyond
   if (g.league === 'MLB') {
