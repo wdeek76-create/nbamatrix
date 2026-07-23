@@ -403,26 +403,51 @@ table colgroup col.avg-col{width:16%;}
     <div id="slots-container"></div>
     <button id="merge-btn" onclick="runMerge(true)">RUN BLEND - 0/3 SOURCES LOADED</button>
 
-    <!-- Matchup Data — uploaded CSV (Rotowire opp-avg) drives the per-bet
-         "vs OPP · +12% favorable" row in the bet modal. Doesn't affect projections
-         directly — purely informational, but snapshots onto each bet for backtest. -->
+    <!-- WNBA Advanced Stats (Opponent table) — primary source for matchup
+         data (feeds getMatchupData(), read by the bet modal's Matchup
+         section, EV Calc's DEF vs grid, and the Totals card DEF block).
+         Replaces the old opp-avg CSV upload — same shooting-efficiency and
+         FT/rebound detail that CSV never had. -->
     <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-top:18px;">
-      <div onclick="toggleMatchupSection()" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;">
+      <div onclick="toggleWnbaOppStatsSection()" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;">
         <div>
-          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">Matchup Data</div>
-          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Upload opp-avg CSV (Rotowire defensive averages) to enable matchup adjustments in the bet modal.</div>
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">WNBA Advanced Stats <span style="color:#7dd3fc;">(Opponent)</span></div>
+          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Paste the Teams → Opponent table from wnba.com/stats to power matchup adjustments in the bet modal, EV Calc, and Totals.</div>
         </div>
-        <span id="matchup-section-chevron" style="font-size:13px;color:#7dd3fc;font-weight:700;flex-shrink:0;">▸</span>
+        <span id="wnba-opp-stats-chevron" style="font-size:13px;color:#7dd3fc;font-weight:700;flex-shrink:0;">▸</span>
       </div>
-      <div id="matchup-section-body" style="display:none;margin-top:10px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-          <label style="background:#22c55e;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">
-            UPLOAD CSV
-            <input type="file" accept=".csv" style="display:none;" onchange="handleMatchupCsvUpload(this)"/>
-          </label>
-          <button onclick="clearMatchupData()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR</button>
+      <div id="wnba-opp-stats-body" style="display:none;margin-top:10px;">
+        <textarea id="wnba-opp-stats-paste" placeholder="Paste the Opponent table here (select the table on wnba.com/stats/teams/opponent and copy/paste, header row included)" style="width:100%;min-height:90px;background:#050507;border:1px solid #1a1d22;color:#e2e8f0;border-radius:6px;padding:8px 10px;font-size:11px;font-family:'JetBrains Mono',monospace;box-sizing:border-box;resize:vertical;" autocomplete="off" spellcheck="false"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <button onclick="handleWnbaOpponentStatsPaste()" style="background:#22c55e;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">LOAD PASTED TABLE</button>
+          <button onclick="clearMatchupData()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR MATCHUP DATA</button>
         </div>
-        <div id="matchup-status" style="font-size:11px;color:#525a64;"></div>
+        <div id="matchup-status" style="font-size:11px;color:#525a64;margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- WNBA Advanced Stats (Defense table) — adds DEF RTG (points allowed
+         per 100 possessions), the pace-adjusted number the Opponent table
+         above can't give you. A team can allow a lot of raw points just by
+         playing fast; DEF RTG tells you if a defense is actually good or
+         just fast. Also carries situational scoring splits (paint, fast
+         break, off turnovers, 2nd chance). Merges INTO each team's existing
+         row from the Opponent table above, rather than replacing it. -->
+    <div style="background:#0c0d10;border:1px solid #1a1d22;border-radius:8px;padding:14px;margin-top:18px;">
+      <div onclick="toggleWnbaDefStatsSection()" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#d4dae3;letter-spacing:1px;text-transform:uppercase;">WNBA Advanced Stats <span style="color:#7dd3fc;">(Defense)</span></div>
+          <div style="font-size:10px;color:#a8b0bb;margin-top:2px;">Paste the Teams → Defense table from wnba.com/stats. Adds DEF RTG (pace-adjusted) plus paint/fast-break/turnover scoring splits — merges into the Opponent data above.</div>
+        </div>
+        <span id="wnba-def-stats-chevron" style="font-size:13px;color:#7dd3fc;font-weight:700;flex-shrink:0;">▸</span>
+      </div>
+      <div id="wnba-def-stats-body" style="display:none;margin-top:10px;">
+        <textarea id="wnba-def-stats-paste" placeholder="Paste the Defense table here (select the table on wnba.com/stats/teams/defense and copy/paste, header row included)" style="width:100%;min-height:90px;background:#050507;border:1px solid #1a1d22;color:#e2e8f0;border-radius:6px;padding:8px 10px;font-size:11px;font-family:'JetBrains Mono',monospace;box-sizing:border-box;resize:vertical;" autocomplete="off" spellcheck="false"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <button onclick="handleWnbaDefenseStatsPaste()" style="background:#22c55e;border:none;color:#050507;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">LOAD PASTED TABLE</button>
+          <button onclick="clearMatchupData()" style="background:#0c0d10;border:1px solid #1a1d22;color:#d4dae3;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">CLEAR MATCHUP DATA</button>
+        </div>
+        <div style="font-size:10px;color:#525a64;margin-top:8px;">Load the Opponent table first for the fullest picture — this merges DEF RTG etc into those same team rows instead of replacing them.</div>
       </div>
     </div>
 
@@ -703,7 +728,7 @@ function setAllCardsCombined() {
     const rwA = (typeof getTotalsPageRwTeamSum==="function") ? getTotalsPageRwTeamSum(g.awayAbbr) : null;
     const rwH = (typeof getTotalsPageRwTeamSum==="function") ? getTotalsPageRwTeamSum(g.homeAbbr) : null;
     const hasPlayers = (dmA && dmH) || (rwA && rwH);
-    const pe = (typeof independentTotal==="function") ? independentTotal(g.awayAbbr, g.homeAbbr) : null;
+    const pe = (typeof independentTotal==="function") ? independentTotal(g.awayAbbr, g.homeAbbr, "2026") : null;
     const hasPxE = pe && pe.total != null;
     if (hasPlayers && hasPxE) { window._cardProjSource[cardKey] = "both"; n++; }
   });
@@ -3561,6 +3586,133 @@ function getMatchupAdjustment(opponentTeam, statKey, direction) {
     favorable,                  // signed toward the bet direction (positive = good for this bet)
   };
 }
+// Parse the WNBA.com Advanced Stats "Teams > Opponent" table — pasted
+// straight from the site (browser table copy comes through tab-separated).
+// This is a strict superset of the old Rotowire opp-avg CSV: same PTS/REB/
+// AST/STL/BLK/3PM/TOV columns it already reads, PLUS shooting efficiency
+// (Opp FG%, Opp 3P%), FT volume, and OREB/DREB split that the old CSV never
+// had. Feeds the exact same getMatchupData()/teams object, so everything
+// downstream (bet modal Matchup section, DEF vs grid in EV Calc, Totals card
+// DEF block) works unchanged — it's just fed better data.
+//
+// Expected header row (tab-separated), matching the live site's column
+// order: TEAM  GP  W  L  MIN  Opp FGM  Opp FGA  Opp FG%  Opp 3PM  Opp 3PA
+// Opp 3P%  Opp FTM  Opp FTA  Opp FT%  Opp OREB  Opp DREB  Opp REB  Opp AST
+// Opp TOV  Opp STL  Opp BLK  Opp BLKA  Opp PF  Opp PFD  Opp PTS  +/-
+// A leading rank column (just a number, no header) is tolerated and skipped.
+function parseWnbaOpponentStatsText(text) {
+  if (!text) return null;
+  const rawLines = text.split(/\r?\n/).map(l => l.trim());
+  const lines = rawLines.filter(l => l !== "");
+  if (lines.length < 2) return null;
+
+  // The real copy-paste from wnba.com/stats does NOT come through as clean
+  // one-row-per-line text. Column header cells like "Opp" / "FGM" render on
+  // SEPARATE lines (browser renders the two-line "Opp\nFGM" header visually
+  // stacked, and copy preserves that as two lines), and each team's rank
+  // number and team name also land on their own separate lines before the
+  // stat row. Only the 25 numeric stat values per team come through properly
+  // tab-separated on one line. Rather than trying to reconstruct the header
+  // text (fragile — the site's line-wrapping isn't fully predictable),
+  // this anchors on team-name lines and reads the numeric line that follows,
+  // mapping by FIXED column position — the Opponent table's column order is
+  // stable (TEAM GP W L MIN FGM FGA FG% 3PM 3PA 3P% FTM FTA FT% OREB DREB
+  // REB AST TOV STL BLK BLKA PF PFD PTS +/-), confirmed against three
+  // separate real pastes of this exact table.
+  const WNBA_TEAM_NAMES = [
+    "atlanta dream","chicago sky","connecticut sun","dallas wings",
+    "golden state valkyries","indiana fever","las vegas aces","los angeles sparks",
+    "minnesota lynx","new york liberty","phoenix mercury","portland fire",
+    "seattle storm","toronto tempo","washington mystics",
+  ];
+  // Fixed position map (0-indexed within the 25-number stat line, AFTER
+  // GP/W/L/MIN which come first): FGM FGA FG% 3PM 3PA 3P% FTM FTA FT% OREB
+  // DREB REB AST TOV STL BLK BLKA PF PFD PTS +/-
+  // We only need indices 4 onward (skipping GP/W/L/MIN at 0-3).
+  const POS_MAP = {
+    FGM: 4, FGA: 5, "FG%": 6, "3PM": 7, "3PA": 8, "3P%": 9,
+    FTM: 10, FTA: 11, "FT%": 12, OREB: 13, DREB: 14, REB: 15,
+    AST: 16, TO: 17, STL: 18, BLK: 19, PTS: 23,
+  };
+
+  const teams = {};
+  for (let i = 0; i < lines.length; i++) {
+    const lineLower = lines[i].toLowerCase().replace(/[^a-z\s]/g, "").trim();
+    if (!WNBA_TEAM_NAMES.includes(lineLower)) continue;
+    const teamName = lines[i];
+    // The stat line is the next line that actually contains multiple
+    // tab-separated (or space-separated) numbers — usually the very next
+    // non-empty line, but tolerate a stray rank/blank line in between by
+    // scanning forward a few lines.
+    let statLine = null;
+    for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+      const candidate = lines[j];
+      const parts = candidate.includes("\t") ? candidate.split("\t") : candidate.split(/\s+/);
+      const numericParts = parts.filter(p => p.trim() !== "" && !isNaN(parseFloat(p)));
+      if (numericParts.length >= 20) { statLine = candidate; break; } // full stat rows have 25 values
+    }
+    if (!statLine) continue;
+    const vals = (statLine.includes("\t") ? statLine.split("\t") : statLine.split(/\s+/))
+      .map(s => s.trim()).filter(s => s !== "").map(s => parseFloat(s));
+    if (vals.length < 24) continue; // not a complete row, skip rather than guess
+
+    const row = {};
+    Object.entries(POS_MAP).forEach(([key, idx]) => {
+      const v = vals[idx];
+      if (v != null && !isNaN(v)) row[key] = v;
+    });
+    if (Object.keys(row).length === 0) continue;
+    if (row.PTS != null && row.REB != null && row.AST != null) {
+      row.PRA = +(row.PTS + row.REB + row.AST).toFixed(1);
+    }
+    teams[teamName] = row;
+  }
+  if (Object.keys(teams).length === 0) return null;
+
+  const leagueAvg = {};
+  const allCols = Object.keys(POS_MAP).concat(["PRA"]);
+  Array.from(new Set(allCols)).forEach(col => {
+    const vals = Object.values(teams).map(t => t[col]).filter(v => v != null);
+    if (vals.length > 0) leagueAvg[col] = +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+  });
+  return { teams, leagueAvg, updated: Date.now(), source: "wnba_opponent_stats" };
+}
+
+// Paste handler — mirrors handleMatchupCsvUpload's merge behavior (accumulate
+// across pastes, re-pasted teams overwrite) but reads from a textarea paste
+// instead of a file, and uses the richer parser above.
+function handleWnbaOpponentStatsPaste() {
+  const ta = document.getElementById("wnba-opp-stats-paste");
+  if (!ta || !ta.value.trim()) { showToast("Paste the table first"); return; }
+  const parsed = parseWnbaOpponentStatsText(ta.value);
+  if (!parsed || !Object.keys(parsed.teams).length) {
+    showToast("Couldn't read that as a WNBA Opponent stats table — check the paste includes the header row");
+    return;
+  }
+  // Merge with any existing matchup data, same accumulate-and-overwrite
+  // behavior as the CSV upload path, keyed through the same abbr resolver
+  // so a re-paste of the same teams cleanly replaces rather than duplicates.
+  const existing = getMatchupData() || { teams: {}, leagueAvg: {} };
+  const mergedTeams = { ...existing.teams };
+  Object.entries(parsed.teams).forEach(([name, row]) => {
+    const abbr = (typeof _matchupKey === "function") ? _matchupKey(name) : name;
+    mergedTeams[abbr || name] = row;
+  });
+  const merged = { teams: mergedTeams, updated: Date.now(), source: "wnba_opponent_stats" };
+  // Recompute league averages across the merged set.
+  const leagueAvg = {};
+  const allCols = Array.from(new Set(Object.values(mergedTeams).flatMap(t => Object.keys(t))));
+  allCols.forEach(col => {
+    const vals = Object.values(mergedTeams).map(t => t[col]).filter(v => v != null);
+    if (vals.length > 0) leagueAvg[col] = +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+  });
+  merged.leagueAvg = leagueAvg;
+  try { localStorage.setItem(MATCHUP_STORAGE_KEY, JSON.stringify(merged)); } catch (e) {}
+  ta.value = "";
+  showToast(`Loaded ${Object.keys(parsed.teams).length} teams from WNBA Opponent stats`);
+  if (typeof renderMatchupStatus === "function") renderMatchupStatus();
+}
+
 // File-upload handler — fires when user picks an opp-avg.csv on the upload page.
 // Merges with any existing data so partial uploads accumulate (e.g., 6 teams now,
 // upload again later with 12 teams → all 12 stored). Re-uploaded teams overwrite.
@@ -3625,9 +3777,133 @@ function renderMatchupStatus() {
 }
 
 // Collapse/expand the whole Matchup Data section on the upload page.
+// Parse the WNBA.com Advanced Stats "Teams > Defense" table — the piece the
+// plain Opponent table above can't give you: DEF RTG (points allowed per 100
+// possessions), which strips pace out entirely. A team can allow a lot of
+// raw points just by playing fast; DEF RTG is what actually tells you if a
+// defense is GOOD versus just fast. Also carries situational scoring splits
+// (points off turnovers, second-chance, fast break, paint) useful for
+// specific prop types (paint scoring matters most for bigs' PTS, fast-break
+// points ties to pace/STL context, etc).
+//
+// Expected header row (tab-separated): TEAM GP W L MIN DEF RTG DREB DREB%
+// STL BLK OPP PTS OFF TOV  OPP PTS 2ND CHANCE  OPP PTS FB  OPP PTS PAINT
+// Note the source site's header has "OPP PTS" split across two lines for
+// each situational column (2ND CHANCE / FB / PAINT / OFF TOV) — when copied
+// as plain text these often collapse together oddly, so header matching here
+// is deliberately loose (matches on "paint", "fastbreak"/"fb", "2ndchance",
+// "offtov" substrings rather than requiring an exact phrase).
+function parseWnbaDefenseStatsText(text) {
+  if (!text) return null;
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== "");
+  if (lines.length < 2) return null;
+
+  // Same real-world paste shape problem as the Opponent parser: "OPP PTS" /
+  // "PAINT" etc render as separate lines, and rank/team-name land on their
+  // own lines too. Anchor on team-name lines, read the following numeric
+  // line, map by FIXED column position — confirmed stable across multiple
+  // real pastes of this table (both Per Game and Per 100 Poss modes use the
+  // same column order): GP W L MIN DEF RTG DREB DREB% STL BLK OPP_PTS_OFF_TOV
+  // OPP_PTS_2NDCHANCE OPP_PTS_FB OPP_PTS_PAINT (14 values total per team).
+  const WNBA_TEAM_NAMES = [
+    "atlanta dream","chicago sky","connecticut sun","dallas wings",
+    "golden state valkyries","indiana fever","las vegas aces","los angeles sparks",
+    "minnesota lynx","new york liberty","phoenix mercury","portland fire",
+    "seattle storm","toronto tempo","washington mystics",
+  ];
+  const POS_MAP = {
+    DEFRTG: 4, DREB: 5, "DREB%": 6, STL: 7, BLK: 8,
+    OPP_PTS_OFF_TOV: 9, OPP_PTS_2NDCHANCE: 10, OPP_PTS_FB: 11, OPP_PTS_PAINT: 12,
+  };
+
+  const teams = {};
+  for (let i = 0; i < lines.length; i++) {
+    const lineLower = lines[i].toLowerCase().replace(/[^a-z\s]/g, "").trim();
+    if (!WNBA_TEAM_NAMES.includes(lineLower)) continue;
+    const teamName = lines[i];
+    let statLine = null;
+    for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+      const candidate = lines[j];
+      const parts = candidate.includes("\t") ? candidate.split("\t") : candidate.split(/\s+/);
+      const numericParts = parts.filter(p => p.trim() !== "" && !isNaN(parseFloat(p)));
+      if (numericParts.length >= 10) { statLine = candidate; break; } // full rows have 13 values
+    }
+    if (!statLine) continue;
+    const vals = (statLine.includes("\t") ? statLine.split("\t") : statLine.split(/\s+/))
+      .map(s => s.trim()).filter(s => s !== "").map(s => parseFloat(s));
+    if (vals.length < 12) continue; // not a complete row, skip rather than guess
+
+    const row = {};
+    Object.entries(POS_MAP).forEach(([key, idx]) => {
+      const v = vals[idx];
+      if (v != null && !isNaN(v)) row[key] = v;
+    });
+    if (Object.keys(row).length === 0) continue;
+    teams[teamName] = row;
+  }
+  if (Object.keys(teams).length === 0) return null;
+  return { teams };
+}
+
+// Paste handler — MERGES defense stats into each team's EXISTING matchup row
+// (from the Opponent table) rather than replacing it, so a team ends up with
+// both PTS/REB/AST/shooting% AND DEF RTG/PAINT/situational splits together
+// in one place. Load the Opponent table first for the fullest picture, but
+// this works fine loaded on its own too — it just won't have PTS/REB/etc.
+// merged in if that table hasn't been loaded yet.
+function handleWnbaDefenseStatsPaste() {
+  const ta = document.getElementById("wnba-def-stats-paste");
+  if (!ta || !ta.value.trim()) { showToast("Paste the table first"); return; }
+  const parsed = parseWnbaDefenseStatsText(ta.value);
+  if (!parsed || !Object.keys(parsed.teams).length) {
+    showToast("Couldn't read that as a WNBA Defense stats table — check the paste includes the header row");
+    return;
+  }
+  const existing = getMatchupData() || { teams: {}, leagueAvg: {} };
+  const mergedTeams = { ...existing.teams };
+  Object.entries(parsed.teams).forEach(([name, row]) => {
+    const abbr = (typeof _matchupKey === "function") ? _matchupKey(name) : name;
+    const key = abbr || name;
+    // Merge into the existing row for this team (if any) instead of
+    // overwriting it, so Opponent-table data (PTS/REB/etc) and Defense-table
+    // data (DEF RTG/PAINT/etc) coexist on the same team entry.
+    mergedTeams[key] = { ...(mergedTeams[key] || {}), ...row };
+  });
+  const merged = { teams: mergedTeams, updated: Date.now(), source: "wnba_defense_stats" };
+  const leagueAvg = {};
+  const allCols = Array.from(new Set(Object.values(mergedTeams).flatMap(t => Object.keys(t))));
+  allCols.forEach(col => {
+    const vals = Object.values(mergedTeams).map(t => t[col]).filter(v => v != null);
+    if (vals.length > 0) leagueAvg[col] = +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+  });
+  merged.leagueAvg = leagueAvg;
+  try { localStorage.setItem(MATCHUP_STORAGE_KEY, JSON.stringify(merged)); } catch (e) {}
+  ta.value = "";
+  showToast(`Loaded ${Object.keys(parsed.teams).length} teams from WNBA Defense stats`);
+  if (typeof renderMatchupStatus === "function") renderMatchupStatus();
+}
+
 function toggleMatchupSection() {
   const body = document.getElementById("matchup-section-body");
   const chevron = document.getElementById("matchup-section-chevron");
+  if (!body) return;
+  const open = body.style.display !== "none";
+  body.style.display = open ? "none" : "block";
+  if (chevron) chevron.textContent = open ? "▸" : "▾";
+}
+
+function toggleWnbaOppStatsSection() {
+  const body = document.getElementById("wnba-opp-stats-body");
+  const chevron = document.getElementById("wnba-opp-stats-chevron");
+  if (!body) return;
+  const open = body.style.display !== "none";
+  body.style.display = open ? "none" : "block";
+  if (chevron) chevron.textContent = open ? "▸" : "▾";
+}
+
+function toggleWnbaDefStatsSection() {
+  const body = document.getElementById("wnba-def-stats-body");
+  const chevron = document.getElementById("wnba-def-stats-chevron");
   if (!body) return;
   const open = body.style.display !== "none";
   body.style.display = open ? "none" : "block";
@@ -15089,7 +15365,7 @@ function _briefLineForGame(g) {
   // Use the same cardKey scheme as the rendering (underscore, not slash) so
   // user's per-card overrides for season + active projection model are honored.
   const cardKey = `${g.awayAbbr}_${g.homeAbbr}`;
-  const cardSeason = window._cardSeason?.[cardKey] || g.defaultSeason || "blend";
+  const cardSeason = window._cardSeason?.[cardKey] || g.defaultSeason || "2026";
   const seasonArg = cardSeason === "auto" ? undefined : cardSeason;
   // Compute both projection candidates the SAME way renderTotals does — so
   // COPY emits the exact number shown in the big ACTIVE label on the card.
@@ -15405,7 +15681,7 @@ function _executeCopySpreadsByDate(dateFilter, modelOverride) {
   const byDate = new Map();
   games.forEach(g => {
     // Compute per-team projections from both models
-    const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
+    const indep = independentTotal(g.awayAbbr, g.homeAbbr, "2026");
     const paceEffAway = indep?.ptsA;
     const paceEffHome = indep?.ptsB;
     let playerAway = null, playerHome = null;
@@ -15622,7 +15898,7 @@ function _combinedTeamProj(g) {
   return result;
 }
 function _combinedTeamProjUncached(g) {
-  const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
+  const indep = independentTotal(g.awayAbbr, g.homeAbbr, "2026");
   const peA = indep?.ptsA, peB = indep?.ptsB;
   let plA = null, plB = null;
   const day = g.gameDate ? String(g.gameDate).slice(0,10) : (typeof _gameDayISO==="function"?_gameDayISO(g):null);
@@ -15913,7 +16189,7 @@ function _executeCopyTotalsByDate(dateFilter, modelOverride) {
   const byDate = new Map();
   games.forEach(g => {
     // Compute both candidate projections (PxE and RW-blended player sum)
-    const indep = independentTotal(g.awayAbbr, g.homeAbbr, "blend");
+    const indep = independentTotal(g.awayAbbr, g.homeAbbr, "2026");
     const paceEffTotal = indep?.total;
     let blendedTotal = null;
     const rwAway = (typeof getTotalsPageRwTeamSum === "function") ? getTotalsPageRwTeamSum(g.awayAbbr) : null;
@@ -16167,7 +16443,7 @@ function renderTotals() {
     if (!window._cardSeason[cardKey]) {
       window._cardSeason[cardKey] = g.defaultSeason || "blend";
     }
-    const cardSeason = window._cardSeason[cardKey] || "blend";
+    const cardSeason = window._cardSeason[cardKey] || "2026";
     const seasonArg = cardSeason === "auto" ? undefined : cardSeason;
 
     // Pace × Eff independent total (from team-level advanced stats, with optional season override)
@@ -19620,6 +19896,48 @@ function evCalcBuildContextBlock(playerRow, statKey) {
             ${cells}
           </div>
         </div>`);
+
+      // ── Situational scoring split (from the WNBA Defense table, if
+      // loaded) — HOW this defense gives up points, not just how much.
+      // Only the splits that map to a specific bet type are shown: Paint
+      // (relevant to bigs' PTS), Fast Break + Off TOV (relevant to STL
+      // context / pace-driven scoring). DEF RTG itself is deliberately left
+      // out here — it's context for why the raw allowed numbers above look
+      // the way they do, not a separate actionable signal, and this grid is
+      // meant to stay focused on numbers that map to an actual bet decision.
+      const SITUATIONAL_STATS = [
+        { key: "OPP_PTS_PAINT", label: "PAINT" },
+        { key: "OPP_PTS_FB", label: "FAST BRK" },
+        { key: "OPP_PTS_OFF_TOV", label: "OFF TOV" },
+        { key: "OPP_PTS_2NDCHANCE", label: "2ND CH" },
+      ];
+      const hasSituational = SITUATIONAL_STATS.some(s => teamRow[s.key] != null);
+      if (hasSituational) {
+        const sitCells = SITUATIONAL_STATS.map(s => {
+          const val = teamRow[s.key];
+          if (val == null) return `<div style="text-align:center;opacity:0.35;"><div style="font-size:8.5px;font-weight:800;color:#a8b0bb;">${s.label}</div><div style="font-size:12px;color:#525a64;">—</div></div>`;
+          const allVals = Object.values(mData.teams).map(t => t[s.key]).filter(v => v != null);
+          let rankStr = "";
+          if (allVals.length >= 2) {
+            // Same convention as the main grid: lowest allowed = #1 = best defense.
+            const sorted = [...allVals].sort((a, b) => a - b);
+            const rank = sorted.findIndex(v => v === val) + 1;
+            rankStr = `<div style="font-size:8px;font-weight:700;color:#7dd3fc;margin-top:1px;">#${rank}/${sorted.length}</div>`;
+          }
+          return `<div style="text-align:center;">
+            <div style="font-size:8.5px;font-weight:800;color:#a8b0bb;">${s.label}</div>
+            <div style="font-size:12px;font-weight:800;color:#fff;margin-top:2px;">${val.toFixed(1)}</div>
+            ${rankStr}
+          </div>`;
+        }).join("");
+        parts.push(`
+          <div>
+            <div style="font-size:9px;color:#a8b0bb;margin-bottom:6px;">How ${resolved.oppTeam} gives up points (per 100 poss.) · lower = tougher to score against that way</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:#050507;border:1px solid #1a1d22;border-radius:8px;padding:8px 6px;">
+              ${sitCells}
+            </div>
+          </div>`);
+      }
     }
   }
 
