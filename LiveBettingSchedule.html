@@ -191,8 +191,7 @@
   .hot-badge {
     font-size: 8px; font-weight: 800; color: var(--amber);
     letter-spacing: 0.5px; text-transform: uppercase;
-    position: absolute; top: 5px; left: 18px;
-    opacity: 0.8;
+    white-space: nowrap;
   }
 
   /* LOGOS */
@@ -300,8 +299,8 @@
     cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
     gap: 2px;
   }
-  .win-chip.now   { border-color: var(--red); background: rgba(255,59,59,0.08); }
-  .win-chip.active { border-color: rgba(39,192,113,0.5); background: rgba(39,192,113,0.08); }
+  .win-chip.now   { border-color: rgba(255,59,59,0.5); background: rgba(255,59,59,0.06); }
+  .win-chip.active { border-color: rgba(39,192,113,0.4); background: rgba(39,192,113,0.06); }
   .win-chip.done  { opacity: 0.3; }
   .win-chip.selected { border-color: var(--green); background: rgba(39,192,113,0.15); }
   .win-chip-time  { font-size: 12px; font-weight: 800; color: #fff; letter-spacing: -0.3px; white-space: nowrap; }
@@ -789,7 +788,6 @@ function liveRow(g) {
     : `<div class="teams-divider"></div>`;
 
   return `<div class="game-row live-row${isHot?' hot-row':''}" data-gameid="${g.id}">
-    ${isHot?`<span class="hot-badge">${hotLabel}</span>`:''}
     <div class="logos">${logo(g.away)}${logo(g.home)}</div>
     <div class="teams">
       <div class="team-line"><span class="t-name">${g.away.abbr}</span>${g.away.record?`<span class="t-rec">${g.away.record}</span>`:''}</div>
@@ -801,7 +799,10 @@ function liveRow(g) {
       ${hasMLBSit?`<span class="t-score" style="visibility:hidden">·</span>`:''}
       <span class="t-score">${g.home.score}</span>
     </div>
-    <div class="game-status">${statusHtml}</div>
+    <div class="game-status">
+      ${isHot?`<span class="hot-badge">${hotLabel}</span>`:''}
+      ${statusHtml}
+    </div>
     <span class="game-league">${g.league}</span>
   </div>`;
 }
