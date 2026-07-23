@@ -1192,13 +1192,7 @@
   <!-- Book Order Tab -->
   <div class="tab-panel" id="tab-settle">
     <div class="panel" style="margin-top:14px" id="settleChartPanel">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div class="panel-label" style="margin-bottom:0">session history</div>
-        <div style="display:flex;gap:6px">
-          <button id="settleChartCumBtn" onclick="setSettleChartMode('cum')" style="font-size:10px;padding:3px 10px;border-color:var(--teal);color:var(--teal);background:rgba(74,222,128,0.08);text-transform:none;letter-spacing:0">Cumulative</button>
-          <button id="settleChartBarBtn" onclick="setSettleChartMode('bar')" style="font-size:10px;padding:3px 10px;border-color:var(--border2);color:var(--text2);background:transparent;text-transform:none;letter-spacing:0">Per Session</button>
-        </div>
-      </div>
+      <div class="panel-label" style="margin-bottom:10px">weekly performance</div>
       <canvas id="settleChartCanvas" style="width:100%;display:block"></canvas>
       <div id="settleChartEmpty" style="display:none;font-family:var(--body);font-size:12px;color:var(--text3);padding:16px 0;text-align:center">No reset history yet — reset your balance to start tracking sessions.</div>
     </div>
@@ -1223,6 +1217,7 @@
       <div id="settleSummary" style="font-family:var(--body);font-size:14px;font-weight:500;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;line-height:1.7;white-space:pre-wrap;min-height:120px"></div>
     </div>
 
+    <div class="panel" style="margin-top:14px" id="settlePendingPanel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div class="panel-label" style="margin-bottom:0">pending</div>
         <div id="settlePendingMeta" style="font-family:var(--body);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600"></div>
@@ -5927,205 +5922,70 @@ function renderSettlePending(){
   }).join('');
 }
 
-let _settleChartMode = 'cum';
-function setSettleChartMode(mode){
-  _settleChartMode = mode;
-  document.getElementById('settleChartCumBtn').style.borderColor = mode==='cum'?'var(--teal)':'var(--border2)';
-  document.getElementById('settleChartCumBtn').style.color = mode==='cum'?'var(--teal)':'var(--text2)';
-  document.getElementById('settleChartCumBtn').style.background = mode==='cum'?'rgba(74,222,128,0.08)':'transparent';
-  document.getElementById('settleChartBarBtn').style.borderColor = mode==='bar'?'var(--teal)':'var(--border2)';
-  document.getElementById('settleChartBarBtn').style.color = mode==='bar'?'var(--teal)':'var(--text2)';
-  document.getElementById('settleChartBarBtn').style.background = mode==='bar'?'rgba(74,222,128,0.08)':'transparent';
-  renderSettleChart();
-}
+function setSettleChartMode(mode){ renderSettleChart(); }
 
 function renderSettleChart(){
   const canvas = document.getElementById('settleChartCanvas');
   const empty  = document.getElementById('settleChartEmpty');
   if(!canvas) return;
-
   const hist = getSettleHistory();
-  if(!hist.length){
-    canvas.style.display = 'none';
-    if(empty) empty.style.display = 'block';
-    return;
-  }
-  if(empty) empty.style.display = 'none';
-  canvas.style.display = 'block';
-
-  // Sessions oldest→newest (hist is stored newest first)
+  if(!hist || !hist.length){ canvas.style.display='none'; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  canvas.style.display='block';
   const sessions = [...hist].reverse();
-  const labels = sessions.map((h, i) => {
-    const d = new Date(h.date);
-    return d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+  const vals = sessions.map(h=>h.pnl/100);
+  const labels = sessions.map(h=>{ const d=new Date(h.date); return 'Wk '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); });
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-32;
+  const H=200;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const pad={t:24,r:12,b:40,l:52};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  const maxAbs=Math.max(...vals.map(Math.abs),0.5);
+  const zeroY=pad.t+ch/2;
+  const slot=cw/sessions.length;
+  const barW=Math.max(6,Math.floor(slot)-4);
+  // Grid
+  [maxAbs,0,-maxAbs].forEach(v=>{
+    const y=pad.t+ch*(1-(v+maxAbs)/(2*maxAbs));
+    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='right';
+    ctx.fillText((v>=0?'+':'')+v.toFixed(1)+'u',pad.l-5,y+4);
   });
-
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.parentElement.clientWidth - 32;
-  const H = 180;
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  canvas.style.width  = W + 'px';
-  canvas.style.height = H + 'px';
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, W, H);
-
-  const pad = { t: 16, r: 12, b: 36, l: 54 };
-  const cw = W - pad.l - pad.r;
-  const ch = H - pad.t - pad.b;
-
-  if(_settleChartMode === 'cum'){
-    // Cumulative P&L line
-    let cum = 0;
-    const points = sessions.map(h => { cum += h.pnl/100; return cum; });
-    const minV = Math.min(0, ...points);
-    const maxV = Math.max(0, ...points);
-    const range = maxV - minV || 1;
-    const toX = i => pad.l + (i/(points.length-1||1))*cw;
-    const toY = v => pad.t + ch - ((v-minV)/range)*ch;
-
-    // Calculate peak and max drawdown
-    let peak = -Infinity, maxDD = 0, peakIdx = 0, ddStart = 0, ddEnd = 0;
-    let runPeak = -Infinity, runPeakIdx = 0;
-    points.forEach((v, i) => {
-      if(v > runPeak){ runPeak = v; runPeakIdx = i; }
-      const dd = runPeak - v;
-      if(dd > maxDD){ maxDD = dd; ddStart = runPeakIdx; ddEnd = i; }
-      if(v > peak){ peak = v; peakIdx = i; }
-    });
-
-    // Stats strip above chart
-    const finalPnl = points[points.length-1];
-    const pnlCol = finalPnl >= 0 ? 'var(--teal)' : '#f87171';
-    const statsDiv = canvas.parentElement.querySelector('.settle-chart-stats');
-    if(!statsDiv){
-      const s = document.createElement('div');
-      s.className = 'settle-chart-stats';
-      s.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--mono);font-size:11px';
-      canvas.parentElement.insertBefore(s, canvas);
-    }
-    const sd = canvas.parentElement.querySelector('.settle-chart-stats');
-    sd.innerHTML = `
-      <span style="color:var(--teal)">Peak <b>+${peak.toFixed(2)}u</b></span>
-      <span style="color:#f87171">Max DD <b>-${maxDD.toFixed(2)}u</b></span>
-      <span style="color:var(--text3)">${sessions.length} sessions</span>
-      <span style="color:${pnlCol}">Now <b>${(finalPnl>=0?'+':'')+finalPnl.toFixed(2)}u</b></span>`;
-
-    // Zero line
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 1;
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l,zeroY); ctx.lineTo(pad.l+cw,zeroY); ctx.stroke();
+  // Bars
+  vals.forEach((v,i)=>{
+    const x=pad.l+i*slot+(slot-barW)/2;
+    const barH=Math.abs(v)/maxAbs*(ch/2);
+    const y=v>=0?zeroY-barH:zeroY;
+    ctx.fillStyle=v>=0?'rgba(74,222,128,0.75)':'rgba(248,113,113,0.75)';
     ctx.beginPath();
-    ctx.moveTo(pad.l, toY(0)); ctx.lineTo(pad.l+cw, toY(0));
-    ctx.stroke();
-
-    // Drawdown zone shading
-    if(maxDD > 0){
-      ctx.fillStyle = 'rgba(248,113,113,0.06)';
-      ctx.beginPath();
-      for(let i = ddStart; i <= ddEnd; i++){
-        if(i === ddStart) ctx.moveTo(toX(i), toY(points[i]));
-        else ctx.lineTo(toX(i), toY(points[i]));
-      }
-      ctx.lineTo(toX(ddEnd), toY(points[ddStart]));
-      ctx.lineTo(toX(ddStart), toY(points[ddStart]));
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // Fill under line
-    const col = finalPnl >= 0 ? 'rgba(74,222,128,' : 'rgba(248,113,113,';
-    ctx.beginPath();
-    ctx.moveTo(toX(0), toY(points[0]));
-    points.forEach((v,i) => ctx.lineTo(toX(i), toY(v)));
-    ctx.lineTo(toX(points.length-1), toY(minV));
-    ctx.lineTo(toX(0), toY(minV));
-    ctx.closePath();
-    ctx.fillStyle = col+'0.08)';
+    if(ctx.roundRect) ctx.roundRect(x,y,barW,Math.max(2,barH),3);
+    else ctx.rect(x,y,barW,Math.max(2,barH));
     ctx.fill();
-
-    // Line
-    ctx.beginPath();
-    ctx.moveTo(toX(0), toY(points[0]));
-    points.forEach((v,i) => ctx.lineTo(toX(i), toY(v)));
-    ctx.strokeStyle = finalPnl >= 0 ? '#4ade80' : '#f87171';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Peak dot
-    if(peak > 0){
-      ctx.beginPath();
-      ctx.arc(toX(peakIdx), toY(peak), 4, 0, Math.PI*2);
-      ctx.fillStyle = '#4ade80';
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '9px Inter,sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('▲ '+peak.toFixed(1)+'u', toX(peakIdx), toY(peak)-8);
+    if(barW>=24&&Math.abs(v)>0.05){
+      ctx.fillStyle=v>=0?'#4ade80':'#f87171';
+      ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText((v>=0?'+':'')+v.toFixed(1),x+barW/2,v>=0?y-3:y+barH+10);
     }
-
-    // Max DD start/end markers
-    if(maxDD > 0.1){
-      ctx.beginPath();
-      ctx.arc(toX(ddEnd), toY(points[ddEnd]), 3, 0, Math.PI*2);
-      ctx.fillStyle = '#f87171';
-      ctx.fill();
-    }
-
-    // Y axis labels
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '10px Inter,sans-serif';
-    ctx.textAlign = 'right';
-    [minV, (minV+maxV)/2, maxV].forEach(v => {
-      const y = toY(v);
-      ctx.fillText((v>=0?'+':'')+v.toFixed(2)+'u', pad.l-6, y+4);
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+cw, y); ctx.stroke();
-    });
-
-  } else {
-    // Per-session bars
-    const vals = sessions.map(h => h.pnl/100);
-    const maxAbs = Math.max(...vals.map(Math.abs), 1);
-    const barW = Math.max(4, cw/sessions.length - 4);
-    const zeroY = pad.t + ch/2;
-
-    vals.forEach((v, i) => {
-      const x = pad.l + (i/sessions.length)*cw + (cw/sessions.length - barW)/2;
-      const barH = Math.abs(v)/maxAbs * (ch/2);
-      const y = v >= 0 ? zeroY - barH : zeroY;
-      ctx.fillStyle = v >= 0 ? 'rgba(74,222,128,0.7)' : 'rgba(248,113,113,0.7)';
-      ctx.beginPath();
-      ctx.roundRect(x, y, barW, barH, 3);
-      ctx.fill();
-    });
-
-    // Zero line
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(pad.l, zeroY); ctx.lineTo(pad.l+cw, zeroY); ctx.stroke();
-
-    // Y axis
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '10px Inter,sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('+'+maxAbs.toFixed(1)+'u', pad.l-6, pad.t+8);
-    ctx.fillText('-'+maxAbs.toFixed(1)+'u', pad.l-6, pad.t+ch-2);
-  }
-
-  // X axis session labels — show every Nth to avoid crowding
-  const step = Math.ceil(sessions.length/6);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '9px Inter,sans-serif';
-  ctx.textAlign = 'center';
-  labels.forEach((lbl, i) => {
-    if(i % step !== 0 && i !== labels.length-1) return;
-    const x = _settleChartMode==='cum'
-      ? pad.l + (i/(sessions.length-1||1))*cw
-      : pad.l + (i/sessions.length)*cw + cw/sessions.length/2;
-    ctx.fillText(lbl, x, H-8);
   });
+  // X labels
+  const step=Math.ceil(sessions.length/7);
+  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+  labels.forEach((lbl,i)=>{ if(i%step!==0&&i!==labels.length-1) return; ctx.fillText(lbl,pad.l+i*slot+slot/2,H-8); });
+  // Stats strip
+  const totalPnl=vals.reduce((a,b)=>a+b,0);
+  const greenWks=vals.filter(v=>v>0).length, redWks=vals.filter(v=>v<0).length;
+  const best=Math.max(...vals), worst=Math.min(...vals);
+  let sd=canvas.parentElement.querySelector('.settle-chart-stats');
+  if(!sd){ sd=document.createElement('div'); sd.className='settle-chart-stats'; sd.style.cssText='display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--mono);font-size:11px'; canvas.parentElement.insertBefore(sd,canvas); }
+  const tc=totalPnl>=0?'var(--teal)':'#f87171';
+  sd.innerHTML=`<span style="color:${tc}"><b>${(totalPnl>=0?'+':'')+totalPnl.toFixed(2)}u</b> total</span><span style="color:var(--teal)"><b>${greenWks}</b> green</span><span style="color:#f87171"><b>${redWks}</b> red</span><span style="color:var(--text3)">Best <b style="color:var(--teal)">${best>=0?'+':''}${best.toFixed(2)}u</b></span><span style="color:var(--text3)">Worst <b style="color:#f87171">${worst.toFixed(2)}u</b></span>`;
 }
 
 function renderSettleTab(){
