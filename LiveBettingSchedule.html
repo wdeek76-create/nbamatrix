@@ -183,6 +183,18 @@
   .sched-row::before { background: transparent; }
   .final-row::before { background: transparent; }
 
+  /* HIGH VALUE moment highlight */
+  .game-row.hot-row {
+    background: rgba(245,166,35,0.06) !important;
+  }
+  .game-row.hot-row::before { background: var(--amber) !important; box-shadow: 0 0 6px rgba(245,166,35,0.6); }
+  .hot-badge {
+    font-size: 8px; font-weight: 800; color: var(--amber);
+    letter-spacing: 0.5px; text-transform: uppercase;
+    position: absolute; top: 5px; left: 18px;
+    opacity: 0.8;
+  }
+
   /* LOGOS */
   .logos { display: flex; flex-direction: column; gap: 7px; align-items: center; flex-shrink: 0; width: 28px; }
   .team-logo { width: 24px; height: 24px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
@@ -707,10 +719,57 @@ function diamondSvg(sit, size=36) {
   </svg>`;
 }
 
+// ── HIGH VALUE DETECTION ──────────────────────────────────────────
+function highValueLabel(g) {
+  if (g.stateType !== 'in') return null;
+  const desc = (g.stateDesc || '').toLowerCase();
+  const period = g.period || 0;
+  const diff = Math.abs(g.away.score - g.home.score);
+  const tied = diff === 0;
+  const close = diff <= 3;
+
+  // Overtime / extra innings
+  if (desc.includes('ot') || desc.includes('overtime') || desc.includes('extra')) return 'OT';
+  if (g.league === 'MLB' && period > 9) return 'Extra Innings';
+
+  // MLB — 5th inning and beyond
+  if (g.league === 'MLB') {
+    if (period >= 5 && tied) return 'Tied';
+    if (period >= 7) return close ? 'Late & Close' : 'Late Innings';
+    if (period >= 5 && close) return '5th+ Close';
+    return null;
+  }
+
+  // NBA / WNBA — 2nd half (3rd/4th qtr)
+  if (['NBA','WNBA'].includes(g.league)) {
+    if (period >= 4 && close) return tied ? 'Tied 4th' : '4th & Close';
+    if (period >= 3 && tied) return 'Tied';
+    return null;
+  }
+
+  // NFL — 2nd half
+  if (g.league === 'NFL') {
+    if (period >= 4 && close) return tied ? 'Tied 4th' : '4th & Close';
+    if (period >= 3 && tied) return 'Tied';
+    return null;
+  }
+
+  // NHL — 2nd/3rd period
+  if (g.league === 'NHL') {
+    if (period >= 3 && close) return tied ? 'Tied 3rd' : '3rd & Close';
+    if (period === 2 && tied) return 'Tied';
+    return null;
+  }
+
+  return null;
+}
+
 function liveRow(g) {
   const {label,isBreak}=gameStatus(g);
   const sit = g.sit;
   const hasMLBSit = g.league === 'MLB' && !isBreak && sit.balls !== null;
+  const hotLabel = highValueLabel(g);
+  const isHot = !!hotLabel;
 
   let statusHtml;
   if (g.league !== 'MLB') {
@@ -729,7 +788,8 @@ function liveRow(g) {
     ? `<div class="mlb-inline">${diamondSvg(sit,28)}<span class="mlb-inline-count">${sit.balls}-${sit.strikes}</span><div class="mlb-bar-outs">${outDots(sit.outs)}</div></div>`
     : `<div class="teams-divider"></div>`;
 
-  return `<div class="game-row live-row" data-gameid="${g.id}">
+  return `<div class="game-row live-row${isHot?' hot-row':''}" data-gameid="${g.id}">
+    ${isHot?`<span class="hot-badge">${hotLabel}</span>`:''}
     <div class="logos">${logo(g.away)}${logo(g.home)}</div>
     <div class="teams">
       <div class="team-line"><span class="t-name">${g.away.abbr}</span>${g.away.record?`<span class="t-rec">${g.away.record}</span>`:''}</div>
