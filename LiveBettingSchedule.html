@@ -302,42 +302,21 @@
     background: linear-gradient(135deg, rgba(39,192,113,0.08) 0%, rgba(39,192,113,0.02) 100%);
     display: flex; align-items: flex-start; gap: 8px;
   }
-  .insight-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .insight-icon { font-size: 10px; flex-shrink: 0; margin-top: 3px; color: var(--green); font-weight: 900; }
   .insight-text { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.5; }
-  .insight-text strong { color: var(--green); font-weight: 800; }
+  .insight-text strong { font-weight: 700; }
+  .time-pill {
+    display: inline-block;
+    border: 1.5px solid var(--green);
+    color: var(--green);
+    background: rgba(39,192,113,0.08);
+    border-radius: 4px;
+    padding: 0px 5px;
+    font-weight: 800;
+    font-size: 11px;
+  }
 
-  /* ── ACTION WINDOWS ── */
-  #windows-wrap { padding: 0 16px 10px; }
-  .windows-label {
-    font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 1.5px; color: rgba(255,255,255,0.4); margin-bottom: 8px;
-  }
-  .windows-strip {
-    display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
-  }
-  .windows-strip::-webkit-scrollbar { display: none; }
-  .win-chip {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 7px 14px; border-radius: 20px; flex-shrink: 0;
-    border: 1.5px solid var(--border); background: var(--card);
-    cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
-    gap: 2px;
-  }
-  .win-chip.now   { border-color: rgba(255,59,59,0.5); background: rgba(255,59,59,0.06); }
-  .win-chip.active { border-color: rgba(39,192,113,0.4); background: rgba(39,192,113,0.06); }
-  .win-chip.done  { opacity: 0.3; }
-  .win-chip.selected { border-color: var(--green); background: rgba(39,192,113,0.15); }
-  .win-chip-time  { font-size: 12px; font-weight: 800; color: #fff; letter-spacing: -0.3px; white-space: nowrap; }
-  .win-chip.now   .win-chip-time { color: var(--red); }
-  .win-chip.active .win-chip-time { color: var(--green); }
-  .win-chip-count { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.4); }
-  .win-chip.now   .win-chip-count { color: rgba(255,59,59,0.7); }
-  .win-chip.active .win-chip-count { color: var(--green); }
-
-  .game-row.win-highlight {
-    background: rgba(39,192,113,0.08) !important;
-  }
-  .game-row.win-highlight::before { background: var(--green) !important; }
+  /* win-highlight handled by green opportunity rows */
 
 
   #loading {
@@ -414,7 +393,6 @@
 <div id="insight-bar" style="display:none"></div>
 
 <div id="loading"><div class="spinner"></div><p>Loading today's games…</p></div>
-<div id="windows-wrap" style="display:none"></div>
 <div id="content" style="display:none"></div>
 
 <script>
@@ -647,13 +625,10 @@ function render() {
 
   if (!f.length) {
     out.innerHTML = '<div class="empty">No games today for selected leagues.</div>';
-    renderWindows([]);
     return;
   }
 
-  selectedWindowIds = null;
   renderInsight(f);
-  renderWindows(f);
   let html = '';
 
   // Update labels based on viewing date
@@ -738,7 +713,7 @@ function renderInsight(games) {
   const hotGames = games.filter(g => g.bucket === 'live' && highValueLabel(g));
   hotGames.forEach(g => {
     const lbl = highValueLabel(g);
-    tips.push({ icon:'🎯', time: nowMs, text:`${g.away.abbr}/${g.home.abbr} (${g.league}) — ${g.away.score}-${g.home.score} ${lbl} ${g.stateDesc||''}`.trim() });
+    tips.push({ icon:'·', time: nowMs, text:`${g.away.abbr}/${g.home.abbr} (${g.league}) — ${g.away.score}-${g.home.score} ${lbl} ${g.stateDesc||''}`.trim() });
   });
 
   // 2. Upcoming 2nd half estimates — group by ~20 min windows
@@ -803,7 +778,7 @@ function renderInsight(games) {
       <span class="insight-text">${t.text
         .replace(/([A-Z]{2,4}\/[A-Z]{2,4})/g,'<strong>$1</strong>')
         .replace(/\d+ [A-Z]+(?:, \d+ [A-Z]+)*/g, m=>`<strong>${m}</strong>`)
-        .replace(/~\d+:\d+ [AP]M/g, m=>`<strong>${m}</strong>`)
+        .replace(/~([\d]+:[\d]+ [AP]M)/g, '~<span class="time-pill">$1</span>')
       }</span>
     </div>`).join('');
 }
@@ -980,163 +955,7 @@ function finalRow(g) {
   </div>`;
 }
 
-// ── ACTION WINDOWS ────────────────────────────────────────────────
-// Group games by start hour-block (rounded to nearest 30min).
-// A "window" = a cluster of game starts within 30 min of each other.
-// Show top 3 windows sorted by game count desc.
-
-let selectedWindowIds = null;
-let currentWindows = [];
-
-function switchDate(offset) {
-  if (viewingDate === offset) return;
-  viewingDate = offset;
-  document.getElementById('btn-today').classList.toggle('active', offset === 0);
-  document.getElementById('btn-tomorrow').classList.toggle('active', offset === 1);
-  document.getElementById('loading').style.display = 'flex';
-  document.getElementById('content').style.display = 'none';
-  document.getElementById('windows-wrap').style.display = 'none';
-  if (autoTimer) clearTimeout(autoTimer);
-  fetchAll();
-}
-
-function buildWindowSummary(w) {
-  const fmt = ms => new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-  const leagueOrder = ['MLB','WNBA','NBA','NFL','NHL'];
-  const byLeague = {};
-  w.games.forEach(g => { (byLeague[g.league]||=[]).push(g); });
-
-  const sections = leagueOrder.filter(l => byLeague[l]).map(league => {
-    const games = byLeague[league];
-    const rows = games.map(g => {
-      if (g.bucket === 'live') {
-        return `${g.away.abbr} @ ${g.home.abbr}  ${g.away.score}-${g.home.score}  ${g.stateDesc||'Live'}`;
-      } else if (g.bucket === 'final') {
-        return `${g.away.abbr} @ ${g.home.abbr}  ${g.away.score}-${g.home.score}  Final`;
-      } else {
-        return `${g.away.abbr} @ ${g.home.abbr}  ${fmt(g.startTime.getTime())}`;
-      }
-    });
-    // Last game estimated end
-    const lastGame = games.slice().sort((a,b) => b.startTime - a.startTime)[0];
-    const lastEnd = gameEndMs(lastGame);
-    const endNote = lastGame.bucket !== 'final'
-      ? `Last game ends ~${fmt(lastEnd)}`
-      : `All done`;
-    return `${league}\n${rows.join('\n')}\n${endNote}`;
-  });
-
-  // Sport duration tips
-  const TIPS = {
-    MLB:  'MLB ~2h 45m (pitch clock era, down from ~3h+)',
-    WNBA: 'WNBA ~2h 15m (2 halves, 2 timeouts each)',
-    NBA:  'NBA ~2h 30m (4 qtrs, frequent timeouts + reviews)',
-    NFL:  'NFL ~3h 30m (4 qtrs, halftime, TV timeouts)',
-    NHL:  'NHL ~2h 40m (3 periods, 18-min intermissions)',
-  };
-  const leagues = Object.keys(byLeague);
-  const tips = leagues.map(l => TIPS[l]).filter(Boolean).join('\n');
-
-  return sections.join('\n\n') + (tips ? `\n\nAvg Durations\n${tips}` : '');
-}
-
-function closePopup(e) {
-  if (e && e.target !== document.getElementById('win-popup-overlay')) return;
-  document.getElementById('win-popup-overlay').classList.remove('open');
-}
-
-async function selectWindow(idx) {
-  const w = currentWindows[idx];
-  if (!w) return;
-
-  const alreadySelected = selectedWindowIds && selectedWindowIds.size === w.ids.size &&
-    [...w.ids].every(id => selectedWindowIds.has(id));
-  selectedWindowIds = alreadySelected ? null : w.ids;
-
-  document.querySelectorAll('.game-row').forEach(row => {
-    row.classList.toggle('win-highlight', !!(selectedWindowIds && selectedWindowIds.has(row.dataset.gameid)));
-  });
-  document.querySelectorAll('.win-chip').forEach((chip, i) => {
-    chip.classList.toggle('selected', !!(selectedWindowIds && i === idx));
-  });
-
-  if (selectedWindowIds) {
-    setTimeout(() => {
-      const first = document.querySelector('.game-row.win-highlight');
-      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
-  }
-}
-
 const AVG_DURATION = { NBA:155, WNBA:135, NFL:210, MLB:165, NHL:160 };
-
-function gameEndMs(g) {
-  if (g.bucket === 'final') return Date.now();
-  return g.startTime.getTime() + (AVG_DURATION[g.league] || 150) * 60000;
-}
-
-function computeWindows(games) {
-  if (!games.length) return [];
-  const sorted = [...games].sort((a,b) => a.startTime - b.startTime);
-  const CLUSTER_MS = 60 * 60000;
-  const clusters = [];
-  let cur = null;
-  for (const g of sorted) {
-    if (!cur || g.startTime - cur.anchorMs > CLUSTER_MS) {
-      cur = { anchorMs: g.startTime.getTime(), games: [g] };
-      clusters.push(cur);
-    } else {
-      cur.games.push(g);
-    }
-  }
-  return clusters
-    .map(c => {
-      const starts = c.games.map(g => g.startTime.getTime());
-      const leagues = [...new Set(c.games.map(g => g.league))];
-      return {
-        count:   c.games.length,
-        total:   c.games.length,
-        start:   Math.min(...starts),
-        end:     Math.max(...starts),
-        liveEnd: Math.max(...c.games.map(g => gameEndMs(g))),
-        leagues,
-        ids:     new Set(c.games.map(g => g.id)),
-        games:   c.games,
-        peakGames: c.games,
-      };
-    })
-    .filter(w => w.count >= 2)
-    .sort((a,b) => b.count - a.count)
-    .slice(0, 3);
-}
-
-function renderWindows(games) {
-  const wrap = document.getElementById('windows-wrap');
-  const f = games.filter(g => activeLeagues.has(g.league));
-  currentWindows = computeWindows(f);
-  if (!currentWindows.length) { wrap.style.display='none'; wrap.innerHTML=''; return; }
-
-  const nowMs = Date.now();
-  const fmt = ms => new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-
-  const chips = currentWindows.map((w, i) => {
-    const allDone    = w.games.every(g => g.bucket === 'final');
-    const isNow      = !allDone && nowMs >= w.start - 10*60000 && nowMs <= w.liveEnd;
-    const isActive   = !allDone && !isNow && nowMs < w.start;
-    const cls        = allDone ? 'done' : isNow ? 'now' : isActive ? 'active' : '';
-    const liveCount  = w.games.filter(g => g.bucket === 'live').length;
-    const countLabel = allDone ? 'done' : isNow && liveCount > 0 ? `${liveCount} live` : `${w.count} games`;
-    const timeLabel  = w.start === w.end ? fmt(w.start) : `${fmt(w.start)}`;
-
-    return `<div class="win-chip ${cls}" onclick="selectWindow(${i})">
-      <span class="win-chip-time">${timeLabel}</span>
-      <span class="win-chip-count">${countLabel}</span>
-    </div>`;
-  });
-
-  wrap.innerHTML = `<div class="windows-label">Action Windows</div><div class="windows-strip">${chips.join('')}</div>`;
-  wrap.style.display = 'block';
-}
 
 fetchAll();
 </script>
