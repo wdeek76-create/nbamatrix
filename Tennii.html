@@ -1495,7 +1495,7 @@ bets.forEach(b => {
 // ── End swipe removed ────────────────────────────────────────────────────────
 
 function switchTab(name){
-  const tabs = ['entry','log','players','dashboard','calendar','settle','bookorder','sets'];
+  const tabs = ['entry','log','dashboard','calendar','settle','players','bookorder','sets'];
   document.querySelectorAll('.tab-btn').forEach((btn, i) => {
     btn.classList.toggle('active', tabs[i] === name);
   });
@@ -4370,7 +4370,10 @@ function closeEdit(){
 
 function setResult(id, val){
   const b = bets.find(x=>x.id===id); if(!b) return;
-  b.result=val; save(); renderLog();
+  b.result = val;
+  if(val === 'win' || val === 'loss') b.gradedAt = Date.now();
+  else delete b.gradedAt;
+  save(); renderLog();
   // Re-render any visible summary so the change shows immediately
   if(typeof _lastSummaryRange !== 'undefined' && _lastSummaryRange) copyDaySummary(_lastSummaryRange);
   if(typeof _calSelected !== 'undefined' && _calSelected) calSelectDay(_calSelected, true);
@@ -4647,9 +4650,23 @@ function renderLog(){
     });
   }
 
-  // Settled filter — sort by most recently graded first
+  // Settled filter — most recently graded first if stamped, else play date desc
   if(logFilter === 'settled' && !q){
-    filtered.sort((a, b) => (b.settleEpoch || b.id) - (a.settleEpoch || a.id));
+    filtered.sort((a, b) => {
+      const aStamp = a.gradedAt || a.settleEpoch || null;
+      const bStamp = b.gradedAt || b.settleEpoch || null;
+      // If both have stamps, sort by stamp
+      if(aStamp && bStamp) return bStamp - aStamp;
+      // If only one has stamp, stamped one goes first
+      if(bStamp) return 1;
+      if(aStamp) return -1;
+      // Neither stamped — sort by play date desc (original behaviour)
+      const da = betPlayDate(a), db = betPlayDate(b);
+      const ta = da ? da.getTime() : 0;
+      const tb = db ? db.getTime() : 0;
+      if(tb !== ta) return tb - ta;
+      return b.id - a.id;
+    });
   }
 
   // When searching, sort matches by most recent play date (matchTime / date) desc
