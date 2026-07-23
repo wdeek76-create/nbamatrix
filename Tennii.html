@@ -1177,6 +1177,7 @@
   <!-- Book Order Tab -->
   <div class="tab-panel" id="tab-settle">
     <div class="panel">
+      <div id="settleBalanceStrip" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div class="panel-label" style="margin-bottom:0">settle balance</div>
         <button onclick="settleResetBalance()" style="font-size:11px;padding:6px 14px;color:var(--red);border:1px solid rgba(240,79,79,0.5);background:rgba(240,79,79,0.08);border-radius:7px;text-transform:uppercase;font-weight:700;letter-spacing:.04em;cursor:pointer">Reset Balance</button>
@@ -5859,6 +5860,38 @@ function renderSettlePending(){
 }
 
 function renderSettleTab(){
+  // ── Since Reset balance strip ─────────────────────────────────────────────
+  const strip = document.getElementById('settleBalanceStrip');
+  if(strip){
+    const isW = b => typeof b.result === 'string' && b.result.trim().toLowerCase() === 'win';
+    const isL = b => typeof b.result === 'string' && b.result.trim().toLowerCase() === 'loss';
+    const epoch = getSettleEpoch();
+    const pool = bets.filter(b => b.buddy && (isW(b)||isL(b)) && (b.settleEpoch||0) >= epoch);
+    const w = pool.filter(isW).length;
+    const l = pool.filter(isL).length;
+    let pnl = 0;
+    pool.forEach(b => {
+      const u = (typeof b.settleUnit==='number'&&b.settleUnit>0) ? b.settleUnit : 0.5;
+      const eo = settleEffOdds(b);
+      if(isW(b)) pnl += amerPayout(eo, u*100);
+      else pnl -= actualStake(eo, u*100);
+    });
+    const pnlDollar = (pnl>=0?'+$':'-$')+Math.abs(pnl).toFixed(0);
+    const pnlUnits  = (pnl>=0?'+':'')+(pnl/100).toFixed(2)+'u';
+    const pnlCol = pnl>0?'var(--teal)':pnl<0?'var(--red)':'var(--text2)';
+    const recCol = w>l?'var(--teal)':w<l?'var(--red)':'var(--text2)';
+    function card(label, val, col, sub){
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:4px">${label}</div>
+        <div style="font-size:20px;font-weight:800;font-family:var(--mono);color:${col};line-height:1">${val}</div>
+        ${sub?`<div style="font-size:10px;font-weight:600;font-family:var(--mono);color:${col};opacity:.6;margin-top:3px">${sub}</div>`:''}
+      </div>`;
+    }
+    strip.innerHTML = pool.length
+      ? card('Bets', pool.length, 'var(--text)') + card('Record', w+'-'+l, recCol) + card('P / L', pnlDollar, pnlCol, pnlUnits)
+      : `<div style="grid-column:1/-1;color:var(--text3);font-size:12px;padding:8px 0">No settled bets since last reset.</div>`;
+  }
+
   // Highlight the active range button on first render
   document.querySelectorAll('#settleRangeBtns button[data-range]').forEach(btn => {
     const isActive = btn.dataset.range === _settleRange;
