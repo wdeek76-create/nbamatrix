@@ -724,53 +724,87 @@ function tickCd(){
 }
 
 // ── INSIGHT BAR ──────────────────────────────────────────────────
+const HALF_OFFSET = { MLB:0.45, WNBA:0.48, NBA:0.48, NFL:0.48, NHL:0.48 };
+
 function renderInsight(games) {
   const bar = document.getElementById('insight-bar');
-  const fmt = ms => new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-  const nowMs = Date.now();
-
   if (viewingDate !== 0) { bar.style.display='none'; return; }
 
+  const fmt = ms => new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  const nowMs = Date.now();
   const tips = [];
 
-  // 1. Current live high-value opportunities
+  // 1. Current high-value live games (still individual — these are specific)
   const hotGames = games.filter(g => g.bucket === 'live' && highValueLabel(g));
-  if (hotGames.length > 0) {
-    const byLeague = {};
-    hotGames.forEach(g => { (byLeague[g.league]||=[]).push(g); });
-    const parts = Object.entries(byLeague).map(([l,gs]) => `${gs.length} ${l}`).join(', ');
-    tips.push(`🎯 Live now — ${parts} in high-value situations.`);
+  hotGames.forEach(g => {
+    const lbl = highValueLabel(g);
+    tips.push({ icon:'🎯', time: nowMs, text:`${g.away.abbr}/${g.home.abbr} (${g.league}) — ${g.away.score}-${g.home.score} ${lbl} ${g.stateDesc||''}`.trim() });
+  });
+
+  // 2. Upcoming 2nd half estimates — group by ~20 min windows
+  const halfEvents = [];
+
+  // Scheduled/soon games
+  games.filter(g => g.bucket === 'sched' || g.bucket === 'soon').forEach(g => {
+    const halfMs = (HALF_OFFSET[g.league]||0.48) * (AVG_DURATION[g.league]||150) * 60000;
+    const halfTime = g.startTime.getTime() + halfMs;
+    if (halfTime > nowMs && halfTime < nowMs + 6*60*60000) {
+      halfEvents.push({ g, halfTime, icon:'📈' });
+    }
+  });
+
+  // Live games approaching 2nd half
+  games.filter(g => g.bucket === 'live').forEach(g => {
+    const halfMs = (HALF_OFFSET[g.league]||0.48) * (AVG_DURATION[g.league]||150) * 60000;
+    const estStart = nowMs - Math.max(0, g.period-1) * (AVG_DURATION[g.league]||150)/4 * 60000;
+    const halfTime = estStart + halfMs;
+    if (halfTime > nowMs && halfTime < nowMs + 90*60000 && !highValueLabel(g)) {
+      halfEvents.push({ g, halfTime, icon:'⏱' });
+    }
+  });
+
+  // Group by 20-min buckets
+  halfEvents.sort((a,b) => a.halfTime - b.halfTime);
+  const BUCKET_MS = 20 * 60000;
+  const groups = [];
+  let cur = null;
+  for (const ev of halfEvents) {
+    if (!cur || ev.halfTime - cur.anchorMs > BUCKET_MS) {
+      cur = { anchorMs: ev.halfTime, events: [ev] };
+      groups.push(cur);
+    } else {
+      cur.events.push(ev);
+    }
   }
 
-  // 2. Look ahead: when will the most games be in 2nd half simultaneously
-  const HALF_OFFSET = { MLB: 0.45, WNBA: 0.48, NBA: 0.48, NFL: 0.48, NHL: 0.48 };
-  const secondHalfTimes = games
-    .filter(g => g.bucket !== 'final')
-    .map(g => {
-      const startMs = g.stateType === 'in'
-        ? nowMs - (Math.max(0, g.period - 1)) * (AVG_DURATION[g.league]||150)/4 * 60000
-        : g.startTime.getTime();
-      const offset = (HALF_OFFSET[g.league] || 0.48) * (AVG_DURATION[g.league]||150) * 60000;
-      return { g, halfTime: startMs + offset };
-    })
-    .filter(x => x.halfTime > nowMs && x.halfTime < nowMs + 4*60*60000);
+  groups.forEach(grp => {
+    const evs = grp.events;
+    const t = fmt(grp.anchorMs);
+    const icon = evs[0].icon;
 
-  if (secondHalfTimes.length >= 2) {
-    secondHalfTimes.sort((a,b) => a.halfTime - b.halfTime);
-    const peakTime = secondHalfTimes[Math.floor(secondHalfTimes.length/2)].halfTime;
-    const byL = {};
-    secondHalfTimes.forEach(x => { (byL[x.g.league]||=[]).push(x.g); });
-    const leagueParts = Object.entries(byL).map(([l,gs]) => `${gs.length} ${l}`).join(', ');
-    tips.push(`📈 ~${fmt(peakTime)} — ${secondHalfTimes.length} games hit 2nd half (${leagueParts}).`);
-  }
+    if (evs.length === 1) {
+      const {g} = evs[0];
+      tips.push({ icon, time: grp.anchorMs, text:`${g.away.abbr}/${g.home.abbr} (${g.league}) 2nd half ~${t}` });
+    } else {
+      // Group by league
+      const byL = {};
+      evs.forEach(({g}) => { (byL[g.league]||=[]).push(g); });
+      const parts = Object.entries(byL).map(([l,gs]) => `${gs.length} ${l}`).join(', ');
+      tips.push({ icon, time: grp.anchorMs, text:`${parts} hit 2nd half ~${t}` });
+    }
+  });
 
   if (!tips.length) { bar.style.display='none'; return; }
 
   bar.style.display = 'block';
-  bar.innerHTML = tips.map(t => `
-    <div style="display:flex;gap:8px;${tips.length>1?'margin-bottom:7px':''}">
-      <span class="insight-icon">${t[0]}</span>
-      <span class="insight-text">${t.slice(2).replace(/(\d+ [A-Z]+(?:, \d+ [A-Z]+)*)/g,'<strong>$1</strong>')}</span>
+  bar.innerHTML = tips.map((t,i) => `
+    <div style="display:flex;gap:8px${i<tips.length-1?';margin-bottom:7px':''}">
+      <span class="insight-icon">${t.icon}</span>
+      <span class="insight-text">${t.text
+        .replace(/([A-Z]{2,4}\/[A-Z]{2,4})/g,'<strong>$1</strong>')
+        .replace(/\d+ [A-Z]+(?:, \d+ [A-Z]+)*/g, m=>`<strong>${m}</strong>`)
+        .replace(/~\d+:\d+ [AP]M/g, m=>`<strong>${m}</strong>`)
+      }</span>
     </div>`).join('');
 }
 
