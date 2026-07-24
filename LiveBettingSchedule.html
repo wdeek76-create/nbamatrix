@@ -167,7 +167,7 @@
     background: rgba(255,255,255,0.12); padding: 1px 7px; border-radius: 20px;
   }
   .section-cd {
-    font-size: 13px; font-weight: 900; color: var(--amber);
+    font-size: 13px; font-weight: 900; color: rgba(255,255,255,0.6);
     font-variant-numeric: tabular-nums;
   }
 
@@ -247,18 +247,24 @@
   .gs-period  { font-size: 10px; font-weight: 700; color: var(--text); }
   .gs-clock   { font-size: 10px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
   .gs-break   { font-size: 9px; font-weight: 800; color: var(--amber); line-height: 1.3; }
-  .gs-cd      { font-size: 14px; font-weight: 800; color: var(--amber); font-variant-numeric: tabular-nums; }
-  .gs-starts  { font-size: 8px; font-weight: 800; color: rgba(255,255,255,0.35); letter-spacing: 1px; text-transform: uppercase; }
+  .gs-cd      { font-size: 14px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+  .upcoming-status {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: auto !important;
+  }
+  .gs-sep { font-size: 11px; color: rgba(255,255,255,0.25); }
   .gs-time    { font-size: 10px; font-weight: 700; color: var(--text); }
   .gs-final   { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; }
 
   /* league micro-label */
   .game-league {
-    font-size: 8px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
-    position: absolute; bottom: 4px; right: 14px; color: rgba(255,255,255,0.35);
+    font-size: 9px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
+    position: absolute; bottom: 4px; right: 14px; color: rgba(255,255,255,0.75);
   }
-  .live-row  .game-league { color: rgba(255,59,59,0.6); }
-  .soon-row  .game-league { color: rgba(245,166,35,0.6); }
+  .live-row  .game-league { color: var(--red); }
+  .soon-row  .game-league { color: rgba(255,255,255,0.75); }
 
   /* window highlight */
   /* win-highlight handled below with gradient */
@@ -716,7 +722,7 @@ function renderInsight(games) {
 
   const fmt = ms => {
     const d = new Date(ms);
-    const rounded = Math.round(d.getMinutes() / 5) * 5;
+    const rounded = Math.round(d.getMinutes() / 10) * 10;
     d.setMinutes(rounded, 0, 0);
     const h = d.getHours();
     const m = String(d.getMinutes()).padStart(2,'0');
@@ -730,7 +736,7 @@ function renderInsight(games) {
     const hotGames = games.filter(g => g.bucket === 'live' && highValueLabel(g));
     hotGames.forEach(g => {
       const lbl = highValueLabel(g);
-      tips.push({ icon:'·', size:1, hot:true, text:`<span class="tip-pill"><span class="tip-team">${g.away.abbr}/${g.home.abbr}</span> ${g.league} · ${g.away.score}-${g.home.score} · <span class="tip-time">${lbl}</span></span>` });
+      tips.push({ icon:'·', size:1, hot:true, text:`<span class="tip-pill">${g.league} <span class="tip-team">${g.away.abbr}/${g.home.abbr}</span> · ${g.away.score}-${g.home.score} · <span class="tip-time">${lbl}</span></span>` });
     });
   }
 
@@ -781,7 +787,7 @@ function renderInsight(games) {
 
     if (evs.length === 1) {
       const {g} = evs[0];
-      tips.push({ icon:'·', size:1, time: grp.anchorMs, text:`<span class="tip-pill"><span class="tip-team">${g.away.abbr}/${g.home.abbr}</span> ${g.league} 2nd half around <span class="tip-time">${t}</span></span>` });
+      tips.push({ icon:'·', size:1, time: grp.anchorMs, text:`<span class="tip-pill">${g.league} <span class="tip-team">${g.away.abbr}/${g.home.abbr}</span> 2nd half around <span class="tip-time">${t}</span></span>` });
     } else {
       const byL = {};
       evs.forEach(({g}) => { (byL[g.league]||=[]).push(g); });
@@ -946,9 +952,9 @@ function soonRow(g) {
       <div class="teams-divider"></div>
       <div class="team-line"><span class="t-name">${g.home.abbr}</span>${g.home.record?`<span class="t-rec">${g.home.record}</span>`:''}</div>
     </div>
-    <div class="game-status">
-      <span class="gs-starts">Starts</span>
+    <div class="game-status upcoming-status">
       <span class="gs-cd" data-ms="${g.startTime.getTime()}">--:--</span>
+      <span class="gs-sep">·</span>
       <span class="gs-time">${g.startTime.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span>
     </div>
     <span class="game-league">${g.league}</span>
@@ -963,9 +969,9 @@ function schedRow(g) {
       <div class="teams-divider"></div>
       <div class="team-line"><span class="t-name">${g.home.abbr}</span>${g.home.record?`<span class="t-rec">${g.home.record}</span>`:''}</div>
     </div>
-    <div class="game-status">
-      <span class="gs-starts">Starts</span>
+    <div class="game-status upcoming-status">
       <span class="gs-cd" data-ms="${g.startTime.getTime()}">--:--</span>
+      <span class="gs-sep">·</span>
       <span class="gs-time">${g.startTime.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span>
     </div>
     <span class="game-league">${g.league}</span>
