@@ -306,16 +306,23 @@
   .insight-icon { font-size: 10px; flex-shrink: 0; margin-top: 3px; color: var(--green); font-weight: 900; }
   .insight-text { font-size: 12px; font-weight: 600; color: var(--text); line-height: 2; }
   .insight-text strong { font-weight: 700; }
-  .time-pill, .team-pill, .league-pill {
+  .tip-pill {
     display: inline-block;
-    border: 1.5px solid rgba(39,192,113,0.5);
-    color: var(--green);
-    background: linear-gradient(135deg, rgba(39,192,113,0.20) 0%, rgba(39,192,113,0.05) 100%);
-    border-radius: 5px;
-    padding: 1px 6px;
-    font-weight: 800;
-    font-size: 11px;
+    border: 1.5px solid rgba(39,192,113,0.4);
+    color: rgba(255,255,255,0.9);
+    background: linear-gradient(135deg, rgba(39,192,113,0.16) 0%, rgba(39,192,113,0.04) 100%);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-weight: 700;
+    font-size: 11.5px;
+    line-height: 1.6;
   }
+  .tip-time {
+    color: var(--green);
+    font-weight: 900;
+    text-shadow: 0 0 8px rgba(39,192,113,0.7), 0 0 16px rgba(39,192,113,0.3);
+  }
+  .tip-team { color: #fff; font-weight: 800; }
 
   /* win-highlight handled by green opportunity rows */
 
@@ -709,9 +716,13 @@ function renderInsight(games) {
 
   const fmt = ms => {
     const d = new Date(ms);
+    const rounded = Math.round(d.getMinutes() / 5) * 5;
+    d.setMinutes(rounded, 0, 0);
     const h = d.getHours();
     const m = String(d.getMinutes()).padStart(2,'0');
-    return `${h%12||12}:${m} ${h>=12?'PM':'AM'}`;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return m === '00' ? `${h12} ${ampm}` : `${h12}:${m} ${ampm}`;
   };
 
   // 1. Current high-value live games (today only)
@@ -719,7 +730,7 @@ function renderInsight(games) {
     const hotGames = games.filter(g => g.bucket === 'live' && highValueLabel(g));
     hotGames.forEach(g => {
       const lbl = highValueLabel(g);
-      tips.push({ icon:'·', text:`<span class="team-pill">${g.away.abbr}/${g.home.abbr}</span> <span class="league-pill">${g.league}</span> ${g.away.score}-${g.home.score} · ${lbl}` });
+      tips.push({ icon:'·', text:`<span class="tip-pill"><span class="tip-team">${g.away.abbr}/${g.home.abbr}</span> ${g.league} · ${g.away.score}-${g.home.score} · <span class="tip-time">${lbl}</span></span>` });
     });
   }
 
@@ -770,12 +781,12 @@ function renderInsight(games) {
 
     if (evs.length === 1) {
       const {g} = evs[0];
-      tips.push({ icon:'·', time: grp.anchorMs, text:`<span class="team-pill">${g.away.abbr}/${g.home.abbr}</span> <span class="league-pill">${g.league}</span> <span class="time-pill">2nd half</span> around <span class="time-pill">${t}</span>` });
+      tips.push({ icon:'·', time: grp.anchorMs, text:`<span class="tip-pill"><span class="tip-team">${g.away.abbr}/${g.home.abbr}</span> ${g.league} 2nd half around <span class="tip-time">${t}</span></span>` });
     } else {
       const byL = {};
       evs.forEach(({g}) => { (byL[g.league]||=[]).push(g); });
-      const parts = Object.entries(byL).map(([l,gs]) => `<span class="league-pill">${gs.length} ${l}</span>`).join(' ');
-      tips.push({ icon:'·', time: grp.anchorMs, text:`${parts} hit <span class="time-pill">2nd half</span> around <span class="time-pill">${t}</span>` });
+      const parts = Object.entries(byL).map(([l,gs]) => `${gs.length} ${l}`).join(', ');
+      tips.push({ icon:'·', time: grp.anchorMs, text:`<span class="tip-pill"><span class="tip-team">${parts}</span> hit 2nd half around <span class="tip-time">${t}</span></span>` });
     }
   });
 
