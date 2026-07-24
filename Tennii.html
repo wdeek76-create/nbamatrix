@@ -41,7 +41,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: var(--body);
-    font-size: 14px;
+    font-size: 17px;
     min-height: 100vh;
     position: relative;
   }
@@ -5928,64 +5928,124 @@ function renderSettleChart(){
   const canvas = document.getElementById('settleChartCanvas');
   const empty  = document.getElementById('settleChartEmpty');
   if(!canvas) return;
+
   const hist = getSettleHistory();
-  if(!hist || !hist.length){ canvas.style.display='none'; if(empty) empty.style.display='block'; return; }
+  const epoch = getSettleEpoch();
+  const isW = b => (b.result||'').toLowerCase()==='win';
+  const isL = b => (b.result||'').toLowerCase()==='loss';
+
+  // Current open session P&L
+  const openPool = bets.filter(b => b.buddy && (isW(b)||isL(b)) && (b.settleEpoch||0) >= epoch);
+  let openPnl = 0;
+  openPool.forEach(b => {
+    const u = (typeof b.settleUnit==='number'&&b.settleUnit>0)?b.settleUnit:0.5;
+    const eo = settleEffOdds(b);
+    openPnl += isW(b) ? amerPayout(eo,u*100) : -actualStake(eo,u*100);
+  });
+
+  const sessions = hist ? [...hist].reverse() : [];
+  // Build cumulative points: each past session + current open session
+  const points = [];
+  let cum = 0;
+  sessions.forEach(h => { cum += h.pnl/100; points.push({ v: cum, label: new Date(h.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}), live: false }); });
+  // Add current session as live trailing point
+  if(openPool.length > 0 || sessions.length > 0){
+    points.push({ v: cum + openPnl/100, label: 'Now', live: true });
+  }
+
+  if(!points.length){
+    canvas.style.display='none';
+    if(empty) empty.style.display='block';
+    return;
+  }
   if(empty) empty.style.display='none';
   canvas.style.display='block';
-  const sessions = [...hist].reverse();
-  const vals = sessions.map(h=>h.pnl/100);
-  const labels = sessions.map(h=>{ const d=new Date(h.date); return 'Wk '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); });
+
   const dpr=window.devicePixelRatio||1;
-  const W=canvas.parentElement.clientWidth-32;
-  const H=200;
+  const W=canvas.parentElement.clientWidth-24;
+  const H=220;
   canvas.width=W*dpr; canvas.height=H*dpr;
   canvas.style.width=W+'px'; canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');
   ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
-  const pad={t:24,r:12,b:40,l:52};
+
+  const pad={t:24,r:16,b:40,l:52};
   const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
-  const maxAbs=Math.max(...vals.map(Math.abs),0.5);
-  const zeroY=pad.t+ch/2;
-  const slot=cw/sessions.length;
-  const barW=Math.max(6,Math.floor(slot)-4);
-  // Grid
-  [maxAbs,0,-maxAbs].forEach(v=>{
-    const y=pad.t+ch*(1-(v+maxAbs)/(2*maxAbs));
-    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+  const vals=points.map(p=>p.v);
+  const minV=Math.min(0,...vals), maxV=Math.max(0,...vals);
+  const range=maxV-minV||1;
+  const toX=i=>pad.l+(i/(points.length-1||1))*cw;
+  const toY=v=>pad.t+ch-((v-minV)/range)*ch;
+
+  // Grid lines
+  const gridVals = [minV, minV+(maxV-minV)*0.5, maxV];
+  gridVals.forEach(v=>{
+    const y=toY(v);
+    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
-    ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='right';
-    ctx.fillText((v>=0?'+':'')+v.toFixed(1)+'u',pad.l-5,y+4);
+    ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='10px Outfit,sans-serif'; ctx.textAlign='right';
+    ctx.fillText((v>=0?'+':'')+v.toFixed(2)+'u',pad.l-5,y+4);
   });
+
+  // Zero line
   ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(pad.l,zeroY); ctx.lineTo(pad.l+cw,zeroY); ctx.stroke();
-  // Bars
-  vals.forEach((v,i)=>{
-    const x=pad.l+i*slot+(slot-barW)/2;
-    const barH=Math.abs(v)/maxAbs*(ch/2);
-    const y=v>=0?zeroY-barH:zeroY;
-    ctx.fillStyle=v>=0?'rgba(74,222,128,0.75)':'rgba(248,113,113,0.75)';
+  ctx.beginPath(); ctx.moveTo(pad.l,toY(0)); ctx.lineTo(pad.l+cw,toY(0)); ctx.stroke();
+
+  // Fill under line
+  const finalVal=vals[vals.length-1];
+  const lineCol=finalVal>=0?'#4ade80':'#f87171';
+  ctx.beginPath();
+  ctx.moveTo(toX(0),toY(vals[0]));
+  vals.forEach((_,i)=>ctx.lineTo(toX(i),toY(vals[i])));
+  ctx.lineTo(toX(vals.length-1),toY(minV));
+  ctx.lineTo(toX(0),toY(minV));
+  ctx.closePath();
+  ctx.fillStyle=finalVal>=0?'rgba(74,222,128,0.08)':'rgba(248,113,113,0.08)';
+  ctx.fill();
+
+  // Line — solid for past, dashed for live point
+  ctx.beginPath();
+  ctx.moveTo(toX(0),toY(vals[0]));
+  // Draw up to second-to-last (solid)
+  for(let i=1;i<points.length-(points[points.length-1].live?1:0);i++) ctx.lineTo(toX(i),toY(vals[i]));
+  ctx.strokeStyle=lineCol; ctx.lineWidth=2.5; ctx.stroke();
+
+  // Dashed segment to live point
+  if(points[points.length-1].live && points.length>1){
     ctx.beginPath();
-    if(ctx.roundRect) ctx.roundRect(x,y,barW,Math.max(2,barH),3);
-    else ctx.rect(x,y,barW,Math.max(2,barH));
-    ctx.fill();
-    if(barW>=24&&Math.abs(v)>0.05){
-      ctx.fillStyle=v>=0?'#4ade80':'#f87171';
-      ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
-      ctx.fillText((v>=0?'+':'')+v.toFixed(1),x+barW/2,v>=0?y-3:y+barH+10);
+    ctx.moveTo(toX(points.length-2),toY(vals[points.length-2]));
+    ctx.lineTo(toX(points.length-1),toY(vals[points.length-1]));
+    ctx.strokeStyle=lineCol; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Dots
+  points.forEach((p,i)=>{
+    ctx.beginPath(); ctx.arc(toX(i),toY(vals[i]),p.live?5:3,0,Math.PI*2);
+    ctx.fillStyle=p.live?lineCol:'rgba(255,255,255,0.4)'; ctx.fill();
+    if(p.live){
+      ctx.strokeStyle=lineCol; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(toX(i),toY(vals[i]),8,0,Math.PI*2); ctx.stroke();
     }
   });
+
   // X labels
-  const step=Math.ceil(sessions.length/7);
-  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
-  labels.forEach((lbl,i)=>{ if(i%step!==0&&i!==labels.length-1) return; ctx.fillText(lbl,pad.l+i*slot+slot/2,H-8); });
+  const step=Math.ceil(points.length/6);
+  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px Outfit,sans-serif'; ctx.textAlign='center';
+  points.forEach((p,i)=>{
+    if(i%step!==0&&i!==points.length-1) return;
+    ctx.fillStyle=p.live?lineCol:'rgba(255,255,255,0.4)';
+    ctx.fillText(p.label,toX(i),H-8);
+  });
+
   // Stats strip
-  const totalPnl=vals.reduce((a,b)=>a+b,0);
-  const greenWks=vals.filter(v=>v>0).length, redWks=vals.filter(v=>v<0).length;
-  const best=Math.max(...vals), worst=Math.min(...vals);
+  const totalPnl=finalVal;
+  const greenSess=sessions.filter(h=>h.pnl>0).length, redSess=sessions.filter(h=>h.pnl<0).length;
   let sd=canvas.parentElement.querySelector('.settle-chart-stats');
-  if(!sd){ sd=document.createElement('div'); sd.className='settle-chart-stats'; sd.style.cssText='display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--mono);font-size:11px'; canvas.parentElement.insertBefore(sd,canvas); }
+  if(!sd){ sd=document.createElement('div'); sd.className='settle-chart-stats'; sd.style.cssText='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--body);font-size:11px'; canvas.parentElement.insertBefore(sd,canvas); }
   const tc=totalPnl>=0?'var(--teal)':'#f87171';
-  sd.innerHTML=`<span style="color:${tc}"><b>${(totalPnl>=0?'+':'')+totalPnl.toFixed(2)}u</b> total</span><span style="color:var(--teal)"><b>${greenWks}</b> green</span><span style="color:#f87171"><b>${redWks}</b> red</span><span style="color:var(--text3)">Best <b style="color:var(--teal)">${best>=0?'+':''}${best.toFixed(2)}u</b></span><span style="color:var(--text3)">Worst <b style="color:#f87171">${worst.toFixed(2)}u</b></span>`;
+  const opStr=openPool.length?` · <span style="color:${openPnl>=0?'var(--teal)':'#f87171'}">${openPool.length} open ${(openPnl>=0?'+':'')}${(openPnl/100).toFixed(2)}u</span>`:'';
+  sd.innerHTML=`<span style="color:${tc}"><b>${(totalPnl>=0?'+':'')+totalPnl.toFixed(2)}u</b> cumulative</span><span style="color:var(--text3)">${sessions.length} sessions · ${greenSess}🟢 ${redSess}🔴</span>${opStr}`;
 }
 
 function renderSettleTab(){
