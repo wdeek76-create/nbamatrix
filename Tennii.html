@@ -1016,14 +1016,14 @@
   <!-- Log Tab -->
   <div class="tab-panel" id="tab-log">
   <div class="panel" id="logCard">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
-      <button onclick="exportBackup()" title="Download a backup file" style="font-size:11px;padding:5px 14px;border-color:var(--text2);color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.04em">Backup JSON</button>
-      <button onclick="document.getElementById('importFile').click()" title="Restore from a backup file" style="font-size:11px;padding:5px 14px;border-color:var(--text2);color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.04em">Restore JSON</button>
-    </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
       <div class="panel-label" style="margin-bottom:0">bet log</div>
-      <button id="filterOpen" onclick="setLogFilter('open')" style="font-size:10px;padding:3px 10px;border-color:var(--teal);color:var(--teal);text-transform:none;letter-spacing:0">Open</button>
-      <button id="filterSettled" onclick="setLogFilter('settled')" style="font-size:10px;padding:3px 10px;border-color:var(--border2);color:var(--text2);text-transform:none;letter-spacing:0">Settled</button>
+      <button id="filterOpen" onclick="setLogFilter('open')" style="font-size:13px;font-weight:700;padding:7px 16px;border-color:var(--teal);color:var(--teal);text-transform:none;letter-spacing:0;border-radius:10px">Open</button>
+      <button id="filterSettled" onclick="setLogFilter('settled')" style="font-size:13px;font-weight:700;padding:7px 16px;border-color:var(--border2);color:var(--text);text-transform:none;letter-spacing:0;border-radius:10px">Settled</button>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button onclick="exportBackup()" title="Download a backup file" style="font-size:10px;padding:4px 10px;border-color:var(--border2);color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.04em">Backup</button>
+        <button onclick="document.getElementById('importFile').click()" title="Restore from a backup file" style="font-size:10px;padding:4px 10px;border-color:var(--border2);color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.04em">Restore</button>
+      </div>
       <div style="flex-basis:100%;display:flex;gap:8px;align-items:center;position:relative">
         <input type="text" id="betSearch" placeholder="Search..." autocomplete="off" style="flex:1;width:100%;min-width:0;font-size:16px;padding:5px 10px" oninput="onSearchInput()" onfocus="onSearchInput()" onblur="setTimeout(closeSearchSuggest,180)">
         <div id="searchSuggest" style="display:none;position:absolute;top:100%;left:0;width:240px;max-height:280px;overflow-y:auto;background:var(--surface);border:1px solid var(--border2);border-radius:10px;margin-top:4px;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,0.55)"></div>
