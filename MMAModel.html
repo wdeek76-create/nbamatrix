@@ -886,6 +886,24 @@ function loadState() {
 function saveState(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
 let STATE = loadState();
 
+// One-time backfill for existing card.ml entries: if originalOdds is missing
+// but odds are set, seed originalOdds = current odds. This baselines existing
+// data so users don't have to re-ingest to start tracking drift. New entries
+// after this handle it automatically via mergeMlPreservingOG / autoFetchOdds.
+(function backfillOriginalOdds() {
+  let touched = 0;
+  (STATE.cards || []).forEach(card => {
+    Object.values(card.ml || {}).forEach(m => {
+      if (m.originalOdds == null && m.odds != null) {
+        m.originalOdds = m.odds;
+        m.originalBook = m.book || null;
+        touched++;
+      }
+    });
+  });
+  if (touched) saveState(STATE);
+})();
+
 // =========================================================================
 // HELPERS
 // =========================================================================
@@ -918,6 +936,32 @@ function mergePreservingManual(existing, fresh) {
   Object.keys(existing).forEach(k => {
     if (existing[k] && existing[k].manual) out[k] = existing[k]; // keep override
   });
+  return out;
+}
+
+// Merge helper specifically for card.ml — preserves the FIRST-EVER odds captured
+// for each fighter as `originalOdds` + `originalBook`. Once seeded, these never
+// change again from subsequent ingests, fetches, or edits. Downstream views
+// (Model tab, Consensus tab) use them to show "market drift from OG price."
+function mergeMlPreservingOG(existing, fresh) {
+  if (!fresh || !Object.keys(fresh).length) return existing;
+  const out = {};
+  Object.keys(fresh).forEach(k => {
+    const freshEntry = fresh[k];
+    const existingEntry = existing ? existing[k] : null;
+    // Preserve existing originalOdds if we have one; otherwise seed from fresh
+    const originalOdds = (existingEntry && existingEntry.originalOdds != null)
+      ? existingEntry.originalOdds : freshEntry.odds;
+    const originalBook = (existingEntry && existingEntry.originalBook != null)
+      ? existingEntry.originalBook : freshEntry.book;
+    out[k] = { ...freshEntry, originalOdds, originalBook };
+  });
+  // Preserve fighters that were in existing but not in fresh (partial re-paste)
+  if (existing) {
+    Object.keys(existing).forEach(k => {
+      if (!(k in out)) out[k] = existing[k];
+    });
+  }
   return out;
 }
 
@@ -1645,7 +1689,7 @@ function newScan() {
   const card = t.card;
   const isNew = t.isNew;
   // Only overwrite a map if new data was pasted (empty paste = keep existing)
-  if (mlCount) card.ml = ml;
+  if (mlCount) card.ml = mergeMlPreservingOG(card.ml, ml);
   if (Object.keys(eyeMap).length) card.eye = mergePreservingManual(card.eye, eyeMap);
   if (Object.keys(arenaMap).length) card.arena = mergePreservingManual(card.arena, arenaMap);
   if (Object.keys(saberMap).length) card.saber = mergePreservingManual(card.saber, saberMap);
@@ -2025,6 +2069,13 @@ function editCardMl(cardId, fighterKey) {
   if (bookInput === null) return;
   const newBook = bookInput.trim();
 
+  // Seed originalOdds on first-ever edit if not yet set. This locks the
+  // original price for later drift display.
+  if (m.originalOdds == null) {
+    m.originalOdds = m.odds != null ? m.odds : parsed;
+    m.originalBook = m.book || null;
+  }
+
   // Update card map
   m.odds = parsed;
   if (newBook !== '') m.book = newBook;
@@ -2354,7 +2405,7 @@ function processIngest() {
   if (!t) return;
   const card = t.card;
   const isNew = t.isNew;
-  card.ml = ml;
+  card.ml = mergeMlPreservingOG(card.ml, ml);
   if (Object.keys(eyeMap).length) card.eye = mergePreservingManual(card.eye, eyeMap);
   if (Object.keys(arenaMap).length) card.arena = mergePreservingManual(card.arena, arenaMap);
   if (Object.keys(saberMap).length) card.saber = mergePreservingManual(card.saber, saberMap);
@@ -3146,11 +3197,28 @@ function renderBetsTable(target, bets, opts={}) {
     const bookStr = b.book
       ? `<div style="font-size:10px; letter-spacing:0.04em; color:var(--muted); margin-top:3px;">${b.book}</div>`
       : '';
+    // OG drift on the bet's market cell — the card's ORIGINAL market price
+    // for this fighter, and how far the LINE has moved since. Not compared
+    // to bet.ml (that's your entry, locked). Compared to card.ml.originalOdds
+    // vs card.ml.odds (current). Helps see when to press or fade the market.
+    let betOgBadge = '';
+    const betCard = STATE.cards.find(c => c.id === b.cardId);
+    const cardMlKey = betCard ? findMatchKey(betCard.ml || {}, b.fighter) : null;
+    const cardMlEntry = cardMlKey ? betCard.ml[cardMlKey] : null;
+    if (cardMlEntry && cardMlEntry.originalOdds != null && cardMlEntry.odds != null && cardMlEntry.originalOdds !== cardMlEntry.odds) {
+      const better = cardMlEntry.odds > cardMlEntry.originalOdds;
+      const arrow = better ? '↑' : '↓';
+      const arrowColor = better ? 'var(--green)' : 'var(--red)';
+      const delta = cardMlEntry.odds - cardMlEntry.originalOdds;
+      const deltaStr = (delta >= 0 ? '+' : '') + delta;
+      betOgBadge = `<div style="font-size:9px; color:${arrowColor}; font-weight:700; margin-top:2px;" title="Card OG price: ${fmtAm(cardMlEntry.originalOdds)}. Market is now ${fmtAm(cardMlEntry.odds)}. Your bet stays at ${fmtAm(b.ml)}.">Line: ${fmtAm(cardMlEntry.odds)} ${arrow}${deltaStr}</div>`;
+    }
     const marketCell = `<td class="num" onclick="editBetMarket('${b.cardId}','${b.id}')" style="cursor:pointer;" title="Click to update odds / book">
       <div style="color:var(--text); font-weight:600; font-size:13px;">${fmtAm(b.ml)}</div>
       <div style="color:var(--muted); font-weight:500; font-size:11px; margin-top:2px;">${fmtPct(market,1)}</div>
       ${bookStr}
       ${prevMlStr}
+      ${betOgBadge}
     </td>`;
 
     const ekey = (b.fighter || '').replace(/'/g,"\\'");
@@ -3619,6 +3687,14 @@ function renderModel() {
       // Model tab can render a line-movement badge next to Market.
       const prevOdds = (m.lastAutoFetch && m.lastAutoFetch.prevOdds != null)
         ? m.lastAutoFetch.prevOdds : null;
+      // Book name + how many books contributed (auto-fetch tracks all)
+      const bookName = m.book || null;
+      const allBooksCount = (m.lastAutoFetch && Array.isArray(m.lastAutoFetch.allBooks))
+        ? m.lastAutoFetch.allBooks.length : null;
+      // OG price + book — the FIRST price ever captured for this fighter,
+      // never overwritten. Drift = current odds vs OG.
+      const originalOdds = m.originalOdds != null ? m.originalOdds : null;
+      const originalBook = m.originalBook || null;
 
       rows.push({
         cardId: c.id,
@@ -3628,6 +3704,10 @@ function renderModel() {
         oppOdds, oppImplied,
         ml: m.odds,
         prevOdds,
+        book: bookName,
+        allBooksCount,
+        originalOdds,
+        originalBook,
         mkt,
         eyeProb: eP, arenaProb: aP, saberProb: sP, actionProb: acP,
         blended, edge,
@@ -3696,21 +3776,33 @@ function renderModel() {
       </td>`;
     };
     const mlClickAttr = `onclick="editCardMl('${r.cardId}','${fighterAttr}')" style="cursor:pointer;" title="Click to edit market odds"`;
-    // Line-movement badge — up arrow if odds moved MORE FAVORABLE for a bettor
-    // on this side (american number went higher, e.g. -150 → -120 or +150 → +180);
-    // down arrow if worse. Only shows if we have a prevOdds snapshot from a
-    // prior auto-fetch and the value actually changed.
-    let movementBadge = '';
-    if (r.prevOdds != null && r.ml != null && r.prevOdds !== r.ml) {
-      const better = r.ml > r.prevOdds;
+    // OG drift badge — shows how far the current market has moved from the
+    // FIRST price captured for this fighter (locked forever, not overwritten
+    // by fetches/edits). Direction based on American odds sign:
+    //   current > OG = market moved to a BETTER price (green ↑)
+    //   current < OG = market moved to a WORSE price (red ↓)
+    // If OG matches current exactly, no badge shown (no movement).
+    let ogBadge = '';
+    if (r.originalOdds != null && r.ml != null && r.originalOdds !== r.ml) {
+      const better = r.ml > r.originalOdds;
       const arrow = better ? '↑' : '↓';
       const arrowColor = better ? 'var(--green)' : 'var(--red)';
-      const delta = r.ml - r.prevOdds;
+      const delta = r.ml - r.originalOdds;
       const deltaStr = (delta >= 0 ? '+' : '') + delta;
-      movementBadge = `<div style="font-size:9px; color:${arrowColor}; font-weight:700; margin-top:2px;" title="Line moved from ${fmtAm(r.prevOdds)} to ${fmtAm(r.ml)} (${deltaStr})">${arrow} ${deltaStr}</div>`;
+      const ogBookStr = r.originalBook ? ` @ ${r.originalBook}` : '';
+      ogBadge = `<div style="font-size:9px; color:${arrowColor}; font-weight:700; margin-top:2px;" title="Original: ${fmtAm(r.originalOdds)}${ogBookStr} → now ${fmtAm(r.ml)} (${deltaStr})">OG ${fmtAm(r.originalOdds)} ${arrow}${deltaStr}</div>`;
+    } else if (r.originalOdds != null && r.ml != null && r.originalOdds === r.ml) {
+      // Same as OG — show it as neutral so you know the OG was captured
+      ogBadge = `<div style="font-size:9px; color:var(--muted); font-weight:600; margin-top:2px;" title="Original price, unchanged">OG ${fmtAm(r.originalOdds)}</div>`;
+    }
+    // Book badge — where the current price came from
+    let bookBadge = '';
+    if (r.book) {
+      const booksSuffix = r.allBooksCount ? ` <span style="color:var(--muted); font-weight:500;">(${r.allBooksCount})</span>` : '';
+      bookBadge = `<div style="font-size:9px; color:var(--green); font-weight:600; margin-top:2px;">${r.book}${booksSuffix}</div>`;
     }
     const marketCell = r.mkt != null
-      ? `<td class="num" ${mlClickAttr}><div style="color:var(--text); font-weight:700;">${fmtAm(r.ml)}</div><div style="color:var(--text); font-weight:700; font-size:11px;">${fmtPct(r.mkt, 1)}</div>${movementBadge}</td>`
+      ? `<td class="num" ${mlClickAttr}><div style="color:var(--text); font-weight:700;">${fmtAm(r.ml)}</div><div style="color:var(--text); font-weight:700; font-size:11px;">${fmtPct(r.mkt, 1)}</div>${bookBadge}${ogBadge}</td>`
       : `<td class="num" ${mlClickAttr} style="color:var(--text); font-weight:700;">—<div style="font-size:9px; color:var(--muted2); margin-top:2px;">edit</div></td>`;
     const blendedAm = impliedToAmerican(r.blended);
     const blendedCell = `<td class="num"><div style="color:var(--text); font-weight:700; font-size:13px;">${fmtAm(blendedAm)}</div><div style="color:var(--text); font-weight:700; font-size:11px; margin-top:2px;">${fmtPct(r.blended, 1)}</div></td>`;
@@ -4754,7 +4846,7 @@ function renderCards() {
     }).filter(Boolean).join('');
     const clvLine = clvByStream
       ? `<div class="det" style="margin-top:4px;">${clvByStream}</div>`
-      : (c.closing ? '<div class="det" style="margin-top:4px; opacity:0.6;">Closing odds loaded · re-process to stamp CLV</div>' : '');
+      : '';
 
     return `<div class="card-row">
       <div class="info">
@@ -5185,10 +5277,19 @@ async function autoFetchOdds(cardId) {
       if (!entry) { skipped++; mismatches.push(fighterMl.name); return; }
     }
 
-    // Update card.ml. Preserve the previous card.ml.odds as fetchedFrom so the
-    // Model tab can show a line-movement badge (was X, now Y). Also stamp
-    // lastAutoFetch metadata for provenance.
+    // Update card.ml. Preserve the previous card.ml.odds as prevOdds (used
+    // for the "last fetch to this fetch" line-movement badge) AND seed
+    // originalOdds on first-ever contact if it isn't set yet (used for the
+    // "OG price → now" drift display on Model + Consensus tabs).
     const priorOdds = fighterMl.odds;
+    if (fighterMl.originalOdds == null && priorOdds != null) {
+      fighterMl.originalOdds = priorOdds;
+      fighterMl.originalBook = fighterMl.book || null;
+    } else if (fighterMl.originalOdds == null) {
+      // Fighter had no prior odds at all — this fetch IS the OG
+      fighterMl.originalOdds = entry.best.odds;
+      fighterMl.originalBook = entry.best.book;
+    }
     fighterMl.odds = entry.best.odds;
     fighterMl.book = entry.best.book;
     fighterMl.lastAutoFetch = {
@@ -5232,8 +5333,9 @@ async function autoFetchClosingLines(cardId) {
   } catch (err) { toast(`Fetch failed: ${err.message}`, 'error'); return; }
 
   // For closing lines we want BetOnline as the primary (Pikkit standard).
-  // Fall back to other books only if BetOnline doesn't cover the fighter.
-  const closingMap = {}; // norm → { name, odds, book }
+  // We build a byBook map for every fighter — computeCLV specifically reads
+  // closeEntry.byBook['BetOnline'] to stamp CLV.
+  const closingByFighter = {}; // norm → { name, allBooks: {book: odds}, bestOdds, bestBook }
   data.forEach(ev => {
     (ev.bookmakers || []).forEach(bm => {
       (bm.markets || []).forEach(mk => {
@@ -5241,16 +5343,13 @@ async function autoFetchClosingLines(cardId) {
         (mk.outcomes || []).forEach(oc => {
           if (typeof oc.price !== 'number') return;
           const norm = normalizeName(oc.name);
-          const cur = closingMap[norm];
-          // Prefer BetOnline; if not BetOnline and no entry yet, take best price
-          const isBetOnline = bm.key === 'betonlineag' || bm.title.toLowerCase().includes('betonline');
-          if (!cur) {
-            closingMap[norm] = { name: oc.name, odds: oc.price, book: bm.title, isBetOnline };
-          } else if (isBetOnline && !cur.isBetOnline) {
-            closingMap[norm] = { name: oc.name, odds: oc.price, book: bm.title, isBetOnline: true };
-          } else if (!cur.isBetOnline && isBetterPrice(oc.price, cur.odds)) {
-            closingMap[norm] = { name: oc.name, odds: oc.price, book: bm.title, isBetOnline: false };
-          }
+          if (!closingByFighter[norm]) closingByFighter[norm] = { name: oc.name, byBook: {} };
+          // Map to friendly book names computeCLV recognizes. BetOnline is the
+          // key one — computeCLV keys off byBook.BetOnline literally.
+          const bookName = (bm.key === 'betonlineag' || bm.title.toLowerCase().includes('betonline'))
+            ? 'BetOnline'
+            : bm.title;
+          closingByFighter[norm].byBook[bookName] = oc.price;
         });
       });
     });
@@ -5261,12 +5360,27 @@ async function autoFetchClosingLines(cardId) {
   let updated = 0;
   Object.entries(card.ml || {}).forEach(([fighterKey, fighterMl]) => {
     const norm = normalizeName(fighterMl.name);
-    const entry = closingMap[norm];
+    const entry = closingByFighter[norm];
     if (!entry) return;
-    card.closing[normalizeName(fighterMl.name)] = {
+    // Prefer BetOnline; fall back to best available price if BetOnline is missing
+    const betonline = entry.byBook['BetOnline'];
+    let displayOdds = betonline;
+    let displayBook = 'BetOnline';
+    if (displayOdds == null) {
+      // No BetOnline — pick best price across all books
+      const entries = Object.entries(entry.byBook);
+      if (entries.length) {
+        entries.sort((a, b) => b[1] - a[1]); // highest odds = best for bettor
+        displayOdds = entries[0][1];
+        displayBook = entries[0][0];
+      }
+    }
+    if (displayOdds == null) return;
+    card.closing[norm] = {
       name: fighterMl.name,
-      odds: entry.odds,
-      book: entry.book,
+      odds: displayOdds,
+      book: displayBook,
+      byBook: entry.byBook,          // computeCLV needs this to work
       autoFetched: true,
       fetchedAt: Date.now(),
     };
@@ -5274,6 +5388,7 @@ async function autoFetchClosingLines(cardId) {
   });
 
   // Re-stamp CLV on every bet using the fresh closing map
+  let clvStamped = 0;
   (card.bets || []).forEach(b => {
     const closeKey = findMatchKey(card.closing, b.fighter);
     if (!closeKey) return;
@@ -5284,13 +5399,15 @@ async function autoFetchClosingLines(cardId) {
       b.closingImplied = americanToImplied(res.closeOdds);
       b.closingBook = res.closeBook;
       b.clv = res.clv;
+      clvStamped++;
     }
   });
 
   saveState(STATE);
   rerenderCurrentTab();
   const remStr = remainingReqs ? ` · ${remainingReqs} req remaining` : '';
-  toast(`Closing lines: ${updated} fighters updated${remStr}`);
+  const clvStr = clvStamped ? ` · CLV stamped on ${clvStamped} bet${clvStamped === 1 ? '' : 's'}` : '';
+  toast(`Closing lines: ${updated} fighters updated${clvStr}${remStr}`);
 }
 
 
